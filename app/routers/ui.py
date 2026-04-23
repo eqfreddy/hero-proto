@@ -39,8 +39,11 @@ from app.models import (
     GuildMessage,
     GuildRole,
     HeroInstance,
+    Purchase,
+    ShopProduct,
     Stage,
 )
+from app.store import product_contents, count_account_purchases
 
 _TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
@@ -303,4 +306,71 @@ def partial_guild(
             "messages": msg_rows,
             "all_guilds": [],
         },
+    )
+
+
+@router.get("/partials/shop", response_class=HTMLResponse)
+def partial_shop(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    from datetime import datetime as _dt
+    now = _dt.utcnow()
+    products = []
+    starter = None
+    for p in db.scalars(
+        select(ShopProduct)
+        .where(ShopProduct.is_active.is_(True))
+        .order_by(ShopProduct.sort_order, ShopProduct.id)
+    ):
+        # Timed filter: skip not-yet-started and already-ended products.
+        if p.starts_at is not None and now < p.starts_at:
+            continue
+        if p.ends_at is not None and now >= p.ends_at:
+            continue
+        # Skip products the account has already maxed out on per_account_limit.
+        if p.per_account_limit:
+            owned = count_account_purchases(db, account.id, p.sku)
+            if owned >= p.per_account_limit:
+                continue
+        row = {
+            "sku": p.sku, "title": p.title, "description": p.description,
+            "kind": str(p.kind), "price_cents": p.price_cents,
+            "currency_code": p.currency_code,
+            "contents": product_contents(p),
+        }
+        if p.kind == "STARTER_BUNDLE" and starter is None:
+            starter = row
+        else:
+            products.append(row)
+
+    # Recent purchase history (most recent 8) with short granted summary.
+    history_rows = list(
+        db.scalars(
+            select(Purchase)
+            .where(Purchase.account_id == account.id)
+            .order_by(Purchase.id.desc())
+            .limit(8)
+        )
+    )
+    history = []
+    for pr in history_rows:
+        try:
+            granted = json.loads(pr.contents_snapshot_json or "{}")
+        except json.JSONDecodeError:
+            granted = {}
+        short_bits = []
+        for k, v in granted.items():
+            if isinstance(v, int) and v:
+                short_bits.append(f"+{v} {k}")
+        history.append({
+            "id": pr.id, "title": pr.title_snapshot, "sku": pr.sku,
+            "state": str(pr.state), "price_cents": pr.price_cents_paid,
+            "created_at": pr.created_at, "granted_short": ", ".join(short_bits),
+        })
+
+    return templates.TemplateResponse(
+        request, "partials/shop.html",
+        {"me": _me_dict(account), "products": products, "starter": starter, "history": history},
     )

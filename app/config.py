@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # dev/CI short-circuit the middleware entirely. Never enable in prod.
     rate_limit_disabled: bool = False
 
+    # Store: when True, POST /shop/purchases accepts unsigned "mock" payments that
+    # immediately grant contents. Used in dev/CI before real Stripe is wired.
+    # Auto-disabled in prod by main._check_secrets.
+    mock_payments_enabled: bool = False
+
     # Comma-separated list of emails auto-promoted to admin on registration/login.
     admin_emails: str = ""
 

@@ -10,6 +10,8 @@ import random
 import tempfile
 
 os.environ["HEROPROTO_ENVIRONMENT"] = "test"
+# Enable the mock payments processor so store tests can actually exercise purchase flow.
+os.environ["HEROPROTO_MOCK_PAYMENTS_ENABLED"] = "1"
 
 import pytest
 from fastapi.testclient import TestClient

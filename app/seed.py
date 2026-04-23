@@ -24,6 +24,8 @@ from app.models import (
     LiveOpsKind,
     Rarity,
     Role,
+    ShopProduct,
+    ShopProductKind,
     Stage,
     utcnow,
 )
@@ -507,6 +509,66 @@ STAGE_SEEDS: list[dict] = [
 ]
 
 
+# --- Shop catalog ------------------------------------------------------------
+#
+# Prices roughly mirror western mobile F2P tuning — the starter pack is a soft
+# first-purchase conversion at $1.99, gem tiers step up to $49.99 "best value",
+# access_cards (premium character-pack currency) priced at a deliberate premium.
+# All are catalog entries; real Stripe integration is a later sprint.
+
+SHOP_SEEDS: list[dict] = [
+    # Starter pack — one-time purchase, high perceived value to convert first-time payers.
+    {
+        "sku": "starter_pack", "title": "Starter Pack",
+        "description": "New-player bundle: 500 gems, 100 shards, 5 access cards. One-time only.",
+        "kind": ShopProductKind.STARTER_BUNDLE,
+        "price_cents": 199, "sort_order": 10, "per_account_limit": 1,
+        "contents": {"gems": 500, "shards": 100, "access_cards": 5},
+    },
+    # Gem packs — standard premium-currency ladder.
+    {
+        "sku": "gems_small", "title": "Pocket Change",
+        "description": "300 💎 gems.",
+        "kind": ShopProductKind.GEM_PACK, "price_cents": 499, "sort_order": 100,
+        "contents": {"gems": 300},
+    },
+    {
+        "sku": "gems_medium", "title": "Slush Fund",
+        "description": "1400 💎 gems. (+12% bonus)",
+        "kind": ShopProductKind.GEM_PACK, "price_cents": 1999, "sort_order": 110,
+        "contents": {"gems": 1400},
+    },
+    {
+        "sku": "gems_large", "title": "Off-the-Books Budget",
+        "description": "3800 💎 gems. (+26% bonus — best value)",
+        "kind": ShopProductKind.GEM_PACK, "price_cents": 4999, "sort_order": 120,
+        "contents": {"gems": 3800},
+    },
+    # Shard pack — lower tier, gameplay-adjacent currency.
+    {
+        "sku": "shards_pack", "title": "Summoning Cache",
+        "description": "150 ✦ shards — enough for a 10-pull.",
+        "kind": ShopProductKind.SHARD_PACK, "price_cents": 999, "sort_order": 200,
+        "contents": {"shards": 150},
+    },
+    # Access cards — premium character-pack currency. Deliberately pricey.
+    {
+        "sku": "access_cards_pack", "title": "Keymaster's Bundle",
+        "description": "15 🎫 access cards for featured character packs.",
+        "kind": ShopProductKind.ACCESS_CARD_PACK, "price_cents": 999, "sort_order": 300,
+        "contents": {"access_cards": 15},
+    },
+    # Weekly bundle — mixed-currency good-value offer. Timed window seeded separately.
+    {
+        "sku": "weekly_bundle", "title": "Weekly Ops Kit",
+        "description": "700 💎 gems + 40 ✦ shards + 3 🎫 access cards. Resets weekly.",
+        "kind": ShopProductKind.WEEKLY_BUNDLE, "price_cents": 999, "sort_order": 400,
+        "per_account_limit": 0,  # intended to recur weekly in later sprints
+        "contents": {"gems": 700, "shards": 40, "access_cards": 3},
+    },
+]
+
+
 def seed() -> None:
     _ensure_schema()
     with SessionLocal() as db:
@@ -558,8 +620,24 @@ def seed() -> None:
             ))
             added_l = 1
 
+        # Shop catalog.
+        existing_skus = set(db.scalars(select(ShopProduct.sku)).all())
+        added_p = 0
+        for p in SHOP_SEEDS:
+            if p["sku"] in existing_skus:
+                continue
+            db.add(ShopProduct(
+                sku=p["sku"], title=p["title"], description=p.get("description", ""),
+                kind=p["kind"], price_cents=p["price_cents"],
+                currency_code=p.get("currency_code", "USD"),
+                contents_json=json.dumps(p["contents"]),
+                sort_order=p.get("sort_order", 100),
+                per_account_limit=p.get("per_account_limit", 0),
+            ))
+            added_p += 1
+
         db.commit()
-        print(f"seeded heroes+={added_h} stages+={added_s} liveops+={added_l}")
+        print(f"seeded heroes+={added_h} stages+={added_s} liveops+={added_l} products+={added_p}")
 
 
 if __name__ == "__main__":

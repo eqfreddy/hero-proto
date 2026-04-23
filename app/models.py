@@ -106,6 +106,27 @@ class LiveOpsKind(StrEnum):
     BONUS_GEAR_DROPS = "BONUS_GEAR_DROPS"  # raises drop chance
 
 
+class ShopProductKind(StrEnum):
+    GEM_PACK = "GEM_PACK"
+    SHARD_PACK = "SHARD_PACK"
+    ACCESS_CARD_PACK = "ACCESS_CARD_PACK"
+    STARTER_BUNDLE = "STARTER_BUNDLE"
+    WEEKLY_BUNDLE = "WEEKLY_BUNDLE"
+    SEASONAL_BUNDLE = "SEASONAL_BUNDLE"
+
+
+class PurchaseState(StrEnum):
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    REFUNDED = "REFUNDED"
+    FAILED = "FAILED"
+
+
+class LedgerDirection(StrEnum):
+    GRANT = "GRANT"       # currency/items given to player on purchase
+    REFUND = "REFUND"     # clawback on chargeback/refund
+
+
 class RaidState(StrEnum):
     ACTIVE = "ACTIVE"
     DEFEATED = "DEFEATED"
@@ -434,4 +455,81 @@ class AdminAuditLog(Base):
     action: Mapped[str] = mapped_column(String(32), index=True)
     target_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     payload_json: Mapped[str] = mapped_column(String(2048), default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+
+
+class ShopProduct(Base):
+    """Purchasable product in the in-game store. Catalog entry — independent of any sale."""
+
+    __tablename__ = "shop_products"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sku: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(128))
+    description: Mapped[str] = mapped_column(String(512), default="")
+    kind: Mapped[ShopProductKind] = mapped_column(String(32), index=True)
+    # Price in USD cents. NULL currency_code == "USD".
+    price_cents: Mapped[int] = mapped_column(Integer)
+    currency_code: Mapped[str] = mapped_column(String(8), default="USD")
+    # What the purchase grants. JSON: {"gems": N, "shards": N, "access_cards": N, "coins": N,
+    # "hero_template_code": "..."}. All fields optional.
+    contents_json: Mapped[str] = mapped_column(String(1024), default="{}")
+    sort_order: Mapped[int] = mapped_column(Integer, default=100, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    # Timed availability. NULL = always on when is_active.
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # 0 = unlimited. 1 = one-time (starter packs). N = per-account cap.
+    per_account_limit: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
+class Purchase(Base):
+    """A completed or pending sale. Records the full context needed for refunds and audits."""
+
+    __tablename__ = "purchases"
+    # (processor, processor_ref) is the idempotency key — duplicate webhooks no-op.
+    __table_args__ = (UniqueConstraint("processor", "processor_ref"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    sku: Mapped[str] = mapped_column(String(64), index=True)
+    title_snapshot: Mapped[str] = mapped_column(String(128))
+    price_cents_paid: Mapped[int] = mapped_column(Integer)
+    currency_code: Mapped[str] = mapped_column(String(8), default="USD")
+    processor: Mapped[str] = mapped_column(String(32), index=True)  # "mock", "stripe", "apple", "google"
+    processor_ref: Mapped[str] = mapped_column(String(128), index=True)  # e.g. stripe charge id
+    state: Mapped[PurchaseState] = mapped_column(
+        String(16), default=PurchaseState.PENDING, index=True
+    )
+    # What was granted — snapshot so refund can reverse exactly what was given.
+    contents_snapshot_json: Mapped[str] = mapped_column(String(1024), default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    refund_reason: Mapped[str] = mapped_column(String(256), default="")
+
+
+class PurchaseLedger(Base):
+    """Audit-only: every paid-currency grant and refund debit. Never exposed to players;
+    used for reconciliation and customer-support tooling.
+
+    Example rows after a $4.99 gem purchase that grants 500 gems:
+      - (purchase=17, kind='gems', amount=500, direction='GRANT')
+    After admin refund:
+      - (purchase=17, kind='gems', amount=500, direction='REFUND')
+    """
+
+    __tablename__ = "purchase_ledger"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    purchase_id: Mapped[int] = mapped_column(
+        ForeignKey("purchases.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(32), index=True)  # "gems", "shards", "access_cards", "coins", "hero"
+    amount: Mapped[int] = mapped_column(Integer)
+    direction: Mapped[LedgerDirection] = mapped_column(String(16), index=True)
+    note: Mapped[str] = mapped_column(String(256), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)

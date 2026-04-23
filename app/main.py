@@ -18,7 +18,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import admin, arena, auth, battles, daily, gear, guilds, heroes, liveops, me, raids, stages, summon, ui
+from app.routers import admin, arena, auth, battles, daily, gear, guilds, heroes, liveops, me, raids, shop, stages, summon, ui
 from app.worker import worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -36,6 +36,11 @@ def _check_secrets() -> None:
             )
         if len(settings.jwt_secret.encode("utf-8")) < 32:
             raise RuntimeError("HEROPROTO_JWT_SECRET must be at least 32 bytes in production")
+        if settings.mock_payments_enabled:
+            raise RuntimeError(
+                "HEROPROTO_MOCK_PAYMENTS_ENABLED must be false in production — real "
+                "payment processor required"
+            )
 
 
 def _run_migrations() -> None:
@@ -120,6 +125,7 @@ app.include_router(guilds.router)
 app.include_router(liveops.router)
 app.include_router(raids.router)
 app.include_router(admin.router)
+app.include_router(shop.router)
 
 
 @app.get("/healthz")

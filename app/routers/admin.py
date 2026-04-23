@@ -21,8 +21,11 @@ from app.models import (
     HeroTemplate,
     LiveOpsEvent,
     LiveOpsKind,
+    Purchase,
+    PurchaseState,
     utcnow,
 )
+from app.store import apply_refund
 
 
 def _audit(db: Session, actor: Account, action: str, target_id: int | None, **payload) -> None:
@@ -333,3 +336,88 @@ def audit(
             )
         )
     return rows
+
+
+# --- Store admin -------------------------------------------------------------
+
+
+class PurchaseAdminOut(BaseModel):
+    id: int
+    account_id: int
+    sku: str
+    title: str
+    price_cents: int
+    currency_code: str
+    state: str
+    processor: str
+    processor_ref: str
+    created_at: datetime
+    completed_at: datetime | None
+    refunded_at: datetime | None
+    refund_reason: str
+
+
+class RefundIn(BaseModel):
+    reason: str = Field(default="", max_length=256)
+
+
+@router.get("/purchases", response_model=list[PurchaseAdminOut])
+def list_purchases(
+    _admin: Annotated[Account, Depends(get_current_admin)],
+    db: Annotated[Session, Depends(get_db)],
+    account_id: int | None = None,
+    state: str | None = None,
+    limit: int = 100,
+) -> list[PurchaseAdminOut]:
+    """Paginated purchase log. Filter by account or state."""
+    limit = max(1, min(500, limit))
+    stmt = select(Purchase).order_by(Purchase.id.desc()).limit(limit)
+    if account_id is not None:
+        stmt = stmt.where(Purchase.account_id == account_id)
+    if state:
+        stmt = stmt.where(Purchase.state == state)
+    return [
+        PurchaseAdminOut(
+            id=p.id, account_id=p.account_id, sku=p.sku, title=p.title_snapshot,
+            price_cents=p.price_cents_paid, currency_code=p.currency_code,
+            state=str(p.state), processor=p.processor, processor_ref=p.processor_ref,
+            created_at=p.created_at, completed_at=p.completed_at,
+            refunded_at=p.refunded_at, refund_reason=p.refund_reason,
+        )
+        for p in db.scalars(stmt)
+    ]
+
+
+@router.post("/purchases/{purchase_id}/refund", response_model=PurchaseAdminOut)
+def refund_purchase(
+    purchase_id: int,
+    body: RefundIn,
+    admin: Annotated[Account, Depends(get_current_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PurchaseAdminOut:
+    """Reverse a completed purchase. Clawbacks paid currencies (clamped at zero) and
+    marks the Purchase row REFUNDED. Hero items are *not* automatically removed — left
+    for manual CS review."""
+    p = db.get(Purchase, purchase_id)
+    if p is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "purchase not found")
+    if p.state != PurchaseState.COMPLETED:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"cannot refund a {p.state} purchase",
+        )
+    acct = db.get(Account, p.account_id)
+    if acct is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
+
+    reversed_ = apply_refund(db, acct, p, reason=body.reason)
+    _audit(db, admin, "refund", p.id, account_id=p.account_id, reversed=reversed_, reason=body.reason)
+    db.commit()
+    db.refresh(p)
+    return PurchaseAdminOut(
+        id=p.id, account_id=p.account_id, sku=p.sku, title=p.title_snapshot,
+        price_cents=p.price_cents_paid, currency_code=p.currency_code,
+        state=str(p.state), processor=p.processor, processor_ref=p.processor_ref,
+        created_at=p.created_at, completed_at=p.completed_at,
+        refunded_at=p.refunded_at, refund_reason=p.refund_reason,
+    )
