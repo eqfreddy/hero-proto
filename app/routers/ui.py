@@ -339,6 +339,7 @@ def partial_shop(
             "kind": str(p.kind), "price_cents": p.price_cents,
             "currency_code": p.currency_code,
             "contents": product_contents(p),
+            "has_stripe": bool(p.stripe_price_id),
         }
         if p.kind == "STARTER_BUNDLE" and starter is None:
             starter = row

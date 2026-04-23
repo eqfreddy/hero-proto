@@ -46,7 +46,13 @@
           </div>
           <div class="row" style="justify-content: space-between; margin-top: 12px; align-items: center;">
             <div style="font-size: 18px; font-weight: 700;">${{ '%.2f' | format(p.price_cents / 100) }}</div>
-            <button class="primary" onclick="shopBuy('{{ p.sku }}', this)">Buy</button>
+            <div class="row" style="gap: 4px;">
+              {% if p.has_stripe %}
+              <button class="primary" onclick="stripeBuy('{{ p.sku }}', this)" title="Pay with Stripe">Buy</button>
+              {% else %}
+              <button class="secondary" onclick="shopBuy('{{ p.sku }}', this)" title="Mock payment (dev only)">Buy (mock)</button>
+              {% endif %}
+            </div>
           </div>
         </div>
         {% endfor %}
@@ -82,6 +88,32 @@
   <div id="shop-feedback" style="font-size: 13px;"></div>
 </div>
 <script>
+  async function stripeBuy(sku, btn) {
+    btn.disabled = true;
+    const fb = document.getElementById('shop-feedback');
+    fb.innerHTML = '<span class="spinner"></span> opening Stripe…';
+    const token = localStorage.getItem('heroproto_jwt');
+    const ref = 'web-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    try {
+      const r = await fetch('/shop/checkout/stripe', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ sku, client_ref: ref }),
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        fb.innerHTML = `<span style="color: var(--bad);">${r.status}: ${body.detail || JSON.stringify(body)}</span>`;
+        btn.disabled = false;
+        return;
+      }
+      // Redirect to Stripe-hosted checkout.
+      window.location.href = body.checkout_url;
+    } catch (e) {
+      fb.innerHTML = '<span style="color: var(--bad);">' + e.message + '</span>';
+      btn.disabled = false;
+    }
+  }
+
   async function shopBuy(sku, btn) {
     btn.disabled = true;
     const fb = document.getElementById('shop-feedback');

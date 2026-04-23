@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     # Auto-disabled in prod by main._check_secrets.
     mock_payments_enabled: bool = False
 
+    # Stripe integration. All empty strings by default — checkout endpoint refuses
+    # to operate until stripe_api_key is set. Webhook endpoint refuses without
+    # stripe_webhook_secret. Set via HEROPROTO_STRIPE_* env vars.
+    stripe_api_key: str = ""           # sk_test_... for test mode, sk_live_... for prod
+    stripe_webhook_secret: str = ""    # whsec_... from `stripe listen` or dashboard
+    stripe_publishable_key: str = ""   # pk_... — not used server-side, exposed to client
+    # Where Stripe Checkout redirects after payment. Use {CHECKOUT_SESSION_ID} literal
+    # in success_url if you want to verify session server-side on return.
+    stripe_success_url: str = "http://127.0.0.1:8000/app/shop?checkout=success"
+    stripe_cancel_url: str = "http://127.0.0.1:8000/app/shop?checkout=cancel"
+
     # Comma-separated list of emails auto-promoted to admin on registration/login.
     admin_emails: str = ""
 

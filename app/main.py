@@ -127,6 +127,10 @@ app.include_router(raids.router)
 app.include_router(admin.router)
 app.include_router(shop.router)
 
+# Stripe checkout + webhook. Endpoints 503 until HEROPROTO_STRIPE_* vars are set.
+from app import stripe_ext as _stripe_ext
+app.include_router(_stripe_ext.router)
+
 
 @app.get("/healthz")
 def healthz() -> dict:

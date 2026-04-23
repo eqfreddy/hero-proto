@@ -471,6 +471,9 @@ class ShopProduct(Base):
     # Price in USD cents. NULL currency_code == "USD".
     price_cents: Mapped[int] = mapped_column(Integer)
     currency_code: Mapped[str] = mapped_column(String(8), default="USD")
+    # Maps to a Price object in the Stripe dashboard. Products without a price_id
+    # can only be purchased via the mock processor (dev).
+    stripe_price_id: Mapped[str] = mapped_column(String(64), default="")
     # What the purchase grants. JSON: {"gems": N, "shards": N, "access_cards": N, "coins": N,
     # "hero_template_code": "..."}. All fields optional.
     contents_json: Mapped[str] = mapped_column(String(1024), default="{}")
