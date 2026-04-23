@@ -8,26 +8,7 @@ Last updated: 2026-04-23.
 
 ## 🔥 In flight (current sprint)
 
-- [ ] **Slice 20 — Observability**
-  - [ ] Prometheus `/metrics` endpoint (counters: requests_total, battles_total, summons_total; histogram: request_duration_seconds)
-  - [ ] JSON log formatter enabled via `HEROPROTO_JSON_LOGS=1`
-  - [ ] `X-Request-ID` middleware (generate if absent, echo back, thread into log context)
-  - [ ] Add `prometheus-client` to deps
-  - [ ] `test_observability.py` covering `/metrics` shape + request-id round-trip
-
-- [ ] **Slice 21 — Minimal HTML client**
-  - [ ] `app/static/index.html` single-page vanilla JS (no build step)
-  - [ ] Tabs / sections: Login · Me · Roster · Stages · Daily · Arena · Guild
-  - [ ] Token stored in `localStorage` as `heroproto_jwt`
-  - [ ] Mount `StaticFiles` at `/app` in `app/main.py`
-  - [ ] Homepage `GET /` redirects to `/app/` when no JWT, otherwise dashboard
-  - [ ] `smoke_web.py` — simple `httpx` GET that asserts the HTML loads and has expected markers
-
-- [ ] **Slice 62 — Migrations + test coverage for 19/20/21**
-  - [ ] Alembic autogen for admin columns (`is_admin`, `is_banned`, `banned_reason`) with `server_default` so existing rows backfill
-  - [ ] `test_admin.py` — grant, ban/unban, promote, liveops create/cancel, stats endpoint, non-admin 403
-  - [ ] Banned user's existing token is rejected (401/403)
-  - [ ] Re-run full pytest + 10 E2E smokes green
+_No active sprint — slices 20, 21, 62 shipped. Pick next from Backlog._
 
 ---
 
@@ -139,8 +120,8 @@ Last updated: 2026-04-23.
 - [x] `smoke_sweep.py` — pre-clear rejected, post-clear sweep, count cap
 
 ### Gaps ❌
-- [ ] `test_admin.py` — nothing yet for the admin router
-- [ ] `test_observability.py` — Prometheus format + request-id plumbing
+- [x] `test_admin.py` — nothing yet for the admin router
+- [x] `test_observability.py` — Prometheus format + request-id plumbing
 - [ ] `test_liveops_crud.py` — admin creates/cancels a LiveOps event end-to-end
 - [ ] Worker coverage — trigger `_run_jobs()` directly in a test; confirm old dailies pruned and expired raids flipped
 - [ ] Ban flow — banned user's subsequent request returns 403
@@ -148,7 +129,7 @@ Last updated: 2026-04-23.
 - [ ] Docker container smoke — `docker compose up --build`, healthz, hit `/docs`
 - [ ] `smoke_guild.py` E2E mirror of `test_guilds.py` against the live server
 - [ ] `smoke_raid.py` E2E mirror of `test_raids.py` against the live server
-- [ ] `smoke_web.py` — GET `/` and `/app/index.html` return 200 with expected markers
+- [x] `smoke_web.py` — GET `/` and `/app/index.html` return 200 with expected markers
 - [ ] Load test — 100 concurrent players hitting `/battles` and `/summon` (k6 or locust)
 - [ ] Long-running soak — 24 h with the worker task, verify no memory creep
 
@@ -189,6 +170,9 @@ Last updated: 2026-04-23.
 - [x] Slice 17 — Guild raids (shared HP, per-contrib rewards)
 - [x] Slice 18 — Account deletion (GDPR art. 17)
 - [x] Slice 19 — Admin panel (grant / ban / promote / liveops CRUD / stats)
+- [x] Slice 20 — Observability (Prometheus /metrics, JSON logs, X-Request-ID)
+- [x] Slice 21 — Minimal HTML client at /app (vanilla JS, no build step)
+- [x] Slice 62 — Migrations + test coverage for 19/20/21 (alembic admin columns, test_admin.py, test_observability.py)
 
 </details>
 
