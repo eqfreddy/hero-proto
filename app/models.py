@@ -128,6 +128,8 @@ class Account(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     banned_reason: Mapped[str] = mapped_column(String(256), default="")
+    # NULL = permanent ban. If set, worker/deps auto-clear once now >= banned_until.
+    banned_until: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
@@ -379,4 +381,20 @@ class ArenaMatch(Base):
     attacker_rating_after: Mapped[int] = mapped_column(Integer, default=1000)
     defender_rating_after: Mapped[int] = mapped_column(Integer, default=1000)
     log_json: Mapped[str] = mapped_column(String(65536))
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+
+
+class AdminAuditLog(Base):
+    """Append-only record of admin actions. Referenced accounts nulled on delete so
+    the audit trail survives account deletion."""
+
+    __tablename__ = "admin_audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    action: Mapped[str] = mapped_column(String(32), index=True)
+    target_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    payload_json: Mapped[str] = mapped_column(String(2048), default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)

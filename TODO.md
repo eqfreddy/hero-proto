@@ -8,16 +8,16 @@ Last updated: 2026-04-23.
 
 ## 🔥 In flight (current sprint)
 
-_No active sprint — slices 20, 21, 62 shipped. Pick next from Backlog._
+_No active sprint. Admin polish sprint shipped (CLI promote, audit log, timed bans). Pick next from Backlog._
 
 ---
 
 ## 🚧 Backlog — known gaps & follow-ups that came up during dev
 
 ### Admin tooling
-- [ ] CLI: `uv run python -m app.admin promote <email>` for bootstrapping the first admin without DB shell
-- [ ] Admin audit log table (who banned/granted what, when, to whom)
-- [ ] Timed bans (`banned_until: datetime` + worker auto-unbans)
+- [x] CLI: `uv run python -m app.admin promote <email>` (also demote/list/audit subcommands)
+- [x] Admin audit log table (who banned/granted what, when, to whom) + `GET /admin/audit` with `action` / `target_id` filters
+- [x] Timed bans (`banned_until: datetime` + worker auto-unbans + lazy unban in deps)
 - [ ] Ban should invalidate existing JWTs (currently relies on the 403 in the dep — token is still technically "valid" until expiry)
 - [ ] Admin "broadcast announcement" — creates a pinned MOTD visible on `GET /me` or its own endpoint
 
@@ -173,6 +173,7 @@ _No active sprint — slices 20, 21, 62 shipped. Pick next from Backlog._
 - [x] Slice 20 — Observability (Prometheus /metrics, JSON logs, X-Request-ID)
 - [x] Slice 21 — Minimal HTML client at /app (vanilla JS, no build step)
 - [x] Slice 62 — Migrations + test coverage for 19/20/21 (alembic admin columns, test_admin.py, test_observability.py)
+- [x] Admin polish sprint — CLI (`python -m app.admin`), AdminAuditLog + `/admin/audit`, timed bans (banned_until + worker auto-unban)
 
 </details>
 

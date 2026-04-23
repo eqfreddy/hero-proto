@@ -15,6 +15,7 @@ from app.db import get_db
 from app.deps import get_current_admin
 from app.models import (
     Account,
+    AdminAuditLog,
     Battle,
     HeroInstance,
     HeroTemplate,
@@ -22,6 +23,17 @@ from app.models import (
     LiveOpsKind,
     utcnow,
 )
+
+
+def _audit(db: Session, actor: Account, action: str, target_id: int | None, **payload) -> None:
+    db.add(
+        AdminAuditLog(
+            actor_id=actor.id,
+            action=action,
+            target_id=target_id,
+            payload_json=json.dumps(payload, default=str),
+        )
+    )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -40,6 +52,7 @@ class AccountSummary(BaseModel):
     is_admin: bool
     is_banned: bool
     banned_reason: str
+    banned_until: datetime | None
     created_at: datetime
 
 
@@ -53,6 +66,8 @@ class GrantIn(BaseModel):
 
 class BanIn(BaseModel):
     reason: str = Field(max_length=256, default="violation of ToS")
+    # If set, ban auto-lifts once now >= banned_until (worker/deps handle the clear).
+    duration_hours: float | None = Field(default=None, gt=0, le=24 * 365)
 
 
 class LiveOpsCreateIn(BaseModel):
@@ -86,6 +101,7 @@ def _summary(a: Account) -> AccountSummary:
         is_admin=a.is_admin,
         is_banned=a.is_banned,
         banned_reason=a.banned_reason,
+        banned_until=a.banned_until,
         created_at=a.created_at,
     )
 
@@ -120,7 +136,7 @@ def get_account(
 def grant(
     account_id: int,
     body: GrantIn,
-    _admin: Annotated[Account, Depends(get_current_admin)],
+    admin: Annotated[Account, Depends(get_current_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AccountSummary:
     a = db.get(Account, account_id)
@@ -138,6 +154,7 @@ def grant(
         if tmpl is None:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "unknown hero template code")
         db.add(HeroInstance(account_id=a.id, template_id=tmpl.id))
+    _audit(db, admin, "grant", a.id, **body.model_dump())
     db.commit()
     db.refresh(a)
     return _summary(a)
@@ -157,6 +174,10 @@ def ban(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
     a.is_banned = True
     a.banned_reason = body.reason.strip()
+    a.banned_until = (
+        utcnow() + timedelta(hours=body.duration_hours) if body.duration_hours else None
+    )
+    _audit(db, admin, "ban", a.id, reason=a.banned_reason, duration_hours=body.duration_hours)
     db.commit()
     db.refresh(a)
     return _summary(a)
@@ -165,7 +186,7 @@ def ban(
 @router.post("/accounts/{account_id}/unban", response_model=AccountSummary)
 def unban(
     account_id: int,
-    _admin: Annotated[Account, Depends(get_current_admin)],
+    admin: Annotated[Account, Depends(get_current_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AccountSummary:
     a = db.get(Account, account_id)
@@ -173,6 +194,8 @@ def unban(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
     a.is_banned = False
     a.banned_reason = ""
+    a.banned_until = None
+    _audit(db, admin, "unban", a.id)
     db.commit()
     db.refresh(a)
     return _summary(a)
@@ -181,13 +204,14 @@ def unban(
 @router.post("/accounts/{account_id}/promote", response_model=AccountSummary)
 def promote(
     account_id: int,
-    _admin: Annotated[Account, Depends(get_current_admin)],
+    admin: Annotated[Account, Depends(get_current_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AccountSummary:
     a = db.get(Account, account_id)
     if a is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
     a.is_admin = True
+    _audit(db, admin, "promote", a.id)
     db.commit()
     db.refresh(a)
     return _summary(a)
@@ -196,7 +220,7 @@ def promote(
 @router.post("/liveops", response_model=dict, status_code=status.HTTP_201_CREATED)
 def create_liveops(
     body: LiveOpsCreateIn,
-    _admin: Annotated[Account, Depends(get_current_admin)],
+    admin: Annotated[Account, Depends(get_current_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     now = utcnow()
@@ -208,6 +232,8 @@ def create_liveops(
         payload_json=json.dumps(body.payload),
     )
     db.add(event)
+    db.flush()  # need event.id for the audit entry
+    _audit(db, admin, "liveops_create", event.id, kind=str(event.kind), name=event.name)
     db.commit()
     db.refresh(event)
     return {
@@ -222,7 +248,7 @@ def create_liveops(
 @router.delete("/liveops/{event_id}", response_model=dict)
 def cancel_liveops(
     event_id: int,
-    _admin: Annotated[Account, Depends(get_current_admin)],
+    admin: Annotated[Account, Depends(get_current_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     event = db.get(LiveOpsEvent, event_id)
@@ -230,6 +256,7 @@ def cancel_liveops(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
     # End it now rather than hard-delete (preserves audit trail).
     event.ends_at = utcnow()
+    _audit(db, admin, "liveops_cancel", event_id)
     db.commit()
     return {"cancelled_id": event_id}
 
@@ -259,3 +286,45 @@ def stats(
         battles_last_24h=battles_24h,
         active_liveops=active_liveops,
     )
+
+
+class AuditEntry(BaseModel):
+    id: int
+    actor_id: int | None
+    action: str
+    target_id: int | None
+    payload: dict
+    created_at: datetime
+
+
+@router.get("/audit", response_model=list[AuditEntry])
+def audit(
+    _admin: Annotated[Account, Depends(get_current_admin)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 100,
+    action: str | None = None,
+    target_id: int | None = None,
+) -> list[AuditEntry]:
+    limit = max(1, min(500, limit))
+    stmt = select(AdminAuditLog).order_by(AdminAuditLog.id.desc()).limit(limit)
+    if action:
+        stmt = stmt.where(AdminAuditLog.action == action)
+    if target_id is not None:
+        stmt = stmt.where(AdminAuditLog.target_id == target_id)
+    rows = []
+    for e in db.scalars(stmt):
+        try:
+            payload = json.loads(e.payload_json or "{}")
+        except json.JSONDecodeError:
+            payload = {"_raw": e.payload_json}
+        rows.append(
+            AuditEntry(
+                id=e.id,
+                actor_id=e.actor_id,
+                action=e.action,
+                target_id=e.target_id,
+                payload=payload,
+                created_at=e.created_at,
+            )
+        )
+    return rows

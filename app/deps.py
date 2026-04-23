@@ -5,7 +5,7 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Account
+from app.models import Account, utcnow
 from app.security import decode_token
 
 
@@ -24,10 +24,18 @@ def get_current_account(
     if account is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "account not found")
     if account.is_banned:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            f"account is banned: {account.banned_reason or 'no reason given'}",
-        )
+        # Lazy auto-unban when a timed ban has elapsed — keeps the gate responsive
+        # even if the worker hasn't ticked yet.
+        if account.banned_until is not None and utcnow() >= account.banned_until:
+            account.is_banned = False
+            account.banned_reason = ""
+            account.banned_until = None
+            db.commit()
+        else:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                f"account is banned: {account.banned_reason or 'no reason given'}",
+            )
     return account
 
 

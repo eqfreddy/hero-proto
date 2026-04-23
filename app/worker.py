@@ -17,7 +17,7 @@ from datetime import timedelta
 from sqlalchemy import delete, select
 
 from app.db import SessionLocal
-from app.models import DailyQuest, DailyQuestStatus, Raid, RaidState, utcnow
+from app.models import Account, DailyQuest, DailyQuestStatus, Raid, RaidState, utcnow
 
 log = logging.getLogger("worker")
 
@@ -67,6 +67,22 @@ def _run_jobs() -> None:
             raid.state = RaidState.EXPIRED
             expired += 1
 
-        if deleted or expired:
+        unbanned = 0
+        for account in db.scalars(
+            select(Account).where(
+                Account.is_banned.is_(True),
+                Account.banned_until.is_not(None),
+                Account.banned_until <= now,
+            )
+        ):
+            account.is_banned = False
+            account.banned_reason = ""
+            account.banned_until = None
+            unbanned += 1
+
+        if deleted or expired or unbanned:
             db.commit()
-            log.info("worker tick: pruned %d dailies, expired %d raids", deleted, expired)
+            log.info(
+                "worker tick: pruned %d dailies, expired %d raids, auto-unbanned %d accounts",
+                deleted, expired, unbanned,
+            )
