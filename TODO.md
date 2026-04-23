@@ -6,20 +6,74 @@ Last updated: 2026-04-23.
 
 ---
 
-## 🔥 In flight (current sprint)
+## 📊 Where we're at
 
-_No active sprint. Admin polish sprint shipped (CLI promote, audit log, timed bans). Pick next from Backlog._
+- **Backend:** 22 slices shipped (1–21 + 62) + admin polish sprint.
+- **Tests:** `pytest` 52/52 green. 10 E2E smoke scripts all pass against a live uvicorn.
+- **Git:** `master` pushed to `github.com/eqfreddy/hero-proto` — latest commit `4d0bc36`.
+- **DB:** SQLite dev, Postgres wire-up exists in `docker-compose.yml` (profile) but **not yet verified end-to-end**.
+- **Frontend:** bare-bones vanilla-JS shell at `/app` — functional for smoke tests, not styled for users.
+
+### Known papercuts surfaced recently
+
+- **Rate limits in `.env` (10 auth/min, 120 general/min) are too tight for the full smoke suite.** Need to either raise the shipped defaults or add a `HEROPROTO_RATE_LIMIT_DISABLED=1` short-circuit for local dev.
+- **Banned user's JWT is still technically valid until expiry** — blocked only by the 403 in `deps.py`. Token-version or revocation list would fix this properly.
+- **`smoke_cli.py` must be invoked as `python -m scripts.smoke_cli`** (not `python scripts/smoke_cli.py`) because of the `from scripts import play_hero` line. Worth either a README note or restructuring.
+- **`smoke_sets.py` doesn't gracefully handle an error payload from `/gear/mine`** — it iterates dict keys as strings and crashes with `'str' object has no attribute 'get'` instead of a clean fail. Exposed when rate-limited.
 
 ---
 
-## 🚧 Backlog — known gaps & follow-ups that came up during dev
+## 🎯 Next up — ranked candidate sprints
 
-### Admin tooling
-- [x] CLI: `uv run python -m app.admin promote <email>` (also demote/list/audit subcommands)
-- [x] Admin audit log table (who banned/granted what, when, to whom) + `GET /admin/audit` with `action` / `target_id` filters
-- [x] Timed bans (`banned_until: datetime` + worker auto-unbans + lazy unban in deps)
-- [ ] Ban should invalidate existing JWTs (currently relies on the 403 in the dep — token is still technically "valid" until expiry)
-- [ ] Admin "broadcast announcement" — creates a pinned MOTD visible on `GET /me` or its own endpoint
+Each sprint is sized to be shippable in one session. Pick one; don't interleave.
+
+### A. Hardening + footguns (small, immediate value)
+Addresses the papercuts above head-on.
+- [ ] **JWT version on Account** (`token_version: int`, increment on ban). `issue_token` embeds it; `decode_token` dep checks it. Banning a user now kills their session for real.
+- [ ] **Sane default rate limits + dev bypass** — raise `AUTH_RATE_PER_MINUTE` / `GENERAL_RATE_PER_MINUTE` defaults, or add `HEROPROTO_RATE_LIMIT_DISABLED=1`. Ship `.env.example` aligned with the bypass.
+- [ ] **Combat log pruning** — cap `Battle.log_json` entries server-side (e.g. 200 events) so long arena matches don't balloon the DB row.
+- [ ] **Fix `smoke_sets.py`** to break cleanly on an error payload + fix `smoke_cli.py` invocation (either `-m` the file directly, or drop the `from scripts import` pattern).
+- [ ] Tests for all of the above.
+
+### B. Guild completeness
+Entirely in `routers/guilds.py` + tests.
+- [ ] `POST /guilds/{id}/promote/{account_id}` — leader promotes MEMBER → OFFICER
+- [ ] `POST /guilds/{id}/transfer/{account_id}` — leader hands off without leaving
+- [ ] Application / invite flow (replace "anyone can join public guilds")
+- [ ] Chat pagination (currently hard-capped at 50 newest)
+- [ ] `smoke_guild.py` E2E mirror
+
+### C. Postgres validation
+We claim it's supported; nothing's ever run against a real Postgres.
+- [ ] Run full `pytest` against `postgresql+psycopg://…` URL
+- [ ] Fix any SQLite-isms that surface (string-as-enum comparisons, `JSON` columns, etc.)
+- [ ] Run the 10 E2E smokes against the compose stack
+- [ ] Document the flow in `README.md`
+
+### D. Content expansion
+User-facing variety. Touches `seed.py` + content tables.
+- [ ] 10–20 more hero templates (currently 25)
+- [ ] 5–10 more stages (currently 10)
+- [ ] "Hard mode" campaign tier (same stages, scaled stats, better rewards)
+- [ ] Boss-only hero templates for raids (higher stats)
+- [ ] Tutorial stage 0 / first-time walkthrough
+
+### E. Auth hardening
+Heavier — needs email-send infra decision (SES? Postmark? console sink for dev?).
+- [ ] Email verification flow (send token, `GET /auth/verify?token=…`)
+- [ ] Forgot-password / reset-password flow
+- [ ] Refresh tokens + rotation
+- [ ] 2FA (TOTP)
+
+**Recommendation:** ship **A** next — the JWT-on-ban gap is the most embarrassing one to leave open after an admin sprint, and the rate-limit papercut bit us during this very sprint's smoke run.
+
+---
+
+## 🚧 Backlog — everything else
+
+### Admin tooling (follow-ups)
+- [ ] Ban should invalidate existing JWTs (see Sprint A above)
+- [ ] Admin "broadcast announcement" — pinned MOTD visible on `GET /me`
 
 ### Auth / account
 - [ ] Email verification flow
@@ -29,39 +83,39 @@ _No active sprint. Admin polish sprint shipped (CLI promote, audit log, timed ba
 - [ ] 2FA (TOTP)
 
 ### Guilds
-- [ ] `POST /guilds/{id}/promote/{account_id}` — leader can promote MEMBER → OFFICER
-- [ ] `POST /guilds/{id}/transfer/{account_id}` — leader hands off without leaving
-- [ ] Guild application / invite flow (right now anyone can join a public guild)
-- [ ] Guild chat pagination (currently hard-capped at 50 newest)
+- [ ] `POST /guilds/{id}/promote/{account_id}` — MEMBER → OFFICER
+- [ ] `POST /guilds/{id}/transfer/{account_id}` — leader handoff
+- [ ] Application / invite flow (right now anyone can join a public guild)
+- [ ] Chat pagination (hard-capped at 50 newest)
 - [ ] Soft-delete / archive for messages
 
 ### Raids
-- [ ] Scheduled raid auto-start (worker picks from a rotation when guild has no active raid)
-- [ ] Raid difficulty tiers with scaled rewards
+- [ ] Scheduled raid auto-start (worker rotates when guild has no active raid)
+- [ ] Difficulty tiers with scaled rewards
 - [ ] Per-attempt cooldown (currently only gated by energy)
-- [ ] Raid leaderboard endpoint (top-contributing guilds this week)
+- [ ] Leaderboard endpoint (top-contributing guilds this week)
 
 ### LiveOps
-- [ ] Scheduled future events (not just "start now" but `starts_at` can be in the future — partially supported; admin endpoint always uses `now`)
-- [ ] Event preview endpoint for upcoming / not-yet-started events
-- [ ] `BONUS_GEAR_DROPS` kind is wired but has no default seeded event or admin template helpers
+- [ ] Scheduled future events (`starts_at` in the future — admin endpoint always uses `now`)
+- [ ] Preview endpoint for upcoming / not-yet-started events
+- [ ] `BONUS_GEAR_DROPS` kind is wired but has no seeded event or template helpers
 
 ### Content
 - [ ] 10–20 more hero templates (currently 25)
 - [ ] 5–10 more stages (currently 10)
 - [ ] "Hard mode" campaign tier
 - [ ] Boss-only hero templates (higher stats, meant for raids)
-- [ ] Tutorial stage 0 / first-time-user walkthrough
+- [ ] Tutorial stage 0 / first-time walkthrough
 
 ### Combat
 - [ ] More status effects (FREEZE, BURN, HEAL_BLOCK, REFLECT)
 - [ ] Faction affinity / synergy bonuses ("3 DEVOPS on team = +10% ATK")
 - [ ] AoE revive
-- [ ] Combat log pruning (log_json can get large on long battles — cap entries server-side)
+- [ ] Combat log pruning (`log_json` size cap — see Sprint A)
 
 ### Infrastructure
-- [ ] Redis-backed rate limiter (current is in-memory per-process; doesn't coordinate across replicas)
-- [ ] Postgres smoke test (Docker isn't available locally; verify on a host that has it)
+- [ ] Redis-backed rate limiter (in-memory per-process; doesn't coordinate across replicas)
+- [ ] Postgres end-to-end smoke (Docker; see Sprint C)
 - [ ] Docker image build + push to a registry (Dockerfile exists, never built)
 - [ ] Automated daily DB backup (SQLite volume → dated tarball on a schedule)
 - [ ] Graceful shutdown — worker cancels + in-flight battles finish
@@ -72,108 +126,97 @@ _No active sprint. Admin polish sprint shipped (CLI promote, audit log, timed ba
 - [ ] Alerting thresholds documented (5xx rate, p99 latency)
 
 ### Anti-cheat / validation
-- [ ] Server-side rate-limit per account (not just per IP) on `/battles`
-- [ ] Detect impossible teams (hero_instance_id owned by account_id check is already there — audit other endpoints)
+- [ ] Per-account rate limit on `/battles` (not just per-IP)
 - [ ] Cap arena attack attempts per hour
-- [ ] Validate stage_id is cleared before sweep (already done — reference test)
+- [ ] Audit all endpoints for `hero_instance_id` ownership check
 - [ ] Reject combat outcomes that couldn't happen (if client-authoritative layer ever gets added)
 
 ### Localization
 - [ ] Message catalog (gettext-style) for user-visible strings
-- [ ] Hero name / skill name translation fields on `HeroTemplate`
+- [ ] Hero/skill-name translation fields on `HeroTemplate`
 - [ ] `Accept-Language` header handling
 
 ### Payments
-- [ ] Stripe integration (checkout session creation, webhook handling)
+- [ ] Stripe integration (checkout session + webhook handling)
 - [ ] `OfferBundle` table (premium shard bundles, starter packs)
 - [ ] Purchase history / refund flow
 - [ ] Anti-fraud basics (rate limit / device fingerprint)
 
-### Frontend (beyond slice 21 minimal)
+### Frontend (beyond slice 21 minimal shell)
 - [ ] Real SPA (React / Svelte / Vue)
-- [ ] Battle animation playback from log
+- [ ] Battle-log playback animation
 - [ ] Mobile-responsive layout
 - [ ] PWA offline shell
 - [ ] Native iOS / Android wrapper
 
 ---
 
-## 🧪 Test matrix — what's covered vs. what's not
+## 🧪 Test matrix — coverage
 
 ### Covered ✅
-- [x] `test_combat.py` — deterministic combat resolver (seed=1312, hash-stable)
-- [x] `test_combat_unit.py` — scale_stat, level cap, power rating, strong-team-wins
-- [x] `test_gacha.py` — pity trigger, counter reset, distribution sanity over 2000 pulls
-- [x] `test_active_sets.py` — LIFESTEAL heal events, VIOLENT extra turns, control (no flag)
-- [x] `test_api_core.py` — health, register grants starter+onboarding, full loop, dailies, 401s, shard depletion
-- [x] `test_guilds.py` — create, list, get, single-guild-per-account, leader succession, chat membership, leader kick
-- [x] `test_liveops_and_account.py` — endpoint shape, DOUBLE_REWARDS multiplier applied, delete email-match, leader delete promotes
-- [x] `test_raids.py` — guild-required, full lifecycle (start → hammer → defeat → second-attack 409), one-active-raid-per-guild
-- [x] `smoke_hero.py` — full end-to-end over HTTP
-- [x] `smoke_gear.py` — drop, equip, unequip stat delta
-- [x] `smoke_skill.py` — skill-up consume dupes, reject self-feed, reject wrong-template
-- [x] `smoke_arena.py` — defense set, opponents, attack, leaderboard
-- [x] `smoke_daily.py` — 3 rolled, idempotent, progression, claim, double-claim 409
-- [x] `smoke_cli.py` — headless CLI client exercise
-- [x] `smoke_sets.py` — passive set activates, stat bonus visible
-- [x] `smoke_ascend.py` — 1★ → 2★, fodder consumed, wrong count rejected
-- [x] `smoke_sweep.py` — pre-clear rejected, post-clear sweep, count cap
+- `test_combat.py` — deterministic resolver (seed=1312, hash-stable)
+- `test_combat_unit.py` — scale_stat, level cap, power rating, strong-team-wins
+- `test_gacha.py` — pity trigger, counter reset, 2000-pull distribution
+- `test_active_sets.py` — LIFESTEAL heals, VIOLENT extra turns, control
+- `test_api_core.py` — health, register+onboarding, full loop, dailies, 401s, shard depletion
+- `test_guilds.py` — create, list, get, single-guild-per-account, succession, chat membership, kick
+- `test_liveops_and_account.py` — endpoint shape, DOUBLE_REWARDS multiplier, delete email-match, leader-delete promotes
+- `test_raids.py` — guild-required, full lifecycle, one-active-raid-per-guild
+- `test_admin.py` — grant/ban/unban/promote, liveops CRUD, stats, audit log + filters, timed bans, worker auto-unban, CLI
+- `test_observability.py` — /metrics shape + counters, X-Request-ID round-trip, static HTML markers
+- `smoke_hero.py`, `smoke_gear.py`, `smoke_skill.py`, `smoke_arena.py`, `smoke_daily.py`, `smoke_cli.py`, `smoke_sets.py`, `smoke_ascend.py`, `smoke_sweep.py`, `smoke_web.py` — E2E against live server
 
 ### Gaps ❌
-- [x] `test_admin.py` — nothing yet for the admin router
-- [x] `test_observability.py` — Prometheus format + request-id plumbing
-- [ ] `test_liveops_crud.py` — admin creates/cancels a LiveOps event end-to-end
-- [ ] Worker coverage — trigger `_run_jobs()` directly in a test; confirm old dailies pruned and expired raids flipped
-- [ ] Ban flow — banned user's subsequent request returns 403
-- [ ] Postgres end-to-end — run the pytest suite against a `postgresql+psycopg://` URL
-- [ ] Docker container smoke — `docker compose up --build`, healthz, hit `/docs`
-- [ ] `smoke_guild.py` E2E mirror of `test_guilds.py` against the live server
-- [ ] `smoke_raid.py` E2E mirror of `test_raids.py` against the live server
-- [x] `smoke_web.py` — GET `/` and `/app/index.html` return 200 with expected markers
-- [ ] Load test — 100 concurrent players hitting `/battles` and `/summon` (k6 or locust)
+- [ ] `test_liveops_crud.py` — LiveOps events end-to-end against admin endpoints (partially covered in `test_admin.py`)
+- [ ] Worker coverage — `_run_jobs()` tested directly for auto-unban, but not for daily-prune or raid-expiry
+- [ ] Postgres end-to-end — full `pytest` against `postgresql+psycopg://…`
+- [ ] Docker container smoke — `docker compose up --build`, hit `/healthz` + `/docs`
+- [ ] `smoke_guild.py` E2E mirror of `test_guilds.py`
+- [ ] `smoke_raid.py` E2E mirror of `test_raids.py`
+- [ ] Load test — 100 concurrent players on `/battles` + `/summon` (k6 or locust)
 - [ ] Long-running soak — 24 h with the worker task, verify no memory creep
 
 ---
 
 ## 🪧 Open design questions
 
-- [ ] Should `special_level` cap stay at 5, or tier to 10 for more long-tail progression?
-- [ ] Should raid bosses have unique skills (right now they reuse hero template specials — reads fine but shallow)?
-- [ ] How do we want to handle energy overflow for LiveOps grants? (currently `compute_energy` preserves surplus above cap)
-- [ ] Do we want server-side combat animations (timing info in log) or let the client pace it?
-- [ ] Guild size — 30 max feels right for the alpha; revisit after first cohort
-- [ ] Arena: should defense teams be snapshotted at the moment they're set (stats frozen) or live-computed (risky if attacker has seen your team yesterday)? Currently live.
+- Should `special_level` cap stay at 5, or tier to 10 for more long-tail progression?
+- Should raid bosses have unique skills? (Currently they reuse hero-template specials — reads fine but shallow.)
+- How do we want to handle energy overflow for LiveOps grants? (Currently `compute_energy` preserves surplus above cap.)
+- Server-side combat animations (timing info in log) or let the client pace it?
+- Guild size — 30 max feels right for alpha; revisit after first cohort
+- Arena: defense teams snapshotted at the moment they're set, or live-computed? Currently live.
 
 ---
 
-## 🚚 Done — reference for what's shipped
+## 🚚 Shipped — reference index
 
 <details>
 <summary>Completed slices (click to expand)</summary>
 
-- [x] Slice 1 — Project scaffold (uv, FastAPI, SQLAlchemy, SQLite)
-- [x] Slice 2 — Schema + core models (Account, HeroTemplate, HeroInstance, Stage, Battle)
-- [x] Slice 3 — Combat resolver v1 (turn meter, basic + special, 4 status effects)
-- [x] Slice 4 — Gacha with 50-pull pity, x1 / x10 endpoints
-- [x] Slice 5 — Campaign battles + energy + rewards + first-clear
-- [x] Slice 6 — CLI client (`play_hero.py`)
-- [x] Slice 7 — Gear drops + equip/unequip + combat bonus
-- [x] Slice 8 — Hero ascension (stars 1–5) + level cap scaling
-- [x] Slice 9 — Sweep for cleared stages
-- [x] Slice 10 — Security + deployment (CORS, rate limit, JWT guard, Dockerfile, compose)
-- [x] Slice 11 — Content expansion (25 heroes, 10 stages, onboarding bonus)
-- [x] Slice 12 — Alpha README + pytest harness
-- [x] Slice 13 — Active gear sets (VIOLENT + LIFESTEAL)
-- [x] Slice 14 — Guilds + chat
-- [x] Slice 15 — Postgres readiness (extra dep, compose profile)
-- [x] Slice 16 — Background worker + LiveOps events (+ seeded Launch Week 2x)
-- [x] Slice 17 — Guild raids (shared HP, per-contrib rewards)
-- [x] Slice 18 — Account deletion (GDPR art. 17)
-- [x] Slice 19 — Admin panel (grant / ban / promote / liveops CRUD / stats)
-- [x] Slice 20 — Observability (Prometheus /metrics, JSON logs, X-Request-ID)
-- [x] Slice 21 — Minimal HTML client at /app (vanilla JS, no build step)
-- [x] Slice 62 — Migrations + test coverage for 19/20/21 (alembic admin columns, test_admin.py, test_observability.py)
-- [x] Admin polish sprint — CLI (`python -m app.admin`), AdminAuditLog + `/admin/audit`, timed bans (banned_until + worker auto-unban)
+- Slice 1 — Project scaffold (uv, FastAPI, SQLAlchemy, SQLite)
+- Slice 2 — Schema + core models (Account, HeroTemplate, HeroInstance, Stage, Battle)
+- Slice 3 — Combat resolver v1 (turn meter, basic + special, 4 status effects)
+- Slice 4 — Gacha with 50-pull pity, x1 / x10 endpoints
+- Slice 5 — Campaign battles + energy + rewards + first-clear
+- Slice 6 — CLI client (`play_hero.py`)
+- Slice 7 — Gear drops + equip/unequip + combat bonus
+- Slice 8 — Hero ascension (stars 1–5) + level-cap scaling
+- Slice 9 — Sweep for cleared stages
+- Slice 10 — Security + deployment (CORS, rate limit, JWT guard, Dockerfile, compose)
+- Slice 11 — Content expansion (25 heroes, 10 stages, onboarding bonus)
+- Slice 12 — Alpha README + pytest harness
+- Slice 13 — Active gear sets (VIOLENT + LIFESTEAL)
+- Slice 14 — Guilds + chat
+- Slice 15 — Postgres readiness (extra dep, compose profile)
+- Slice 16 — Background worker + LiveOps events (+ seeded Launch Week 2x)
+- Slice 17 — Guild raids (shared HP, per-contrib rewards)
+- Slice 18 — Account deletion (GDPR art. 17)
+- Slice 19 — Admin panel (grant / ban / promote / liveops CRUD / stats)
+- Slice 20 — Observability (Prometheus `/metrics`, JSON logs, `X-Request-ID`)
+- Slice 21 — Minimal HTML client at `/app` (vanilla JS, no build step)
+- Slice 62 — Migrations + test coverage for 19/20/21 (alembic admin columns, `test_admin.py`, `test_observability.py`)
+- **Admin polish sprint** — CLI (`python -m app.admin`), `AdminAuditLog` + `/admin/audit`, timed bans (`banned_until` + worker auto-unban + lazy clear in deps)
 
 </details>
 
@@ -181,7 +224,7 @@ _No active sprint. Admin polish sprint shipped (CLI promote, audit log, timed ba
 
 ## 📎 How to use this file
 
-- Tick `[x]` when something lands.
-- Move finished items from "In flight" to "Done".
-- New backlog items go under "Backlog" or "Test matrix gaps" depending on type.
-- Assume this file is authoritative for what's still open — keep it current.
+- Tick `[x]` when something lands; delete fully-resolved lines rather than leaving graveyard checkmarks (except in the "Shipped" index).
+- New work goes under **Backlog** in its section, and gets pulled into **Next up** when it's being planned.
+- Keep **Where we're at** current — it's the top-of-file status at a glance.
+- Assume this file is authoritative for what's still open.
