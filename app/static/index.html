@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>hero-proto alpha</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #111; color: #ddd; margin: 0; }
+    header { background: #1b1b1b; padding: 8px 16px; border-bottom: 1px solid #333; }
+    header h1 { font-size: 16px; margin: 0; display: inline-block; }
+    nav { display: inline-block; margin-left: 16px; }
+    nav button { background: transparent; border: 0; color: #aaa; padding: 6px 10px; cursor: pointer; }
+    nav button.active { color: #fff; border-bottom: 2px solid #4ea1ff; }
+    main { padding: 16px; max-width: 860px; }
+    section { display: none; }
+    section.active { display: block; }
+    h2 { font-size: 14px; color: #9ab; margin-top: 0; }
+    input, button { font: inherit; }
+    input { background: #222; color: #eee; border: 1px solid #333; padding: 6px 8px; border-radius: 3px; }
+    button.primary { background: #2a5; color: white; border: 0; padding: 6px 12px; border-radius: 3px; cursor: pointer; }
+    button.secondary { background: #333; color: #ddd; border: 0; padding: 6px 12px; border-radius: 3px; cursor: pointer; }
+    pre { background: #0a0a0a; padding: 10px; border-radius: 3px; overflow-x: auto; font-size: 12px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .status { color: #888; font-size: 12px; }
+    .err { color: #f66; }
+  </style>
+</head>
+<body data-app-root>
+  <header>
+    <h1>hero-proto</h1>
+    <nav id="tabs">
+      <button data-tab="login">Login</button>
+      <button data-tab="me">Me</button>
+      <button data-tab="roster">Roster</button>
+      <button data-tab="stages">Stages</button>
+      <button data-tab="daily">Daily</button>
+      <button data-tab="arena">Arena</button>
+      <button data-tab="guild">Guild</button>
+    </nav>
+    <span id="who" class="status"></span>
+  </header>
+
+  <main>
+    <section id="tab-login">
+      <h2>Login / register</h2>
+      <div class="row">
+        <input id="email" type="email" placeholder="email" />
+        <input id="password" type="password" placeholder="password" />
+        <button class="primary" id="btn-login">Login</button>
+        <button class="secondary" id="btn-register">Register</button>
+        <button class="secondary" id="btn-logout">Log out</button>
+      </div>
+      <pre id="login-out"></pre>
+    </section>
+
+    <section id="tab-me"><h2>/me</h2><pre id="me-out"></pre></section>
+
+    <section id="tab-roster">
+      <h2>/heroes</h2>
+      <div class="row">
+        <button class="primary" id="btn-summon1">Summon x1</button>
+        <button class="primary" id="btn-summon10">Summon x10</button>
+      </div>
+      <pre id="roster-out"></pre>
+    </section>
+
+    <section id="tab-stages">
+      <h2>/stages</h2>
+      <div class="row">
+        <input id="stage-id" type="number" placeholder="stage id" />
+        <input id="team-ids" placeholder="team hero ids comma-separated" />
+        <button class="primary" id="btn-battle">Battle</button>
+      </div>
+      <pre id="stages-out"></pre>
+    </section>
+
+    <section id="tab-daily"><h2>/daily</h2><button class="primary" id="btn-daily">Refresh</button><pre id="daily-out"></pre></section>
+
+    <section id="tab-arena">
+      <h2>/arena</h2>
+      <div class="row">
+        <button class="secondary" id="btn-arena-opp">Opponents</button>
+        <button class="secondary" id="btn-arena-lb">Leaderboard</button>
+      </div>
+      <pre id="arena-out"></pre>
+    </section>
+
+    <section id="tab-guild"><h2>/guilds</h2><button class="primary" id="btn-guilds">List</button><pre id="guild-out"></pre></section>
+  </main>
+
+  <script>
+    const TOKEN_KEY = "heroproto_jwt";
+    const $ = (id) => document.getElementById(id);
+    const show = (id, data) => { $(id).textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2); };
+    const token = () => localStorage.getItem(TOKEN_KEY);
+
+    async function api(method, path, body) {
+      const headers = { "content-type": "application/json" };
+      const t = token();
+      if (t) headers["authorization"] = "Bearer " + t;
+      const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      const text = await res.text();
+      let parsed; try { parsed = JSON.parse(text); } catch { parsed = text; }
+      if (!res.ok) throw Object.assign(new Error("HTTP " + res.status), { status: res.status, body: parsed });
+      return parsed;
+    }
+
+    function setTab(name) {
+      document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+      document.querySelectorAll("main section").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
+    }
+    document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
+
+    function whoami() {
+      $("who").textContent = token() ? "signed in" : "signed out";
+    }
+
+    async function login(register) {
+      const email = $("email").value.trim();
+      const password = $("password").value;
+      try {
+        const path = register ? "/auth/register" : "/auth/login";
+        const r = await api("POST", path, { email, password });
+        localStorage.setItem(TOKEN_KEY, r.access_token);
+        show("login-out", r);
+        whoami();
+        setTab("me");
+        refreshMe();
+      } catch (e) {
+        show("login-out", `error: ${e.message}\n${JSON.stringify(e.body, null, 2)}`);
+      }
+    }
+    $("btn-login").addEventListener("click", () => login(false));
+    $("btn-register").addEventListener("click", () => login(true));
+    $("btn-logout").addEventListener("click", () => { localStorage.removeItem(TOKEN_KEY); whoami(); show("login-out", "logged out"); });
+
+    async function refreshMe() { try { show("me-out", await api("GET", "/me")); } catch (e) { show("me-out", e.message); } }
+    $("btn-summon1").addEventListener("click", async () => { try { show("roster-out", await api("POST", "/summon/x1")); } catch (e) { show("roster-out", e.message); } });
+    $("btn-summon10").addEventListener("click", async () => { try { show("roster-out", await api("POST", "/summon/x10")); } catch (e) { show("roster-out", e.message); } });
+    $("btn-battle").addEventListener("click", async () => {
+      const stage_id = Number($("stage-id").value);
+      const team = $("team-ids").value.split(",").map((x) => Number(x.trim())).filter(Boolean);
+      try { show("stages-out", await api("POST", "/battles", { stage_id, team_instance_ids: team })); }
+      catch (e) { show("stages-out", e.message + "\n" + JSON.stringify(e.body, null, 2)); }
+    });
+    $("btn-daily").addEventListener("click", async () => { try { show("daily-out", await api("GET", "/daily")); } catch (e) { show("daily-out", e.message); } });
+    $("btn-arena-opp").addEventListener("click", async () => { try { show("arena-out", await api("GET", "/arena/opponents")); } catch (e) { show("arena-out", e.message); } });
+    $("btn-arena-lb").addEventListener("click", async () => { try { show("arena-out", await api("GET", "/arena/leaderboard")); } catch (e) { show("arena-out", e.message); } });
+    $("btn-guilds").addEventListener("click", async () => { try { show("guild-out", await api("GET", "/guilds")); } catch (e) { show("guild-out", e.message); } });
+
+    setTab(token() ? "me" : "login");
+    whoami();
+    if (token()) refreshMe();
+  </script>
+</body>
+</html>

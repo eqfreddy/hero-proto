@@ -1,0 +1,46 @@
+services:
+  hero-proto:
+    build: .
+    image: hero-proto:local
+    ports:
+      - "8000:8000"
+    environment:
+      HEROPROTO_ENVIRONMENT: "${HEROPROTO_ENVIRONMENT:-dev}"
+      HEROPROTO_JWT_SECRET: "${HEROPROTO_JWT_SECRET:-dev-only-change-me-at-least-32-bytes-long!}"
+      HEROPROTO_CORS_ORIGINS: "${HEROPROTO_CORS_ORIGINS:-*}"
+      HEROPROTO_DATABASE_URL: "${HEROPROTO_DATABASE_URL:-sqlite:////data/hero-proto.db}"
+    volumes:
+      - hero-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz', timeout=3).status == 200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  # Enable with: docker compose --profile postgres up
+  # and set HEROPROTO_DATABASE_URL=postgresql+psycopg://hero:heropw@postgres:5432/heroproto
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: hero
+      POSTGRES_PASSWORD: heropw
+      POSTGRES_DB: heroproto
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hero -d heroproto"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  hero-data:
+  pg-data:
