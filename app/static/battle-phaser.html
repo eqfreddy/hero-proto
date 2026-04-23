@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>hero-proto · battle replay</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #0b0d10; color: #ddd; margin: 0; }
+    header { background: #14181e; padding: 8px 16px; border-bottom: 1px solid #2d3847; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 16px; margin: 0; }
+    header .links a { color: #4ea1ff; text-decoration: none; font-size: 13px; margin-left: 12px; }
+    #game { display: flex; justify-content: center; background: #0b0d10; }
+    #controls { background: #14181e; padding: 10px 16px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #2d3847; }
+    #controls button { background: #2a7a4a; color: white; border: 0; padding: 6px 12px; border-radius: 3px; cursor: pointer; font: inherit; }
+    #controls button.secondary { background: #1b2430; color: #ddd; border: 1px solid #2d3847; }
+    #controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #progress { flex: 1; color: #7d8a9c; font-size: 12px; margin-left: 8px; }
+    #speed { background: #1b2430; color: #eee; border: 1px solid #2d3847; padding: 4px; border-radius: 3px; }
+    #result { padding: 12px 16px; font-size: 14px; }
+    #result .win { color: #6dd39a; }
+    #result .loss { color: #ff6b4a; }
+    #result .draw { color: #ffd86b; }
+    #loading { padding: 20px; color: #7d8a9c; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>battle replay · <span id="bid">—</span></h1>
+    <div class="links">
+      <a href="/app/">← dashboard</a>
+      <a href="#" id="toggle-dom">view DOM version</a>
+    </div>
+  </header>
+  <div id="loading">loading…</div>
+  <div id="game"></div>
+  <div id="controls" style="display:none;">
+    <button id="btn-play">▶ Play</button>
+    <button class="secondary" id="btn-step">Step</button>
+    <button class="secondary" id="btn-restart">↻ Restart</button>
+    <label style="font-size: 13px;">speed
+      <select id="speed">
+        <option value="900">0.33×</option>
+        <option value="600">0.5×</option>
+        <option value="300" selected>1×</option>
+        <option value="150">2×</option>
+        <option value="60">5×</option>
+      </select>
+    </label>
+    <span id="progress">—</span>
+  </div>
+  <div id="result"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script>
+    // --------------- data fetch ------------------------------------------------
+    const TOKEN_KEY = "heroproto_jwt";
+    const params = new URLSearchParams(location.search);
+    const battleId = params.get("id");
+    document.getElementById("bid").textContent = battleId || "?";
+    document.getElementById("toggle-dom").href = battleId ? `/app/battle.html?id=${battleId}` : "/app/";
+
+    async function loadBattle(id) {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) throw new Error("not signed in — log in on the dashboard first");
+      const r = await fetch(`/battles/${id}`, { headers: { authorization: "Bearer " + token } });
+      if (!r.ok) throw new Error("HTTP " + r.status + " — " + (await r.text()).slice(0, 200));
+      return r.json();
+    }
+
+    // --------------- Phaser scene ---------------------------------------------
+    const CANVAS_W = 960, CANVAS_H = 520;
+
+    class BattleScene extends Phaser.Scene {
+      constructor() { super("battle"); }
+
+      init(data) {
+        this.battle = data.battle;
+        this.cursor = 0;
+        this.playing = false;
+        this.speedMs = 300;
+        this.state = {};      // uid -> {hp, maxHp, sprite, hpBar, hpText, statusRow, dead}
+        this.timer = null;
+      }
+
+      preload() {
+        // Portrait per template_code. Phaser auto-fires file-complete; on error, we
+        // retry the placeholder endpoint so every uid ends up with a texture.
+        const needed = new Map();
+        for (const p of this.battle.participants) {
+          if (!needed.has(p.template_code)) needed.set(p.template_code, p);
+        }
+        for (const [code, _] of needed) {
+          if (!code) continue;
+          const key = "hero_" + code;
+          this.load.image(key, `/app/static/heroes/${code}.svg`);
+          this.load.image(key + "_ph", `/app/placeholder/hero/${code}.svg`);
+        }
+        // Handle missing real art: fallback is loaded side-by-side, resolveTexture() picks it.
+        this.load.on("loaderror", (file) => {
+          // silently ignore — placeholder will be used via resolveTexture.
+        });
+      }
+
+      resolveTexture(code) {
+        const key = "hero_" + code;
+        if (this.textures.exists(key)) {
+          // Phaser puts a fallback texture under the same key if load failed; verify dimensions.
+          const t = this.textures.get(key);
+          if (t && t.source[0] && t.source[0].width > 1) return key;
+        }
+        return key + "_ph";
+      }
+
+      create() {
+        this.cameras.main.setBackgroundColor("#0e1621");
+        // Arena floor: subtle gradient strip.
+        const floor = this.add.graphics();
+        floor.fillStyle(0x14202b, 1);
+        floor.fillRect(0, CANVAS_H - 80, CANVAS_W, 80);
+        floor.fillStyle(0x1b2430, 0.6);
+        floor.fillRect(0, CANVAS_H - 20, CANVAS_W, 20);
+
+        // VS divider.
+        this.add.text(CANVAS_W / 2, CANVAS_H / 2, "⚔", {
+          fontSize: "56px", color: "#3a4555",
+        }).setOrigin(0.5).setAlpha(0.5);
+
+        this.buildUnits();
+
+        // Caption at top.
+        this.caption = this.add.text(CANVAS_W / 2, 32, "", {
+          fontSize: "18px", color: "#ffd86b", fontFamily: "system-ui, sans-serif",
+          fontStyle: "bold", backgroundColor: "rgba(0,0,0,0.55)",
+          padding: { x: 14, y: 4 },
+        }).setOrigin(0.5).setAlpha(0);
+
+        // Floating result text (hidden until END event).
+        this.resultText = this.add.text(CANVAS_W / 2, CANVAS_H / 2, "", {
+          fontSize: "42px", color: "#fff", fontFamily: "system-ui, sans-serif",
+          fontStyle: "bold", stroke: "#000", strokeThickness: 6,
+        }).setOrigin(0.5).setAlpha(0);
+      }
+
+      buildUnits() {
+        const sideA = this.battle.participants.filter(p => p.side === "A");
+        const sideB = this.battle.participants.filter(p => p.side === "B");
+        // Compact unit cards for up to 6 on a side.
+        const place = (list, xBase, mirror) => {
+          const gap = 90;
+          const yStart = (CANVAS_H - 60) / 2 - (list.length - 1) * gap / 2;
+          list.forEach((p, i) => {
+            const x = xBase + (mirror ? -30 : 30);
+            const y = yStart + i * gap;
+            this.createUnit(p, x, y, mirror);
+          });
+        };
+        place(sideA, 200, false);
+        place(sideB, CANVAS_W - 200, true);
+      }
+
+      createUnit(p, x, y, mirror) {
+        const roleTint = p.role === "ATK" ? 0xff7a59 : (p.role === "DEF" ? 0x59a0ff : 0x6dd39a);
+        const container = this.add.container(x, y);
+        container.uid = p.uid;
+
+        // Portrait frame.
+        const frame = this.add.rectangle(0, 0, 72, 72, 0x1b2430)
+          .setStrokeStyle(2, roleTint);
+        container.add(frame);
+
+        // Portrait image — use template_code; fall back to placeholder.
+        const texKey = this.resolveTexture(p.template_code);
+        const portrait = this.add.image(0, 0, texKey).setDisplaySize(64, 64);
+        if (mirror) portrait.setFlipX(true);
+        container.add(portrait);
+
+        // Name + level label below.
+        const label = this.add.text(0, 44, `${p.name}`, {
+          fontSize: "11px", color: "#ddd", fontFamily: "system-ui, sans-serif",
+          fontStyle: "bold",
+        }).setOrigin(0.5);
+        container.add(label);
+        const lvl = this.add.text(0, 56, `Lv${p.level}`, {
+          fontSize: "10px", color: "#7d8a9c",
+        }).setOrigin(0.5);
+        container.add(lvl);
+
+        // HP bar above portrait.
+        const barBg = this.add.rectangle(0, -48, 74, 7, 0x0d1218).setStrokeStyle(1, 0x2d3847);
+        const barFill = this.add.rectangle(-36, -48, 72, 5, 0x2ad06a).setOrigin(0, 0.5);
+        const hpText = this.add.text(0, -58, `${p.max_hp}/${p.max_hp}`, {
+          fontSize: "9px", color: "#ddd",
+        }).setOrigin(0.5);
+        container.add([barBg, barFill, hpText]);
+
+        // Turn indicator ring (hidden by default).
+        const ring = this.add.circle(0, 0, 42, 0xffd86b, 0).setStrokeStyle(3, 0xffd86b);
+        ring.setAlpha(0);
+        container.add(ring);
+
+        // Status pill row (empty until effects apply).
+        const statusRow = this.add.text(0, 70, "", {
+          fontSize: "9px", color: "#b3c0d1",
+        }).setOrigin(0.5);
+        container.add(statusRow);
+
+        this.state[p.uid] = {
+          hp: p.max_hp, maxHp: p.max_hp,
+          container, portrait, frame, barFill, hpText, statusRow, ring,
+          dead: false, statuses: [],
+        };
+      }
+
+      // --------------- playback --------------------------------------------
+      applyEvent(e) {
+        switch (e.type) {
+          case "TURN":
+            this.setActing(e.unit);
+            if (typeof e.hp === "number" && this.state[e.unit]) {
+              this.state[e.unit].hp = e.hp;
+              this.updateHp(e.unit);
+            }
+            break;
+          case "DAMAGE":
+            this.doDamage(e.target, e.amount || 0);
+            break;
+          case "HEAL":
+            this.doHeal(e.target, e.amount || 0);
+            break;
+          case "DEATH":
+            this.doDeath(e.unit);
+            break;
+          case "STATUS_APPLIED":
+            this.addStatus(e.unit, e.kind, e.turns || 0);
+            break;
+          case "STATUS_EXPIRED":
+            this.removeStatus(e.unit, e.kind);
+            break;
+          case "SPECIAL":
+            this.setActing(e.unit);
+            this.floatText(e.unit, e.name || "special", 0xffd86b);
+            break;
+          case "LIFESTEAL":
+            this.floatText(e.unit, "+" + (e.amount || 0), 0x6dd39a);
+            break;
+          case "STUNNED":
+            this.floatText(e.unit, "stunned!", 0xff6b4a);
+            break;
+          case "VIOLENT_TURN":
+            this.floatText(e.unit, "violent!", 0xffd86b);
+            break;
+          case "CLEANSE":
+            this.floatText(e.unit, "cleansed", 0x6dd39a);
+            break;
+          case "REVIVE":
+            this.doRevive(e.target, e.hp);
+            break;
+          case "WAVE_START":
+            this.showCaption(`Wave ${e.wave}`, 1100);
+            break;
+          case "END":
+            this.showCaption(`Battle ${e.outcome}`, 1500);
+            this.setActing(null);
+            break;
+          case "log_truncated":
+            this.showCaption(`... ${e.skipped} events skipped ...`, 900);
+            break;
+        }
+        this.updateProgress();
+      }
+
+      setActing(uid) {
+        for (const u of Object.values(this.state)) {
+          this.tweens.add({ targets: u.ring, alpha: 0, duration: 120 });
+        }
+        if (!uid || !this.state[uid]) return;
+        this.tweens.add({
+          targets: this.state[uid].ring,
+          alpha: { from: 0, to: 1 },
+          duration: 160,
+        });
+      }
+
+      doDamage(uid, amount) {
+        const s = this.state[uid]; if (!s) return;
+        s.hp = Math.max(0, s.hp - amount);
+        this.updateHp(uid);
+        // Shake the container briefly.
+        const baseX = s.container.x;
+        this.tweens.add({
+          targets: s.container, x: baseX - 6, yoyo: true, duration: 60, repeat: 1,
+          onComplete: () => { s.container.x = baseX; },
+        });
+        // Red flash on frame.
+        s.frame.setStrokeStyle(3, 0xff6b4a);
+        this.time.delayedCall(200, () => {
+          const tint = this.participantRoleTint(uid);
+          s.frame.setStrokeStyle(2, tint);
+        });
+        this.floatText(uid, "-" + amount, 0xff6b4a, 22);
+      }
+
+      doHeal(uid, amount) {
+        const s = this.state[uid]; if (!s) return;
+        s.hp = Math.min(s.maxHp, s.hp + amount);
+        this.updateHp(uid);
+        this.floatText(uid, "+" + amount, 0x6dd39a);
+      }
+
+      doDeath(uid) {
+        const s = this.state[uid]; if (!s) return;
+        s.dead = true;
+        s.hp = 0;
+        this.updateHp(uid);
+        this.tweens.add({
+          targets: s.container, alpha: 0.3, duration: 300,
+        });
+        // KO stamp.
+        const ko = this.add.text(s.container.x, s.container.y, "KO", {
+          fontSize: "28px", color: "#ff6b4a", fontStyle: "bold",
+          stroke: "#000", strokeThickness: 4,
+        }).setOrigin(0.5).setAngle(-12).setAlpha(0);
+        this.tweens.add({
+          targets: ko, alpha: 1, duration: 200, yoyo: false,
+        });
+        s.koStamp = ko;
+      }
+
+      doRevive(uid, hp) {
+        const s = this.state[uid]; if (!s) return;
+        s.dead = false;
+        if (typeof hp === "number") s.hp = hp;
+        this.updateHp(uid);
+        this.tweens.add({ targets: s.container, alpha: 1, duration: 300 });
+        if (s.koStamp) { s.koStamp.destroy(); s.koStamp = null; }
+        this.floatText(uid, "revived!", 0x6dd39a);
+      }
+
+      updateHp(uid) {
+        const s = this.state[uid]; if (!s) return;
+        const pct = Math.max(0, s.hp / s.maxHp);
+        const fullW = 72;
+        this.tweens.add({
+          targets: s.barFill, width: fullW * pct, duration: 200,
+        });
+        // Color bands.
+        const color = pct > 0.5 ? 0x2ad06a : (pct > 0.25 ? 0xd6a02a : 0xd64a2a);
+        s.barFill.fillColor = color;
+        s.hpText.setText(`${Math.max(0, Math.floor(s.hp))}/${s.maxHp}`);
+      }
+
+      addStatus(uid, kind, turns) {
+        const s = this.state[uid]; if (!s) return;
+        s.statuses.push({ kind, turns });
+        this.renderStatuses(uid);
+      }
+      removeStatus(uid, kind) {
+        const s = this.state[uid]; if (!s) return;
+        s.statuses = s.statuses.filter(x => x.kind !== kind);
+        this.renderStatuses(uid);
+      }
+      renderStatuses(uid) {
+        const s = this.state[uid]; if (!s) return;
+        s.statusRow.setText(s.statuses.map(x => x.kind).join(" "));
+      }
+
+      floatText(uid, text, color, size = 18) {
+        const s = this.state[uid]; if (!s) return;
+        const t = this.add.text(s.container.x, s.container.y - 30, text, {
+          fontSize: `${size}px`, color: Phaser.Display.Color.IntegerToColor(color).rgba,
+          fontStyle: "bold", stroke: "#000", strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(100);
+        this.tweens.add({
+          targets: t,
+          y: s.container.y - 70,
+          alpha: { from: 1, to: 0 },
+          duration: 900, ease: "Quad.out",
+          onComplete: () => t.destroy(),
+        });
+      }
+
+      participantRoleTint(uid) {
+        const p = this.battle.participants.find(x => x.uid === uid);
+        if (!p) return 0x7d8a9c;
+        return p.role === "ATK" ? 0xff7a59 : (p.role === "DEF" ? 0x59a0ff : 0x6dd39a);
+      }
+
+      showCaption(text, ttl) {
+        this.caption.setText(text).setAlpha(1);
+        this.time.delayedCall(ttl, () => {
+          this.tweens.add({ targets: this.caption, alpha: 0, duration: 200 });
+        });
+      }
+
+      // --------------- controls --------------------------------------------
+      stepOnce() {
+        if (this.cursor >= this.battle.log.length) return false;
+        this.applyEvent(this.battle.log[this.cursor]);
+        this.cursor++;
+        return true;
+      }
+
+      play() {
+        if (this.playing) return;
+        this.playing = true;
+        document.getElementById("btn-play").textContent = "⏸ Pause";
+        const tick = () => {
+          if (!this.playing) return;
+          if (!this.stepOnce()) { this.pause(); this.showResult(); return; }
+          this.timer = this.time.delayedCall(this.speedMs, tick);
+        };
+        tick();
+      }
+
+      pause() {
+        this.playing = false;
+        if (this.timer) { this.timer.remove(); this.timer = null; }
+        document.getElementById("btn-play").textContent = "▶ Play";
+      }
+
+      restart() {
+        this.pause();
+        // Reset state in place.
+        for (const p of this.battle.participants) {
+          const s = this.state[p.uid];
+          s.hp = p.max_hp; s.dead = false; s.statuses = [];
+          s.container.alpha = 1;
+          if (s.koStamp) { s.koStamp.destroy(); s.koStamp = null; }
+          this.updateHp(p.uid); this.renderStatuses(p.uid);
+          s.ring.setAlpha(0);
+          s.frame.setStrokeStyle(2, this.participantRoleTint(p.uid));
+        }
+        this.cursor = 0;
+        this.resultText.setAlpha(0);
+        document.getElementById("result").innerHTML = "";
+        this.updateProgress();
+      }
+
+      updateProgress() {
+        document.getElementById("progress").textContent =
+          `${this.cursor} / ${this.battle.log.length} events`;
+      }
+
+      showResult() {
+        const b = this.battle;
+        const cls = b.outcome === "WIN" ? "win" : (b.outcome === "LOSS" ? "loss" : "draw");
+        const rewards = b.rewards || {};
+        const bits = [];
+        if (rewards.gems) bits.push(`+${rewards.gems} 💎`);
+        if (rewards.coins) bits.push(`+${rewards.coins} coins`);
+        if (rewards.shards) bits.push(`+${rewards.shards} ✦`);
+        if (rewards.xp) bits.push(`+${rewards.xp} xp`);
+        if (rewards.gear) bits.push(`gear: ${rewards.gear.rarity} ${rewards.gear.slot}`);
+        if (b.first_clear) bits.push("first-clear bonus");
+        document.getElementById("result").innerHTML =
+          `<span class="${cls}"><strong>${b.outcome}</strong></span>${bits.length ? " — " + bits.join(", ") : ""}`;
+        // Big text in-canvas.
+        this.resultText.setText(b.outcome)
+          .setColor(cls === "win" ? "#6dd39a" : (cls === "loss" ? "#ff6b4a" : "#ffd86b"));
+        this.tweens.add({
+          targets: this.resultText, alpha: 1, scale: { from: 0.5, to: 1.0 },
+          duration: 400, ease: "Back.out",
+        });
+      }
+    }
+
+    // --------------- boot -----------------------------------------------------
+    (async () => {
+      if (!battleId) {
+        document.getElementById("loading").textContent = "missing ?id=N in URL";
+        return;
+      }
+      try {
+        const battle = await loadBattle(battleId);
+        document.getElementById("loading").remove();
+        document.getElementById("controls").style.display = "flex";
+
+        const game = new Phaser.Game({
+          type: Phaser.AUTO, width: CANVAS_W, height: CANVAS_H,
+          parent: "game", backgroundColor: "#0b0d10",
+          scene: BattleScene, scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+        });
+        game.scene.start("battle", { battle });
+
+        // Wait one frame so scene exists.
+        await new Promise(r => setTimeout(r, 100));
+        const scene = game.scene.getScene("battle");
+        scene.scene.events.on("create", () => scene.restart());
+
+        document.getElementById("btn-play").addEventListener("click", () => {
+          scene.playing ? scene.pause() : scene.play();
+        });
+        document.getElementById("btn-step").addEventListener("click", () => {
+          scene.pause();
+          if (!scene.stepOnce()) scene.showResult();
+        });
+        document.getElementById("btn-restart").addEventListener("click", () => scene.restart());
+        document.getElementById("speed").addEventListener("change", (e) => {
+          scene.speedMs = Number(e.target.value);
+        });
+      } catch (e) {
+        document.getElementById("loading").innerHTML =
+          `<span style="color:#ff6b4a">load failed: ${e.message}</span>`;
+      }
+    })();
+  </script>
+</body>
+</html>

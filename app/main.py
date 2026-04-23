@@ -112,6 +112,12 @@ if _battle_html.is_file():
     def _serve_battle_html() -> _FR:
         return _FR(str(_battle_html))
 
+_battle_phaser_html = _STATIC_DIR / "battle-phaser.html"
+if _battle_phaser_html.is_file():
+    @app.get("/app/battle-phaser.html", include_in_schema=False)
+    def _serve_battle_phaser_html() -> _FR:
+        return _FR(str(_battle_phaser_html))
+
 app.include_router(auth.router)
 app.include_router(me.router)
 app.include_router(heroes.router)

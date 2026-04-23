@@ -104,8 +104,9 @@ def fight(
 
     participants: list[dict] = [
         {"uid": u.uid, "side": "A", "name": u.name, "role": str(u.role),
-         "level": u.level, "max_hp": u.max_hp}
-        for u in team_a
+         "level": u.level, "max_hp": u.max_hp,
+         "template_code": heroes[i].template.code}
+        for i, u in enumerate(team_a)
     ]
 
     # Index enemy ids across waves so logs can disambiguate.
@@ -127,6 +128,7 @@ def fight(
                 "uid": enemy_unit.uid, "side": "B", "name": enemy_unit.name,
                 "role": str(enemy_unit.role), "level": enemy_unit.level,
                 "max_hp": enemy_unit.max_hp,
+                "template_code": tmpl.code,
             })
             enemy_counter += 1
 

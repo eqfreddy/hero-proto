@@ -51,7 +51,8 @@
       out.innerHTML = `
         <span class="pill ${cls}">${body.outcome}</span>
         ${body.first_clear ? ' <span class="pill good">first clear!</span>' : ''}
-        <a href="/app/battle.html?id=${body.id}" target="_blank" style="margin-left: 6px;">▶ watch replay</a>
+        <a href="/app/battle-phaser.html?id=${body.id}" target="_blank" style="margin-left: 6px;">▶ watch replay</a>
+        <a href="/app/battle.html?id=${body.id}" target="_blank" style="margin-left: 4px; font-size: 11px; color: var(--muted);">(DOM)</a>
       `;
     } catch (e) { out.innerHTML = '<span style="color: var(--bad);">' + e.message + '</span>'; }
   }

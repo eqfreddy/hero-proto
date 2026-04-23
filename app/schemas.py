@@ -302,6 +302,7 @@ class BattleParticipant(BaseModel):
     role: str
     level: int
     max_hp: int
+    template_code: str = ""  # for portrait lookup; empty on legacy rows before this field landed
 
 
 class BattleOut(BaseModel):
