@@ -16,6 +16,8 @@ def test_register_grants_starter_and_onboarding_bonus(client) -> None:
     me = client.get("/me", headers={"Authorization": f"Bearer {token}"}).json()
     assert me["shards"] >= 20  # 10 starter + 10 onboarding bonus
     assert me["energy"] == me["energy_cap"]
+    # New premium currency defaults to 0 on fresh accounts.
+    assert me["access_cards"] == 0
 
 
 def test_full_loop(client, auth_headers) -> None:

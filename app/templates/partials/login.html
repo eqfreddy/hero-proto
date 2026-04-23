@@ -1,0 +1,40 @@
+<div class="card" style="max-width: 420px;">
+  <h2 style="margin-top: 0; font-size: 14px; color: var(--muted);">Sign in</h2>
+  <div class="stack">
+    <input id="email" type="email" placeholder="email" autocomplete="email" />
+    <input id="password" type="password" placeholder="password" autocomplete="current-password" />
+    <div class="row">
+      <button class="primary" onclick="heroAuth(false)">Login</button>
+      <button class="secondary" onclick="heroAuth(true)">Register</button>
+      <button class="danger" onclick="heroLogout()" style="margin-left: auto;">Logout</button>
+    </div>
+    <pre id="login-status" style="display:none;"></pre>
+  </div>
+</div>
+<script>
+  async function heroAuth(register) {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const s = document.getElementById('login-status');
+    s.style.display = 'block';
+    s.textContent = register ? 'Registering…' : 'Logging in…';
+    try {
+      const r = await fetch(register ? '/auth/register' : '/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const body = await r.json();
+      if (!r.ok) { s.textContent = `error ${r.status}: ${body.detail || JSON.stringify(body)}`; return; }
+      localStorage.setItem('heroproto_jwt', body.access_token);
+      s.textContent = `signed in — ${email}`;
+      document.querySelector('[data-tab="me"]').click();
+    } catch (e) { s.textContent = 'error: ' + e.message; }
+  }
+  function heroLogout() {
+    localStorage.removeItem('heroproto_jwt');
+    document.getElementById('login-status').style.display = 'block';
+    document.getElementById('login-status').textContent = 'logged out';
+    document.getElementById('who').textContent = 'not signed in';
+  }
+</script>

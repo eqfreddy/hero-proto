@@ -1,0 +1,30 @@
+<div class="stack">
+  <div class="row" style="justify-content: space-between;">
+    <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Daily quests</h2>
+    <button class="secondary" hx-get="/app/partials/daily" hx-target="#content">↻ refresh</button>
+  </div>
+  {% if not quests %}
+    <div class="card muted">No active daily quests.</div>
+  {% endif %}
+  {% for q in quests %}
+  <div class="card">
+    <div class="row" style="justify-content: space-between;">
+      <div>
+        <div style="font-weight: 600;">{{ q.kind | replace('_', ' ') | title }}{% if q.target_key %} — {{ q.target_key }}{% endif %}</div>
+        <div class="muted" style="font-size: 11px;">{{ q.progress }} / {{ q.goal }} · day {{ q.day_key }}</div>
+      </div>
+      <div class="row" style="gap: 8px;">
+        <span class="pill {% if q.status == 'COMPLETE' %}good{% elif q.status == 'CLAIMED' %}{% endif %}">{{ q.status }}</span>
+        {% if q.status == 'COMPLETE' %}
+          <button class="primary" hx-post="/daily/{{ q.id }}/claim" hx-target="#content" hx-swap="innerHTML" hx-trigger="click"
+                  hx-on::after-request="htmx.ajax('GET', '/app/partials/daily', '#content')">claim</button>
+        {% endif %}
+      </div>
+    </div>
+    <div class="hpbar" style="margin-top: 8px;"><div class="fill" style="width: {{ (100 * q.progress / q.goal) | round(1) }}%;"></div></div>
+    <div class="row" style="gap: 12px; font-size: 11px; margin-top: 6px; color: var(--muted);">
+      reward: {{ q.reward_coins }} coins · {{ q.reward_gems }} 💎 · {{ q.reward_shards }} ✦
+    </div>
+  </div>
+  {% endfor %}
+</div>

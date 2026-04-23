@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}hero-proto{% endblock %}</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d10;
+      --panel: #14181e;
+      --panel-2: #1b2430;
+      --border: #2d3847;
+      --text: #dde3ea;
+      --muted: #7d8a9c;
+      --accent: #4ea1ff;
+      --good: #6dd39a;
+      --warn: #ffd86b;
+      --bad: #ff6b4a;
+      --atk: #ff7a59;
+      --def: #59a0ff;
+      --sup: #6dd39a;
+      --r-common: #9ca7b3;
+      --r-uncommon: #6dd39a;
+      --r-rare: #59a0ff;
+      --r-epic: #c97aff;
+      --r-legendary: #ffd86b;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; min-height: 100vh; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; border: 0; border-radius: 4px; padding: 6px 12px; color: white; background: var(--panel-2); }
+    button.primary { background: #2a7a4a; }
+    button.primary:hover { background: #2f8a53; }
+    button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    button.secondary:hover { background: var(--border); }
+    button.danger { background: #8a2a2a; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    input, select { background: var(--panel); color: var(--text); border: 1px solid var(--border); padding: 6px 8px; border-radius: 4px; }
+    pre { background: #0a0a0a; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; color: #bbc; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+    .muted { color: var(--muted); }
+    .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--panel); border: 1px solid var(--border); color: var(--muted); }
+    .pill.good { color: var(--good); border-color: #2f7e56; }
+    .pill.bad { color: var(--bad); border-color: #9d4c39; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    tr:hover td { background: rgba(78, 161, 255, 0.06); }
+    .role-ATK { color: var(--atk); }
+    .role-DEF { color: var(--def); }
+    .role-SUP { color: var(--sup); }
+    .rarity-COMMON { border-left: 3px solid var(--r-common); }
+    .rarity-UNCOMMON { border-left: 3px solid var(--r-uncommon); }
+    .rarity-RARE { border-left: 3px solid var(--r-rare); }
+    .rarity-EPIC { border-left: 3px solid var(--r-epic); }
+    .rarity-LEGENDARY { border-left: 3px solid var(--r-legendary); box-shadow: 0 0 12px rgba(255, 216, 107, 0.15); }
+    .hpbar { position: relative; height: 8px; background: #0d1218; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+    .hpbar > .fill { height: 100%; background: linear-gradient(90deg, var(--good), #7fe09c); transition: width 250ms; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator { display: inline-block; }
+    .htmx-request.htmx-indicator { display: inline-block; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% block body %}{% endblock %}
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+  <script>
+    // Attach JWT from localStorage to every HTMX request.
+    const TOKEN_KEY = "heroproto_jwt";
+    document.body.addEventListener("htmx:configRequest", (evt) => {
+      const t = localStorage.getItem(TOKEN_KEY);
+      if (t) evt.detail.headers["Authorization"] = "Bearer " + t;
+    });
+    // On 401 from an htmx request, bounce to login.
+    document.body.addEventListener("htmx:responseError", (evt) => {
+      if (evt.detail.xhr.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        const nav = document.querySelector('[data-tab="login"]');
+        if (nav) nav.click();
+      }
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

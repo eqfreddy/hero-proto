@@ -1,0 +1,73 @@
+<div class="stack">
+  <div class="row" style="justify-content: space-between;">
+    <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Stages</h2>
+    <div class="muted" style="font-size: 12px;">⚡ energy {{ me.energy }}/{{ me.energy_cap }} · team size 3</div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px;">
+    {% for s in stages %}
+    <div class="card" style="padding: 12px;">
+      <div class="row" style="justify-content: space-between; align-items: start;">
+        <div>
+          <div style="font-weight: 600;">{{ s.order }}. {{ s.name }}</div>
+          <div class="muted" style="font-size: 11px;">{{ s.code }}</div>
+        </div>
+        {% if s.cleared %}<span class="pill good">✓ cleared</span>{% endif %}
+      </div>
+      <div class="row" style="gap: 10px; margin-top: 6px; font-size: 12px;">
+        <span>⚡ {{ s.energy_cost }}</span>
+        <span class="muted">rec power {{ s.recommended_power }}</span>
+        <span class="muted">{{ s.coin_reward }} coins</span>
+        {% if not s.cleared %}
+          <span style="color: var(--r-legendary);">+ {{ s.first_clear_gems }} 💎 + {{ s.first_clear_shards }} ✦ (first clear)</span>
+        {% endif %}
+      </div>
+      <div class="row" style="margin-top: 10px; gap: 6px;">
+        <input type="text" id="team-{{ s.id }}" placeholder="hero ids (comma-sep)" style="flex: 1; min-width: 0;" />
+        <button class="primary" onclick="battleStage({{ s.id }})">Battle</button>
+        {% if s.cleared %}<button class="secondary" onclick="sweepStage({{ s.id }})" title="sweep cleared stage">Sweep</button>{% endif %}
+      </div>
+      <div id="stage-result-{{ s.id }}" style="margin-top: 8px; font-size: 12px;"></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<script>
+  async function battleStage(stageId) {
+    const raw = document.getElementById('team-' + stageId).value;
+    const team = raw.split(',').map(s => Number(s.trim())).filter(Boolean);
+    const out = document.getElementById('stage-result-' + stageId);
+    if (!team.length) { out.innerHTML = '<span style="color: var(--bad);">need hero ids</span>'; return; }
+    out.innerHTML = '<span class="spinner"></span> fighting…';
+    try {
+      const token = localStorage.getItem('heroproto_jwt');
+      const r = await fetch('/battles', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ stage_id: stageId, team }),
+      });
+      const body = await r.json();
+      if (!r.ok) { out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${body.detail || JSON.stringify(body)}</span>`; return; }
+      const cls = body.outcome === 'WIN' ? 'good' : 'bad';
+      out.innerHTML = `
+        <span class="pill ${cls}">${body.outcome}</span>
+        ${body.first_clear ? ' <span class="pill good">first clear!</span>' : ''}
+        <a href="/app/battle.html?id=${body.id}" target="_blank" style="margin-left: 6px;">▶ watch replay</a>
+      `;
+    } catch (e) { out.innerHTML = '<span style="color: var(--bad);">' + e.message + '</span>'; }
+  }
+  async function sweepStage(stageId) {
+    const count = prompt('how many sweeps?', '3');
+    if (!count) return;
+    const out = document.getElementById('stage-result-' + stageId);
+    out.innerHTML = '<span class="spinner"></span> sweeping…';
+    const token = localStorage.getItem('heroproto_jwt');
+    const r = await fetch(`/battles/sweep/${stageId}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+      body: JSON.stringify({ count: Number(count) }),
+    });
+    const body = await r.json();
+    if (!r.ok) { out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${body.detail}</span>`; return; }
+    out.innerHTML = `<span class="pill good">swept ×${body.battles}</span> · ${body.total_coins} coins · ${body.total_shards} ✦`;
+  }
+</script>

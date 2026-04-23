@@ -1,0 +1,306 @@
+"""HTMX UI router.
+
+Serves an HTML shell at /app and Jinja-rendered partials at /app/partials/*.
+Partials are HTML fragments returned in response to hx-get calls from the shell.
+Authentication reuses the same JWT bearer flow — the client-side script in
+base.html attaches the token from localStorage on every htmx request.
+
+This router returns HTML fragments; the existing JSON API under /me, /heroes,
+etc. is untouched. HTMX callers are expected to hit these UI routes for
+rendered HTML, and the JSON API for anything programmatic.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import desc, select
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.db import get_db
+from app.deps import get_current_account
+from app.economy import compute_energy, load_cleared
+from app.gear_logic import gear_bonus_for
+from app.combat import power_rating, scale_stat
+from app.models import (
+    Account,
+    DailyQuest,
+    DailyQuestStatus,
+    Guild,
+    GuildApplication,
+    GuildApplicationStatus,
+    GuildMember,
+    GuildMessage,
+    GuildRole,
+    HeroInstance,
+    Stage,
+)
+
+_TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
+templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
+
+router = APIRouter(prefix="/app", tags=["ui"], include_in_schema=False)
+
+
+def _me_dict(account: Account) -> dict:
+    return {
+        "id": account.id,
+        "email": account.email,
+        "coins": account.coins,
+        "gems": account.gems,
+        "shards": account.shards,
+        "access_cards": account.access_cards,
+        "energy": compute_energy(account),
+        "energy_cap": settings.energy_cap,
+        "pulls_since_epic": account.pulls_since_epic,
+        "stages_cleared": sorted(load_cleared(account)),
+        "arena_rating": account.arena_rating,
+        "arena_wins": account.arena_wins,
+        "arena_losses": account.arena_losses,
+    }
+
+
+@router.get("", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
+def shell(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "shell.html", {})
+
+
+@router.get("/partials/login", response_class=HTMLResponse)
+def partial_login(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "partials/login.html", {})
+
+
+@router.get("/partials/me", response_class=HTMLResponse)
+def partial_me(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    me = _me_dict(account)
+    # Guild name for the badge, if any.
+    membership = db.get(GuildMember, account.id)
+    guild = db.get(Guild, membership.guild_id) if membership else None
+    return templates.TemplateResponse(request, "partials/me.html", {"me": me, "guild": guild})
+
+
+def _hero_row(h: HeroInstance) -> dict:
+    t = h.template
+    bonus = gear_bonus_for(h)
+    hp = scale_stat(t.base_hp, h.level, h.stars) + bonus.get("hp", 0)
+    atk = scale_stat(t.base_atk, h.level, h.stars) + bonus.get("atk", 0)
+    def_ = scale_stat(t.base_def, h.level, h.stars) + bonus.get("def", 0)
+    spd = scale_stat(t.base_spd, h.level, h.stars) + bonus.get("spd", 0)
+    return {
+        "id": h.id,
+        "name": t.name,
+        "rarity": str(t.rarity),
+        "role": str(t.role),
+        "faction": str(t.faction),
+        "level": h.level,
+        "stars": h.stars,
+        "hp": hp, "atk": atk, "def_": def_, "spd": spd,
+        "power": power_rating(hp, atk, def_, spd),
+    }
+
+
+@router.get("/partials/roster", response_class=HTMLResponse)
+def partial_roster(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    heroes = list(
+        db.scalars(
+            select(HeroInstance)
+            .where(HeroInstance.account_id == account.id)
+            .order_by(HeroInstance.id.desc())
+        )
+    )
+    rows = sorted((_hero_row(h) for h in heroes), key=lambda r: r["power"], reverse=True)
+    return templates.TemplateResponse(request, "partials/roster.html", {"heroes": rows})
+
+
+@router.get("/partials/stages", response_class=HTMLResponse)
+def partial_stages(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    cleared = load_cleared(account)
+    stages = [
+        {
+            "id": s.id, "code": s.code, "name": s.name, "order": s.order,
+            "energy_cost": s.energy_cost,
+            "recommended_power": s.recommended_power,
+            "coin_reward": s.coin_reward,
+            "first_clear_gems": s.first_clear_gems,
+            "first_clear_shards": s.first_clear_shards,
+            "cleared": s.code in cleared,
+        }
+        for s in db.scalars(select(Stage).order_by(Stage.order))
+    ]
+    return templates.TemplateResponse(
+        request, "partials/stages.html", {"stages": stages, "me": _me_dict(account)}
+    )
+
+
+@router.get("/partials/daily", response_class=HTMLResponse)
+def partial_daily(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    quests = list(
+        db.scalars(
+            select(DailyQuest)
+            .where(
+                DailyQuest.account_id == account.id,
+                DailyQuest.status != DailyQuestStatus.CLAIMED,
+            )
+            .order_by(DailyQuest.id)
+        )
+    )
+    rows = [
+        {
+            "id": q.id, "kind": str(q.kind), "status": str(q.status),
+            "target_key": q.target_key, "goal": q.goal, "progress": q.progress,
+            "reward_coins": q.reward_coins, "reward_gems": q.reward_gems,
+            "reward_shards": q.reward_shards, "day_key": q.day_key,
+        }
+        for q in quests
+    ]
+    return templates.TemplateResponse(request, "partials/daily.html", {"quests": rows})
+
+
+@router.get("/partials/arena", response_class=HTMLResponse)
+def partial_arena(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    from app.models import DefenseTeam
+    # Opponents: up to 10 accounts with defense teams, excluding self.
+    pool = list(
+        db.scalars(
+            select(DefenseTeam.account_id, DefenseTeam.power)
+            .where(DefenseTeam.account_id != account.id)
+            .limit(10)
+        )
+    )
+    opponents = []
+    for def_team in db.execute(
+        select(DefenseTeam.account_id, DefenseTeam.power, Account.email, Account.arena_rating)
+        .join(Account, Account.id == DefenseTeam.account_id)
+        .where(DefenseTeam.account_id != account.id)
+        .order_by(desc(Account.arena_rating))
+        .limit(10)
+    ):
+        opponents.append({
+            "account_id": def_team[0], "defense_power": def_team[1],
+            "name": def_team[2].split("@")[0], "arena_rating": def_team[3],
+        })
+    # Leaderboard: top 20 by rating.
+    leaderboard = [
+        {"account_id": r[0], "name": r[1].split("@")[0], "arena_rating": r[2], "wins": r[3], "losses": r[4]}
+        for r in db.execute(
+            select(Account.id, Account.email, Account.arena_rating, Account.arena_wins, Account.arena_losses)
+            .order_by(desc(Account.arena_rating), Account.id)
+            .limit(20)
+        )
+    ]
+    return templates.TemplateResponse(
+        request, "partials/arena.html",
+        {"me": _me_dict(account), "opponents": opponents, "leaderboard": leaderboard},
+    )
+
+
+@router.get("/partials/guild", response_class=HTMLResponse)
+def partial_guild(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    membership = db.get(GuildMember, account.id)
+    if membership is None:
+        all_guilds = [
+            {"id": g.id, "name": g.name, "tag": g.tag, "description": g.description,
+             "member_count": db.query(GuildMember).filter_by(guild_id=g.id).count()}
+            for g in db.scalars(select(Guild).order_by(Guild.id))
+        ]
+        return templates.TemplateResponse(
+            request, "partials/guild.html",
+            {"guild": None, "me": _me_dict(account), "all_guilds": all_guilds,
+             "is_leader": False, "is_officer_or_leader": False},
+        )
+
+    guild = db.get(Guild, membership.guild_id)
+    members_rows = db.execute(
+        select(Account.id, Account.email, GuildMember.role, Account.arena_rating)
+        .join(GuildMember, GuildMember.account_id == Account.id)
+        .where(GuildMember.guild_id == guild.id)
+        .order_by(Account.arena_rating.desc(), Account.id)
+    )
+    members = [
+        {"account_id": row[0], "name": row[1].split("@")[0], "role": str(row[2]), "arena_rating": row[3]}
+        for row in members_rows
+    ]
+    guild_obj = {
+        "id": guild.id, "name": guild.name, "tag": guild.tag,
+        "description": guild.description,
+        "member_count": len(members), "members": members,
+    }
+
+    is_leader = membership.role == GuildRole.LEADER
+    is_officer_or_leader = membership.role in (GuildRole.LEADER, GuildRole.OFFICER)
+
+    applications = []
+    if is_officer_or_leader:
+        for a in db.scalars(
+            select(GuildApplication)
+            .where(
+                GuildApplication.guild_id == guild.id,
+                GuildApplication.status == GuildApplicationStatus.PENDING,
+            )
+            .order_by(GuildApplication.created_at.desc())
+        ):
+            applicant = db.get(Account, a.account_id)
+            applications.append({
+                "id": a.id, "applicant_name": applicant.email.split("@")[0] if applicant else "[gone]",
+                "message": a.message,
+            })
+
+    messages = list(
+        db.execute(
+            select(GuildMessage.id, GuildMessage.author_id, Account.email, GuildMessage.body, GuildMessage.created_at)
+            .outerjoin(Account, Account.id == GuildMessage.author_id)
+            .where(GuildMessage.guild_id == guild.id)
+            .order_by(desc(GuildMessage.id))
+            .limit(20)
+        )
+    )
+    msg_rows = [
+        {"id": m[0], "author_name": (m[2].split("@")[0] if m[2] else "[gone]"),
+         "body": m[3], "created_at": m[4]}
+        for m in messages
+    ]
+
+    return templates.TemplateResponse(
+        request, "partials/guild.html",
+        {
+            "guild": guild_obj,
+            "me": _me_dict(account),
+            "my_role": str(membership.role),
+            "is_leader": is_leader,
+            "is_officer_or_leader": is_officer_or_leader,
+            "applications": applications,
+            "messages": msg_rows,
+            "all_guilds": [],
+        },
+    )

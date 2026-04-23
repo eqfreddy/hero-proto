@@ -39,6 +39,7 @@ class MeOut(BaseModel):
     gems: int
     coins: int
     shards: int
+    access_cards: int
     energy: int
     energy_cap: int
     pulls_since_epic: int

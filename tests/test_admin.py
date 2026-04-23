@@ -59,13 +59,14 @@ def test_admin_grant_adds_resources_and_hero(client) -> None:
     r = client.post(
         f"/admin/accounts/{victim_id}/grant",
         headers=hdr,
-        json={"gems": 50, "coins": 1000, "shards": 5, "energy": 10},
+        json={"gems": 50, "coins": 1000, "shards": 5, "access_cards": 2, "energy": 10},
     )
     assert r.status_code == 200, r.text
     after = r.json()
     assert after["gems"] == before["gems"] + 50
     assert after["coins"] == before["coins"] + 1000
     assert after["shards"] == before["shards"] + 5
+    assert after["access_cards"] == before["access_cards"] + 2
     assert after["energy_stored"] == before["energy_stored"] + 10
 
 

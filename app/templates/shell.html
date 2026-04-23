@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}hero-proto · dashboard{% endblock %}
+{% block head %}
+<style>
+  header { background: var(--panel); padding: 10px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 20px; }
+  header h1 { font-size: 16px; margin: 0; color: var(--text); }
+  nav { display: flex; gap: 2px; }
+  nav button { background: transparent; color: var(--muted); padding: 6px 12px; border-bottom: 2px solid transparent; border-radius: 0; }
+  nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+  nav button:hover { color: var(--text); }
+  #who { margin-left: auto; color: var(--muted); font-size: 12px; }
+  main { padding: 18px; max-width: 1100px; margin: 0 auto; }
+  main > .loading { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+</style>
+{% endblock %}
+{% block body %}
+<header>
+  <h1>hero-proto</h1>
+  <nav id="tabs">
+    <button data-tab="login" hx-get="/app/partials/login" hx-target="#content">Login</button>
+    <button data-tab="me" hx-get="/app/partials/me" hx-target="#content">Me</button>
+    <button data-tab="roster" hx-get="/app/partials/roster" hx-target="#content">Roster</button>
+    <button data-tab="stages" hx-get="/app/partials/stages" hx-target="#content">Stages</button>
+    <button data-tab="daily" hx-get="/app/partials/daily" hx-target="#content">Daily</button>
+    <button data-tab="arena" hx-get="/app/partials/arena" hx-target="#content">Arena</button>
+    <button data-tab="guild" hx-get="/app/partials/guild" hx-target="#content">Guild</button>
+  </nav>
+  <span id="who"></span>
+</header>
+<main>
+  <div id="content"><div class="loading"><span class="spinner"></span> loading…</div></div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Tab state: highlight active tab and persist choice.
+  document.querySelectorAll('nav button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('nav button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      localStorage.setItem('heroproto_tab', b.dataset.tab);
+    });
+  });
+  // Signed-in indicator.
+  function refreshWho() {
+    document.getElementById('who').textContent = localStorage.getItem('heroproto_jwt') ? 'signed in' : 'not signed in';
+  }
+  document.body.addEventListener('htmx:afterRequest', refreshWho);
+  refreshWho();
+  // Auto-load last-used tab (or login if none).
+  const startTab = localStorage.getItem('heroproto_tab') || (localStorage.getItem('heroproto_jwt') ? 'me' : 'login');
+  const startBtn = document.querySelector(`[data-tab="${startTab}"]`) || document.querySelector('[data-tab="login"]');
+  startBtn.click();
+</script>
+{% endblock %}

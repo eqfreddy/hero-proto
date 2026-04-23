@@ -47,6 +47,7 @@ class AccountSummary(BaseModel):
     gems: int
     coins: int
     shards: int
+    access_cards: int
     energy_stored: int
     arena_rating: int
     is_admin: bool
@@ -60,6 +61,7 @@ class GrantIn(BaseModel):
     gems: int = 0
     coins: int = 0
     shards: int = 0
+    access_cards: int = 0
     energy: int = 0
     hero_template_code: str | None = None  # if set, grants 1 copy of that hero
 
@@ -96,6 +98,7 @@ def _summary(a: Account) -> AccountSummary:
         gems=a.gems,
         coins=a.coins,
         shards=a.shards,
+        access_cards=a.access_cards,
         energy_stored=a.energy_stored,
         arena_rating=a.arena_rating,
         is_admin=a.is_admin,
@@ -145,6 +148,7 @@ def grant(
     a.gems += body.gems
     a.coins += body.coins
     a.shards += body.shards
+    a.access_cards += body.access_cards
     if body.energy:
         a.energy_stored += body.energy
     if body.hero_template_code:

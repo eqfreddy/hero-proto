@@ -122,6 +122,8 @@ class Account(Base):
     gems: Mapped[int] = mapped_column(Integer, default=0)
     coins: Mapped[int] = mapped_column(Integer, default=0)
     shards: Mapped[int] = mapped_column(Integer, default=0)
+    # Premium character-pack currency. Drops rarely in-game; main sink for the store.
+    access_cards: Mapped[int] = mapped_column(Integer, default=0)
     energy_stored: Mapped[int] = mapped_column(Integer, default=0)
     energy_last_tick_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 

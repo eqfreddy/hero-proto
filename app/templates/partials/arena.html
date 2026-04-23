@@ -1,0 +1,62 @@
+<div class="stack">
+  <div class="row" style="justify-content: space-between;">
+    <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Arena</h2>
+    <div class="muted">rating: <strong style="color: var(--r-rare);">{{ me.arena_rating }}</strong> · W {{ me.arena_wins }} / L {{ me.arena_losses }}</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin: 0 0 8px; font-size: 13px; color: var(--muted);">Opponents</h3>
+    {% if not opponents %}<div class="muted">No opponents available.</div>{% endif %}
+    <table>
+      <thead><tr><th>rating</th><th>name</th><th>power</th><th></th></tr></thead>
+      <tbody>
+        {% for o in opponents %}
+        <tr>
+          <td>{{ o.arena_rating }}</td>
+          <td>{{ o.name }}</td>
+          <td>{{ o.defense_power }}</td>
+          <td><button class="primary" onclick="arenaAttack({{ o.account_id }})">Attack</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div id="arena-result" style="margin-top: 10px; font-size: 13px;"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin: 0 0 8px; font-size: 13px; color: var(--muted);">Leaderboard (top {{ leaderboard | length }})</h3>
+    <table>
+      <thead><tr><th>#</th><th>rating</th><th>name</th><th>W/L</th></tr></thead>
+      <tbody>
+        {% for r in leaderboard %}
+        <tr{% if r.account_id == me.id %} style="background: rgba(78, 161, 255, 0.08);"{% endif %}>
+          <td>{{ loop.index }}</td>
+          <td>{{ r.arena_rating }}</td>
+          <td>{{ r.name }}</td>
+          <td>{{ r.wins }} / {{ r.losses }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+  async function arenaAttack(defenderId) {
+    const teamRaw = prompt('your attack team (3 hero ids, comma-sep):');
+    if (!teamRaw) return;
+    const team = teamRaw.split(',').map(s => Number(s.trim())).filter(Boolean);
+    const out = document.getElementById('arena-result');
+    out.innerHTML = '<span class="spinner"></span> fighting…';
+    const token = localStorage.getItem('heroproto_jwt');
+    const r = await fetch('/arena/attack', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+      body: JSON.stringify({ defender_id: defenderId, team }),
+    });
+    const body = await r.json();
+    if (!r.ok) { out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${body.detail || JSON.stringify(body)}</span>`; return; }
+    const delta = body.rating_delta >= 0 ? '+' + body.rating_delta : body.rating_delta;
+    const cls = body.outcome === 'WIN' ? 'good' : 'bad';
+    out.innerHTML = `<span class="pill ${cls}">${body.outcome}</span> rating ${delta} → ${body.attacker_rating_after}`;
+  }
+</script>

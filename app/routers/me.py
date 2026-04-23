@@ -22,6 +22,7 @@ def get_me(account: Annotated[Account, Depends(get_current_account)]) -> MeOut:
         gems=account.gems,
         coins=account.coins,
         shards=account.shards,
+        access_cards=account.access_cards,
         energy=compute_energy(account),
         energy_cap=settings.energy_cap,
         pulls_since_epic=account.pulls_since_epic,

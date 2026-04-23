@@ -18,7 +18,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import admin, arena, auth, battles, daily, gear, guilds, heroes, liveops, me, raids, stages, summon
+from app.routers import admin, arena, auth, battles, daily, gear, guilds, heroes, liveops, me, raids, stages, summon, ui
 from app.worker import worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -90,7 +90,22 @@ app.add_middleware(RequestIDMiddleware)
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 if _STATIC_DIR.is_dir():
-    app.mount("/app", StaticFiles(directory=str(_STATIC_DIR), html=True), name="webapp")
+    # UI router serves /app and /app/partials/*. Mount static one level deeper so
+    # assets (battle.html, heroes/*.svg) stay reachable via /app/<filename>.
+    app.mount("/app/static", StaticFiles(directory=str(_STATIC_DIR), html=False), name="static")
+
+# UI router (HTMX shell + partials) must register BEFORE any /app fallback.
+app.include_router(ui.router)
+
+# Backwards-compat: /app/battle.html and /app/index.html used to be served by the
+# /app static mount with html=True. Serve them explicitly now.
+from fastapi.responses import FileResponse as _FR
+
+_battle_html = _STATIC_DIR / "battle.html"
+if _battle_html.is_file():
+    @app.get("/app/battle.html", include_in_schema=False)
+    def _serve_battle_html() -> _FR:
+        return _FR(str(_battle_html))
 
 app.include_router(auth.router)
 app.include_router(me.router)
