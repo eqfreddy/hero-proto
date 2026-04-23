@@ -127,3 +127,194 @@ def test_leader_can_kick(client) -> None:
     r = client.get("/guilds/mine", headers=victim_hdr)
     assert r.status_code == 200
     assert r.json() is None
+
+
+def test_leader_promotes_member_to_officer(client) -> None:
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Promote-club {random.randint(1,999999)}", "tag": "PRO"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+    member_hdr, member_id = _register(client)
+    client.post(f"/guilds/{guild_id}/join", headers=member_hdr)
+
+    r = client.post(f"/guilds/{guild_id}/promote/{member_id}", headers=leader_hdr)
+    assert r.status_code == 200, r.text
+    roles = {m["account_id"]: m["role"] for m in r.json()["members"]}
+    assert roles[member_id] == "OFFICER"
+
+    # Demote back to MEMBER.
+    r = client.post(f"/guilds/{guild_id}/demote/{member_id}", headers=leader_hdr)
+    assert r.status_code == 200
+    roles = {m["account_id"]: m["role"] for m in r.json()["members"]}
+    assert roles[member_id] == "MEMBER"
+
+
+def test_non_leader_cannot_promote(client) -> None:
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Nolead-club {random.randint(1,999999)}", "tag": "NOL"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+    m1_hdr, m1_id = _register(client)
+    client.post(f"/guilds/{guild_id}/join", headers=m1_hdr)
+    m2_hdr, m2_id = _register(client)
+    client.post(f"/guilds/{guild_id}/join", headers=m2_hdr)
+
+    r = client.post(f"/guilds/{guild_id}/promote/{m2_id}", headers=m1_hdr)
+    assert r.status_code == 403
+
+
+def test_demote_rejects_non_officer(client) -> None:
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Demoteonly {random.randint(1,999999)}", "tag": "DMO"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+    m_hdr, m_id = _register(client)
+    client.post(f"/guilds/{guild_id}/join", headers=m_hdr)
+    # Member is not an officer — demote should 400.
+    r = client.post(f"/guilds/{guild_id}/demote/{m_id}", headers=leader_hdr)
+    assert r.status_code == 400
+
+
+def test_leader_transfer(client) -> None:
+    leader_hdr, leader_id = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Xfer-club {random.randint(1,999999)}", "tag": "XFR"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+    successor_hdr, successor_id = _register(client)
+    client.post(f"/guilds/{guild_id}/join", headers=successor_hdr)
+
+    r = client.post(f"/guilds/{guild_id}/transfer/{successor_id}", headers=leader_hdr)
+    assert r.status_code == 200, r.text
+    roles = {m["account_id"]: m["role"] for m in r.json()["members"]}
+    assert roles[successor_id] == "LEADER"
+    assert roles[leader_id] == "OFFICER"
+
+    # Old leader can no longer transfer.
+    r = client.post(f"/guilds/{guild_id}/transfer/{leader_id}", headers=leader_hdr)
+    assert r.status_code == 403
+
+
+def test_transfer_rejects_self(client) -> None:
+    leader_hdr, leader_id = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Xfer-self {random.randint(1,999999)}", "tag": "XFS"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+    r = client.post(f"/guilds/{guild_id}/transfer/{leader_id}", headers=leader_hdr)
+    assert r.status_code == 400
+
+
+def test_application_accept_flow(client) -> None:
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"App-club {random.randint(1,999999)}", "tag": "APP"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+
+    applicant_hdr, applicant_id = _register(client)
+    r = client.post(f"/guilds/{guild_id}/apply", json={"message": "pls"}, headers=applicant_hdr)
+    assert r.status_code == 201, r.text
+    app_id = r.json()["id"]
+    assert r.json()["status"] == "PENDING"
+
+    # Second identical apply -> 409.
+    r = client.post(f"/guilds/{guild_id}/apply", json={"message": "again"}, headers=applicant_hdr)
+    assert r.status_code == 409
+
+    # Applicant can see their own pending list.
+    r = client.get("/guilds/applications/mine", headers=applicant_hdr)
+    assert any(a["id"] == app_id for a in r.json())
+
+    # Leader lists & accepts.
+    r = client.get(f"/guilds/{guild_id}/applications", headers=leader_hdr)
+    assert r.status_code == 200
+    assert any(a["id"] == app_id and a["status"] == "PENDING" for a in r.json())
+
+    r = client.post(f"/guilds/applications/{app_id}/accept", headers=leader_hdr)
+    assert r.status_code == 200
+    roles = {m["account_id"]: m["role"] for m in r.json()["members"]}
+    assert roles[applicant_id] == "MEMBER"
+
+    # Accepting again -> 409 (already accepted).
+    r = client.post(f"/guilds/applications/{app_id}/accept", headers=leader_hdr)
+    assert r.status_code == 409
+
+
+def test_application_reject_and_withdraw(client) -> None:
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Rej-club {random.randint(1,999999)}", "tag": "REJ"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+
+    # Reject path.
+    a1_hdr, _ = _register(client)
+    app1 = client.post(f"/guilds/{guild_id}/apply", json={}, headers=a1_hdr).json()
+    r = client.post(f"/guilds/applications/{app1['id']}/reject", headers=leader_hdr)
+    assert r.status_code == 200
+    assert r.json()["status"] == "REJECTED"
+
+    # Withdraw path.
+    a2_hdr, _ = _register(client)
+    app2 = client.post(f"/guilds/{guild_id}/apply", json={}, headers=a2_hdr).json()
+    r = client.delete(f"/guilds/applications/{app2['id']}", headers=a2_hdr)
+    assert r.status_code == 200
+    assert r.json()["status"] == "WITHDRAWN"
+
+    # Other users can't withdraw someone else's application.
+    a3_hdr, _ = _register(client)
+    app3 = client.post(f"/guilds/{guild_id}/apply", json={}, headers=a3_hdr).json()
+    a4_hdr, _ = _register(client)
+    r = client.delete(f"/guilds/applications/{app3['id']}", headers=a4_hdr)
+    assert r.status_code == 404
+
+
+def test_applications_require_officer_or_leader(client) -> None:
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Priv-club {random.randint(1,999999)}", "tag": "PRV"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+    member_hdr, _ = _register(client)
+    client.post(f"/guilds/{guild_id}/join", headers=member_hdr)
+
+    applicant_hdr, _ = _register(client)
+    app = client.post(f"/guilds/{guild_id}/apply", json={}, headers=applicant_hdr).json()
+
+    # Regular member cannot list or act on applications.
+    r = client.get(f"/guilds/{guild_id}/applications", headers=member_hdr)
+    assert r.status_code == 403
+    r = client.post(f"/guilds/applications/{app['id']}/accept", headers=member_hdr)
+    assert r.status_code == 403
+
+
+def test_chat_pagination(client) -> None:
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Chat-pages {random.randint(1,999999)}", "tag": "CHP"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+
+    # Post 10 messages.
+    ids = []
+    for i in range(10):
+        r = client.post(f"/guilds/{guild_id}/messages", json={"body": f"msg {i}"}, headers=leader_hdr)
+        ids.append(r.json()["id"])
+
+    # First page: newest 4.
+    r = client.get(f"/guilds/{guild_id}/messages?limit=4", headers=leader_hdr)
+    page1 = r.json()
+    assert [m["id"] for m in page1] == sorted([m["id"] for m in page1], reverse=True)
+    assert len(page1) == 4
+
+    # Second page: older than page1's last id.
+    oldest_so_far = page1[-1]["id"]
+    r = client.get(f"/guilds/{guild_id}/messages?before={oldest_so_far}&limit=4", headers=leader_hdr)
+    page2 = r.json()
+    assert len(page2) == 4
+    assert all(m["id"] < oldest_so_far for m in page2)
+    assert set(m["id"] for m in page1) & set(m["id"] for m in page2) == set()

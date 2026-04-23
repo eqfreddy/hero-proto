@@ -10,11 +10,16 @@ from app.deps import get_current_account
 from app.models import (
     Account,
     Guild,
+    GuildApplication,
+    GuildApplicationStatus,
     GuildMember,
     GuildMessage,
     GuildRole,
+    utcnow,
 )
 from app.schemas import (
+    GuildApplicationIn,
+    GuildApplicationOut,
     GuildCreateIn,
     GuildDetailOut,
     GuildMemberOut,
@@ -190,6 +195,70 @@ def update_guild(
     return _detail(db, guild_id)  # type: ignore[return-value]
 
 
+@router.post("/{guild_id}/promote/{account_id}", response_model=GuildDetailOut)
+def promote_member(
+    guild_id: int,
+    account_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildDetailOut:
+    """Leader promotes a MEMBER to OFFICER. Idempotent if target is already OFFICER."""
+    m = _require_membership(db, account, guild_id)
+    if m.role != GuildRole.LEADER:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "leader only")
+    target = db.get(GuildMember, account_id)
+    if target is None or target.guild_id != guild_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "member not found in this guild")
+    if target.role == GuildRole.LEADER:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "target is already leader — use transfer")
+    target.role = GuildRole.OFFICER
+    db.commit()
+    return _detail(db, guild_id)  # type: ignore[return-value]
+
+
+@router.post("/{guild_id}/demote/{account_id}", response_model=GuildDetailOut)
+def demote_member(
+    guild_id: int,
+    account_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildDetailOut:
+    """Leader demotes an OFFICER back to MEMBER."""
+    m = _require_membership(db, account, guild_id)
+    if m.role != GuildRole.LEADER:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "leader only")
+    target = db.get(GuildMember, account_id)
+    if target is None or target.guild_id != guild_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "member not found in this guild")
+    if target.role != GuildRole.OFFICER:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "target is not an officer")
+    target.role = GuildRole.MEMBER
+    db.commit()
+    return _detail(db, guild_id)  # type: ignore[return-value]
+
+
+@router.post("/{guild_id}/transfer/{account_id}", response_model=GuildDetailOut)
+def transfer_leadership(
+    guild_id: int,
+    account_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildDetailOut:
+    """Current leader hands off to another member; old leader becomes OFFICER."""
+    m = _require_membership(db, account, guild_id)
+    if m.role != GuildRole.LEADER:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "leader only")
+    if account_id == account.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot transfer to yourself")
+    target = db.get(GuildMember, account_id)
+    if target is None or target.guild_id != guild_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "member not found in this guild")
+    target.role = GuildRole.LEADER
+    m.role = GuildRole.OFFICER
+    db.commit()
+    return _detail(db, guild_id)  # type: ignore[return-value]
+
+
 @router.post("/{guild_id}/kick/{account_id}", response_model=GuildDetailOut)
 def kick_member(
     guild_id: int,
@@ -215,15 +284,20 @@ def list_messages(
     guild_id: int,
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
+    before: int | None = None,
+    limit: int = 50,
 ) -> list[GuildMessageOut]:
+    """Newest-first. Pass ?before=<last_seen_id> to page backwards through history."""
     _require_membership(db, account, guild_id)
-    rows = db.execute(
+    limit = max(1, min(200, limit))
+    stmt = (
         select(GuildMessage.id, GuildMessage.guild_id, GuildMessage.author_id, Account.email, GuildMessage.body, GuildMessage.created_at)
         .outerjoin(Account, Account.id == GuildMessage.author_id)
         .where(GuildMessage.guild_id == guild_id)
-        .order_by(GuildMessage.created_at.desc())
-        .limit(50)
     )
+    if before is not None:
+        stmt = stmt.where(GuildMessage.id < before)
+    rows = db.execute(stmt.order_by(GuildMessage.id.desc()).limit(limit))
     return [
         GuildMessageOut(
             id=row[0],
@@ -257,3 +331,169 @@ def post_message(
         body=msg.body,
         created_at=msg.created_at,
     )
+
+
+# --- application / invite flow ------------------------------------------------
+
+
+def _app_out(db: Session, a: GuildApplication) -> GuildApplicationOut:
+    applicant = db.get(Account, a.account_id)
+    name = applicant.email.split("@")[0] if applicant else "[gone]"
+    return GuildApplicationOut(
+        id=a.id,
+        guild_id=a.guild_id,
+        account_id=a.account_id,
+        applicant_name=name,
+        status=str(a.status),
+        message=a.message,
+        created_at=a.created_at,
+        reviewed_at=a.reviewed_at,
+        reviewed_by=a.reviewed_by,
+    )
+
+
+@router.post("/{guild_id}/apply", response_model=GuildApplicationOut, status_code=status.HTTP_201_CREATED)
+def apply_to_guild(
+    guild_id: int,
+    body: GuildApplicationIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildApplicationOut:
+    """Submit an application. Caller must not already be in a guild."""
+    g = db.get(Guild, guild_id)
+    if g is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "guild not found")
+    if db.get(GuildMember, account.id) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "already in a guild — leave first")
+    # Disallow a second PENDING to the same guild.
+    existing = db.scalar(
+        select(GuildApplication).where(
+            GuildApplication.account_id == account.id,
+            GuildApplication.guild_id == guild_id,
+            GuildApplication.status == GuildApplicationStatus.PENDING,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "application already pending for this guild")
+    app = GuildApplication(
+        account_id=account.id,
+        guild_id=guild_id,
+        message=body.message.strip(),
+    )
+    db.add(app)
+    db.commit()
+    db.refresh(app)
+    return _app_out(db, app)
+
+
+@router.get("/{guild_id}/applications", response_model=list[GuildApplicationOut])
+def list_applications(
+    guild_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+    include_reviewed: bool = False,
+) -> list[GuildApplicationOut]:
+    """Officers and the leader see pending applications for their guild."""
+    m = _require_membership(db, account, guild_id)
+    if m.role not in (GuildRole.LEADER, GuildRole.OFFICER):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "leaders/officers only")
+    stmt = select(GuildApplication).where(GuildApplication.guild_id == guild_id)
+    if not include_reviewed:
+        stmt = stmt.where(GuildApplication.status == GuildApplicationStatus.PENDING)
+    stmt = stmt.order_by(GuildApplication.created_at.desc())
+    return [_app_out(db, a) for a in db.scalars(stmt)]
+
+
+@router.get("/applications/mine", response_model=list[GuildApplicationOut])
+def list_my_applications(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[GuildApplicationOut]:
+    rows = db.scalars(
+        select(GuildApplication)
+        .where(GuildApplication.account_id == account.id)
+        .order_by(GuildApplication.created_at.desc())
+    )
+    return [_app_out(db, a) for a in rows]
+
+
+def _load_app_for_review(db: Session, account: Account, application_id: int) -> GuildApplication:
+    a = db.get(GuildApplication, application_id)
+    if a is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "application not found")
+    m = db.get(GuildMember, account.id)
+    if m is None or m.guild_id != a.guild_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "not a member of this guild")
+    if m.role not in (GuildRole.LEADER, GuildRole.OFFICER):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "leaders/officers only")
+    if a.status != GuildApplicationStatus.PENDING:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"application already {a.status}")
+    return a
+
+
+@router.post("/applications/{application_id}/accept", response_model=GuildDetailOut)
+def accept_application(
+    application_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildDetailOut:
+    a = _load_app_for_review(db, account, application_id)
+    # Applicant might have joined another guild in the meantime.
+    if db.get(GuildMember, a.account_id) is not None:
+        a.status = GuildApplicationStatus.REJECTED
+        a.reviewed_at = utcnow()
+        a.reviewed_by = account.id
+        db.commit()
+        raise HTTPException(status.HTTP_409_CONFLICT, "applicant is now in another guild")
+    if _member_count(db, a.guild_id) >= MAX_GUILD_SIZE:
+        raise HTTPException(status.HTTP_409_CONFLICT, "guild is full")
+    db.add(GuildMember(account_id=a.account_id, guild_id=a.guild_id, role=GuildRole.MEMBER))
+    a.status = GuildApplicationStatus.ACCEPTED
+    a.reviewed_at = utcnow()
+    a.reviewed_by = account.id
+    # Auto-reject any other pending applications this applicant has elsewhere.
+    for other in db.scalars(
+        select(GuildApplication).where(
+            GuildApplication.account_id == a.account_id,
+            GuildApplication.id != a.id,
+            GuildApplication.status == GuildApplicationStatus.PENDING,
+        )
+    ):
+        other.status = GuildApplicationStatus.REJECTED
+        other.reviewed_at = utcnow()
+    db.commit()
+    return _detail(db, a.guild_id)  # type: ignore[return-value]
+
+
+@router.post("/applications/{application_id}/reject", response_model=GuildApplicationOut)
+def reject_application(
+    application_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildApplicationOut:
+    a = _load_app_for_review(db, account, application_id)
+    a.status = GuildApplicationStatus.REJECTED
+    a.reviewed_at = utcnow()
+    a.reviewed_by = account.id
+    db.commit()
+    db.refresh(a)
+    return _app_out(db, a)
+
+
+@router.delete("/applications/{application_id}", response_model=GuildApplicationOut)
+def withdraw_application(
+    application_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildApplicationOut:
+    """Applicant withdraws their own pending application."""
+    a = db.get(GuildApplication, application_id)
+    if a is None or a.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "application not found")
+    if a.status != GuildApplicationStatus.PENDING:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"application already {a.status}")
+    a.status = GuildApplicationStatus.WITHDRAWN
+    a.reviewed_at = utcnow()
+    db.commit()
+    db.refresh(a)
+    return _app_out(db, a)

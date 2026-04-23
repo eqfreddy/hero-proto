@@ -94,6 +94,13 @@ class GuildRole(StrEnum):
     MEMBER = "MEMBER"
 
 
+class GuildApplicationStatus(StrEnum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    WITHDRAWN = "WITHDRAWN"
+
+
 class LiveOpsKind(StrEnum):
     DOUBLE_REWARDS = "DOUBLE_REWARDS"      # multiplies coins/gems/shards/xp on wins
     BONUS_GEAR_DROPS = "BONUS_GEAR_DROPS"  # raises drop chance
@@ -324,6 +331,27 @@ class GuildMember(Base):
     )
     role: Mapped[GuildRole] = mapped_column(String(16), default=GuildRole.MEMBER)
     joined_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
+class GuildApplication(Base):
+    __tablename__ = "guild_applications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    guild_id: Mapped[int] = mapped_column(
+        ForeignKey("guilds.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[GuildApplicationStatus] = mapped_column(
+        String(16), default=GuildApplicationStatus.PENDING, index=True
+    )
+    message: Mapped[str] = mapped_column(String(256), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    reviewed_by: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class GuildMessage(Base):

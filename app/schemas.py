@@ -205,6 +205,22 @@ class GuildDetailOut(GuildOut):
     members: list[GuildMemberOut]
 
 
+class GuildApplicationIn(BaseModel):
+    message: str = Field(default="", max_length=256)
+
+
+class GuildApplicationOut(BaseModel):
+    id: int
+    guild_id: int
+    account_id: int
+    applicant_name: str
+    status: str
+    message: str
+    created_at: datetime
+    reviewed_at: datetime | None
+    reviewed_by: int | None
+
+
 class GuildMessageIn(BaseModel):
     body: str = Field(min_length=1, max_length=512)
 
