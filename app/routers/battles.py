@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.combat import CombatUnit, build_unit, simulate
+from app.combat import CombatUnit, build_unit, simulate, trim_combat_log
 from app.daily import on_battle_won
 from app.db import get_db
 from app.deps import get_current_account
@@ -177,12 +177,13 @@ def fight(
                 "stats": stats,
             }
 
+    trimmed_log = trim_combat_log(combined_log)
     battle = Battle(
         account_id=account.id,
         stage_id=stage.id,
         team_json=json.dumps([h.id for h in heroes]),
         outcome=outcome,
-        log_json=json.dumps(combined_log),
+        log_json=json.dumps(trimmed_log),
         rewards_json=json.dumps(rewards_extra),
         first_clear=1 if rewards.first_clear else 0,
     )

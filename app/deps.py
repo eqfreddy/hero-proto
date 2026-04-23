@@ -17,12 +17,14 @@ def get_current_account(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "missing bearer token")
     token = authorization.split(" ", 1)[1]
     try:
-        account_id = decode_token(token)
+        account_id, token_version = decode_token(token)
     except jwt.PyJWTError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, f"invalid token: {exc}") from exc
     account = db.get(Account, account_id)
     if account is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "account not found")
+    if token_version != account.token_version:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token revoked — please log in again")
     if account.is_banned:
         # Lazy auto-unban when a timed ban has elapsed — keeps the gate responsive
         # even if the worker hasn't ticked yet.

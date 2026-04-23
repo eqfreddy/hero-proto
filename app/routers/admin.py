@@ -177,6 +177,7 @@ def ban(
     a.banned_until = (
         utcnow() + timedelta(hours=body.duration_hours) if body.duration_hours else None
     )
+    a.token_version = (a.token_version or 0) + 1  # invalidate any outstanding JWTs
     _audit(db, admin, "ban", a.id, reason=a.banned_reason, duration_hours=body.duration_hours)
     db.commit()
     db.refresh(a)

@@ -35,7 +35,7 @@ def register(body: RegisterIn, db: Annotated[Session, Depends(get_db)]) -> Token
     db.add(account)
     db.commit()
     db.refresh(account)
-    return TokenOut(access_token=issue_token(account.id))
+    return TokenOut(access_token=issue_token(account.id, account.token_version))
 
 
 @router.post("/login", response_model=TokenOut)
@@ -50,4 +50,4 @@ def login(body: LoginIn, db: Annotated[Session, Depends(get_db)]) -> TokenOut:
         )
     _maybe_promote_admin(account)
     db.commit()
-    return TokenOut(access_token=issue_token(account.id))
+    return TokenOut(access_token=issue_token(account.id, account.token_version))

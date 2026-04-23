@@ -72,7 +72,7 @@ app = FastAPI(title="hero-proto backend", lifespan=lifespan)
 # request-id (outermost, so every log line/response has the ID) → log → rate-limit → metrics → CORS.
 if settings.log_requests and settings.environment != "test":
     app.add_middleware(RequestLogMiddleware)
-if settings.environment != "test":
+if settings.environment != "test" and not settings.rate_limit_disabled:
     app.add_middleware(
         RateLimitMiddleware,
         auth_rate_per_minute=settings.auth_rate_per_minute,

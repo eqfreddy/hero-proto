@@ -54,6 +54,7 @@ def _cmd_demote(email: str) -> int:
             print(f"{email} is not admin")
             return 0
         a.is_admin = False
+        a.token_version = (a.token_version or 0) + 1  # revoke outstanding JWTs
         db.add(
             AdminAuditLog(
                 actor_id=None, action="demote", target_id=a.id,

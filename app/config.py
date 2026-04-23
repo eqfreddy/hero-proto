@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     # Rate limits (per client IP, in-memory token bucket).
     # Tighten these for production — defaults here assume dev/alpha sharing an IP.
     auth_rate_per_minute: int = 60        # register + login combined
-    general_rate_per_minute: int = 300    # everything else
+    general_rate_per_minute: int = 600    # everything else
+    # Smoke scripts hammering a single IP can trip the general bucket — this lets
+    # dev/CI short-circuit the middleware entirely. Never enable in prod.
+    rate_limit_disabled: bool = False
 
     # Comma-separated list of emails auto-promoted to admin on registration/login.
     admin_emails: str = ""

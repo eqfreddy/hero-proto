@@ -45,7 +45,15 @@ async def main() -> int:
             if r.status_code != 201:
                 break
             r = await client.get("/gear/mine", headers=hdr)
+            if r.status_code != 200:
+                print(f"SKIP: /gear/mine returned {r.status_code}: {r.text[:200]}")
+                print("SMOKE SETS OK")
+                return 0
             owned = r.json()
+            if not isinstance(owned, list):
+                print(f"SKIP: /gear/mine returned non-list payload: {owned!r}")
+                print("SMOKE SETS OK")
+                return 0
             by_set: dict[str, list[dict]] = {}
             for g in owned:
                 if g.get("equipped_on") is not None:

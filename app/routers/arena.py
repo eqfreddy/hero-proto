@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from app.combat import power_rating, scale_stat, simulate
+from app.combat import power_rating, scale_stat, simulate, trim_combat_log
 from app.daily import on_arena_attack
 from app.db import get_db
 from app.deps import get_current_account
@@ -206,7 +206,7 @@ def attack(
         rating_delta=delta,
         attacker_rating_after=account.arena_rating,
         defender_rating_after=defender.arena_rating,
-        log_json=json.dumps(result.log),
+        log_json=json.dumps(trim_combat_log(result.log)),
     )
     db.add(match)
     db.commit()

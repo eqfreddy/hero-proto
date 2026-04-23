@@ -33,6 +33,23 @@ from app.models import BattleOutcome, Role, StatusEffectKind
 STAT_SCALE_PER_LEVEL = 0.10
 STAR_SCALE_PER_STAR = 0.15  # +15% per star above 1
 
+# Combat log cap — Battle.log_json / ArenaMatch.log_json are String(65536).
+# Long AoE teams can produce 300+ entries; trim the middle to stay well under the cap.
+COMBAT_LOG_MAX_ENTRIES = 200
+
+
+def trim_combat_log(log: list[dict]) -> list[dict]:
+    """Cap log length. Keeps first/last entries and inserts a single marker if truncated."""
+    if len(log) <= COMBAT_LOG_MAX_ENTRIES:
+        return log
+    head = COMBAT_LOG_MAX_ENTRIES // 2
+    tail = COMBAT_LOG_MAX_ENTRIES - head - 1  # leave room for marker
+    return [
+        *log[:head],
+        {"type": "log_truncated", "skipped": len(log) - head - tail},
+        *log[-tail:],
+    ]
+
 
 def scale_stat(base: int, level: int, stars: int = 1) -> int:
     level_mult = 1.0 + STAT_SCALE_PER_LEVEL * (level - 1)

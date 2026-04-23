@@ -1,6 +1,9 @@
 """Headless smoke for the hero CLI client.
 
 Drives the Client helper class (no interactive prompts). Requires server running.
+
+Run as a module so the `scripts` package import resolves:
+    uv run python -m scripts.smoke_cli
 """
 
 from __future__ import annotations
@@ -8,8 +11,14 @@ from __future__ import annotations
 import asyncio
 import random
 import sys
+from pathlib import Path
 
-from scripts import play_hero
+# Allow `python scripts/smoke_cli.py` as well as `python -m scripts.smoke_cli`:
+# when invoked directly, the repo root isn't on sys.path, so add it.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from scripts import play_hero  # noqa: E402
 
 
 async def main() -> int:

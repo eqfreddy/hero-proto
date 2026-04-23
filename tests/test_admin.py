@@ -84,16 +84,17 @@ def test_admin_ban_blocks_future_requests(client) -> None:
     assert r.json()["is_banned"] is True
     assert r.json()["banned_reason"] == "cheating"
 
-    # Existing JWT is rejected — the deps layer checks is_banned on every call.
+    # Existing JWT is rejected — ban bumped token_version so the old JWT is dead.
     blocked = client.get("/me", headers=victim_hdr)
-    assert blocked.status_code == 403
-    assert "banned" in blocked.text.lower()
+    assert blocked.status_code == 401
+    assert "revoked" in blocked.text.lower() or "banned" in blocked.text.lower()
 
-    # Unban restores access.
+    # Unban restores the account, but the old JWT remains revoked — victim must log in again.
     r = client.post(f"/admin/accounts/{victim_id}/unban", headers=hdr)
     assert r.status_code == 200
     assert r.json()["is_banned"] is False
-    assert client.get("/me", headers=victim_hdr).status_code == 200
+    still_dead = client.get("/me", headers=victim_hdr)
+    assert still_dead.status_code == 401
 
 
 def test_admin_cannot_ban_self(client) -> None:
@@ -247,6 +248,38 @@ def test_worker_auto_unbans_expired() -> None:
         a = db.get(Account, aid)
         assert a.is_banned is False
         assert a.banned_until is None
+
+
+def test_ban_revokes_outstanding_jwt_via_token_version(client) -> None:
+    """Sanity: bumping token_version on ban kills the old JWT even after unban."""
+    hdr, _, admin_id = _register(client, "tvadmin")
+    _promote_to_admin(admin_id)
+    victim_hdr, _, victim_id = _register(client, "tvvic")
+
+    assert client.get("/me", headers=victim_hdr).status_code == 200
+    client.post(f"/admin/accounts/{victim_id}/ban", headers=hdr, json={"reason": "x"})
+    # Old token cryptographically stale — 401, not 403.
+    assert client.get("/me", headers=victim_hdr).status_code == 401
+    # Even after unban, the old JWT stays dead.
+    client.post(f"/admin/accounts/{victim_id}/unban", headers=hdr)
+    assert client.get("/me", headers=victim_hdr).status_code == 401
+
+
+def test_cli_demote_revokes_outstanding_jwt(client) -> None:
+    from app import admin as admin_cli
+    # Register a user, promote via CLI, log them in, then demote — their JWT dies.
+    _, _, target_id = _register(client, "cliadmdem")
+    with SessionLocal() as db:
+        email = db.get(Account, target_id).email
+    admin_cli.main(["promote", email])
+    # Log in to get a token that reflects promotion (token_version was bumped? no — only on demote).
+    r = client.post("/auth/login", json={"email": email, "password": "hunter22"})
+    token = r.json()["access_token"]
+    hdr = {"Authorization": f"Bearer {token}"}
+    assert client.get("/me", headers=hdr).status_code == 200
+
+    assert admin_cli.main(["demote", email]) == 0
+    assert client.get("/me", headers=hdr).status_code == 401
 
 
 def test_cli_promote_and_demote_and_audit(client) -> None:

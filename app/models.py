@@ -131,6 +131,10 @@ class Account(Base):
     # NULL = permanent ban. If set, worker/deps auto-clear once now >= banned_until.
     banned_until: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
+    # Bumped on ban/demote to invalidate all outstanding JWTs for this account.
+    # JWTs embed the token_version at issue; deps rejects any with a stale tv.
+    token_version: Mapped[int] = mapped_column(Integer, default=0)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
     heroes: Mapped[list["HeroInstance"]] = relationship(

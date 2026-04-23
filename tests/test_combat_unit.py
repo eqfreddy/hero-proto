@@ -59,3 +59,21 @@ def test_stronger_team_wins_consistently() -> None:
         if simulate(strong, weak, rng).outcome == BattleOutcome.WIN:
             wins += 1
     assert wins == 20, f"strong team lost {20 - wins}/20 times"
+
+
+def test_trim_combat_log_short_unchanged() -> None:
+    from app.combat import COMBAT_LOG_MAX_ENTRIES, trim_combat_log
+    log = [{"i": i} for i in range(COMBAT_LOG_MAX_ENTRIES)]
+    assert trim_combat_log(log) is log
+
+
+def test_trim_combat_log_long_truncates_middle() -> None:
+    from app.combat import COMBAT_LOG_MAX_ENTRIES, trim_combat_log
+    log = [{"i": i} for i in range(COMBAT_LOG_MAX_ENTRIES * 3)]
+    out = trim_combat_log(log)
+    assert len(out) == COMBAT_LOG_MAX_ENTRIES
+    # First and last entries preserved, marker in the middle.
+    assert out[0] == {"i": 0}
+    assert out[-1] == {"i": COMBAT_LOG_MAX_ENTRIES * 3 - 1}
+    markers = [e for e in out if e.get("type") == "log_truncated"]
+    assert len(markers) == 1 and markers[0]["skipped"] > 0
