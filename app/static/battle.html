@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>hero-proto · battle replay</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #0b0d10; color: #ddd; margin: 0; }
+    header { background: #1b1b1b; padding: 8px 16px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 16px; margin: 0; }
+    header a { color: #4ea1ff; text-decoration: none; font-size: 13px; }
+
+    #stage {
+      position: relative;
+      min-height: 420px;
+      background: linear-gradient(180deg, #14202b 0%, #0b0d10 100%);
+      padding: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+      overflow: hidden;
+    }
+    .team { display: flex; flex-direction: column; gap: 12px; width: 42%; }
+    .team.side-B { align-items: flex-end; }
+
+    .unit {
+      position: relative;
+      background: #1b2430;
+      border: 1px solid #2d3847;
+      border-radius: 10px;
+      padding: 10px 12px;
+      min-width: 220px;
+      transition: transform 120ms ease, box-shadow 120ms ease, opacity 300ms ease;
+    }
+    .unit.acting { box-shadow: 0 0 0 2px #ffd86b, 0 0 18px rgba(255,216,107,0.4); transform: translateY(-2px); }
+    .unit.hit { animation: shake 180ms ease; }
+    .unit.dead { opacity: 0.35; filter: grayscale(1); }
+    .unit.dead::after {
+      content: "KO";
+      position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg);
+      color: #e33; font-weight: 900; font-size: 30px; letter-spacing: 2px;
+      text-shadow: 0 0 6px #000;
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .unit .name-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 6px; }
+    .unit .name { font-weight: 600; }
+    .unit .meta { color: #7d8a9c; font-size: 11px; }
+    .role-ATK { color: #ff7a59; }
+    .role-DEF { color: #59a0ff; }
+    .role-SUP { color: #6dd39a; }
+
+    .hpbar {
+      position: relative;
+      background: #0d1218;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      border: 1px solid #2d3847;
+    }
+    .hpbar > .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2ad06a 0%, #7fe09c 100%);
+      transition: width 220ms ease;
+    }
+    .hpbar.low > .fill { background: linear-gradient(90deg, #d6a02a 0%, #e6c75b 100%); }
+    .hpbar.crit > .fill { background: linear-gradient(90deg, #d64a2a 0%, #e67a5b 100%); }
+    .hpbar .hp-text {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: #fff; text-shadow: 0 0 2px #000;
+      letter-spacing: 0.3px;
+    }
+
+    .statuses { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; min-height: 16px; }
+    .status-pill {
+      font-size: 10px; padding: 2px 6px; border-radius: 10px;
+      background: #252e3a; color: #b3c0d1; border: 1px solid #34404f;
+    }
+    .status-pill.good { color: #7fe09c; border-color: #2f7e56; }
+    .status-pill.bad { color: #ff9b7f; border-color: #9d4c39; }
+
+    /* Floating damage / heal popups */
+    .popup {
+      position: absolute;
+      font-weight: 800;
+      pointer-events: none;
+      animation: popup 900ms ease-out forwards;
+      text-shadow: 0 0 4px #000;
+      z-index: 10;
+    }
+    .popup.dmg { color: #ff6b4a; font-size: 22px; }
+    .popup.heal { color: #6dd39a; font-size: 18px; }
+    .popup.skill { color: #ffd86b; font-size: 14px; font-style: italic; }
+    @keyframes popup {
+      0%   { opacity: 0; transform: translate(-50%, 0); }
+      15%  { opacity: 1; transform: translate(-50%, -12px) scale(1.1); }
+      100% { opacity: 0; transform: translate(-50%, -44px) scale(1.0); }
+    }
+
+    #caption {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.55); padding: 6px 14px; border-radius: 4px;
+      font-size: 14px; color: #ffd86b; letter-spacing: 0.5px; text-transform: uppercase;
+      opacity: 0; transition: opacity 200ms ease;
+    }
+    #caption.show { opacity: 1; }
+
+    #controls { background: #14181e; padding: 10px 16px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #222; }
+    #controls button { background: #2a5; color: white; border: 0; padding: 6px 12px; border-radius: 3px; cursor: pointer; font: inherit; }
+    #controls button.secondary { background: #333; color: #ddd; }
+    #controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #progress { flex: 1; color: #7d8a9c; font-size: 12px; margin-left: 8px; }
+    #speed { background: #222; color: #eee; border: 1px solid #333; padding: 4px; border-radius: 3px; }
+
+    #result { padding: 16px; font-size: 16px; }
+    #result .win { color: #6dd39a; }
+    #result .loss { color: #ff6b4a; }
+    #result .draw { color: #ffd86b; }
+
+    .connector { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 32px; color: #3a4555; user-select: none; }
+
+    @media (max-width: 720px) {
+      #stage { flex-direction: column; gap: 12px; }
+      .team { width: 100%; align-items: stretch !important; }
+      .unit { min-width: 0; }
+      .connector { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>battle replay · <span id="bid">—</span></h1>
+    <a href="/app/">← back to dashboard</a>
+  </header>
+
+  <div id="stage">
+    <div id="caption"></div>
+    <div class="team side-A" id="team-a"></div>
+    <div class="connector">⚔</div>
+    <div class="team side-B" id="team-b"></div>
+  </div>
+
+  <div id="controls">
+    <button id="btn-play">▶ Play</button>
+    <button class="secondary" id="btn-step">Step</button>
+    <button class="secondary" id="btn-restart">↻ Restart</button>
+    <label>speed <select id="speed">
+      <option value="600">0.5×</option>
+      <option value="300" selected>1×</option>
+      <option value="150">2×</option>
+      <option value="60">5×</option>
+    </select></label>
+    <span id="progress">—</span>
+  </div>
+
+  <div id="result"></div>
+
+  <script>
+    const TOKEN_KEY = "heroproto_jwt";
+    const $ = (id) => document.getElementById(id);
+    const q = new URLSearchParams(location.search);
+    const battleId = q.get("id");
+    $("bid").textContent = battleId || "?";
+
+    // --- data fetch --------------------------------------------------------
+    async function loadBattle(id) {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) throw new Error("not signed in — log in on the dashboard first");
+      const res = await fetch(`/battles/${id}`, { headers: { authorization: "Bearer " + token } });
+      if (!res.ok) throw new Error("HTTP " + res.status + " — " + await res.text());
+      return res.json();
+    }
+
+    // --- rendering ---------------------------------------------------------
+    const state = {
+      battle: null,
+      hp: {},                // uid -> current hp
+      maxHp: {},
+      statuses: {},          // uid -> [{kind, turns, value}]
+      dead: {},              // uid -> bool
+      cursor: 0,
+      playing: false,
+      timer: null,
+    };
+
+    function renderTeams() {
+      const a = $("team-a"), b = $("team-b");
+      a.innerHTML = ""; b.innerHTML = "";
+      for (const p of state.battle.participants) {
+        const el = document.createElement("div");
+        el.className = "unit";
+        el.id = "u-" + p.uid;
+        el.dataset.uid = p.uid;
+        el.innerHTML = `
+          <div class="name-row">
+            <span class="name">${escapeHtml(p.name)} <span class="role-${p.role}">[${p.role}]</span></span>
+            <span class="meta">Lv${p.level}</span>
+          </div>
+          <div class="hpbar"><div class="fill" style="width: 100%"></div><span class="hp-text">${p.max_hp}/${p.max_hp}</span></div>
+          <div class="statuses"></div>
+        `;
+        (p.side === "A" ? a : b).appendChild(el);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function updateHp(uid) {
+      const el = document.getElementById("u-" + uid); if (!el) return;
+      const cur = Math.max(0, state.hp[uid]);
+      const max = state.maxHp[uid] || 1;
+      const pct = (cur / max) * 100;
+      const bar = el.querySelector(".hpbar");
+      bar.querySelector(".fill").style.width = pct + "%";
+      bar.querySelector(".hp-text").textContent = `${cur}/${max}`;
+      bar.classList.toggle("low", pct <= 50 && pct > 25);
+      bar.classList.toggle("crit", pct <= 25);
+      el.classList.toggle("dead", !!state.dead[uid] || cur <= 0);
+    }
+
+    function popup(uid, text, cls) {
+      const el = document.getElementById("u-" + uid); if (!el) return;
+      const p = document.createElement("div");
+      p.className = "popup " + cls;
+      p.textContent = text;
+      p.style.left = "50%";
+      p.style.top = "10px";
+      el.appendChild(p);
+      setTimeout(() => p.remove(), 950);
+    }
+
+    function setActing(uid) {
+      document.querySelectorAll(".unit.acting").forEach(x => x.classList.remove("acting"));
+      if (!uid) return;
+      const el = document.getElementById("u-" + uid);
+      if (el) el.classList.add("acting");
+    }
+
+    function flashHit(uid) {
+      const el = document.getElementById("u-" + uid); if (!el) return;
+      el.classList.remove("hit"); void el.offsetWidth; el.classList.add("hit");
+    }
+
+    function renderStatuses(uid) {
+      const el = document.getElementById("u-" + uid); if (!el) return;
+      const host = el.querySelector(".statuses");
+      host.innerHTML = "";
+      for (const s of state.statuses[uid] || []) {
+        const pill = document.createElement("span");
+        pill.className = "status-pill " + (["ATK_UP", "SHIELD"].includes(s.kind) ? "good" : "bad");
+        pill.textContent = s.kind + (s.turns ? ` ${s.turns}t` : "");
+        host.appendChild(pill);
+      }
+    }
+
+    function showCaption(text, ttl = 900) {
+      const c = $("caption");
+      c.textContent = text;
+      c.classList.add("show");
+      clearTimeout(c._t);
+      c._t = setTimeout(() => c.classList.remove("show"), ttl);
+    }
+
+    // --- event application -------------------------------------------------
+    function applyEvent(e) {
+      switch (e.type) {
+        case "TURN":
+          setActing(e.unit);
+          if (typeof e.hp === "number" && e.unit in state.maxHp) {
+            state.hp[e.unit] = e.hp;
+            updateHp(e.unit);
+          }
+          break;
+        case "DAMAGE": {
+          const t = e.target;
+          if (t in state.hp) { state.hp[t] = Math.max(0, state.hp[t] - (e.amount || 0)); updateHp(t); }
+          flashHit(t);
+          popup(t, "-" + (e.amount || 0), "dmg");
+          break;
+        }
+        case "HEAL": {
+          const t = e.target;
+          if (t in state.hp) { state.hp[t] = Math.min(state.maxHp[t], state.hp[t] + (e.amount || 0)); updateHp(t); }
+          popup(t, "+" + (e.amount || 0), "heal");
+          break;
+        }
+        case "DEATH":
+          state.dead[e.unit] = true;
+          state.hp[e.unit] = 0;
+          updateHp(e.unit);
+          break;
+        case "STATUS_APPLIED":
+          (state.statuses[e.unit] ||= []).push({ kind: e.kind, turns: e.turns, value: e.value });
+          renderStatuses(e.unit);
+          break;
+        case "STATUS_EXPIRED":
+          state.statuses[e.unit] = (state.statuses[e.unit] || []).filter(s => s.kind !== e.kind);
+          renderStatuses(e.unit);
+          break;
+        case "SPECIAL":
+          setActing(e.unit);
+          popup(e.unit, e.name || "special", "skill");
+          break;
+        case "LIFESTEAL":
+          popup(e.unit, "lifesteal +" + (e.amount || 0), "heal");
+          break;
+        case "STUNNED":
+          popup(e.unit, "stunned!", "skill");
+          break;
+        case "VIOLENT_TURN":
+          popup(e.unit, "violent!", "skill");
+          break;
+        case "CLEANSE":
+          popup(e.unit, "cleansed", "skill");
+          break;
+        case "REVIVE":
+          state.dead[e.target] = false;
+          if (typeof e.hp === "number") state.hp[e.target] = e.hp;
+          updateHp(e.target);
+          popup(e.target, "revived", "heal");
+          break;
+        case "WAVE_START":
+          showCaption("Wave " + e.wave, 1200);
+          break;
+        case "END":
+          showCaption("Battle " + e.outcome, 1500);
+          setActing(null);
+          break;
+        case "log_truncated":
+          showCaption(`... ${e.skipped} events skipped ...`, 1000);
+          break;
+      }
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const total = state.battle.log.length;
+      $("progress").textContent = `${state.cursor} / ${total} events`;
+    }
+
+    // --- playback ----------------------------------------------------------
+    function stepOnce() {
+      if (state.cursor >= state.battle.log.length) return false;
+      applyEvent(state.battle.log[state.cursor]);
+      state.cursor++;
+      return true;
+    }
+
+    function play() {
+      if (state.playing) return;
+      state.playing = true;
+      $("btn-play").textContent = "⏸ Pause";
+      const tick = () => {
+        if (!state.playing) return;
+        if (!stepOnce()) { pause(); showResult(); return; }
+        state.timer = setTimeout(tick, Number($("speed").value));
+      };
+      tick();
+    }
+
+    function pause() {
+      state.playing = false;
+      clearTimeout(state.timer);
+      $("btn-play").textContent = "▶ Play";
+    }
+
+    function restart() {
+      pause();
+      for (const p of state.battle.participants) {
+        state.hp[p.uid] = p.max_hp;
+        state.maxHp[p.uid] = p.max_hp;
+        state.dead[p.uid] = false;
+        state.statuses[p.uid] = [];
+      }
+      state.cursor = 0;
+      renderTeams();
+      for (const p of state.battle.participants) { updateHp(p.uid); renderStatuses(p.uid); }
+      setActing(null);
+      $("result").innerHTML = "";
+      updateProgress();
+    }
+
+    function showResult() {
+      const b = state.battle;
+      const cls = b.outcome === "WIN" ? "win" : (b.outcome === "LOSS" ? "loss" : "draw");
+      const rewards = b.rewards || {};
+      const bits = [];
+      if (rewards.gems) bits.push(`+${rewards.gems} gems`);
+      if (rewards.coins) bits.push(`+${rewards.coins} coins`);
+      if (rewards.shards) bits.push(`+${rewards.shards} shards`);
+      if (rewards.xp) bits.push(`+${rewards.xp} xp`);
+      if (rewards.gear) bits.push(`gear: ${rewards.gear.rarity} ${rewards.gear.slot} (${rewards.gear.set})`);
+      if (b.first_clear) bits.push("first-clear bonus");
+      $("result").innerHTML = `
+        <div class="${cls}"><strong>${b.outcome}</strong>${bits.length ? " — " + bits.join(", ") : ""}</div>
+      `;
+    }
+
+    // --- wire up -----------------------------------------------------------
+    $("btn-play").addEventListener("click", () => state.playing ? pause() : play());
+    $("btn-step").addEventListener("click", () => { pause(); stepOnce() || showResult(); });
+    $("btn-restart").addEventListener("click", restart);
+
+    (async () => {
+      if (!battleId) { $("result").innerHTML = '<div class="loss">missing ?id=N in URL</div>'; return; }
+      try {
+        state.battle = await loadBattle(battleId);
+        restart();
+      } catch (e) {
+        $("result").innerHTML = `<div class="loss">load failed: ${escapeHtml(e.message)}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -278,12 +278,22 @@ class BattleIn(BaseModel):
     team: list[int] = Field(min_length=1, max_length=3)
 
 
+class BattleParticipant(BaseModel):
+    uid: str
+    side: str  # "A" = player, "B" = enemy
+    name: str
+    role: str
+    level: int
+    max_hp: int
+
+
 class BattleOut(BaseModel):
     id: int
     stage_id: int
     outcome: BattleOutcome
     first_clear: bool
     log: list[dict]
+    participants: list[BattleParticipant] = []
     rewards: dict[str, Any]
     created_at: datetime
 

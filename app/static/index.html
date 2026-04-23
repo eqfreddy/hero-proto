@@ -141,8 +141,26 @@
     $("btn-battle").addEventListener("click", async () => {
       const stage_id = Number($("stage-id").value);
       const team = $("team-ids").value.split(",").map((x) => Number(x.trim())).filter(Boolean);
-      try { show("stages-out", await api("POST", "/battles", { stage_id, team_instance_ids: team })); }
-      catch (e) { show("stages-out", e.message + "\n" + JSON.stringify(e.body, null, 2)); }
+      try {
+        const r = await api("POST", "/battles", { stage_id, team });
+        const header = `${r.outcome}${r.first_clear ? " (FIRST CLEAR)" : ""} — battle #${r.id}\n` +
+          `Watch replay: /app/battle.html?id=${r.id}\n\n`;
+        show("stages-out", header + JSON.stringify(r, null, 2));
+        // Also offer a one-click button.
+        const btn = document.createElement("a");
+        btn.href = `/app/battle.html?id=${r.id}`;
+        btn.target = "_blank";
+        btn.className = "primary";
+        btn.style.cssText = "display:inline-block;padding:6px 12px;background:#2a5;color:white;text-decoration:none;border-radius:3px;margin-bottom:8px;";
+        btn.textContent = "▶ Watch Replay";
+        const out = $("stages-out");
+        out.parentNode.insertBefore(btn, out);
+        // Clear stale prior buttons.
+        for (const sib of Array.from(out.parentNode.querySelectorAll("a.primary"))) {
+          if (sib !== btn) sib.remove();
+        }
+        out.parentNode.insertBefore(btn, out);
+      } catch (e) { show("stages-out", e.message + "\n" + JSON.stringify(e.body, null, 2)); }
     });
     $("btn-daily").addEventListener("click", async () => { try { show("daily-out", await api("GET", "/daily")); } catch (e) { show("daily-out", e.message); } });
     $("btn-arena-opp").addEventListener("click", async () => { try { show("arena-out", await api("GET", "/arena/opponents")); } catch (e) { show("arena-out", e.message); } });

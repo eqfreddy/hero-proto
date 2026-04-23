@@ -23,7 +23,7 @@ from app.models import (
     Role,
     Stage,
 )
-from app.schemas import BattleIn, BattleOut, SweepIn, SweepOut
+from app.schemas import BattleIn, BattleOut, BattleParticipant, SweepIn, SweepOut
 
 router = APIRouter(prefix="/battles", tags=["battles"])
 
@@ -102,6 +102,12 @@ def fight(
     combined_log: list[dict] = []
     outcome = BattleOutcome.WIN
 
+    participants: list[dict] = [
+        {"uid": u.uid, "side": "A", "name": u.name, "role": str(u.role),
+         "level": u.level, "max_hp": u.max_hp}
+        for u in team_a
+    ]
+
     # Index enemy ids across waves so logs can disambiguate.
     enemy_counter = 0
     for wave_idx, wave in enumerate(waves):
@@ -115,7 +121,13 @@ def fight(
                     status.HTTP_500_INTERNAL_SERVER_ERROR,
                     f"stage references missing template {code!r}",
                 )
-            team_b.append(_unit_from_template(tmpl, lvl, "B", enemy_counter))
+            enemy_unit = _unit_from_template(tmpl, lvl, "B", enemy_counter)
+            team_b.append(enemy_unit)
+            participants.append({
+                "uid": enemy_unit.uid, "side": "B", "name": enemy_unit.name,
+                "role": str(enemy_unit.role), "level": enemy_unit.level,
+                "max_hp": enemy_unit.max_hp,
+            })
             enemy_counter += 1
 
         combined_log.append({"type": "WAVE_START", "wave": wave_idx + 1, "enemies": [u.uid for u in team_b]})
@@ -184,6 +196,7 @@ def fight(
         team_json=json.dumps([h.id for h in heroes]),
         outcome=outcome,
         log_json=json.dumps(trimmed_log),
+        participants_json=json.dumps(participants),
         rewards_json=json.dumps(rewards_extra),
         first_clear=1 if rewards.first_clear else 0,
     )
@@ -197,8 +210,42 @@ def fight(
         outcome=outcome,
         first_clear=rewards.first_clear,
         log=combined_log,
+        participants=[BattleParticipant(**p) for p in participants],
         rewards=rewards_extra,
         created_at=battle.created_at,
+    )
+
+
+@router.get("/{battle_id}", response_model=BattleOut)
+def get_battle(
+    battle_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> BattleOut:
+    b = db.get(Battle, battle_id)
+    if b is None or b.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "battle not found")
+    try:
+        log = json.loads(b.log_json or "[]")
+    except json.JSONDecodeError:
+        log = []
+    try:
+        participants = json.loads(b.participants_json or "[]")
+    except json.JSONDecodeError:
+        participants = []
+    try:
+        rewards = json.loads(b.rewards_json or "{}")
+    except json.JSONDecodeError:
+        rewards = {}
+    return BattleOut(
+        id=b.id,
+        stage_id=b.stage_id,
+        outcome=b.outcome,
+        first_clear=bool(b.first_clear),
+        log=log,
+        participants=[BattleParticipant(**p) for p in participants if isinstance(p, dict)],
+        rewards=rewards,
+        created_at=b.created_at,
     )
 
 

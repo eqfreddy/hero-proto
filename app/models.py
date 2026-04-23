@@ -212,6 +212,9 @@ class Battle(Base):
     team_json: Mapped[str] = mapped_column(String(1024))
     outcome: Mapped[BattleOutcome] = mapped_column(String(8))
     log_json: Mapped[str] = mapped_column(String(65536))
+    # Snapshot of each uid's side/name/role/level/max_hp — lets replay reconstruct
+    # the roster without re-simulating or dereferencing potentially-changed heroes.
+    participants_json: Mapped[str] = mapped_column(String(4096), default="[]")
     rewards_json: Mapped[str] = mapped_column(String(1024))
     first_clear: Mapped[bool] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
