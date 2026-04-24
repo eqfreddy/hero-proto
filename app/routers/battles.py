@@ -112,7 +112,9 @@ def fight(
     participants: list[dict] = [
         {"uid": u.uid, "side": "A", "name": u.name, "role": str(u.role),
          "level": u.level, "max_hp": u.max_hp,
-         "template_code": heroes[i].template.code}
+         "template_code": heroes[i].template.code,
+         "rarity": str(heroes[i].template.rarity),
+         "faction": str(heroes[i].template.faction)}
         for i, u in enumerate(team_a)
     ]
 
@@ -136,6 +138,8 @@ def fight(
                 "role": str(enemy_unit.role), "level": enemy_unit.level,
                 "max_hp": enemy_unit.max_hp,
                 "template_code": tmpl.code,
+                "rarity": str(tmpl.rarity),
+                "faction": str(tmpl.faction),
             })
             enemy_counter += 1
 

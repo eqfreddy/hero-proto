@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <ellipse cx="128" cy="160" rx="45" ry="55" class="ticket-gremlin"></ellipse>
+  
+  
+  <circle cx="128" cy="85" r="35" class="ticket-gremlin"></circle>
+  
+  
+  <polygon points="105,60 95,35 110,50" class="ticket-accent"></polygon>
+  <polygon points="151,60 161,35 146,50" class="ticket-accent"></polygon>
+  
+  
+  <circle cx="118" cy="80" r="4" fill="#fff"></circle>
+  <circle cx="138" cy="80" r="4" fill="#fff"></circle>
+  <circle cx="119" cy="81" r="2.5" fill="#000"></circle>
+  <circle cx="139" cy="81" r="2.5" fill="#000"></circle>
+  
+  
+  <path d="M 118 95 Q 128 105 138 95" stroke="#ff7a59" stroke-width="2" fill="none" stroke-linecap="round"></path>
+  
+  
+  <rect x="100" y="45" width="18" height="15" class="sticky-note" transform="rotate(-20 109 52)"></rect>
+  <rect x="140" y="50" width="18" height="15" class="sticky-note" transform="rotate(15 149 57)"></rect>
+  <rect x="95" y="75" width="18" height="15" class="sticky-note" transform="rotate(-35 104 82)"></rect>
+  <rect x="145" y="90" width="18" height="15" class="sticky-note" transform="rotate(25 154 97)"></rect>
+  
+  
+  <ellipse cx="95" cy="145" rx="18" ry="30" class="ticket-gremlin" transform="rotate(-25 95 145)"></ellipse>
+  <ellipse cx="161" cy="145" rx="18" ry="30" class="ticket-gremlin" transform="rotate(25 161 145)"></ellipse>
+  
+  
+  <rect x="115" y="205" width="14" height="35" rx="7" class="ticket-gremlin"></rect>
+  <rect x="127" y="205" width="14" height="35" rx="7" class="ticket-gremlin"></rect>
+</svg>

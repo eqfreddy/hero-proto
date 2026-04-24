@@ -89,6 +89,48 @@
       cursor: pointer;
       transition: all 200ms ease;
       text-align: center;
+      position: relative;
+    }
+
+    /* Portrait block — 96×96 with rarity-frame background (transparent center)
+       and the hero SVG centered on top. Falls back to initials if the SVG 404s. */
+    .roster-portrait {
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 10px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 800;
+      color: #7d8a9c;
+      background-size: cover;
+      background-position: center;
+    }
+    .roster-portrait img {
+      width: 80%;
+      height: 80%;
+      object-fit: contain;
+      position: relative;
+      z-index: 1;
+    }
+
+    .roster-portrait.rarity-COMMON { background-image: url('/app/static/frames/COMMON.svg'); }
+    .roster-portrait.rarity-UNCOMMON { background-image: url('/app/static/frames/UNCOMMON.svg'); }
+    .roster-portrait.rarity-RARE { background-image: url('/app/static/frames/RARE.svg'); }
+    .roster-portrait.rarity-EPIC { background-image: url('/app/static/frames/EPIC.svg'); }
+    .roster-portrait.rarity-LEGENDARY { background-image: url('/app/static/frames/LEGENDARY.svg'); }
+
+    /* Faction badge in top-right corner of the card. */
+    .roster-faction-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 24px;
+      height: 24px;
+      opacity: 0.85;
+      pointer-events: none;
     }
 
     .roster-card:hover {
@@ -435,7 +477,16 @@
           card.style.setProperty("--rarity-color", rarityColorMap[char.rarity]);
 
           const roleClass = `role-${char.role}`;
+          const initials = char.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
           card.innerHTML = `
+            <img class="roster-faction-badge"
+                 src="/app/static/factions/${char.faction}.svg"
+                 alt="${char.faction}" title="${char.faction}"
+                 onerror="this.remove()" />
+            <div class="roster-portrait rarity-${char.rarity}">
+              <img src="/app/static/heroes/${char.code}.svg" alt="${char.name}"
+                   onerror="this.parentElement.innerHTML='${initials}'" />
+            </div>
             <div class="roster-rarity">${char.rarity}</div>
             <div class="roster-name">${char.name}</div>
             <div class="roster-class">${char.faction}</div>

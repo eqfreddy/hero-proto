@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <ellipse cx="128" cy="180" rx="52" ry="62" class="sre-body"></ellipse>
+  
+  
+  <circle cx="128" cy="100" r="32" class="sre-face"></circle>
+  
+  
+  <path d="M 105 72 Q 128 62 151 72" stroke="#7a8a9c" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.85"></path>
+  
+  
+  <circle cx="118" cy="95" r="4" fill="#3a4a5c"></circle>
+  <circle cx="138" cy="95" r="4" fill="#3a4a5c"></circle>
+  <circle cx="119" cy="94" r="2" fill="#59a0ff"></circle>
+  <circle cx="139" cy="94" r="2" fill="#59a0ff"></circle>
+  
+  
+  <path d="M 118 112 Q 128 108 138 112" stroke="#5a6a7c" stroke-width="1.5" fill="none" stroke-linecap="round"></path>
+  
+  
+  <rect x="120" y="128" width="16" height="16" class="sre-face"></rect>
+  
+  
+  <rect x="160" y="170" width="18" height="28" class="pager" rx="2"></rect>
+  <rect x="162" y="172" width="14" height="10" class="pager-screen"></rect>
+  <line x1="165" y1="185" x2="175" y2="185" stroke="#ff7a59" stroke-width="1" opacity="0.6"></line>
+  <line x1="165" y1="190" x2="175" y2="190" stroke="#ff7a59" stroke-width="1" opacity="0.6"></line>
+  
+  
+  <rect x="70" y="175" width="32" height="36" class="coffee-cup" rx="3"></rect>
+  <ellipse cx="86" cy="175" rx="16" ry="8" class="coffee-cup"></ellipse>
+  <rect x="73" y="178" width="26" height="30" class="coffee" rx="2" opacity="0.85"></rect>
+  <ellipse cx="86" cy="178" rx="13" ry="6" class="coffee" opacity="0.85"></ellipse>
+  
+  
+  <rect x="75" y="195" width="22" height="10" fill="#ffd86b" rx="1"></rect>
+  <text x="86" y="201" font-size="6" font-weight="bold" fill="#3a4a5c" text-anchor="middle">RUNBOOK</text>
+  
+  
+  <path d="M 102 185 Q 115 190 113 215" stroke="#8a6a4a" stroke-width="3" fill="none"></path>
+  
+  
+  <ellipse cx="80" cy="170" rx="16" ry="42" class="sre-body" transform="rotate(-30 80 170)"></ellipse>
+  <ellipse cx="176" cy="175" rx="16" ry="42" class="sre-body" transform="rotate(30 176 175)"></ellipse>
+  
+  
+  <rect x="110" y="230" width="13" height="26" rx="6" class="sre-body"></rect>
+  <rect x="133" y="230" width="13" height="26" rx="6" class="sre-body"></rect>
+</svg>

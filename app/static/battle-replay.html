@@ -103,6 +103,28 @@
       width: 180px;
       text-align: center;
       transition: all 200ms ease;
+      position: relative;  /* anchor for .faction-badge absolute overlay */
+    }
+
+    /* Rarity frame — composites a glow/border appropriate to the hero's rarity.
+       Background-image points at /app/static/frames/<RARITY>.svg (256×256,
+       transparent center). When rarity isn't known (empty string on legacy
+       rows), no frame is applied. */
+    .unit-card.rarity-COMMON { background-image: url('/app/static/frames/COMMON.svg'); background-size: cover; background-position: center; }
+    .unit-card.rarity-UNCOMMON { background-image: url('/app/static/frames/UNCOMMON.svg'); background-size: cover; background-position: center; }
+    .unit-card.rarity-RARE { background-image: url('/app/static/frames/RARE.svg'); background-size: cover; background-position: center; }
+    .unit-card.rarity-EPIC { background-image: url('/app/static/frames/EPIC.svg'); background-size: cover; background-position: center; }
+    .unit-card.rarity-LEGENDARY { background-image: url('/app/static/frames/LEGENDARY.svg'); background-size: cover; background-position: center; }
+
+    /* Faction badge — tiny corner overlay on the portrait. */
+    .faction-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 20px;
+      height: 20px;
+      opacity: 0.9;
+      pointer-events: none;
     }
 
     .unit-card.dead {
@@ -181,8 +203,8 @@
     }
 
     .status-icon {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       background: rgba(255,255,255,0.1);
       border-radius: 3px;
       display: flex;
@@ -190,6 +212,13 @@
       justify-content: center;
       font-size: 8px;
       font-weight: 700;
+      overflow: hidden;
+    }
+
+    .status-icon img {
+      width: 16px;
+      height: 16px;
+      display: block;
     }
 
     .status-icon.ATK_UP {
@@ -493,14 +522,40 @@
         const card = document.createElement("div");
         card.className = "unit-card";
         if (unitStates[p.uid].dead) card.classList.add("dead");
+        // Rarity frame via background-image CSS (transparent center so portrait shows through).
+        if (p.rarity) card.classList.add(`rarity-${p.rarity}`);
 
         const state = unitStates[p.uid];
         const hpPercent = (state.hp / state.max_hp) * 100;
 
-        const statusHtml = state.statuses.map(s => `<div class="status-icon ${s.kind}">${s.kind.slice(0, 1)}</div>`).join("");
+        const statusHtml = state.statuses
+          .map(s => `<div class="status-icon ${s.kind}" title="${s.kind}">
+            <img src="/app/static/status/${s.kind}.svg" alt="${s.kind}"
+                 onerror="this.replaceWith(document.createTextNode('${s.kind.slice(0, 1)}'))" />
+          </div>`)
+          .join("");
+
+        // Hero portrait: prefer real SVG at /app/static/heroes/<code>.svg, fall back
+        // to two-letter initials if the file is missing (onerror handler swaps).
+        const initials = p.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+        const portraitSrc = p.template_code
+          ? `/app/static/heroes/${p.template_code}.svg`
+          : "";
+        const portraitHtml = portraitSrc
+          ? `<img src="${portraitSrc}" alt="${p.name}"
+                 onerror="this.parentElement.innerHTML='${initials}'" />`
+          : initials;
+
+        // Faction badge overlay (top-right of the card).
+        const factionBadge = p.faction
+          ? `<img class="faction-badge" src="/app/static/factions/${p.faction}.svg"
+                  alt="${p.faction}" title="${p.faction}"
+                  onerror="this.remove()" />`
+          : "";
 
         card.innerHTML = `
-          <div class="unit-portrait">${p.name.slice(0, 2).toUpperCase()}</div>
+          ${factionBadge}
+          <div class="unit-portrait">${portraitHtml}</div>
           <div class="unit-name">${p.name}</div>
           <div class="unit-role">${p.role}</div>
           <div class="unit-hp"><span id="hp-${p.uid}">${state.hp}</span> / ${state.max_hp}</div>

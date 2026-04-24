@@ -258,13 +258,17 @@ def attack(
     participants = [
         {"uid": u.uid, "side": "A", "name": u.name, "role": str(u.role),
          "level": u.level, "max_hp": u.max_hp,
-         "template_code": attackers[i].template.code}
+         "template_code": attackers[i].template.code,
+         "rarity": str(attackers[i].template.rarity),
+         "faction": str(attackers[i].template.faction)}
         for i, u in enumerate(team_a)
     ]
     participants.extend(
         {"uid": u.uid, "side": "B", "name": u.name, "role": str(u.role),
          "level": u.level, "max_hp": u.max_hp,
-         "template_code": defenders[i].template.code}
+         "template_code": defenders[i].template.code,
+         "rarity": str(defenders[i].template.rarity),
+         "faction": str(defenders[i].template.faction)}
         for i, u in enumerate(team_b)
     )
 

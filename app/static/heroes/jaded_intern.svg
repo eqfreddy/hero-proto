@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <ellipse cx="128" cy="175" rx="50" ry="60" class="intern-body"></ellipse>
+  
+  
+  <circle cx="128" cy="100" r="32" class="intern-face"></circle>
+  
+  
+  <path d="M 105 75 Q 128 65 151 75" stroke="#7a8a9c" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.8"></path>
+  
+  
+  <ellipse cx="118" cy="95" rx="5" ry="7" class="eyes-dead"></ellipse>
+  <ellipse cx="138" cy="95" rx="5" ry="7" class="eyes-dead"></ellipse>
+  <circle cx="118" cy="97" r="1.5" fill="#9ca7b3" opacity="0.5"></circle>
+  <circle cx="138" cy="97" r="1.5" fill="#9ca7b3" opacity="0.5"></circle>
+  
+  
+  <line x1="118" y1="115" x2="138" y2="115" stroke="#5a6a7c" stroke-width="1.5" stroke-linecap="round"></line>
+  
+  
+  <line x1="85" y1="130" x2="171" y2="140" stroke="#ff7a59" stroke-width="3" opacity="0.9"></line>
+  
+  
+  <rect x="110" y="155" width="36" height="24" class="lanyard" rx="2"></rect>
+  <rect x="113" y="158" width="30" height="18" fill="#0b0d10" rx="1"></rect>
+  <text x="128" y="170" class="lanyard-text" text-anchor="middle">UNPAID</text>
+  
+  
+  <ellipse cx="85" cy="170" rx="14" ry="43" class="intern-body" transform="rotate(-25 85 170)"></ellipse>
+  <ellipse cx="171" cy="170" rx="14" ry="43" class="intern-body" transform="rotate(25 171 170)"></ellipse>
+  
+  
+  <rect x="115" y="225" width="12" height="30" rx="6" class="intern-body"></rect>
+  <rect x="129" y="225" width="12" height="30" rx="6" class="intern-body"></rect>
+</svg>

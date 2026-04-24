@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    
+  </defs>
+  
+  <rect x="2" y="2" width="252" height="252" rx="14" class="frame-border frame-glow frame-shimmer"></rect>
+  
+  
+  <rect x="8" y="8" width="240" height="240" rx="12" class="frame-border" stroke-width="2"></rect>
+  
+  
+  <g class="frame-glow frame-shimmer">
+    <path d="M 20 5 L 22 12 L 30 14 L 24 20 L 26 28 L 20 24 L 14 28 L 16 20 L 10 14 L 18 12 Z" fill="#ffd86b"></path>
+    <path d="M 236 5 L 238 12 L 246 14 L 240 20 L 242 28 L 236 24 L 230 28 L 232 20 L 226 14 L 234 12 Z" fill="#ffd86b"></path>
+    <path d="M 20 251 L 22 244 L 30 242 L 24 236 L 26 228 L 20 232 L 14 228 L 16 236 L 10 242 L 18 244 Z" fill="#ffd86b"></path>
+    <path d="M 236 251 L 238 244 L 246 242 L 240 236 L 242 228 L 236 232 L 230 228 L 232 236 L 226 242 L 234 244 Z" fill="#ffd86b"></path>
+  </g>
+</svg>

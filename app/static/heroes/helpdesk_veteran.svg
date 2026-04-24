@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <ellipse cx="128" cy="185" rx="55" ry="65" class="tshirt"></ellipse>
+  
+  
+  <rect x="100" y="165" width="56" height="40" fill="#3a4a5c" rx="3"></rect>
+  <text x="128" y="192" class="tshirt-text" text-anchor="middle">I&#39;VE SEEN</text>
+  <text x="128" y="202" class="tshirt-text" text-anchor="middle">THINGS</text>
+  
+  
+  <circle cx="128" cy="100" r="33" class="veteran-face"></circle>
+  
+  
+  <path d="M 103 70 Q 128 55 153 70" stroke="#5a6a7c" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.75"></path>
+  <path d="M 105 68 Q 128 62 151 68" stroke="#6a7a8c" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.5"></path>
+  
+  
+  <ellipse cx="128" cy="103" rx="30" ry="32" class="veteran-face"></ellipse>
+  
+  
+  <circle cx="115" cy="108" r="1.2" class="stubble"></circle>
+  <circle cx="120" cy="110" r="1" class="stubble"></circle>
+  <circle cx="124" cy="112" r="1.2" class="stubble"></circle>
+  <circle cx="132" cy="112" r="1.2" class="stubble"></circle>
+  <circle cx="136" cy="110" r="1" class="stubble"></circle>
+  <circle cx="141" cy="108" r="1.2" class="stubble"></circle>
+  
+  
+  <ellipse cx="116" cy="95" rx="5" ry="6" fill="#3a4a5c"></ellipse>
+  <ellipse cx="140" cy="95" rx="5" ry="6" fill="#3a4a5c"></ellipse>
+  <circle cx="117" cy="97" r="2" fill="#9ca7b3" opacity="0.6"></circle>
+  <circle cx="141" cy="97" r="2" fill="#9ca7b3" opacity="0.6"></circle>
+  
+  
+  <line x1="108" y1="98" x2="102" y2="100" stroke="#5a6a7c" stroke-width="0.8" opacity="0.5"></line>
+  <line x1="148" y1="98" x2="154" y2="100" stroke="#5a6a7c" stroke-width="0.8" opacity="0.5"></line>
+  
+  
+  <path d="M 116 118 Q 128 120 140 118" stroke="#5a6a7c" stroke-width="1.5" fill="none" stroke-linecap="round"></path>
+  
+  
+  <ellipse cx="80" cy="175" rx="18" ry="45" class="veteran-body" transform="rotate(-22 80 175)"></ellipse>
+  <ellipse cx="176" cy="175" rx="18" ry="45" class="veteran-body" transform="rotate(22 176 175)"></ellipse>
+  
+  
+  <rect x="108" y="235" width="14" height="25" rx="7" class="veteran-body"></rect>
+  <rect x="134" y="235" width="14" height="25" rx="7" class="veteran-body"></rect>
+</svg>

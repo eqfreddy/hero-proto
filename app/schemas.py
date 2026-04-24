@@ -30,6 +30,10 @@ class BattleParticipant(BaseModel):
     level: int
     max_hp: int
     template_code: str = ""  # for portrait lookup; empty on legacy rows before this field landed
+    # Cosmetic metadata for the replay viewer (rarity frame + faction badge).
+    # Default empty strings keep legacy Battle.participants_json rows deserializable.
+    rarity: str = ""
+    faction: str = ""
 
 
 class RegisterIn(BaseModel):

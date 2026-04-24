@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <ellipse cx="128" cy="180" rx="55" ry="65" class="gary-suit"></ellipse>
+  
+  
+  <circle cx="110" cy="95" r="36"></circle>
+  
+  
+  <path d="M 82 75 Q 105 60 130 70 Q 140 68 142 85" stroke="#7a8a9c" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.9"></path>
+  
+  
+  <ellipse cx="110" cy="98" rx="32" ry="34" class="gary-face"></ellipse>
+  
+  
+  <ellipse cx="100" cy="90" rx="4" ry="5" fill="#5a6a7c"></ellipse>
+  <ellipse cx="120" cy="90" rx="4" ry="5" fill="#5a6a7c"></ellipse>
+  <circle cx="100" cy="88" r="1.5" fill="#3a4a5c" opacity="0.7"></circle>
+  <circle cx="120" cy="88" r="1.5" fill="#3a4a5c" opacity="0.7"></circle>
+  
+  
+  <path d="M 105 115 Q 110 122 115 115" class="gary-goatee" fill="#6a7a7c" opacity="0.9"></path>
+  <circle cx="108" cy="118" r="1.5" fill="#9ca7b3" opacity="0.6"></circle>
+  <circle cx="112" cy="118" r="1.5" fill="#9ca7b3" opacity="0.6"></circle>
+  
+  
+  <rect x="100" y="128" width="20" height="18" class="gary-face"></rect>
+  
+  
+  <polygon points="105,145 115,145 116,170 104,170" class="gary-tie"></polygon>
+  
+  
+  <ellipse cx="90" cy="165" rx="20" ry="45" class="gary-suit" transform="rotate(-25 90 165)"></ellipse>
+  <ellipse cx="166" cy="165" rx="20" ry="45" class="gary-suit" transform="rotate(25 166 165)"></ellipse>
+  
+  
+  <rect x="155" y="175" width="28" height="32" class="coffee-cup" rx="2"></rect>
+  <ellipse cx="183" cy="175" rx="14" ry="6" class="coffee-cup"></ellipse>
+  <rect x="157" y="177" width="24" height="26" class="coffee" rx="2" opacity="0.8"></rect>
+  <ellipse cx="169" cy="177" rx="12" ry="5" class="coffee" opacity="0.8"></ellipse>
+  
+  
+  <path d="M 183 185 Q 195 190 193 210" stroke="#8a6a4a" stroke-width="3" fill="none"></path>
+  
+  
+  <rect x="110" y="235" width="12" height="25" rx="6" class="gary-suit"></rect>
+  <rect x="134" y="235" width="12" height="25" rx="6" class="gary-suit"></rect>
+</svg>

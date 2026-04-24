@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <path d="M 110 75 Q 128 60 146 75 L 155 150 Q 128 165 101 150 Z" class="hoodie"></path>
+  <ellipse cx="128" cy="90" rx="24" ry="28" class="hoodie"></ellipse>
+  
+  
+  <circle cx="128" cy="105" r="22" class="devops-face" opacity="0.8"></circle>
+  
+  
+  <circle cx="120" cy="100" r="3" fill="#1a1f25"></circle>
+  <circle cx="136" cy="100" r="3" fill="#1a1f25"></circle>
+  <circle cx="121" cy="99" r="1.5" fill="#59a0ff"></circle>
+  <circle cx="137" cy="99" r="1.5" fill="#59a0ff"></circle>
+  
+  
+  <path d="M 118 115 Q 128 118 138 115" stroke="#5a6a7c" stroke-width="1.5" fill="none" stroke-linecap="round"></path>
+  
+  
+  <rect x="95" y="160" width="66" height="50" class="laptop-shield" rx="6"></rect>
+  
+  
+  <rect x="100" y="165" width="56" height="40" class="screen-glow" rx="4"></rect>
+  
+  
+  <line x1="105" y1="175" x2="151" y2="175" stroke="#59a0ff" stroke-width="1" opacity="0.4"></line>
+  <line x1="105" y1="182" x2="151" y2="182" stroke="#59a0ff" stroke-width="1" opacity="0.4"></line>
+  <line x1="105" y1="189" x2="151" y2="189" stroke="#59a0ff" stroke-width="1" opacity="0.4"></line>
+  
+  
+  <ellipse cx="128" cy="200" rx="50" ry="55" class="hoodie"></ellipse>
+  
+  
+  <ellipse cx="85" cy="180" rx="15" ry="45" class="devops-body" transform="rotate(-30 85 180)"></ellipse>
+  <ellipse cx="171" cy="180" rx="15" ry="45" class="devops-body" transform="rotate(30 171 180)"></ellipse>
+  
+  
+  <rect x="115" y="245" width="12" height="25" rx="6" class="devops-body"></rect>
+  <rect x="129" y="245" width="12" height="25" rx="6" class="devops-body"></rect>
+</svg>
