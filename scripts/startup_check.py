@@ -329,11 +329,46 @@ async def check_static_pages(client: httpx.AsyncClient, r: Report) -> None:
         r.ok("Static pages", f"{len(pages)} pages all 200")
 
 
+async def _probe_reachable(client: httpx.AsyncClient) -> str | None:
+    """Quick pre-flight so we don't spam 11 identical 'network error' lines when
+    the server isn't running. Returns None on success, a human-readable error
+    string otherwise. Any HTTP response (even a non-200) counts as reachable —
+    only connection-layer failures short-circuit."""
+    try:
+        await client.get("/healthz", timeout=5.0)
+    except httpx.ConnectError as e:
+        return f"connection refused ({e})"
+    except httpx.ConnectTimeout:
+        return "connection timed out"
+    except httpx.TransportError as e:
+        return f"transport error ({e})"
+    except Exception as e:
+        return f"unexpected {type(e).__name__}: {e}"
+    return None
+
+
 async def main() -> int:
     print(f"startup_check -> {BASE}")
     print()
-    r = Report()
+
     async with httpx.AsyncClient(base_url=BASE, timeout=15.0) as client:
+        pre_error = await _probe_reachable(client)
+        if pre_error is not None:
+            # Don't spam one "network error" line per check. One clear message
+            # with the exact fix command.
+            print(f"{RED}[FATAL]{RESET} {BASE} is not reachable: {pre_error}")
+            print()
+            print("Is the server running? Start it in another terminal:")
+            print(f"  {DIM}uv run uvicorn app.main:app --host 127.0.0.1 --port 8000{RESET}")
+            print()
+            print("If you haven't migrated or seeded yet:")
+            print(f"  {DIM}uv run alembic upgrade head{RESET}")
+            print(f"  {DIM}uv run python -c \"from app.seed import seed; seed()\"{RESET}")
+            print()
+            print("Then re-run startup_check. Exiting.")
+            return 2  # distinct exit code from failed-checks (=1)
+
+        r = Report()
         await check_liveness(client, r)
         await check_worker(client, r)
         await check_metrics(client, r)
