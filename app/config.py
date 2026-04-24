@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-only-change-me-at-least-32-bytes-long!"
     jwt_alg: str = "HS256"
     jwt_ttl_minutes: int = 60 * 24
+    # Refresh tokens — long-lived credential to mint fresh access tokens.
+    refresh_token_ttl_days: int = 30
 
     # Rate limits (per client IP, in-memory token bucket).
     # Tighten these for production — defaults here assume dev/alpha sharing an IP.

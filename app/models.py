@@ -487,6 +487,35 @@ class ArenaMatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
 
 
+class RefreshToken(Base):
+    """Long-lived credential used to mint fresh access tokens without re-login.
+
+    Hash-only storage (same as password reset / verification tokens).
+    On each successful refresh the token is rotated: the old row gets
+    `replaced_by_id` + `revoked_at`, a new row is issued. Reuse-detection:
+    if a client presents a token whose `replaced_by_id` is set (i.e. it was
+    rotated out), we treat it as a theft signal and revoke the entire
+    account's refresh chain via a token_version bump.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # Set to the new token id when this token is rotated. If a caller presents
+    # a token row with replaced_by_id set, it means they're replaying an old
+    # token — possible theft, so we revoke the chain.
+    replaced_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("refresh_tokens.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 class EmailVerificationToken(Base):
     """Single-use email verification token. Same hash-only storage policy as password
     reset: raw token exists only in the verification URL, server stores sha256."""

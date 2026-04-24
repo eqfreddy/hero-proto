@@ -45,6 +45,10 @@ class LoginIn(BaseModel):
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    # Long-lived rotation credential. Emitted by /auth/register, /auth/login,
+    # /auth/refresh. Clients hang on to this; swap it for a fresh access token
+    # via POST /auth/refresh when the old access token expires.
+    refresh_token: str | None = None
 
 
 class MeOut(BaseModel):

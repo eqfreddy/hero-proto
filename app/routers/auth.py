@@ -34,9 +34,14 @@ def register(body: RegisterIn, db: Annotated[Session, Depends(get_db)]) -> Token
     )
     _maybe_promote_admin(account)
     db.add(account)
+    db.flush()
+    _row, refresh_raw = _issue_refresh_token(db, account)
     db.commit()
     db.refresh(account)
-    return TokenOut(access_token=issue_token(account.id, account.token_version))
+    return TokenOut(
+        access_token=issue_token(account.id, account.token_version),
+        refresh_token=refresh_raw,
+    )
 
 
 @router.post("/login", response_model=TokenOut)
@@ -50,8 +55,12 @@ def login(body: LoginIn, db: Annotated[Session, Depends(get_db)]) -> TokenOut:
             f"account is banned: {account.banned_reason or 'no reason given'}",
         )
     _maybe_promote_admin(account)
+    _row, refresh_raw = _issue_refresh_token(db, account)
     db.commit()
-    return TokenOut(access_token=issue_token(account.id, account.token_version))
+    return TokenOut(
+        access_token=issue_token(account.id, account.token_version),
+        refresh_token=refresh_raw,
+    )
 
 
 # --- Password reset ----------------------------------------------------------
@@ -144,12 +153,17 @@ def reset_password(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
 
     account.password_hash = hash_password(body.new_password)
-    account.token_version = (account.token_version or 0) + 1  # revoke outstanding JWTs
+    # _revoke_chain bumps token_version + revokes all live refresh tokens so no
+    # previously-issued credential (access or refresh) is usable post-reset.
+    _revoke_chain_for_account(db, account)
     token_row.used_at = utcnow()
+    _new_refresh_row, refresh_raw = _issue_refresh_token(db, account)
     db.commit()
-
-    # Issue a fresh token so the user is immediately signed in after reset.
-    return TokenOut(access_token=issue_token(account.id, account.token_version))
+    # Issue a fresh access + refresh so the user is immediately signed in.
+    return TokenOut(
+        access_token=issue_token(account.id, account.token_version),
+        refresh_token=refresh_raw,
+    )
 
 
 # --- Email verification ------------------------------------------------------
@@ -248,3 +262,116 @@ def get_current_account_verified_only(
             "this action requires a verified email",
         )
     return account
+
+
+# --- Refresh tokens ----------------------------------------------------------
+
+from app.models import RefreshToken
+
+
+def _issue_refresh_token(db: Session, account: Account) -> tuple[RefreshToken, str]:
+    """Persist a new RefreshToken row and return (row, raw_token)."""
+    raw = secrets.token_urlsafe(40)
+    row = RefreshToken(
+        account_id=account.id,
+        token_hash=_hash_token(raw),
+        expires_at=utcnow() + timedelta(days=settings.refresh_token_ttl_days),
+    )
+    db.add(row)
+    return row, raw
+
+
+def _revoke_chain_for_account(db: Session, account: Account) -> None:
+    """Invalidate everything for this account — called on refresh-token reuse
+    detection (theft signal) or password reset. Bumps token_version so outstanding
+    access tokens die, and revokes every live refresh row."""
+    account.token_version = (account.token_version or 0) + 1
+    for row in db.scalars(
+        select(RefreshToken).where(
+            RefreshToken.account_id == account.id,
+            RefreshToken.revoked_at.is_(None),
+        )
+    ):
+        row.revoked_at = utcnow()
+
+
+class RefreshIn(BaseModel):
+    refresh_token: str = Field(min_length=16, max_length=128)
+
+
+class LogoutIn(BaseModel):
+    refresh_token: str = Field(min_length=16, max_length=128)
+
+
+class LogoutOut(BaseModel):
+    revoked: bool
+
+
+@router.post("/refresh", response_model=TokenOut)
+def refresh(
+    body: RefreshIn,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenOut:
+    """Rotate the refresh token. Returns a fresh access token + a new refresh
+    token; the presented token is marked replaced_by the new one. If the caller
+    presents an already-rotated token (i.e. replaced_by_id is set), we treat it
+    as theft and revoke the account's entire refresh chain."""
+    row = db.scalar(
+        select(RefreshToken).where(RefreshToken.token_hash == _hash_token(body.refresh_token))
+    )
+    if row is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid refresh token")
+
+    account = db.get(Account, row.account_id)
+    if account is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "account not found")
+
+    now = utcnow()
+
+    # Theft-detection: this token has already been rotated. Revoke everything.
+    if row.replaced_by_id is not None:
+        _revoke_chain_for_account(db, account)
+        db.commit()
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "refresh token reuse detected — all sessions revoked, please log in again",
+        )
+
+    if row.revoked_at is not None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "refresh token revoked")
+    if row.expires_at <= now:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "refresh token expired")
+    if account.is_banned:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"account is banned: {account.banned_reason or 'no reason given'}",
+        )
+
+    # Rotate: issue a new token, mark old replaced.
+    new_row, new_raw = _issue_refresh_token(db, account)
+    db.flush()
+    row.replaced_by_id = new_row.id
+    row.revoked_at = now
+    db.commit()
+
+    return TokenOut(
+        access_token=issue_token(account.id, account.token_version),
+        refresh_token=new_raw,
+    )
+
+
+@router.post("/logout", response_model=LogoutOut)
+def logout(
+    body: LogoutIn,
+    db: Annotated[Session, Depends(get_db)],
+) -> LogoutOut:
+    """Revoke a refresh token. Idempotent — an already-revoked or unknown token
+    returns {revoked: false} with 200 (no sensitive info leaked)."""
+    row = db.scalar(
+        select(RefreshToken).where(RefreshToken.token_hash == _hash_token(body.refresh_token))
+    )
+    if row is None or row.revoked_at is not None:
+        return LogoutOut(revoked=False)
+    row.revoked_at = utcnow()
+    db.commit()
+    return LogoutOut(revoked=True)
