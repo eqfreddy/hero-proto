@@ -26,6 +26,7 @@ from app.schemas import (
     ArenaLeaderboardEntry,
     ArenaMatchOut,
     ArenaOpponentOut,
+    BattleParticipant,
     DefenseSetIn,
     HeroInstanceOut,
 )
@@ -180,6 +181,21 @@ def attack(
     team_a = [_unit_from_instance(h, "A", i) for i, h in enumerate(attackers)]
     team_b = [_unit_from_instance(h, "B", i) for i, h in enumerate(defenders)]
 
+    # Snapshot participants before simulate mutates HP — same shape as Battle so
+    # the replay viewer works unchanged for arena matches.
+    participants = [
+        {"uid": u.uid, "side": "A", "name": u.name, "role": str(u.role),
+         "level": u.level, "max_hp": u.max_hp,
+         "template_code": attackers[i].template.code}
+        for i, u in enumerate(team_a)
+    ]
+    participants.extend(
+        {"uid": u.uid, "side": "B", "name": u.name, "role": str(u.role),
+         "level": u.level, "max_hp": u.max_hp,
+         "template_code": defenders[i].template.code}
+        for i, u in enumerate(team_b)
+    )
+
     rng = random.Random()
     result = simulate(team_a, team_b, rng)
 
@@ -207,6 +223,7 @@ def attack(
         attacker_rating_after=account.arena_rating,
         defender_rating_after=defender.arena_rating,
         log_json=json.dumps(trim_combat_log(result.log)),
+        participants_json=json.dumps(participants),
     )
     db.add(match)
     db.commit()
@@ -221,7 +238,41 @@ def attack(
         attacker_rating_after=account.arena_rating,
         defender_rating_after=defender.arena_rating,
         log=result.log,
+        participants=[BattleParticipant(**p) for p in participants],
         created_at=match.created_at,
+    )
+
+
+@router.get("/matches/{match_id}", response_model=ArenaMatchOut)
+def get_match(
+    match_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ArenaMatchOut:
+    """Read-only fetch of a stored arena match. Viewable by attacker or defender only —
+    matches you weren't in return 404 (don't leak existence across accounts)."""
+    m = db.get(ArenaMatch, match_id)
+    if m is None or account.id not in (m.attacker_id, m.defender_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "arena match not found")
+    try:
+        log = json.loads(m.log_json or "[]")
+    except json.JSONDecodeError:
+        log = []
+    try:
+        participants_raw = json.loads(m.participants_json or "[]")
+    except json.JSONDecodeError:
+        participants_raw = []
+    return ArenaMatchOut(
+        id=m.id,
+        attacker_id=m.attacker_id,
+        defender_id=m.defender_id,
+        outcome=m.outcome,
+        rating_delta=m.rating_delta,
+        attacker_rating_after=m.attacker_rating_after,
+        defender_rating_after=m.defender_rating_after,
+        log=log,
+        participants=[BattleParticipant(**p) for p in participants_raw if isinstance(p, dict)],
+        created_at=m.created_at,
     )
 
 

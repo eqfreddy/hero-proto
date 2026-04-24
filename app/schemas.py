@@ -18,6 +18,20 @@ from app.models import (
 )
 
 
+class BattleParticipant(BaseModel):
+    """Snapshot of a unit in a recorded fight. Shared by BattleOut and ArenaMatchOut
+    so the replay viewer handles both the same way.
+    """
+
+    uid: str
+    side: str  # "A" = player, "B" = enemy
+    name: str
+    role: str
+    level: int
+    max_hp: int
+    template_code: str = ""  # for portrait lookup; empty on legacy rows before this field landed
+
+
 class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
@@ -149,6 +163,8 @@ class ArenaMatchOut(BaseModel):
     attacker_rating_after: int
     defender_rating_after: int
     log: list[dict]
+    # Same shape as BattleOut.participants so the Phaser replay works unchanged.
+    participants: list[BattleParticipant] = []
     created_at: datetime
 
 
@@ -299,14 +315,6 @@ class BattleIn(BaseModel):
     team: list[int] = Field(min_length=1, max_length=3)
 
 
-class BattleParticipant(BaseModel):
-    uid: str
-    side: str  # "A" = player, "B" = enemy
-    name: str
-    role: str
-    level: int
-    max_hp: int
-    template_code: str = ""  # for portrait lookup; empty on legacy rows before this field landed
 
 
 class BattleOut(BaseModel):

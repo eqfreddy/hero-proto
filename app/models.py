@@ -462,6 +462,9 @@ class ArenaMatch(Base):
     attacker_rating_after: Mapped[int] = mapped_column(Integer, default=1000)
     defender_rating_after: Mapped[int] = mapped_column(Integer, default=1000)
     log_json: Mapped[str] = mapped_column(String(65536))
+    # Same snapshot shape as Battle.participants_json so the Phaser replay view
+    # works unchanged: [{uid, side, name, role, level, max_hp, template_code}].
+    participants_json: Mapped[str] = mapped_column(String(4096), default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
 
 
