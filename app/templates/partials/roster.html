@@ -1,37 +1,205 @@
 <div class="stack">
   <div class="row" style="justify-content: space-between;">
-    <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Roster · {{ heroes | length }} heroes</h2>
+    <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Roster · <span id="roster-count">{{ heroes | length }}</span> unique / {{ total }} total</h2>
     <button class="secondary" hx-get="/app/partials/roster" hx-target="#content">↻ refresh</button>
   </div>
+
   {% if not heroes %}
-    <div class="card muted">No heroes yet. Go to <strong>Me</strong> → Summon x10.</div>
+    <div class="card muted">No heroes yet. Go to <strong>Summon</strong> to pull your first hero.</div>
   {% else %}
-  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px;">
+
+  <!-- Rarity tabs -->
+  <div class="row" id="rarity-tabs" style="gap: 6px; overflow-x: auto; padding-bottom: 4px; flex-wrap: nowrap;">
+    <button class="rarity-tab active" data-rarity="all" style="padding: 6px 12px; border-radius: 4px; background: var(--panel-2); border: 2px solid var(--border); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">All</button>
+    {% for r, color_var in [('COMMON', '--r-common'), ('UNCOMMON', '--r-uncommon'), ('RARE', '--r-rare'), ('EPIC', '--r-epic'), ('LEGENDARY', '--r-legendary'), ('MYTH', '--r-myth')] %}
+      <button class="rarity-tab" data-rarity="{{ r }}" style="padding: 6px 12px; border-radius: 4px; background: var(--panel-2); border: 2px solid transparent; color: var({{ color_var }}); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">{{ r | capitalize }}</button>
+    {% endfor %}
+  </div>
+
+  <!-- Grid -->
+  <div id="roster-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;">
     {% for h in heroes %}
-    <div class="card rarity-{{ h.rarity }}" style="padding: 10px;">
-      <div style="display: flex; justify-content: space-between; align-items: start;">
-        <div>
-          <div style="font-weight: 600;">{{ h.name }}</div>
-          <div class="muted" style="font-size: 11px;">
-            <span class="role-{{ h.role }}">[{{ h.role }}]</span>
-            {{ h.faction }}
-            · Lv{{ h.level }}
-            · {{ '★' * h.stars }}
-          </div>
+    <div class="hero-card" data-rarity="{{ h.rarity }}" data-code="{{ h.code }}" data-id="{{ h.id }}" style="
+      cursor: pointer;
+      border-radius: 8px;
+      border: 2px solid var(--r-{{ h.rarity | lower }});
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(0,0,0,0.3), var(--panel-2));
+      box-shadow: 0 0 14px rgba(0,0,0,0.4), 0 0 18px color-mix(in srgb, var(--r-{{ h.rarity | lower }}) 25%, transparent);
+      transition: transform 150ms ease, box-shadow 150ms ease;
+      position: relative;
+    ">
+      <!-- Portrait slot -->
+      <div style="aspect-ratio: 1; background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(0,0,0,0.25)); display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        {% if h.has_bust %}
+          <img src="/app/static/heroes/busts/{{ h.code }}.png" alt="{{ h.name }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 48px; font-weight: 800; color: rgba(255,255,255,0.25);">{{ h.name[0] }}</div>
+        {% else %}
+          <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 800; color: color-mix(in srgb, var(--r-{{ h.rarity | lower }}) 50%, transparent);">{{ h.name[0] }}</div>
+        {% endif %}
+        {% if h.dupe_count > 1 %}
+          <div style="position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); color: var(--r-legendary); padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700;">×{{ h.dupe_count }}</div>
+        {% endif %}
+      </div>
+      <!-- Info -->
+      <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+          <div style="font-size: 12px; font-weight: 700; line-height: 1.2;">{{ h.name }}</div>
+          <div title="{{ h.faction }}" style="width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; background: color-mix(in srgb, var(--faction-{{ h.faction | lower | replace('_', '-') }}, var(--muted)) 22%, transparent); color: var(--faction-{{ h.faction | lower | replace('_', '-') }}, var(--muted));">{{ h.faction[0] }}</div>
         </div>
-        <div class="pill">{{ h.rarity }}</div>
-      </div>
-      <div class="row" style="gap: 6px; margin-top: 8px; font-size: 11px; color: var(--muted);">
-        <span>HP <strong style="color: var(--text);">{{ h.hp }}</strong></span>
-        <span>ATK <strong style="color: var(--atk);">{{ h.atk }}</strong></span>
-        <span>DEF <strong style="color: var(--def);">{{ h.def_ }}</strong></span>
-        <span>SPD <strong style="color: var(--sup);">{{ h.spd }}</strong></span>
-      </div>
-      <div class="muted" style="font-size: 11px; margin-top: 4px;">
-        id {{ h.id }} · power {{ h.power }}
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <span class="role-{{ h.role }}" style="font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: color-mix(in srgb, currentColor 15%, transparent);">{{ h.role }}</span>
+          <span style="font-size: 10px; color: var(--muted);">LV {{ h.level }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+          <span class="muted">PWR</span>
+          <span style="font-weight: 700; color: var(--r-legendary);">{{ h.power }}</span>
+        </div>
+        <div style="display: flex; gap: 2px; justify-content: center;">
+          {% for _i in range(5) %}
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: {% if _i < h.stars %}var(--r-legendary); box-shadow: 0 0 4px var(--r-legendary){% else %}var(--border){% endif %};"></span>
+          {% endfor %}
+        </div>
       </div>
     </div>
     {% endfor %}
   </div>
+
+  <!-- Detail overlay (bottom-sheet) -->
+  <div id="hero-detail-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: flex-end; justify-content: center; animation: fadeIn 200ms ease;">
+    <div id="hero-detail-sheet" style="background: linear-gradient(180deg, var(--panel-2), var(--bg)); width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; border-radius: 14px 14px 0 0; padding: 16px; position: relative;"></div>
+    <button onclick="closeHeroDetail()" style="position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.1); color: var(--text); font-size: 20px; border: none; cursor: pointer;">×</button>
+  </div>
+
   {% endif %}
 </div>
+
+<style>
+  :root {
+    --faction-helpdesk: var(--accent);
+    --faction-devops: var(--good);
+    --faction-legacy: var(--r-epic);
+    --faction-executive: var(--r-legendary);
+    --faction-rogue-it: var(--bad);
+    --faction-exile: var(--muted);
+    --r-common: #9ca7b3;
+    --r-uncommon: var(--good);
+    --r-rare: var(--accent);
+    --r-epic: #c97aff;
+    --r-legendary: var(--r-legendary, #ffd86b);
+    --r-myth: #ff66c4;
+  }
+  .hero-card:hover { transform: translateY(-3px); }
+  .rarity-tab.active { background: var(--bg) !important; border-color: currentColor !important; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  #hero-detail-sheet { animation: slideUp 280ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+</style>
+
+<script>
+  (function () {
+    // Rarity filter
+    const tabs = document.querySelectorAll('.rarity-tab');
+    const grid = document.getElementById('roster-grid');
+    if (!grid) return;
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const want = tab.dataset.rarity;
+        let visible = 0;
+        grid.querySelectorAll('.hero-card').forEach(card => {
+          const match = (want === 'all') || (card.dataset.rarity === want);
+          card.style.display = match ? '' : 'none';
+          if (match) visible++;
+        });
+        const countEl = document.getElementById('roster-count');
+        if (countEl) countEl.textContent = visible;
+      });
+    });
+
+    // Detail bottom-sheet
+    grid.querySelectorAll('.hero-card').forEach(card => {
+      card.addEventListener('click', () => openHeroDetail(card.dataset.id, card.dataset.code));
+    });
+  })();
+
+  async function openHeroDetail(instanceId, code) {
+    const overlay = document.getElementById('hero-detail-overlay');
+    const sheet = document.getElementById('hero-detail-sheet');
+    const token = localStorage.getItem('heroproto_jwt');
+    sheet.innerHTML = '<div class="muted" style="padding: 20px;">Loading...</div>';
+    overlay.style.display = 'flex';
+
+    try {
+      const heroes = await fetch('/heroes/mine', {
+        headers: { authorization: 'Bearer ' + token },
+      }).then(r => r.json());
+      // Find this instance (by id) to read canonical stats.
+      const hero = heroes.find(h => h.id === Number(instanceId));
+      if (!hero) {
+        sheet.innerHTML = '<div style="color: var(--bad); padding: 20px;">Hero not found.</div>';
+        return;
+      }
+      const t = hero.template;
+      // Probe for card art — fall back to bust if card missing.
+      const cardSrc = `/app/static/heroes/cards/${code}.png`;
+      const bustSrc = `/app/static/heroes/busts/${code}.png`;
+
+      const rarityColors = {
+        COMMON: '#9ca7b3', UNCOMMON: 'var(--good)', RARE: 'var(--accent)',
+        EPIC: '#c97aff', LEGENDARY: '#ffd86b', MYTH: '#ff66c4',
+      };
+      const color = rarityColors[String(t.rarity)] || '#9ca7b3';
+
+      sheet.innerHTML = `
+        <div style="display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 16px;">
+          <div style="border-radius: 8px; overflow: hidden; border: 2px solid ${color}; background: var(--panel);">
+            <img src="${cardSrc}" alt="${t.name}" style="width: 100%; display: block;"
+              onerror="this.src='${bustSrc}'; this.onerror=null;" />
+          </div>
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: ${color}; font-weight: 700;">${t.rarity}</div>
+            <h2 style="margin: 2px 0 6px 0; font-size: 22px;">${t.name}</h2>
+            <div class="muted" style="font-size: 12px;">${t.faction} · ${t.role} · Level ${hero.level} / ${hero.level_cap}</div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px;">
+              <div class="card" style="padding: 10px;"><div class="muted" style="font-size: 10px;">HP</div><div style="font-size: 18px; font-weight: 700;">${hero.hp}</div></div>
+              <div class="card" style="padding: 10px;"><div class="muted" style="font-size: 10px;">ATK</div><div style="font-size: 18px; font-weight: 700; color: var(--atk);">${hero.atk}</div></div>
+              <div class="card" style="padding: 10px;"><div class="muted" style="font-size: 10px;">DEF</div><div style="font-size: 18px; font-weight: 700; color: var(--def);">${hero.def}</div></div>
+              <div class="card" style="padding: 10px;"><div class="muted" style="font-size: 10px;">SPD</div><div style="font-size: 18px; font-weight: 700; color: var(--sup);">${hero.spd}</div></div>
+            </div>
+            <div style="margin-top: 14px;">
+              <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Stars</div>
+              <div style="display: flex; gap: 4px; margin-top: 4px;">
+                ${[0,1,2,3,4].map(i => `<span style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: ${i < hero.stars ? 'var(--r-legendary)' : 'var(--panel)'}; color: ${i < hero.stars ? '#000' : 'var(--muted)'}; font-size: 11px; font-weight: 700;">★</span>`).join('')}
+              </div>
+            </div>
+            <div style="margin-top: 14px;">
+              <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Power</div>
+              <div style="font-size: 24px; font-weight: 800; color: var(--r-legendary);">${hero.power}</div>
+            </div>
+            ${t.special ? `
+              <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);">
+                <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Signature</div>
+                <div style="font-size: 13px; font-weight: 600; margin-top: 4px;">${t.special.name || '(unnamed)'}</div>
+                <div class="muted" style="font-size: 11px; margin-top: 2px;">Level ${hero.special_level} · ${t.special.type || ''}</div>
+              </div>` : ''}
+          </div>
+        </div>
+      `;
+    } catch (e) {
+      sheet.innerHTML = `<div style="color: var(--bad); padding: 20px;">${e.message}</div>`;
+    }
+  }
+
+  function closeHeroDetail() {
+    document.getElementById('hero-detail-overlay').style.display = 'none';
+  }
+  document.addEventListener('click', (e) => {
+    if (e.target.id === 'hero-detail-overlay') closeHeroDetail();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeHeroDetail();
+  });
+</script>

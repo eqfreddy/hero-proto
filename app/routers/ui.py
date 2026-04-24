@@ -201,12 +201,14 @@ def _hero_row(h: HeroInstance) -> dict:
     spd = scale_stat(t.base_spd, h.level, h.stars) + bonus.get("spd", 0)
     return {
         "id": h.id,
+        "code": t.code,
         "name": t.name,
         "rarity": str(t.rarity),
         "role": str(t.role),
         "faction": str(t.faction),
         "level": h.level,
         "stars": h.stars,
+        "special_level": h.special_level,
         "hp": hp, "atk": atk, "def_": def_, "spd": spd,
         "power": power_rating(hp, atk, def_, spd),
     }
@@ -226,7 +228,49 @@ def partial_roster(
         )
     )
     rows = sorted((_hero_row(h) for h in heroes), key=lambda r: r["power"], reverse=True)
-    return templates.TemplateResponse(request, "partials/roster.html", {"heroes": rows})
+    # Group by template_code so duplicates collapse into a single card with
+    # count badge. For the detail overlay, retain the strongest instance's id
+    # so click-through lands on the highest-power copy by default.
+    from collections import defaultdict as _dd
+    groups: dict[str, list[dict]] = _dd(list)
+    for r in rows:
+        groups[r["code"]].append(r)
+    grouped = []
+    for code, instances in groups.items():
+        best = max(instances, key=lambda x: x["power"])
+        grouped.append({
+            **best,
+            "dupe_count": len(instances),
+            "instance_ids": [i["id"] for i in instances],
+        })
+    grouped.sort(key=lambda x: x["power"], reverse=True)
+    # Bust thumbnail path — resolved at render; fallback chain is in the template.
+    import os as _os
+    bust_dir = _os.path.join(
+        _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+        "static", "heroes", "busts",
+    )
+    has_bust = set()
+    try:
+        has_bust = {f.rsplit(".", 1)[0] for f in _os.listdir(bust_dir) if f.endswith(".png")}
+    except FileNotFoundError:
+        pass
+    card_dir = _os.path.join(
+        _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+        "static", "heroes", "cards",
+    )
+    has_card = set()
+    try:
+        has_card = {f.rsplit(".", 1)[0] for f in _os.listdir(card_dir) if f.endswith(".png")}
+    except FileNotFoundError:
+        pass
+    for g in grouped:
+        g["has_bust"] = g["code"] in has_bust
+        g["has_card"] = g["code"] in has_card
+    return templates.TemplateResponse(
+        request, "partials/roster.html",
+        {"heroes": grouped, "total": len(rows)},
+    )
 
 
 @router.get("/partials/stages", response_class=HTMLResponse)
