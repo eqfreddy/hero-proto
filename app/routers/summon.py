@@ -55,10 +55,13 @@ def _do_one_pull(db: Session, account: Account, rng: random.Random) -> SummonOut
 
 
 @router.post("", response_model=SummonOut, status_code=status.HTTP_201_CREATED)
+@router.post("/x1", response_model=SummonOut, status_code=status.HTTP_201_CREATED)
 def summon_one(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
 ) -> SummonOut:
+    """Single pull. /summon and /summon/x1 are aliases so callers can stay
+    symmetric with /summon/x10."""
     rng = random.Random()
     out = _do_one_pull(db, account, rng)
     on_summon(db, account, 1)

@@ -33,6 +33,50 @@ Last updated: 2026-04-24 (post Sprint A–D close-out).
 
 ---
 
+## 🗺️ Product direction (from play-testing 2026-04-24)
+
+Feedback from the first UI walkthrough — long-term vision, not next-sprint work. Captured so nothing gets dropped.
+
+### Combat / gameplay
+- **Battle feels like a spectator right now.** Player has no control once the sim starts. Aim: skill-based combat where players can win by playing well. Path:
+  - Ability targeting during a fight (click enemy to focus, pick special target)
+  - Turn timer / active pause like CRPGs, or tap-timing like Honkai
+  - **Auto-battle** becomes a QoL unlock, not the default — sold in the shop as a convenience, never as pay-to-win
+- **Melee vs ranged split** — introduce a `ranged` attack channel alongside the existing `basic`. Ranged covers magic users; may need a `mana` resource or rename/repurpose `special_cooldown`.
+- **Hail-mary mechanic** — at ≤5% HP, heroes can trigger a one-shot desperation ability (flavor varies by role/faction). Gives late-fight drama.
+
+### Art / presentation
+- Battle viewer needs animated actors. Reference: *Shogun / ShoHo* small-character style with short attack loops.
+- **Stick figures are fine as placeholders** — better than silhouettes. Can animate the same rig across heroes until real art lands.
+- Current SVG portraits stay on roster/replay cards; battle stage needs its own animated layer.
+
+### Roster / progression (meta loop)
+- Per-hero **equipment panels**: weapon + armor + accessories. Currently we have abstract `Gear` but no per-slot weapon/armor semantics.
+- **Skills subtab** per hero — level up each skill independently (currently we only have `special_level`)
+- **Special abilities tab** — the named signature move with upgrade paths
+- Roster UX has to **make players *want* to upgrade** — visible power deltas, next-unlock teasers, star-up previews. Right now the page is a JSON dump.
+- **Dedupe summons visually** — group the same template together rather than listing ten identical "Jaded Intern" cards.
+
+### Summon changes
+- On duplicate pull of a hero the player already owns, **roll per-stat variance** (+10 / -5 or similar) so owned copies aren't identical — adds rolls worth chasing.
+- **Rarity-separated tabs** in the roster/summon view: Common / Uncommon / Rare / Epic / Legendary / **Myth**.
+- **Myth tier** = event-only (holidays, anniversaries, LiveOps windows). Never in the normal pool.
+
+### Stages / team picker
+- Team-selection UX is rough. Wins:
+  - **Saved team presets** — "Arena Team", "Campaign Team", "Raid Team" (QoL)
+  - One-click "use last team" button
+  - Recommended-power hinting next to team power
+- **Auto-team** (best power) is a QoL unlock alongside auto-battle.
+
+### Monetization model
+- Reference: **Path of Exile 2** shop — cosmetic / QoL / stash-tab style, *never* direct power.
+- Gems → QoL packs (auto-battle, saved presets, extra roster slots, cosmetic frames, emotes).
+- Keep F2P viable: all progression paths reachable without spending.
+- Existing Stripe + mock-payments pipeline already works; new SKUs are a content problem, not an engineering one.
+
+---
+
 ## 🎯 Next up — ranked candidate sprints
 
 Each sprint is sized to be shippable in one session. Pick one; don't interleave.
@@ -72,6 +116,26 @@ Raids work; they're shallow.
 - [ ] Dashboard screenshots / PromQL cookbook in `RUNBOOK.md`
 
 **Recommendation:** ship **A** next — the backend is stable enough that the next real-user bottleneck is how the thing looks. **C** is the right choice if the goal is "put it in front of external testers" rather than "make it prettier."
+
+### F. Roster / summon UX overhaul (from play-testing)
+Medium-sized but the highest-leverage UX work right now. See Product Direction section above for full context.
+- [ ] Group duplicate heroes in the roster view (same template → single card with count)
+- [ ] Rarity-separated tabs in roster (Common / Uncommon / Rare / Epic / Legendary / Myth)
+- [ ] Pretty x10 summon result (grid of cards w/ rarity borders) — *partially landed 2026-04-24*
+- [ ] Per-hero detail page: stats, skill level, gear loadout, next-star preview
+- [ ] Saved team presets (Arena / Campaign / Raid) — QoL, paid unlock candidate
+- [ ] "Use last team" one-click on the Battle tab
+
+### G. Combat depth (from play-testing)
+Design-first sprint — probably 2-3 iterations before it's good. Reference games listed in Product Direction.
+- [ ] Melee / ranged attack split (extend `basic_mult` model → `melee_mult` + `ranged_mult`)
+- [ ] Mana or spell-point resource for ranged/magic heroes
+- [ ] Hail-mary ability at ≤5% HP (role/faction-flavored one-shot)
+- [ ] Player control during battle (target selection / turn pause)
+- [ ] Animated actor layer for battle viewer (stick figures → real art)
+- [ ] Auto-battle as a paid QoL unlock, not the default
+
+**Monetization tone lock:** PoE2-style — cosmetics + QoL. No stat-boosting shop items, no gacha whales fast-tracking power. Stripe pipeline stays; only the SKU catalog changes.
 
 ---
 

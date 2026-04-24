@@ -475,11 +475,38 @@
       } catch (e) { show("roster-out", e.message); errToast(e, "Load roster failed"); }
     }
     const btnS1 = $("btn-summon1"), btnS10 = $("btn-summon10"), btnRL = $("btn-roster-list");
+    // Render a summon result (single pull or x10 list) as a card grid
+    // above the raw JSON pre. Easier to scan than staring at 300 lines of JSON.
+    function renderSummonPull(result) {
+      const summary = $("roster-summary");
+      summary.innerHTML = "";
+      const items = Array.isArray(result) ? result : [result];
+      const grid = document.createElement("div");
+      grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:8px;width:100%;margin-bottom:10px;";
+      const rarityColor = { LEGENDARY: "#f4b942", EPIC: "#c66ef4", RARE: "#4ea1ff", UNCOMMON: "#3abf77", COMMON: "#9aa3b2" };
+      for (const it of items) {
+        const t = it && it.hero && it.hero.template;
+        if (!t) continue;
+        const card = document.createElement("div");
+        const color = rarityColor[String(it.rarity)] || "#9aa3b2";
+        card.style.cssText = `background:var(--bg-inset);border:1px solid var(--border);border-left:3px solid ${color};padding:8px 10px;border-radius:var(--radius-sm);font-size:12px;`;
+        card.innerHTML = `
+          <div style="font-weight:600;color:var(--text);margin-bottom:2px;">${t.name}</div>
+          <div style="color:${color};font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">${it.rarity}</div>
+          <div style="color:var(--text-dim);font-size:11px;">${t.faction} · ${t.role}</div>
+          ${it.pulled_epic_pity ? '<div style="color:var(--warn);font-size:11px;margin-top:3px;">💥 Pity triggered</div>' : ""}
+        `;
+        grid.appendChild(card);
+      }
+      summary.appendChild(grid);
+    }
+
     btnS1.addEventListener("click", busy(btnS1, async () => {
       try {
         const r = await api("POST", "/summon/x1");
         show("roster-out", r);
-        toast("success", `Summoned 1 hero`, r.hero && r.hero.template ? r.hero.template.name : "");
+        renderSummonPull(r);
+        toast("success", "Summoned 1 hero", r.hero && r.hero.template ? `${r.hero.template.name} (${r.rarity})` : "");
         refreshMe();
       } catch (e) { show("roster-out", e.message); errToast(e, "Summon failed"); }
     }));
@@ -487,7 +514,10 @@
       try {
         const r = await api("POST", "/summon/x10");
         show("roster-out", r);
-        toast("success", `Summoned x10`, Array.isArray(r) ? `${r.length} heroes` : "");
+        renderSummonPull(r);
+        const rarities = Array.isArray(r) ? r.map(x => x.rarity) : [];
+        const best = rarities.includes("LEGENDARY") ? "LEGENDARY" : rarities.includes("EPIC") ? "EPIC" : rarities.includes("RARE") ? "RARE" : "common pulls";
+        toast("success", "Summoned x10", `Best pull: ${best}`);
         refreshMe();
         refreshRoster();
       } catch (e) { show("roster-out", e.message); errToast(e, "x10 failed"); }
