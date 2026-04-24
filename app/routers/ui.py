@@ -92,6 +92,21 @@ def partial_me(
     # Guild name for the badge, if any.
     membership = db.get(GuildMember, account.id)
     guild = db.get(Guild, membership.guild_id) if membership else None
+    # Daily bonus status for the claim card.
+    from app.daily_bonus import can_claim, preview_next_streak, reward_for_streak
+    daily_can, daily_next_at = can_claim(account)
+    daily_next_streak = preview_next_streak(account)
+    daily_reward = reward_for_streak(daily_next_streak)
+    daily_bonus = {
+        "can_claim": daily_can,
+        "next_claim_at": daily_next_at.isoformat() if daily_next_at else None,
+        "current_streak": account.daily_streak,
+        "next_streak": daily_next_streak,
+        "reward": {
+            "coins": daily_reward.coins, "gems": daily_reward.gems,
+            "shards": daily_reward.shards, "access_cards": daily_reward.access_cards,
+        },
+    }
     # Active announcements, highest-priority first.
     from datetime import datetime as _dt
     now = _dt.utcnow()
@@ -107,7 +122,7 @@ def partial_me(
     ]
     return templates.TemplateResponse(
         request, "partials/me.html",
-        {"me": me, "guild": guild, "announcements": announcements},
+        {"me": me, "guild": guild, "announcements": announcements, "daily_bonus": daily_bonus},
     )
 
 

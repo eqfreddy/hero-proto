@@ -177,6 +177,11 @@ class Account(Base):
     # JWTs embed the token_version at issue; deps rejects any with a stale tv.
     token_version: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Daily login bonus state. streak counts consecutive days claimed; claiming
+    # after a >48h gap resets to 1. cycle is 7 days, big gem payout on day 7.
+    last_daily_claim_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    daily_streak: Mapped[int] = mapped_column(Integer, default=0)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
     heroes: Mapped[list["HeroInstance"]] = relationship(

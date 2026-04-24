@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -5,6 +6,13 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.daily_bonus import (
+    DailyReward,
+    apply_claim,
+    can_claim,
+    preview_next_streak,
+    reward_for_streak,
+)
 from app.db import get_db
 from app.deps import get_current_account
 from app.economy import compute_energy, load_cleared
@@ -70,3 +78,73 @@ def delete_me(
     db.delete(account)
     db.commit()
     return {"deleted_account_id": account_id, "deleted_email": account_email}
+
+
+# --- Daily login bonus -------------------------------------------------------
+
+
+class DailyBonusRewardOut(BaseModel):
+    coins: int = 0
+    gems: int = 0
+    shards: int = 0
+    access_cards: int = 0
+
+
+class DailyBonusStatusOut(BaseModel):
+    current_streak: int
+    next_streak_if_claimed: int
+    can_claim: bool
+    next_claim_at: datetime | None
+    today_reward: DailyBonusRewardOut
+    last_claim_at: datetime | None
+
+
+class DailyBonusClaimOut(BaseModel):
+    granted: DailyBonusRewardOut
+    streak_after: int
+    next_claim_at: datetime
+    was_reset: bool
+
+
+def _reward_schema(r: DailyReward) -> DailyBonusRewardOut:
+    return DailyBonusRewardOut(
+        coins=r.coins, gems=r.gems, shards=r.shards, access_cards=r.access_cards,
+    )
+
+
+@router.get("/daily-bonus", response_model=DailyBonusStatusOut)
+def daily_bonus_status(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> DailyBonusStatusOut:
+    available, next_at = can_claim(account)
+    next_streak = preview_next_streak(account)
+    today = reward_for_streak(next_streak)
+    return DailyBonusStatusOut(
+        current_streak=account.daily_streak,
+        next_streak_if_claimed=next_streak,
+        can_claim=available,
+        next_claim_at=next_at,
+        today_reward=_reward_schema(today),
+        last_claim_at=account.last_daily_claim_at,
+    )
+
+
+@router.post("/daily-bonus/claim", response_model=DailyBonusClaimOut, status_code=status.HTTP_201_CREATED)
+def daily_bonus_claim(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DailyBonusClaimOut:
+    available, next_at = can_claim(account)
+    if not available:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"daily bonus not yet available — next claim at {next_at.isoformat() if next_at else 'unknown'}",
+        )
+    result = apply_claim(account)
+    db.commit()
+    return DailyBonusClaimOut(
+        granted=_reward_schema(result.granted),
+        streak_after=result.streak_after,
+        next_claim_at=result.next_claim_at,
+        was_reset=result.was_reset,
+    )

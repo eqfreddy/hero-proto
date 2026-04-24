@@ -45,6 +45,37 @@
     </div>
   </div>
 
+  {% if daily_bonus %}
+  <div class="card" style="{% if daily_bonus.can_claim %}background: rgba(109, 211, 154, 0.08); border-left: 3px solid var(--good);{% endif %}">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <div>
+        <h2 style="margin: 0 0 4px; font-size: 14px; color: var(--muted);">📅 Daily Login Bonus</h2>
+        {% if daily_bonus.can_claim %}
+          <div style="font-size: 12px;">
+            Day <strong style="color: var(--r-legendary);">{{ daily_bonus.next_streak }}</strong> of the streak
+            — claim for:
+            {% if daily_bonus.reward.coins %}<span class="pill">+{{ daily_bonus.reward.coins }} coins</span>{% endif %}
+            {% if daily_bonus.reward.gems %}<span class="pill" style="color: var(--r-rare);">+{{ daily_bonus.reward.gems }} 💎</span>{% endif %}
+            {% if daily_bonus.reward.shards %}<span class="pill" style="color: var(--r-uncommon);">+{{ daily_bonus.reward.shards }} ✦</span>{% endif %}
+            {% if daily_bonus.reward.access_cards %}<span class="pill" style="color: var(--r-legendary);">+{{ daily_bonus.reward.access_cards }} 🎫</span>{% endif %}
+          </div>
+        {% else %}
+          <div class="muted" style="font-size: 12px;">
+            Current streak: {{ daily_bonus.current_streak }} day{{ 's' if daily_bonus.current_streak != 1 else '' }}
+            · Next claim at {{ daily_bonus.next_claim_at[:16] if daily_bonus.next_claim_at else 'soon' }}
+          </div>
+        {% endif %}
+      </div>
+      {% if daily_bonus.can_claim %}
+        <button class="primary" onclick="claimDailyBonus(this)">Claim</button>
+      {% else %}
+        <button class="secondary" disabled>Claimed ✓</button>
+      {% endif %}
+    </div>
+    <div id="daily-bonus-result" style="font-size: 12px; margin-top: 6px;"></div>
+  </div>
+  {% endif %}
+
   <div class="card">
     <h2 style="margin-top: 0; font-size: 14px; color: var(--muted);">Energy</h2>
     <div class="hpbar" style="height: 18px;"><div class="fill" style="width: {{ (100 * me.energy / me.energy_cap) | round(1) }}%; background: linear-gradient(90deg, #e6c75b, #ffd86b);"></div></div>
@@ -81,4 +112,30 @@
       } catch {}
     }
   });
+
+  async function claimDailyBonus(btn) {
+    btn.disabled = true;
+    const out = document.getElementById('daily-bonus-result');
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      const r = await fetch('/me/daily-bonus/claim', {
+        method: 'POST',
+        headers: { authorization: 'Bearer ' + token },
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${body.detail || 'error'}</span>`;
+        btn.disabled = false;
+        return;
+      }
+      const bits = [];
+      for (const [k, v] of Object.entries(body.granted || {})) if (v) bits.push(`+${v} ${k}`);
+      out.innerHTML = `<span style="color: var(--good);">✓ day ${body.streak_after}: ${bits.join(', ')}</span>`;
+      // Reload /me partial so balances + claim card update.
+      setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 800);
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+      btn.disabled = false;
+    }
+  }
 </script>
