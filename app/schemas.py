@@ -325,6 +325,24 @@ class TeamMember(BaseModel):
     hero_instance_id: int
 
 
+class TeamPresetIn(BaseModel):
+    name: str = Field(min_length=1, max_length=32)
+    team: list[int] = Field(min_length=1, max_length=3)
+
+
+class TeamPresetOut(BaseModel):
+    id: int
+    name: str
+    team: list[int]
+    created_at: datetime
+    updated_at: datetime
+
+
+class LastTeamOut(BaseModel):
+    team: list[int]
+    source: str  # "battle" | "arena" | "raid" | "preset:<name>" | "empty"
+
+
 class BattleIn(BaseModel):
     stage_id: int
     team: list[int] = Field(min_length=1, max_length=3)

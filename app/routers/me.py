@@ -227,3 +227,156 @@ def utcnow_for_model():
     """Indirection so tests can patch the clock if needed without stepping on utcnow globally."""
     from app.models import utcnow
     return utcnow()
+
+
+# --- Team presets + last-team helper ----------------------------------------
+
+
+import json as _json
+from sqlalchemy import select as _select, desc as _desc
+from sqlalchemy.exc import IntegrityError as _IntegrityError
+
+from app.models import (
+    Battle as _Battle,
+    HeroInstance as _HeroInstance,
+    TeamPreset as _TeamPreset,
+)
+from app.schemas import LastTeamOut, TeamPresetIn, TeamPresetOut
+
+
+MAX_TEAM_PRESETS = 5
+
+
+def _preset_out(p: _TeamPreset) -> TeamPresetOut:
+    try:
+        team = _json.loads(p.hero_ids_json or "[]")
+    except _json.JSONDecodeError:
+        team = []
+    return TeamPresetOut(
+        id=p.id, name=p.name, team=team,
+        created_at=p.created_at, updated_at=p.updated_at,
+    )
+
+
+def _validate_team(db: Session, account: Account, ids: list[int]) -> list[int]:
+    """Strip non-owned hero ids. Used by preset read/write so a stale preset
+    (hero sold / fed as ascension fodder) silently becomes a short preset
+    rather than exploding on battle POST.
+    """
+    owned = {
+        h.id for h in db.scalars(
+            _select(_HeroInstance).where(
+                _HeroInstance.account_id == account.id,
+                _HeroInstance.id.in_(ids),
+            )
+        )
+    }
+    return [i for i in ids if i in owned]
+
+
+@router.get("/team-presets", response_model=list[TeamPresetOut])
+def list_team_presets(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[TeamPresetOut]:
+    rows = db.scalars(
+        _select(_TeamPreset)
+        .where(_TeamPreset.account_id == account.id)
+        .order_by(_TeamPreset.updated_at.desc())
+    )
+    return [_preset_out(p) for p in rows]
+
+
+@router.post("/team-presets", response_model=TeamPresetOut, status_code=status.HTTP_201_CREATED)
+def upsert_team_preset(
+    body: TeamPresetIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> TeamPresetOut:
+    """Create or update a preset by name. Idempotent — posting the same name
+    twice overwrites the team. Cap MAX_TEAM_PRESETS distinct names per account.
+    """
+    clean = _validate_team(db, account, body.team)
+    if not clean:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "preset must include at least one owned hero",
+        )
+
+    existing = db.scalar(
+        _select(_TeamPreset).where(
+            _TeamPreset.account_id == account.id,
+            _TeamPreset.name == body.name.strip(),
+        )
+    )
+    if existing is not None:
+        existing.hero_ids_json = _json.dumps(clean)
+        existing.updated_at = utcnow_for_model()
+        db.commit()
+        db.refresh(existing)
+        return _preset_out(existing)
+
+    count = db.scalar(
+        _select(_TeamPreset).where(_TeamPreset.account_id == account.id)
+    )  # at-least-one check via scalar (quick)
+    current = db.query(_TeamPreset).filter_by(account_id=account.id).count()
+    if current >= MAX_TEAM_PRESETS:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"max {MAX_TEAM_PRESETS} presets per account — delete one first",
+        )
+
+    preset = _TeamPreset(
+        account_id=account.id,
+        name=body.name.strip(),
+        hero_ids_json=_json.dumps(clean),
+    )
+    db.add(preset)
+    try:
+        db.commit()
+    except _IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "preset name already taken")
+    db.refresh(preset)
+    return _preset_out(preset)
+
+
+@router.delete("/team-presets/{preset_id}", response_model=dict)
+def delete_team_preset(
+    preset_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    p = db.get(_TeamPreset, preset_id)
+    if p is None or p.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "preset not found")
+    db.delete(p)
+    db.commit()
+    return {"deleted_preset_id": preset_id}
+
+
+@router.get("/last-team", response_model=LastTeamOut)
+def last_team(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> LastTeamOut:
+    """Return the team from the player's most recent successful battle.
+
+    Drives the "Use last team" one-click on the Battle/Arena/Raid tabs.
+    Filters out any hero ids that are no longer owned (ascended away, etc.).
+    Falls back to empty if no history yet.
+    """
+    b = db.scalar(
+        _select(_Battle)
+        .where(_Battle.account_id == account.id)
+        .order_by(_desc(_Battle.id))
+        .limit(1)
+    )
+    if b is None:
+        return LastTeamOut(team=[], source="empty")
+    try:
+        raw = _json.loads(b.team_json or "[]")
+    except _json.JSONDecodeError:
+        raw = []
+    clean = _validate_team(db, account, [int(x) for x in raw if isinstance(x, int) or (isinstance(x, str) and x.isdigit())])
+    return LastTeamOut(team=clean, source="battle")

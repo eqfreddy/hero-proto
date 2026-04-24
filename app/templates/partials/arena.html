@@ -74,8 +74,28 @@
   </div>
 </div>
 <script>
+  async function _fetchTeamSuggestion() {
+    // Try presets first, then last-team. Returns a CSV string or "".
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      const presets = await fetch('/me/team-presets', { headers: { authorization: 'Bearer ' + token } }).then(r => r.ok ? r.json() : []);
+      // Prefer an "arena"-named preset if present.
+      const arenaPreset = presets.find(p => /arena/i.test(p.name));
+      if (arenaPreset) return arenaPreset.team.join(',');
+      if (presets.length > 0) return presets[0].team.join(',');
+      const lt = await fetch('/me/last-team', { headers: { authorization: 'Bearer ' + token } }).then(r => r.ok ? r.json() : {});
+      return (lt.team || []).join(',');
+    } catch {
+      return '';
+    }
+  }
+
   async function arenaAttack(defenderId) {
-    const teamRaw = prompt('your attack team (1-3 hero ids, comma-sep):');
+    const suggestion = await _fetchTeamSuggestion();
+    const teamRaw = prompt(
+      'your attack team (1-3 hero ids, comma-sep)' + (suggestion ? ' — default from preset/last team' : ''),
+      suggestion,
+    );
     if (!teamRaw) return;
     const team = teamRaw.split(',').map(s => Number(s.trim())).filter(Boolean);
     const out = document.getElementById('arena-result');

@@ -358,6 +358,28 @@ class DefenseTeam(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
 
+class TeamPreset(Base):
+    """Named team saved for quick-pick on Battle / Arena / Raid tabs.
+
+    Up to MAX_TEAM_PRESETS per account (enforced in the router). The stored
+    hero_ids_json is a JSON array of HeroInstance ids; ownership is re-
+    validated every time the preset is used — if a hero was sold or fed as
+    ascension fodder, it's filtered out on read.
+    """
+    __tablename__ = "team_presets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(32))
+    hero_ids_json: Mapped[str] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+    __table_args__ = (UniqueConstraint("account_id", "name", name="uq_preset_per_account"),)
+
+
 class DailyQuest(Base):
     __tablename__ = "daily_quests"
 

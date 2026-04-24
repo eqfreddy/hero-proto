@@ -36,7 +36,13 @@
           🔒 clear <code style="color: var(--r-rare);">{{ s.requires_code }}</code> on NORMAL first
         </div>
       {% else %}
-        <div class="row" style="margin-top: 10px; gap: 6px;">
+        <div class="row" style="margin-top: 10px; gap: 6px; flex-wrap: wrap;">
+          <select class="team-preset-select" data-stage="{{ s.id }}" style="flex: 0 0 auto;">
+            <option value="">— pick team —</option>
+            <option value="__last__">🕘 Use last team</option>
+            <option value="__preset_divider__" disabled>——— presets ———</option>
+            <!-- filled client-side from /me/team-presets -->
+          </select>
           <input type="text" id="team-{{ s.id }}" placeholder="hero ids (comma-sep)" style="flex: 1; min-width: 0;" />
           <button class="primary" onclick="battleStage({{ s.id }})">Battle</button>
           {% if s.cleared %}<button class="secondary" onclick="sweepStage({{ s.id }})" title="sweep cleared stage">Sweep</button>{% endif %}
@@ -68,6 +74,68 @@
   {% endif %}
 </div>
 <script>
+  // --- Preset loading + dropdown population --------------------------------
+  let _presets_cache = null;
+  async function _loadPresetsOnce() {
+    if (_presets_cache) return _presets_cache;
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      _presets_cache = await fetch('/me/team-presets', {
+        headers: { authorization: 'Bearer ' + token },
+      }).then(r => r.ok ? r.json() : []);
+    } catch { _presets_cache = []; }
+    return _presets_cache;
+  }
+
+  async function _populatePresetSelects() {
+    const presets = await _loadPresetsOnce();
+    for (const sel of document.querySelectorAll('select.team-preset-select')) {
+      // Remove any pre-existing preset-* options (in case we re-populate).
+      for (const opt of Array.from(sel.querySelectorAll('option[data-preset]'))) opt.remove();
+      for (const p of presets) {
+        const opt = document.createElement('option');
+        opt.value = 'preset:' + p.id;
+        opt.textContent = p.name + ' (' + p.team.length + ')';
+        opt.dataset.preset = p.id;
+        opt.dataset.team = p.team.join(',');
+        sel.appendChild(opt);
+      }
+    }
+  }
+
+  async function _fetchLastTeam() {
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      const r = await fetch('/me/last-team', {
+        headers: { authorization: 'Bearer ' + token },
+      });
+      if (!r.ok) return [];
+      return (await r.json()).team || [];
+    } catch { return []; }
+  }
+
+  // Wire preset selects — when a preset is picked, fill the text input.
+  document.addEventListener('change', async (e) => {
+    if (!e.target.matches('select.team-preset-select')) return;
+    const stageId = e.target.dataset.stage;
+    const inp = document.getElementById('team-' + stageId);
+    if (!inp) return;
+    const v = e.target.value;
+    if (!v || v.startsWith('__preset_divider__')) return;
+    if (v === '__last__') {
+      const team = await _fetchLastTeam();
+      inp.value = team.join(',');
+    } else if (v.startsWith('preset:')) {
+      const opt = e.target.querySelector(`option[value="${v}"]`);
+      if (opt && opt.dataset.team) inp.value = opt.dataset.team;
+    }
+    // Reset select to blank so user can reselect same preset later.
+    e.target.value = '';
+  });
+
+  // Populate dropdowns once on first render.
+  _populatePresetSelects();
+
   async function battleStage(stageId) {
     const raw = document.getElementById('team-' + stageId).value;
     const team = raw.split(',').map(s => Number(s.trim())).filter(Boolean);
@@ -84,14 +152,36 @@
       const body = await r.json();
       if (!r.ok) { out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${body.detail || JSON.stringify(body)}</span>`; return; }
       const cls = body.outcome === 'WIN' ? 'good' : 'bad';
+      const teamCsv = team.join(',');
       out.innerHTML = `
         <span class="pill ${cls}">${body.outcome}</span>
         ${body.first_clear ? ' <span class="pill good">first clear!</span>' : ''}
         <a href="/app/battle-replay.html?id=${body.id}" target="_blank" style="margin-left: 6px;">▶ watch replay</a>
         <a href="/app/battle-phaser.html?id=${body.id}" target="_blank" style="margin-left: 4px; font-size: 11px; color: var(--muted);">(animated)</a>
+        ${body.outcome === 'WIN' ? `<button class="secondary" onclick="saveAsPreset('${teamCsv}')" style="margin-left: 6px; font-size: 11px; padding: 2px 8px;">💾 save team</button>` : ''}
       `;
     } catch (e) { out.innerHTML = '<span style="color: var(--bad);">' + e.message + '</span>'; }
   }
+  async function saveAsPreset(teamCsv) {
+    const team = teamCsv.split(',').map(n => Number(n.trim())).filter(Boolean);
+    if (!team.length) return;
+    const name = prompt('Preset name (e.g. Campaign, Arena, Raid):', '');
+    if (!name) return;
+    const token = localStorage.getItem('heroproto_jwt');
+    const r = await fetch('/me/team-presets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+      body: JSON.stringify({ name: name.trim(), team }),
+    });
+    if (r.ok) {
+      _presets_cache = null;  // bust cache; repopulate on next navigation
+      alert(`Saved preset "${name}".`);
+    } else {
+      const body = await r.json();
+      alert(`Save failed: ${body.detail || r.status}`);
+    }
+  }
+
   async function sweepStage(stageId) {
     const count = prompt('how many sweeps?', '3');
     if (!count) return;
