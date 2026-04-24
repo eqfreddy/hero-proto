@@ -229,7 +229,7 @@ def partial_summon(
     recent_rows = list(db.execute(
         select(
             GachaRecord.id, GachaRecord.template_id, GachaRecord.rarity,
-            GachaRecord.created_at, HeroTemplate.name, HeroTemplate.faction,
+            GachaRecord.pulled_at, HeroTemplate.name, HeroTemplate.faction,
         )
         .join(HeroTemplate, HeroTemplate.id == GachaRecord.template_id)
         .where(GachaRecord.account_id == account.id)
@@ -241,7 +241,7 @@ def partial_summon(
             "id": int(r[0]),
             "template_id": int(r[1]),
             "rarity": str(r[2]),
-            "created_at": r[3].isoformat() if r[3] else "",
+            "pulled_at": r[3].isoformat() if r[3] else "",
             "name": r[4],
             "faction": str(r[5]),
         }

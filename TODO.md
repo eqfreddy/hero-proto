@@ -2,7 +2,7 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-04-24 (post Sprint A–D close-out).
+Last updated: 2026-04-24 (post Phase 1 close-out).
 
 ---
 
@@ -77,7 +77,22 @@ Feedback from the first UI walkthrough — long-term vision, not next-sprint wor
 
 ---
 
-## 🎯 Next up — ranked candidate sprints
+## 🎯 Phase 2 preview — next big arc
+
+Phase 1 is done. The product is now genuinely playable for a new user — tutorial flow, visual roster, team presets, dedicated Summon tab, starter pack. Next arc is Phase 2 ("Feels like a real game") per `docs/PRD.md § 7`:
+
+- Hero detail depth: weapon/armor/accessory slots, skill tree UI, star-up flow, next-upgrade previews
+- Event content: Myth-tier hero wired end-to-end, scheduled future LiveOps, stat variance on dupes
+- Analytics: PostHog self-hosted, 12 events instrumented, funnels
+- Store expansion: PoE2-style QoL SKUs, Apple StoreKit 2 receipt verification, Google Play Billing
+- Balance tooling: Jupyter notebook with gacha EV / DPS curves / arena rating convergence
+- Story campaign + account-level XP + Exile as default faction (Phase 2.5)
+
+Duration: 3-4 weeks. New deps: PostHog, app-store-server-library, google-play-billing-validator, numpy/pandas/Jupyter.
+
+---
+
+## 🎯 Legacy sprint backlog (pre-PRD scoping)
 
 Each sprint is sized to be shippable in one session. Pick one; don't interleave.
 
@@ -369,6 +384,22 @@ Output format for everything on this list: **paste the final file(s) back here i
 - Sprint B: guild promote/demote/transfer/apply/accept/reject/withdraw — all shipped + unit + smoke coverage
 - Sprint C: `scripts/postgres_stack_validate.sh` — one-shot compose-Postgres smoke (runs on demand)
 - Sprint D: +10 heroes (7 roster + 3 raid-boss templates), +6 stages (tutorial stage 0 + orders 11–15), +1 BONUS_GEAR_DROPS liveops seed
+
+**Sprint H (PWA) + art pipeline (2026-04-24)**
+- PWA manifest + service worker + keyboard-sword app icons — installable on Android / iOS
+- 5 pilot hero trading cards (ChatGPT-generated): ticket_gremlin, jaded_intern, the_sysadmin, the_consultant, the_founder
+- Dual-layer art pipeline: `app/static/heroes/cards/*.png` (full trading cards) + `app/static/heroes/busts/*.png` (auto-cropped grid thumbnails)
+- MYTH rarity tier added + TBFAM seeded as pilot MYTH hero
+- Hero art prompt pack at `docs/hero_art_prompts.md` — 31 more characters queued
+
+**Phase 1 shipped (2026-04-24)** — see `docs/PRD.md § 6` for full scope + acceptance test
+- 1.1 Guided first-session flow: Next-Step CTA card on /me, tutorial auto-battle, +1 free summon credit reward, 3-COMMON starter team on register
+- 1.2 Roster redesign: rarity-tabbed grid + bottom-sheet detail overlay with real bust/card art, duplicate collapse, placeholder fallback
+- 1.3 Team presets: POST/GET/DELETE /me/team-presets (5 per account) + GET /me/last-team + preset dropdown on stages + "save team" button on battle win
+- 1.4 Dedicated Summon tab: banner header, pity progress bar, recent-pulls feed, x1/x10 buttons
+- 1.5 Jump-Ahead starter pack SKU ($4.99, 7-day window, RARE hero grant)
+- 1.6 Signed-in pill badge, dead-code cleanup
+- Acceptance test `tests/test_phase1_acceptance.py` — 9-step end-to-end flow, 275/275 tests green
 
 **Testing / docs**
 - CI on every push with Postgres matrix

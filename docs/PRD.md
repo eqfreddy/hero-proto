@@ -60,10 +60,12 @@ Reference only. See [TODO.md shipped index](../TODO.md#-shipped--reference-index
 
 ---
 
-## 6. Phase 1 — "First 10 minutes feel good" *(quick win)*
+## 6. Phase 1 — "First 10 minutes feel good" *(quick win)* ✅ SHIPPED
 
 **Duration:** 1–2 weeks single-developer.
 **Ship criterion:** a new player registers, does 10 actions, and ends up *wanting* to come back tomorrow.
+
+**Status: shipped 2026-04-24. Acceptance test `tests/test_phase1_acceptance.py` green.** Commits `5fb47c5` → `edf692e`.
 
 ### Problem
 The backend is solid. The *new player experience* isn't:
