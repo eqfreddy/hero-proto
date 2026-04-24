@@ -227,13 +227,22 @@ A new user from empty DB can:
 - Auto-battle toggle (paid QoL; free accounts get the old "simulate → result" flow).
 - Skip / speed controls (2×, 4× on replay; 1× for active play).
 
-**3.3 Animated actor layer**
+**3.3 Evolution art — ascension-driven card upgrades** *(new, captured 2026-04-24)*
+- Retention mechanic from Summoners War / AFK Arena / Epic Seven: the same hero gets visually upgraded art as they ascend (1★–5★).
+- Proposed: 3 art tiers per hero (base / mid / ultimate), mapped to star ranges (1–2★ / 3–4★ / 5★).
+- UI shows "next-tier preview" on the hero detail page so players see what they're working toward.
+- Duplicate summons — currently burned as ascension fodder — stop feeling disposable. Every dupe becomes a visible step.
+- **Art cost:** 3× current hero art, so ~105 trading-card renders for the 35 heroes. Significant but amortizable if we do it per-batch.
+- **Data model:** `HeroInstance.card_art_tier` computed from `stars`; template resolves to `<code>_card_t1.png`, `_t2.png`, `_t3.png` files.
+- **Tone check:** ChatGPT's 4-tier Ticket Gremlin pilot (2026-04-24) showed this works — flavor text and environmental density can escalate without re-modeling the character.
+
+**3.4 Animated actor layer**
 - Rive integration for 2D animated stick-figure actors.
 - 3 rigs (ATK / DEF / SUP), 5 states each (idle / melee / ranged / hit / death).
 - Battle viewer renders Rive above a CSS stage background.
 - Hero portraits stay for out-of-battle; Rive rigs only appear in active fights.
 
-**3.4 Alignment milestone — "Choose a Side"** (level-50 fork)
+**3.5 Alignment milestone — "Choose a Side"** (level-50 fork)
 - At account level 50, the story surfaces a one-time binding choice: **Corporate Resistance** (take down the Corp) or **Board Ascendant** (become the Corp).
 - Until chosen, the player stays in `Faction.EXILE` — not visibly penalized, but locked out of alignment-gated content.
 - Post-choice: player locks into `Faction.RESISTANCE` or `Faction.CORP_GREED`. Change requires a gem-sink reset (premium, discouraged, not blocked).
