@@ -7,9 +7,10 @@ on:
     branches: [master]
 
 jobs:
-  pytest:
+  sqlite:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    name: pytest (sqlite)
 
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +24,53 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
-      - name: Sync dependencies
+      - name: Sync dependencies (with postgres extras for driver availability)
         run: uv sync --all-extras
 
       - name: Run test suite
         env:
           HEROPROTO_ENVIRONMENT: test
           HEROPROTO_MOCK_PAYMENTS_ENABLED: "1"
+        run: uv run pytest tests/ -q --maxfail=5
+
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: pytest (postgres)
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hero
+          POSTGRES_PASSWORD: heropw
+          POSTGRES_DB: heroproto
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hero -d heroproto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Sync dependencies (with postgres extras)
+        run: uv sync --all-extras
+
+      - name: Run test suite against Postgres
+        env:
+          HEROPROTO_ENVIRONMENT: test
+          HEROPROTO_MOCK_PAYMENTS_ENABLED: "1"
+          HEROPROTO_DATABASE_URL: "postgresql+psycopg://hero:heropw@localhost:5432/heroproto"
         run: uv run pytest tests/ -q --maxfail=5

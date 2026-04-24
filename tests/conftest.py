@@ -17,9 +17,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 # IMPORTANT: set the DATABASE_URL *before* any app.* imports so db.engine binds correctly.
-_tmp_dir = tempfile.mkdtemp(prefix="heroproto-tests-")
-_db_path = os.path.join(_tmp_dir, "test.db")
-os.environ["HEROPROTO_DATABASE_URL"] = f"sqlite:///{_db_path}"
+# If the env already provides a URL (e.g. the Postgres CI matrix entry), respect it —
+# otherwise fall back to a fresh SQLite file in temp for local runs.
+if not os.environ.get("HEROPROTO_DATABASE_URL"):
+    _tmp_dir = tempfile.mkdtemp(prefix="heroproto-tests-")
+    _db_path = os.path.join(_tmp_dir, "test.db")
+    os.environ["HEROPROTO_DATABASE_URL"] = f"sqlite:///{_db_path}"
 
 from app.main import app  # noqa: E402
 from app.seed import seed as run_seed  # noqa: E402
