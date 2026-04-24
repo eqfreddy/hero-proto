@@ -47,9 +47,9 @@ TEMPLATES: list[dict] = [
     # Raids — deal damage to your guild's active boss. Progress in HP points.
     {"kind": DailyQuestKind.RAID_DAMAGE, "goal": 50_000, "reward_coins": 500, "reward_gems": 20, "reward_shards": 3},
     {"kind": DailyQuestKind.RAID_DAMAGE, "goal": 200_000, "reward_coins": 1200, "reward_gems": 50, "reward_shards": 8},
-    # SPEND_GEMS templates intentionally omitted until a gem sink (energy refill,
-    # fast-complete, etc.) lands. The on_gems_spent() hook is staged so wiring is
-    # a one-liner once the sink exists.
+    # SPEND_GEMS — energy refills are 50 gems each, so these goals align with 1-2 refills.
+    {"kind": DailyQuestKind.SPEND_GEMS, "goal": 50, "reward_coins": 300, "reward_shards": 3},
+    {"kind": DailyQuestKind.SPEND_GEMS, "goal": 150, "reward_coins": 800, "reward_shards": 10},
 ]
 
 

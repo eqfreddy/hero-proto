@@ -148,3 +148,72 @@ def daily_bonus_claim(
         next_claim_at=result.next_claim_at,
         was_reset=result.was_reset,
     )
+
+
+# --- Energy refill (gem sink) ------------------------------------------------
+
+
+class EnergyRefillOut(BaseModel):
+    gems_spent: int
+    refills_today: int
+    refills_remaining_today: int
+    energy: int
+
+
+@router.post("/energy/refill", response_model=EnergyRefillOut, status_code=status.HTTP_201_CREATED)
+def refill_energy(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> EnergyRefillOut:
+    """Instantly fill energy to cap in exchange for gems. Capped at
+    settings.energy_refill_max_per_day per UTC day."""
+    from app.daily import day_key, on_gems_spent
+
+    today = day_key()
+    # Reset the per-day counter if it's a new day.
+    if account.refills_today_key != today:
+        account.refills_today_key = today
+        account.refills_today_count = 0
+
+    if account.refills_today_count >= settings.energy_refill_max_per_day:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"daily refill limit reached ({settings.energy_refill_max_per_day})",
+        )
+
+    cost = settings.energy_refill_cost_gems
+    if account.gems < cost:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"not enough gems (need {cost}, have {account.gems})",
+        )
+
+    current = compute_energy(account)
+    if current >= settings.energy_cap:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "energy is already at cap — no refill needed",
+        )
+
+    account.gems -= cost
+    account.energy_stored = settings.energy_cap
+    account.energy_last_tick_at = utcnow_for_model()
+    account.refills_today_count += 1
+
+    # Daily-quest hook: SPEND_GEMS progress.
+    on_gems_spent(db, account, cost)
+
+    db.commit()
+    db.refresh(account)
+    return EnergyRefillOut(
+        gems_spent=cost,
+        refills_today=account.refills_today_count,
+        refills_remaining_today=settings.energy_refill_max_per_day - account.refills_today_count,
+        energy=compute_energy(account),
+    )
+
+
+def utcnow_for_model():
+    """Indirection so tests can patch the clock if needed without stepping on utcnow globally."""
+    from app.models import utcnow
+    return utcnow()

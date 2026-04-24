@@ -185,6 +185,11 @@ class Account(Base):
     last_daily_claim_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     daily_streak: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Energy refills spent today (UTC day key). Resets on first refill of a new day.
+    # Exists to cap refills-per-day so gems aren't a direct energy firehose.
+    refills_today_key: Mapped[str] = mapped_column(String(10), default="")
+    refills_today_count: Mapped[int] = mapped_column(Integer, default=0)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
     heroes: Mapped[list["HeroInstance"]] = relationship(

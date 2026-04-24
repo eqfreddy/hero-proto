@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     energy_cap: int = 100
     energy_regen_seconds: int = 360
     energy_per_battle: int = 5
+    # Gem-for-energy refill — first premium-currency sink in the game. Capped per
+    # day so whales can't trivialize the energy loop.
+    energy_refill_cost_gems: int = 50
+    energy_refill_max_per_day: int = 3
     starter_shards: int = 10
     starter_energy: int = 100
     starter_coins: int = 500

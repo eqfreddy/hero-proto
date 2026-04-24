@@ -77,9 +77,17 @@
   {% endif %}
 
   <div class="card">
-    <h2 style="margin-top: 0; font-size: 14px; color: var(--muted);">Energy</h2>
-    <div class="hpbar" style="height: 18px;"><div class="fill" style="width: {{ (100 * me.energy / me.energy_cap) | round(1) }}%; background: linear-gradient(90deg, #e6c75b, #ffd86b);"></div></div>
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Energy</h2>
+      {% if me.energy < me.energy_cap %}
+      <button class="secondary" style="font-size: 12px;" onclick="refillEnergy(this)" title="Refill energy with gems">
+        Refill (50💎)
+      </button>
+      {% endif %}
+    </div>
+    <div class="hpbar" style="height: 18px; margin-top: 8px;"><div class="fill" style="width: {{ (100 * me.energy / me.energy_cap) | round(1) }}%; background: linear-gradient(90deg, #e6c75b, #ffd86b);"></div></div>
     <div class="muted" style="font-size: 12px; margin-top: 4px;">{{ me.energy }} / {{ me.energy_cap }}</div>
+    <div id="refill-result" style="font-size: 12px; margin-top: 4px;"></div>
   </div>
 
   <div class="card">
@@ -112,6 +120,29 @@
       } catch {}
     }
   });
+
+  async function refillEnergy(btn) {
+    btn.disabled = true;
+    const out = document.getElementById('refill-result');
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      const r = await fetch('/me/energy/refill', {
+        method: 'POST',
+        headers: { authorization: 'Bearer ' + token },
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${body.detail || 'error'}</span>`;
+        btn.disabled = false;
+        return;
+      }
+      out.innerHTML = `<span style="color: var(--good);">✓ +energy · ${body.refills_remaining_today} refill${body.refills_remaining_today === 1 ? '' : 's'} left today</span>`;
+      setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 700);
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+      btn.disabled = false;
+    }
+  }
 
   async function claimDailyBonus(btn) {
     btn.disabled = true;
