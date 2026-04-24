@@ -258,9 +258,35 @@ def partial_arena(
             .limit(20)
         )
     ]
+    # Recent matches involving this account (attacker or defender), newest first.
+    from app.models import ArenaMatch
+    recent_matches_rows = db.execute(
+        select(
+            ArenaMatch.id, ArenaMatch.attacker_id, ArenaMatch.defender_id,
+            ArenaMatch.outcome, ArenaMatch.rating_delta, ArenaMatch.created_at,
+        )
+        .where((ArenaMatch.attacker_id == account.id) | (ArenaMatch.defender_id == account.id))
+        .order_by(desc(ArenaMatch.id))
+        .limit(10)
+    )
+    recent_matches = []
+    for row in recent_matches_rows:
+        mid, att_id, def_id, outcome, delta, created = row
+        # Resolve the opponent's display name for context.
+        other_id = def_id if att_id == account.id else att_id
+        other = db.get(Account, other_id)
+        recent_matches.append({
+            "id": mid,
+            "outcome": str(outcome),
+            "rating_delta": delta,
+            "created_at": created,
+            "role": "attacker" if att_id == account.id else "defender",
+            "opponent_name": other.email.split("@")[0] if other else "[gone]",
+        })
     return templates.TemplateResponse(
         request, "partials/arena.html",
-        {"me": _me_dict(account), "opponents": opponents, "leaderboard": leaderboard},
+        {"me": _me_dict(account), "opponents": opponents, "leaderboard": leaderboard,
+         "recent_matches": recent_matches},
     )
 
 
