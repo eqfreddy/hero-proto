@@ -423,9 +423,74 @@ def logout(
 
 import pyotp
 import jwt as _jwt
+from app.models import TotpRecoveryCode
 
 TOTP_ISSUER = "hero-proto"
 TOTP_CHALLENGE_TTL_MINUTES = 5
+RECOVERY_CODE_COUNT = 10
+# Avoid ambiguous characters (0/O, 1/I/L). 4-4 formatted for readability.
+_RECOVERY_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+
+def _generate_recovery_code() -> str:
+    """Returns a user-facing recovery code like 'ABCD-EFGH'."""
+    raw = "".join(secrets.choice(_RECOVERY_ALPHABET) for _ in range(8))
+    return f"{raw[:4]}-{raw[4:]}"
+
+
+def _issue_recovery_codes(db: Session, account: Account) -> list[str]:
+    """Create RECOVERY_CODE_COUNT fresh codes and persist their hashes.
+    Caller is responsible for clearing any prior codes before calling this.
+    Returns the plaintext codes (the only time they're available)."""
+    plaintext = [_generate_recovery_code() for _ in range(RECOVERY_CODE_COUNT)]
+    for code in plaintext:
+        db.add(TotpRecoveryCode(
+            account_id=account.id,
+            code_hash=_hash_token(code),
+        ))
+    return plaintext
+
+
+def _revoke_recovery_codes(db: Session, account: Account) -> None:
+    """Delete all codes (used or unused) for the account. Called on disable
+    or regenerate."""
+    for row in db.scalars(
+        select(TotpRecoveryCode).where(TotpRecoveryCode.account_id == account.id)
+    ):
+        db.delete(row)
+
+
+def _count_unused_recovery_codes(db: Session, account_id: int) -> int:
+    from sqlalchemy import func
+    return db.scalar(
+        select(func.count(TotpRecoveryCode.id)).where(
+            TotpRecoveryCode.account_id == account_id,
+            TotpRecoveryCode.used_at.is_(None),
+        )
+    ) or 0
+
+
+def _try_consume_recovery_code(db: Session, account: Account, code: str) -> bool:
+    """If `code` matches an unused recovery code for the account, mark it used
+    and return True. Otherwise False. Accepts both 'ABCD-EFGH' and 'ABCDEFGH'
+    forms for typing forgiveness."""
+    normalized_candidates = [code.strip().upper()]
+    # Allow the no-dash variant to match too.
+    stripped = code.strip().upper().replace("-", "")
+    if len(stripped) == 8:
+        normalized_candidates.append(f"{stripped[:4]}-{stripped[4:]}")
+    for candidate in normalized_candidates:
+        row = db.scalar(
+            select(TotpRecoveryCode).where(
+                TotpRecoveryCode.account_id == account.id,
+                TotpRecoveryCode.code_hash == _hash_token(candidate),
+                TotpRecoveryCode.used_at.is_(None),
+            )
+        )
+        if row is not None:
+            row.used_at = utcnow()
+            return True
+    return False
 
 
 class TotpEnrollOut(BaseModel):
@@ -437,11 +502,25 @@ class TotpEnrollOut(BaseModel):
 
 
 class TotpCodeIn(BaseModel):
-    code: str = Field(min_length=6, max_length=8)  # 6 digits; 8 accommodates some authenticators
+    # Accepts both a 6-8 digit TOTP and an 8-9 char recovery code (e.g. "ABCD-EFGH").
+    code: str = Field(min_length=6, max_length=16)
 
 
 class TotpStatusOut(BaseModel):
     enabled: bool
+    recovery_codes_remaining: int = 0
+
+
+class TotpConfirmOut(BaseModel):
+    """Confirm response. recovery_codes is the plaintext list of 10 codes —
+    returned ONCE, at enrollment. Clients must show these to the user and
+    tell them to save them. Server only retains hashes."""
+    enabled: bool
+    recovery_codes: list[str]
+
+
+class TotpRegenerateOut(BaseModel):
+    recovery_codes: list[str]
 
 
 class LoginChallengeOut(BaseModel):
@@ -454,7 +533,8 @@ class LoginChallengeOut(BaseModel):
 
 class TotpVerifyIn(BaseModel):
     challenge_token: str = Field(min_length=16, max_length=512)
-    code: str = Field(min_length=6, max_length=8)
+    # Same relaxed bounds as TotpCodeIn — supports TOTP digits + recovery codes.
+    code: str = Field(min_length=6, max_length=16)
 
 
 def _issue_totp_challenge(account: Account) -> str:
@@ -507,26 +587,33 @@ def totp_enroll(
     return TotpEnrollOut(secret=secret, otpauth_uri=uri)
 
 
-@router.post("/2fa/confirm", response_model=TotpStatusOut)
+@router.post("/2fa/confirm", response_model=TotpConfirmOut)
 def totp_confirm(
     body: TotpCodeIn,
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
-) -> TotpStatusOut:
-    """Verify the first code + flip totp_enabled. Requires a prior /2fa/enroll
-    to have set a secret."""
+) -> TotpConfirmOut:
+    """Verify the first code + flip totp_enabled. Issues 10 one-time recovery
+    codes that are returned here and nowhere else — clients must display them
+    prominently because the plaintext isn't retrievable later (only hashes are
+    stored)."""
     if not account.totp_secret:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "no pending 2FA enrollment — call /auth/2fa/enroll first",
         )
     if account.totp_enabled:
-        return TotpStatusOut(enabled=True)  # idempotent
+        # Already enabled: idempotent, but don't re-issue recovery codes.
+        return TotpConfirmOut(enabled=True, recovery_codes=[])
     if not pyotp.TOTP(account.totp_secret).verify(body.code, valid_window=1):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP code")
+
     account.totp_enabled = True
+    # Clear any stale codes from a prior aborted enrollment, then issue fresh.
+    _revoke_recovery_codes(db, account)
+    plaintext = _issue_recovery_codes(db, account)
     db.commit()
-    return TotpStatusOut(enabled=True)
+    return TotpConfirmOut(enabled=True, recovery_codes=plaintext)
 
 
 @router.post("/2fa/disable", response_model=TotpStatusOut)
@@ -535,17 +622,24 @@ def totp_disable(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
 ) -> TotpStatusOut:
-    """Turn off 2FA. Requires a current valid TOTP code — can't disable just
-    because you're logged in, so a stolen access token can't remove the factor.
-    Clears the secret completely so re-enrollment picks a fresh one."""
+    """Turn off 2FA. Requires a current valid TOTP code OR a recovery code —
+    both paths count as "holder controls a second factor". Clears the secret
+    and revokes every recovery code so re-enrollment issues fresh ones."""
     if not account.totp_enabled:
-        return TotpStatusOut(enabled=False)  # idempotent
-    if not account.totp_secret or not pyotp.TOTP(account.totp_secret).verify(body.code, valid_window=1):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP code")
+        return TotpStatusOut(enabled=False, recovery_codes_remaining=0)
+    code = body.code.strip()
+    valid_totp = bool(account.totp_secret) and pyotp.TOTP(account.totp_secret).verify(code, valid_window=1)
+    valid_recovery = False
+    if not valid_totp:
+        # Try recovery code fallback. Consumes the code on success.
+        valid_recovery = _try_consume_recovery_code(db, account, code)
+    if not (valid_totp or valid_recovery):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP or recovery code")
     account.totp_enabled = False
     account.totp_secret = ""
+    _revoke_recovery_codes(db, account)
     db.commit()
-    return TotpStatusOut(enabled=False)
+    return TotpStatusOut(enabled=False, recovery_codes_remaining=0)
 
 
 @router.post("/2fa/verify", response_model=TokenOut)
@@ -553,7 +647,8 @@ def totp_verify(
     body: TotpVerifyIn,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenOut:
-    """Consume a login challenge + TOTP code, return the real access+refresh."""
+    """Consume a login challenge + TOTP code OR recovery code, return the real
+    access+refresh pair. Recovery codes are single-use — consumption on match."""
     account_id = _decode_totp_challenge(body.challenge_token)
     account = db.get(Account, account_id)
     if account is None or not account.totp_enabled:
@@ -563,8 +658,14 @@ def totp_verify(
             status.HTTP_403_FORBIDDEN,
             f"account is banned: {account.banned_reason or 'no reason given'}",
         )
-    if not pyotp.TOTP(account.totp_secret).verify(body.code, valid_window=1):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP code")
+
+    code = body.code.strip()
+    valid_totp = pyotp.TOTP(account.totp_secret).verify(code, valid_window=1)
+    valid_recovery = False
+    if not valid_totp:
+        valid_recovery = _try_consume_recovery_code(db, account, code)
+    if not (valid_totp or valid_recovery):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP or recovery code")
 
     _row, refresh_raw = _issue_refresh_token(db, account)
     db.commit()
@@ -574,8 +675,33 @@ def totp_verify(
     )
 
 
+@router.post("/2fa/regenerate-codes", response_model=TotpRegenerateOut)
+def totp_regenerate_codes(
+    body: TotpCodeIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> TotpRegenerateOut:
+    """Replace all existing recovery codes with a fresh set. Requires a current
+    TOTP code (or existing recovery code) as authorization — same bar as disable."""
+    if not account.totp_enabled:
+        raise HTTPException(status.HTTP_409_CONFLICT, "2FA is not enabled")
+    code = body.code.strip()
+    valid_totp = bool(account.totp_secret) and pyotp.TOTP(account.totp_secret).verify(code, valid_window=1)
+    valid_recovery = False
+    if not valid_totp:
+        valid_recovery = _try_consume_recovery_code(db, account, code)
+    if not (valid_totp or valid_recovery):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP or recovery code")
+    _revoke_recovery_codes(db, account)
+    plaintext = _issue_recovery_codes(db, account)
+    db.commit()
+    return TotpRegenerateOut(recovery_codes=plaintext)
+
+
 @router.get("/2fa/status", response_model=TotpStatusOut)
 def totp_status(
     account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> TotpStatusOut:
-    return TotpStatusOut(enabled=account.totp_enabled)
+    remaining = _count_unused_recovery_codes(db, account.id) if account.totp_enabled else 0
+    return TotpStatusOut(enabled=account.totp_enabled, recovery_codes_remaining=remaining)

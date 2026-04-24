@@ -193,3 +193,142 @@ def test_banned_user_cannot_complete_2fa_login(client) -> None:
     code = pyotp.TOTP(secret).now()
     r = client.post("/auth/2fa/verify", json={"challenge_token": challenge, "code": code})
     assert r.status_code == 403
+
+
+def test_confirm_returns_recovery_codes(client) -> None:
+    email, hdr, _account_id = _register(client, "rcs")
+    r = client.post("/auth/2fa/enroll", headers=hdr)
+    secret = r.json()["secret"]
+    code = pyotp.TOTP(secret).now()
+    r = client.post("/auth/2fa/confirm", json={"code": code}, headers=hdr)
+    body = r.json()
+    assert body["enabled"] is True
+    assert isinstance(body["recovery_codes"], list)
+    assert len(body["recovery_codes"]) == 10
+    # Format: "ABCD-EFGH" using the reduced alphabet (no 0/O/1/I/L).
+    for rc in body["recovery_codes"]:
+        assert len(rc) == 9
+        assert rc[4] == "-"
+        assert rc[:4].isalnum() and rc[5:].isalnum()
+        for ch in rc.replace("-", ""):
+            assert ch not in "0O1IL", f"ambiguous char {ch} in recovery code {rc}"
+
+
+def test_status_reports_remaining_recovery_codes(client) -> None:
+    email, hdr, _account_id = _register(client, "rcstat")
+    # Before enrollment, remaining is 0.
+    r = client.get("/auth/2fa/status", headers=hdr).json()
+    assert r["enabled"] is False
+    assert r["recovery_codes_remaining"] == 0
+
+    # After enrollment + confirm, remaining should be 10.
+    r = client.post("/auth/2fa/enroll", headers=hdr)
+    secret = r.json()["secret"]
+    client.post("/auth/2fa/confirm", json={"code": pyotp.TOTP(secret).now()}, headers=hdr)
+    r = client.get("/auth/2fa/status", headers=hdr).json()
+    assert r["enabled"] is True
+    assert r["recovery_codes_remaining"] == 10
+
+
+def test_verify_accepts_recovery_code(client) -> None:
+    email, hdr, _account_id = _register(client, "rcvr")
+    r = client.post("/auth/2fa/enroll", headers=hdr)
+    secret = r.json()["secret"]
+    confirm = client.post("/auth/2fa/confirm", json={"code": pyotp.TOTP(secret).now()}, headers=hdr).json()
+    recovery_codes = confirm["recovery_codes"]
+
+    # Login produces a challenge.
+    login = client.post("/auth/login", json={"email": email, "password": "hunter22"})
+    challenge = login.json()["challenge_token"]
+
+    # Use the first recovery code (instead of a TOTP).
+    r = client.post(
+        "/auth/2fa/verify",
+        json={"challenge_token": challenge, "code": recovery_codes[0]},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["access_token"]
+
+
+def test_recovery_code_single_use(client) -> None:
+    email, hdr, _account_id = _register(client, "rconce")
+    r = client.post("/auth/2fa/enroll", headers=hdr)
+    secret = r.json()["secret"]
+    confirm = client.post("/auth/2fa/confirm", json={"code": pyotp.TOTP(secret).now()}, headers=hdr).json()
+    one_code = confirm["recovery_codes"][0]
+
+    # First login with the code succeeds.
+    login = client.post("/auth/login", json={"email": email, "password": "hunter22"}).json()
+    r = client.post("/auth/2fa/verify", json={"challenge_token": login["challenge_token"], "code": one_code})
+    assert r.status_code == 200
+
+    # Second attempt with the SAME code — must fail.
+    login = client.post("/auth/login", json={"email": email, "password": "hunter22"}).json()
+    r = client.post("/auth/2fa/verify", json={"challenge_token": login["challenge_token"], "code": one_code})
+    assert r.status_code == 400
+
+
+def test_recovery_code_accepts_both_formatted_and_stripped(client) -> None:
+    """Recovery codes are 'ABCD-EFGH' but users sometimes type 'ABCDEFGH'."""
+    email, hdr, _account_id = _register(client, "rcfmt")
+    r = client.post("/auth/2fa/enroll", headers=hdr)
+    secret = r.json()["secret"]
+    confirm = client.post("/auth/2fa/confirm", json={"code": pyotp.TOTP(secret).now()}, headers=hdr).json()
+    formatted = confirm["recovery_codes"][0]
+    stripped = formatted.replace("-", "")
+
+    login = client.post("/auth/login", json={"email": email, "password": "hunter22"}).json()
+    r = client.post("/auth/2fa/verify", json={"challenge_token": login["challenge_token"], "code": stripped})
+    assert r.status_code == 200
+
+
+def test_regenerate_codes_issues_new_and_invalidates_old(client) -> None:
+    email, hdr, _account_id = _register(client, "rcregen")
+    r = client.post("/auth/2fa/enroll", headers=hdr)
+    secret = r.json()["secret"]
+    original = client.post("/auth/2fa/confirm", json={"code": pyotp.TOTP(secret).now()}, headers=hdr).json()["recovery_codes"]
+
+    # Regenerate with current TOTP.
+    new_totp = pyotp.TOTP(secret).now()
+    r = client.post("/auth/2fa/regenerate-codes", json={"code": new_totp}, headers=hdr)
+    assert r.status_code == 200, r.text
+    new_codes = r.json()["recovery_codes"]
+    assert len(new_codes) == 10
+    assert set(new_codes).isdisjoint(set(original)), "regenerated codes must differ from prior set"
+
+    # Old codes should no longer work.
+    login = client.post("/auth/login", json={"email": email, "password": "hunter22"}).json()
+    r = client.post("/auth/2fa/verify", json={"challenge_token": login["challenge_token"], "code": original[0]})
+    assert r.status_code == 400
+
+
+def test_regenerate_codes_requires_2fa_enabled(client) -> None:
+    email, hdr, _ = _register(client, "rcrgoff")
+    r = client.post("/auth/2fa/regenerate-codes", json={"code": "000000"}, headers=hdr)
+    assert r.status_code == 409
+
+
+def test_disable_with_recovery_code(client) -> None:
+    """Recovery codes also count as a second factor for the disable action."""
+    email, hdr, account_id = _register(client, "rcdisrc")
+    r = client.post("/auth/2fa/enroll", headers=hdr)
+    secret = r.json()["secret"]
+    confirm = client.post("/auth/2fa/confirm", json={"code": pyotp.TOTP(secret).now()}, headers=hdr).json()
+    code = confirm["recovery_codes"][0]
+
+    r = client.post("/auth/2fa/disable", json={"code": code}, headers=hdr)
+    assert r.status_code == 200
+    assert r.json()["enabled"] is False
+
+    # After disable: remaining=0, secret cleared.
+    with SessionLocal() as db:
+        a = db.get(Account, account_id)
+        assert a.totp_enabled is False
+        assert a.totp_secret == ""
+    from app.models import TotpRecoveryCode
+    with SessionLocal() as db:
+        from sqlalchemy import select as _sel
+        leftover = db.scalars(
+            _sel(TotpRecoveryCode).where(TotpRecoveryCode.account_id == account_id)
+        ).all()
+    assert not leftover, "disable should purge all recovery codes"

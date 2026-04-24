@@ -494,6 +494,24 @@ class ArenaMatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
 
 
+class TotpRecoveryCode(Base):
+    """Single-use backup codes for 2FA. Generated at /auth/2fa/confirm and
+    /auth/2fa/regenerate-codes, returned to the user exactly once (hash stays in
+    DB). If they lose their authenticator, one code substitutes for a TOTP at
+    /auth/2fa/verify; it's marked used and can't be reused.
+    """
+
+    __tablename__ = "totp_recovery_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+
 class RefreshToken(Base):
     """Long-lived credential used to mint fresh access tokens without re-login.
 
