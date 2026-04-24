@@ -315,3 +315,93 @@ def test_cli_promote_and_demote_and_audit(client) -> None:
     actions = {r.action for r in rows}
     assert {"promote", "demote"} <= actions
     assert any(r.actor_id is None for r in rows if r.action in {"promote", "demote"})
+
+
+def test_admin_liveops_accepts_future_starts_at(client) -> None:
+    """Scheduling a LiveOps event in the future — should not appear in /active until it starts."""
+    from datetime import datetime, timedelta, timezone
+
+    hdr, _, admin_id = _register(client, "schedops")
+    _promote_to_admin(admin_id)
+
+    future = datetime.now(timezone.utc) + timedelta(hours=6)
+    r = client.post(
+        "/admin/liveops",
+        headers=hdr,
+        json={
+            "kind": "DOUBLE_REWARDS",
+            "name": "future_2x",
+            "duration_hours": 4,
+            "starts_at": future.replace(tzinfo=None).isoformat(),
+            "payload": {"multiplier": 2.0},
+        },
+    )
+    assert r.status_code == 201, r.text
+    event_id = r.json()["id"]
+
+    # Not in /active because starts_at is in the future.
+    active = client.get("/liveops/active").json()
+    assert not any(e["id"] == event_id for e in active), "future event leaked into /active"
+
+    # Appears in /scheduled.
+    scheduled = client.get("/liveops/scheduled").json()
+    assert any(e["id"] == event_id and e["name"] == "future_2x" for e in scheduled)
+
+
+def test_admin_liveops_rejects_far_future_schedule(client) -> None:
+    from datetime import datetime, timedelta, timezone
+    hdr, _, admin_id = _register(client, "farops")
+    _promote_to_admin(admin_id)
+    far = datetime.now(timezone.utc) + timedelta(days=120)
+    r = client.post(
+        "/admin/liveops",
+        headers=hdr,
+        json={
+            "kind": "DOUBLE_REWARDS", "name": "too_far", "duration_hours": 4,
+            "starts_at": far.replace(tzinfo=None).isoformat(),
+            "payload": {"multiplier": 2.0},
+        },
+    )
+    assert r.status_code == 400
+    assert "90 days" in r.text
+
+
+def test_admin_liveops_rejects_past_schedule(client) -> None:
+    from datetime import datetime, timedelta, timezone
+    hdr, _, admin_id = _register(client, "pastops")
+    _promote_to_admin(admin_id)
+    past = datetime.now(timezone.utc) - timedelta(hours=1)
+    r = client.post(
+        "/admin/liveops",
+        headers=hdr,
+        json={
+            "kind": "DOUBLE_REWARDS", "name": "already_past", "duration_hours": 4,
+            "starts_at": past.replace(tzinfo=None).isoformat(),
+            "payload": {"multiplier": 2.0},
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_liveops_scheduled_horizon_filter(client) -> None:
+    """horizon_days clamps what's returned; events beyond it are excluded."""
+    from datetime import datetime, timedelta, timezone
+    hdr, _, admin_id = _register(client, "horizonops")
+    _promote_to_admin(admin_id)
+    # Create one event 3 days out.
+    near = datetime.now(timezone.utc) + timedelta(days=3)
+    client.post(
+        "/admin/liveops",
+        headers=hdr,
+        json={
+            "kind": "DOUBLE_REWARDS", "name": "near_event", "duration_hours": 4,
+            "starts_at": near.replace(tzinfo=None).isoformat(),
+            "payload": {"multiplier": 2.0},
+        },
+    )
+    # horizon_days=1 excludes it.
+    got = client.get("/liveops/scheduled?horizon_days=1").json()
+    assert not any(e["name"] == "near_event" for e in got)
+    # horizon_days=7 includes it.
+    got = client.get("/liveops/scheduled?horizon_days=7").json()
+    assert any(e["name"] == "near_event" for e in got)

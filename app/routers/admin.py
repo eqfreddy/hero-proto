@@ -79,6 +79,9 @@ class LiveOpsCreateIn(BaseModel):
     kind: LiveOpsKind
     name: str = Field(min_length=1, max_length=128)
     duration_hours: float = Field(gt=0, le=24 * 30)
+    # When the event becomes active. NULL/absent = starts immediately. Max 90
+    # days out to keep the schedule sane — we're not planning year-ahead content here.
+    starts_at: datetime | None = None
     # Per-kind config — e.g. {"multiplier": 2.0} or {"chance_add": 0.3}
     payload: dict = Field(default_factory=dict)
 
@@ -232,11 +235,24 @@ def create_liveops(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     now = utcnow()
+    starts_at = body.starts_at or now
+    # Guard against silly schedules: no more than 90 days out, and don't accept events
+    # scheduled to start in the past (beyond small clock skew).
+    if starts_at < now - timedelta(minutes=5):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "starts_at is in the past — use now-or-later",
+        )
+    if starts_at > now + timedelta(days=90):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "starts_at cannot be more than 90 days in the future",
+        )
     event = LiveOpsEvent(
         kind=body.kind,
         name=body.name.strip(),
-        starts_at=now,
-        ends_at=now + timedelta(hours=body.duration_hours),
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(hours=body.duration_hours),
         payload_json=json.dumps(body.payload),
     )
     db.add(event)

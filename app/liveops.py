@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -63,3 +63,29 @@ def liveops_summary(db: Session) -> list[dict]:
             "ends_at": e.ends_at.isoformat(),
         })
     return out
+
+
+def scheduled_events(db: Session, horizon_days: int = 7, now: datetime | None = None) -> list[LiveOpsEvent]:
+    """Events that haven't started yet but will within the horizon. Sorted by start time."""
+    now = now or utcnow()
+    cutoff = now + timedelta(days=horizon_days)
+    return list(
+        db.scalars(
+            select(LiveOpsEvent)
+            .where(LiveOpsEvent.starts_at > now, LiveOpsEvent.starts_at <= cutoff)
+            .order_by(LiveOpsEvent.starts_at)
+        )
+    )
+
+
+def scheduled_summary(db: Session, horizon_days: int = 7) -> list[dict]:
+    return [
+        {
+            "id": e.id,
+            "kind": str(e.kind),
+            "name": e.name,
+            "starts_at": e.starts_at.isoformat(),
+            "ends_at": e.ends_at.isoformat(),
+        }
+        for e in scheduled_events(db, horizon_days=horizon_days)
+    ]
