@@ -82,8 +82,20 @@ def create_guild(
 
 
 @router.get("", response_model=list[GuildOut])
-def list_guilds(db: Annotated[Session, Depends(get_db)]) -> list[GuildOut]:
-    return [_guild_out(db, g) for g in db.scalars(select(Guild).order_by(Guild.id))]
+def list_guilds(
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 100,
+    offset: int = 0,
+) -> list[GuildOut]:
+    """Paginated; server-enforced cap to prevent unbounded scans on a large server.
+    Client can page through with offset; at high offsets this is slow but that's OK
+    since it's the rare path (typical caller only looks at page 1)."""
+    limit = max(1, min(500, limit))
+    offset = max(0, offset)
+    return [
+        _guild_out(db, g)
+        for g in db.scalars(select(Guild).order_by(Guild.id).offset(offset).limit(limit))
+    ]
 
 
 @router.get("/mine", response_model=GuildDetailOut | None)
@@ -408,11 +420,15 @@ def list_applications(
 def list_my_applications(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
+    limit: int = 50,
 ) -> list[GuildApplicationOut]:
+    """Caller's own applications (any status), newest first, capped per call."""
+    limit = max(1, min(200, limit))
     rows = db.scalars(
         select(GuildApplication)
         .where(GuildApplication.account_id == account.id)
         .order_by(GuildApplication.created_at.desc())
+        .limit(limit)
     )
     return [_app_out(db, a) for a in rows]
 

@@ -82,9 +82,20 @@ def list_templates(db: Annotated[Session, Depends(get_db)]) -> list[HeroTemplate
 def list_mine(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
+    limit: int = 500,
+    offset: int = 0,
 ) -> list[HeroInstanceOut]:
+    """Player's owned heroes, newest-first. Endgame accounts can accumulate
+    thousands; a per-call cap keeps the response bounded. Roster-builder UIs
+    that want everything can page via offset."""
+    limit = max(1, min(1000, limit))
+    offset = max(0, offset)
     rows = db.scalars(
-        select(HeroInstance).where(HeroInstance.account_id == account.id).order_by(HeroInstance.id.desc())
+        select(HeroInstance)
+        .where(HeroInstance.account_id == account.id)
+        .order_by(HeroInstance.id.desc())
+        .offset(offset)
+        .limit(limit)
     )
     return [instance_out(h) for h in rows]
 

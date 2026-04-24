@@ -59,8 +59,14 @@ def _out(a: AdminAnnouncement) -> AnnouncementOut:
 
 
 @public.get("/active", response_model=list[AnnouncementOut])
-def active_announcements(db: Annotated[Session, Depends(get_db)]) -> list[AnnouncementOut]:
-    """Currently visible announcements, highest-priority first."""
+def active_announcements(
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 20,
+) -> list[AnnouncementOut]:
+    """Currently visible announcements, highest-priority first. Capped because
+    a misuse of the admin endpoint (e.g. scripted announcement spam) shouldn't
+    be able to ship thousands of banners to every client."""
+    limit = max(1, min(100, limit))
     now = utcnow()
     rows = db.scalars(
         select(AdminAnnouncement)
@@ -69,6 +75,7 @@ def active_announcements(db: Annotated[Session, Depends(get_db)]) -> list[Announ
             AdminAnnouncement.starts_at <= now,
         )
         .order_by(desc(AdminAnnouncement.priority), desc(AdminAnnouncement.id))
+        .limit(limit)
     )
     return [_out(a) for a in rows if a.ends_at is None or a.ends_at > now]
 

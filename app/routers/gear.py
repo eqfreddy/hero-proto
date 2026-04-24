@@ -32,8 +32,20 @@ def gear_out(g: Gear) -> GearOut:
 def list_mine(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
+    limit: int = 500,
+    offset: int = 0,
 ) -> list[GearOut]:
-    rows = db.scalars(select(Gear).where(Gear.account_id == account.id).order_by(Gear.id.desc()))
+    """Player's gear inventory, newest-first. Bounded like /heroes/mine so
+    endgame inventories don't produce a 10MB response."""
+    limit = max(1, min(1000, limit))
+    offset = max(0, offset)
+    rows = db.scalars(
+        select(Gear)
+        .where(Gear.account_id == account.id)
+        .order_by(Gear.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
     return [gear_out(g) for g in rows]
 
 
