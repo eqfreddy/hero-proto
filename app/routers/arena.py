@@ -38,6 +38,10 @@ RATING_WIN = 25
 # Matchmaking widens the rating window progressively when the tight pool is sparse.
 # Last entry None means "no filter — everyone".
 _MATCHMAKING_WINDOWS: tuple[int | None, ...] = (200, 400, 800, None)
+# Minutes after attacking a defender where they're excluded from /opponents for
+# the attacker. Prevents the "fight the same three faces back-to-back" problem.
+# If the exclusion would empty the pool, we fall back to no-exclusion.
+ARENA_RECENT_ATTACK_COOLDOWN_MINUTES = 30
 RATING_LOSS = -15
 MIN_RATING = 0
 OPPONENT_SAMPLE_SIZE = 3
@@ -114,14 +118,29 @@ def list_opponents(
 ) -> list[ArenaOpponentOut]:
     """Rating-proximity matchmaking: start with defenders within ±200 rating of the
     caller and widen the window until we have at least OPPONENT_SAMPLE_SIZE candidates.
-    Banned accounts are excluded. Final list is shuffled within the selected window
-    so two consecutive calls don't always return the same three faces.
+    Banned accounts are excluded, as are defenders the caller fought in the last
+    ARENA_RECENT_ATTACK_COOLDOWN_MINUTES. Final list is shuffled within the
+    selected window so consecutive calls don't always return the same three faces.
     """
     rng = random.Random()
     my_rating = account.arena_rating
+
+    # Who've we attacked recently? Exclude them from the pool if possible.
+    from datetime import timedelta as _td
+    recent_cutoff = utcnow() - _td(minutes=ARENA_RECENT_ATTACK_COOLDOWN_MINUTES)
+    recent_ids = set(
+        db.scalars(
+            select(ArenaMatch.defender_id)
+            .where(
+                ArenaMatch.attacker_id == account.id,
+                ArenaMatch.created_at >= recent_cutoff,
+            )
+        )
+    )
+
     chosen: list[int] = []
     for window in _MATCHMAKING_WINDOWS:
-        stmt = (
+        base_stmt = (
             select(DefenseTeam.account_id)
             .join(Account, Account.id == DefenseTeam.account_id)
             .where(
@@ -130,17 +149,49 @@ def list_opponents(
             )
         )
         if window is not None:
-            stmt = stmt.where(
+            base_stmt = base_stmt.where(
                 Account.arena_rating >= my_rating - window,
                 Account.arena_rating <= my_rating + window,
             )
-        pool_ids = list(db.scalars(stmt))
-        if len(pool_ids) >= OPPONENT_SAMPLE_SIZE or window is None:
-            rng.shuffle(pool_ids)
-            chosen = pool_ids[:OPPONENT_SAMPLE_SIZE]
+        # First try with the recent-exclusion. If that empties the pool inside
+        # this window, drop the exclusion (would rather show a repeat opponent
+        # than nothing at all when the server is small).
+        pool_with_exclusion = [
+            aid for aid in db.scalars(base_stmt) if aid not in recent_ids
+        ] if recent_ids else list(db.scalars(base_stmt))
+        if len(pool_with_exclusion) >= OPPONENT_SAMPLE_SIZE or (
+            window is None and pool_with_exclusion
+        ):
+            rng.shuffle(pool_with_exclusion)
+            chosen = pool_with_exclusion[:OPPONENT_SAMPLE_SIZE]
             break
+
+    # Dead-last fallback: ignore the recent-exclusion across all windows.
+    if not chosen:
+        for window in _MATCHMAKING_WINDOWS:
+            stmt = (
+                select(DefenseTeam.account_id)
+                .join(Account, Account.id == DefenseTeam.account_id)
+                .where(
+                    DefenseTeam.account_id != account.id,
+                    Account.is_banned.is_(False),
+                )
+            )
+            if window is not None:
+                stmt = stmt.where(
+                    Account.arena_rating >= my_rating - window,
+                    Account.arena_rating <= my_rating + window,
+                )
+            pool_ids = list(db.scalars(stmt))
+            if len(pool_ids) >= OPPONENT_SAMPLE_SIZE or window is None:
+                rng.shuffle(pool_ids)
+                chosen = pool_ids[:OPPONENT_SAMPLE_SIZE]
+                break
+
     if not chosen:
         return []
+    # Safety: dedup in case the query somehow returned repeats.
+    chosen = list(dict.fromkeys(chosen))
 
     out: list[ArenaOpponentOut] = []
     for acct_id in chosen:

@@ -229,3 +229,74 @@ def test_arena_partial_attack_uses_correct_field_name(client) -> None:
     assert r.status_code == 200
     assert "defender_account_id" in r.text, "arena partial JS must POST defender_account_id"
     assert '"defender_id"' not in r.text, "old field name still present — bug regression"
+
+
+def test_opponents_excludes_recently_attacked(client) -> None:
+    """After attacking defender X, /opponents should exclude X until the cooldown elapses."""
+    def_hdr, def_id, _ = _setup_defender_with_defense_team(client)
+
+    # Spin up a second defender so the pool has somewhere to substitute.
+    def_hdr2, def_id2, def_team2 = _register_and_team(client, "rcd2")
+    client.put("/arena/defense", json={"team": def_team2}, headers=def_hdr2)
+
+    atk_hdr, _, atk_team = _register_and_team(client, "attrc")
+
+    # Attack the first defender.
+    r = client.post(
+        "/arena/attack",
+        json={"defender_account_id": def_id, "team": atk_team},
+        headers=atk_hdr,
+    )
+    assert r.status_code == 201
+
+    # Now /opponents should not include def_id (cooldown) as long as another
+    # defender is available at any rating window.
+    r = client.get("/arena/opponents", headers=atk_hdr)
+    assert r.status_code == 200
+    returned_ids = {o["account_id"] for o in r.json()}
+    assert def_id not in returned_ids, \
+        f"just-attacked defender {def_id} should be excluded; got {returned_ids}"
+
+
+def test_opponents_falls_back_to_recent_if_pool_empty(client) -> None:
+    """When the only available defender is in the cooldown set, fall back
+    and show them anyway — better than returning no opponents."""
+    from datetime import timedelta
+    from app.db import SessionLocal
+    from app.models import Account as _Acct
+
+    # One defender only.
+    def_hdr, def_id, _ = _setup_defender_with_defense_team(client)
+    atk_hdr, atk_id, atk_team = _register_and_team(client, "atkfb")
+
+    # Pin both accounts to the same rating so the ±200 window finds the defender.
+    with SessionLocal() as db:
+        db.get(_Acct, def_id).arena_rating = 1000
+        db.get(_Acct, atk_id).arena_rating = 1000
+        db.commit()
+
+    # Attack them first, so they're in the recent-attack set.
+    client.post(
+        "/arena/attack",
+        json={"defender_account_id": def_id, "team": atk_team},
+        headers=atk_hdr,
+    )
+
+    # Even though def_id is in the recent set, they should surface via the
+    # fallback path since the pool (in the shared DB) has many defenders, but
+    # specifically at the attacker's rating and not in the recent set there
+    # may be none. Either way: the call shouldn't return empty.
+    r = client.get("/arena/opponents", headers=atk_hdr)
+    assert r.status_code == 200
+    # Not asserting def_id IS present (shared DB has other defenders), just
+    # that the call returns something.
+    assert r.json(), "opponents call should never return empty when any defender exists"
+
+
+def test_opponents_returns_unique_ids(client) -> None:
+    """Sanity: no duplicate account_ids in a single /opponents response."""
+    hdr, _, _ = _register_and_team(client, "atkuniq")
+    r = client.get("/arena/opponents", headers=hdr)
+    assert r.status_code == 200
+    ids = [o["account_id"] for o in r.json()]
+    assert len(ids) == len(set(ids)), f"duplicate opponent ids: {ids}"
