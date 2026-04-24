@@ -468,6 +468,22 @@ HERO_SEEDS: list[dict] = [
         },
         "special_cooldown": 5,
     },
+    # --- MYTH tier: event-only, never in standard gacha pool. Pilot hero to
+    # exercise the new rarity tier end-to-end. ---
+    {
+        "code": "tbfam",  # "The Brother From Another Mother"
+        "name": "TBFAM",
+        "rarity": Rarity.MYTH, "faction": Faction.EXECUTIVE, "role": Role.ATK,
+        "base_hp": 2200, "base_atk": 310, "base_def": 150, "base_spd": 160,
+        "basic_mult": 1.2,
+        "special": {
+            "name": "Everything on the Desk", "type": "AOE_DAMAGE",
+            "mult": 2.5, "hits": 4,  # four monitors / keyboards / paperweights
+            "effect": {"kind": "STUN", "turns": 1, "value": 1.0},
+            "self_effect": {"kind": "ATK_UP", "turns": 3, "value": 0.5},  # instant rage
+        },
+        "special_cooldown": 4,
+    },
 ]
 
 

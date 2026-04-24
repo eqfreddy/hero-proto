@@ -17,6 +17,11 @@ class Rarity(StrEnum):
     RARE = "RARE"
     EPIC = "EPIC"
     LEGENDARY = "LEGENDARY"
+    # MYTH is event-only: never in the standard gacha pool, seeded only for
+    # special banners (holidays, anniversaries, LiveOps windows). Phase 2
+    # surfaces this as a separate rarity tab in the roster; Phase 1 just
+    # seeds the data model and one pilot hero (TBFAM) so the tier is real.
+    MYTH = "MYTH"
 
 
 RARITY_ORDER: dict[str, int] = {r: i for i, r in enumerate(Rarity)}
