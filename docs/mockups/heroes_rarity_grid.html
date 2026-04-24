@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heroes — Gacha RPG</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0b0d10;
+      color: #e8eaed;
+      padding: 12px;
+      padding-bottom: 80px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #1a2838;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    /* Rarity Tabs */
+    .rarity-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .rarity-tab {
+      padding: 8px 16px;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      background: #1a2838;
+      color: #9ca7b3;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: all 200ms ease;
+      position: relative;
+    }
+
+    .rarity-tab.active {
+      color: #fff;
+      border-color: currentColor;
+      background: transparent;
+    }
+
+    .rarity-tab.common { color: #9ca7b3; }
+    .rarity-tab.uncommon { color: #6dd39a; }
+    .rarity-tab.rare { color: #59a0ff; }
+    .rarity-tab.epic { color: #c77dff; }
+    .rarity-tab.legendary { color: #ffd86b; }
+    .rarity-tab.myth { color: #ff7a59; }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 480px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Hero Card */
+    .hero-card {
+      cursor: pointer;
+      transition: all 200ms ease;
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .hero-card:active {
+      transform: scale(0.98);
+    }
+
+    .hero-card-inner {
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      border: 3px solid;
+      position: relative;
+      background: linear-gradient(135deg, #1a2838 0%, #14202b 100%);
+      backdrop-filter: blur(4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      transition: all 200ms ease;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    /* Portrait Section */
+    .hero-portrait {
+      width: 100%;
+      aspect-ratio: 1.2;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 56px;
+      font-weight: bold;
+      color: rgba(255, 255, 255, 0.15);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Info Section */
+    .hero-card-info {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    /* Rarity colors and effects */
+    .hero-card.common .hero-card-inner {
+      border-color: #9ca7b3;
+      background: linear-gradient(135deg, rgba(156, 167, 179, 0.08) 0%, #14202b 100%);
+      box-shadow: 0 0 16px rgba(156, 167, 179, 0.2);
+    }
+
+    .hero-card.uncommon .hero-card-inner {
+      border-color: #6dd39a;
+      background: linear-gradient(135deg, rgba(109, 211, 154, 0.08) 0%, #14202b 100%);
+      box-shadow: 0 0 16px rgba(109, 211, 154, 0.3);
+    }
+
+    .hero-card.rare .hero-card-inner {
+      border-color: #59a0ff;
+      background: linear-gradient(135deg, rgba(89, 160, 255, 0.08) 0%, #14202b 100%);
+      box-shadow: 0 0 20px rgba(89, 160, 255, 0.3);
+    }
+
+    .hero-card.epic .hero-card-inner {
+      border-color: #c77dff;
+      background: linear-gradient(135deg, rgba(199, 125, 255, 0.08) 0%, #14202b 100%);
+      box-shadow: 0 0 20px rgba(199, 125, 255, 0.35);
+    }
+
+    .hero-card.legendary .hero-card-inner {
+      border-color: #ffd86b;
+      background: linear-gradient(135deg, rgba(255, 216, 107, 0.12) 0%, #14202b 100%);
+      box-shadow: 0 0 24px rgba(255, 216, 107, 0.4);
+    }
+
+    .hero-card.myth .hero-card-inner {
+      border-color: #ff7a59;
+      background: linear-gradient(135deg, rgba(255, 122, 89, 0.12) 0%, #14202b 100%);
+      box-shadow: 0 0 24px rgba(255, 122, 89, 0.45);
+    }
+
+    .hero-card:hover .hero-card-inner {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Card Header */
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .card-name {
+      font-size: 13px;
+      font-weight: 600;
+      flex: 1;
+      line-height: 1.2;
+    }
+
+    .faction-badge {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+
+    .faction-badge.helpdesk { background: rgba(255, 122, 89, 0.3); color: #ff7a59; }
+    .faction-badge.devops { background: rgba(89, 160, 255, 0.3); color: #59a0ff; }
+    .faction-badge.legacy { background: rgba(109, 211, 154, 0.3); color: #6dd39a; }
+    .faction-badge.executive { background: rgba(199, 125, 255, 0.3); color: #c77dff; }
+    .faction-badge.rogue-it { background: rgba(255, 216, 107, 0.3); color: #ffd86b; }
+
+    /* Role Icon */
+    .role-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .role-icon.atk { background: rgba(255, 122, 89, 0.3); color: #ff7a59; }
+    .role-icon.def { background: rgba(89, 160, 255, 0.3); color: #59a0ff; }
+    .role-icon.sup { background: rgba(109, 211, 154, 0.3); color: #6dd39a; }
+
+    /* Stats */
+    .card-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .stat-label { color: #9ca7b3; }
+    .stat-value { font-weight: 600; }
+
+    /* Star Progress */
+    .star-progress {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+
+    .star {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #9ca7b3;
+      transition: all 150ms ease;
+    }
+
+    .star.filled {
+      background: #ffd86b;
+      box-shadow: 0 0 4px #ffd86b;
+    }
+
+    .star.need {
+      background: #5a6a7c;
+      opacity: 0.5;
+    }
+
+    /* Power Rating */
+    .power-rating {
+      font-size: 11px;
+      font-weight: 600;
+      color: #ffd86b;
+    }
+
+    /* Copy Progress */
+    .copy-progress {
+      font-size: 9px;
+      color: #9ca7b3;
+    }
+
+    /* Detail View */
+    .detail-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: flex-end;
+      z-index: 1000;
+      animation: fadeIn 200ms ease;
+    }
+
+    .detail-overlay.show {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .detail-sheet {
+      background: linear-gradient(180deg, #1a2838 0%, #0b0d10 100%);
+      width: 100%;
+      max-height: 85vh;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      overflow-y: auto;
+      animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .detail-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 50%;
+      color: #e8eaed;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-header {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .detail-portrait {
+      width: 120px;
+      height: 120px;
+      border-radius: 12px;
+      border: 3px solid;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .detail-info h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .detail-info-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .detail-info-label { color: #9ca7b3; }
+
+    /* Sections */
+    .detail-section {
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #2a3a4c;
+    }
+
+    .detail-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #9ca7b3;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 3px solid;
+    }
+
+    .stat-card-label {
+      font-size: 10px;
+      color: #9ca7b3;
+      margin-bottom: 4px;
+    }
+
+    .stat-card-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .stat-card.atk { border-left-color: #ff7a59; }
+    .stat-card.def { border-left-color: #59a0ff; }
+    .stat-card.sup { border-left-color: #6dd39a; }
+
+    /* Ascension Path */
+    .ascension-dots {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .ascension-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #5a6a7c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: #9ca7b3;
+      border: 2px solid transparent;
+    }
+
+    .ascension-dot.filled {
+      background: #ffd86b;
+      color: #000;
+      border-color: #ffed99;
+      box-shadow: 0 0 8px rgba(255, 216, 107, 0.5);
+    }
+
+    .ascension-dot.next {
+      background: transparent;
+      border-color: #ffd86b;
+      color: #ffd86b;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 150ms ease;
+    }
+
+    .btn-primary {
+      background: #ffd86b;
+      color: #000;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+      box-shadow: 0 0 12px rgba(255, 216, 107, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e8eaed;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h1>Heroes</h1>
+    <div style="font-size: 12px; color: #9ca7b3;">Total: <span id="hero-count">0</span></div>
+  </div>
+
+  <!-- Rarity Tabs -->
+  <div class="rarity-tabs" id="rarity-tabs">
+    <button class="rarity-tab common active" data-rarity="all">All</button>
+    <button class="rarity-tab common" data-rarity="common">Common</button>
+    <button class="rarity-tab uncommon" data-rarity="uncommon">Uncommon</button>
+    <button class="rarity-tab rare" data-rarity="rare">Rare</button>
+    <button class="rarity-tab epic" data-rarity="epic">Epic</button>
+    <button class="rarity-tab legendary" data-rarity="legendary">Legendary</button>
+    <button class="rarity-tab myth" data-rarity="myth">Myth</button>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid" id="grid"></div>
+
+  <!-- Detail Overlay -->
+  <div class="detail-overlay" id="detail-overlay">
+    <button class="detail-close" onclick="closeDetail()">×</button>
+    <div class="detail-sheet" id="detail-sheet"></div>
+  </div>
+
+  <script>
+    // Hero data (sample)
+    const heroes = [
+      { id: 1, name: 'Ticket Gremlin', rarity: 'common', faction: 'helpdesk', role: 'atk', level: 1, power: 42, stars: 1, copies: 1, maxCopies: 5 },
+      { id: 2, name: 'Printer Whisperer', rarity: 'common', faction: 'legacy', role: 'def', level: 1, power: 38, stars: 0, copies: 0, maxCopies: 5 },
+      { id: 3, name: 'Overnight Janitor', rarity: 'uncommon', faction: 'helpdesk', role: 'sup', level: 20, power: 156, stars: 2, copies: 2, maxCopies: 5 },
+      { id: 4, name: 'DevOps Apprentice', rarity: 'uncommon', faction: 'devops', role: 'atk', level: 25, power: 198, stars: 2, copies: 3, maxCopies: 5 },
+      { id: 5, name: 'Forgotten Contractor', rarity: 'rare', faction: 'legacy', role: 'def', level: 40, power: 456, stars: 3, copies: 5, maxCopies: 5 },
+      { id: 6, name: 'Keymaster Gary', rarity: 'rare', faction: 'executive', role: 'sup', level: 50, power: 612, stars: 4, copies: 8, maxCopies: 10 },
+      { id: 7, name: 'Jaded Intern', rarity: 'epic', faction: 'helpdesk', role: 'atk', level: 60, power: 924, stars: 4, copies: 9, maxCopies: 10 },
+      { id: 8, name: 'SRE On-Call', rarity: 'epic', faction: 'devops', role: 'def', level: 70, power: 1245, stars: 5, copies: 10, maxCopies: 10 },
+      { id: 9, name: 'Compliance Officer', rarity: 'legendary', faction: 'executive', role: 'sup', level: 80, power: 1856, stars: 5, copies: 12, maxCopies: 15 },
+      { id: 10, name: 'Security Auditor', rarity: 'legendary', faction: 'rogue-it', role: 'atk', level: 85, power: 2104, stars: 6, copies: 18, maxCopies: 20 },
+      { id: 11, name: 'Helpdesk Veteran', rarity: 'myth', faction: 'helpdesk', role: 'sup', level: 100, power: 3240, stars: 7, copies: 25, maxCopies: 999 },
+    ];
+
+    let currentRarity = 'all';
+
+    // Render grid
+    function renderGrid() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      const filtered = currentRarity === 'all' ? heroes : heroes.filter(h => h.rarity === currentRarity);
+      document.getElementById('hero-count').textContent = filtered.length;
+
+      filtered.forEach(hero => {
+        const card = document.createElement('div');
+        card.className = `hero-card ${hero.rarity}`;
+        
+        const starDots = [];
+        for (let i = 0; i < hero.stars; i++) starDots.push('<span class="star filled"></span>');
+        for (let i = hero.stars; i < 7; i++) starDots.push('<span class="star need"></span>');
+
+        card.innerHTML = `
+          <div class="hero-card-inner">
+            <div class="hero-portrait">${hero.name.charAt(0)}</div>
+            <div class="hero-card-info">
+              <div class="card-header">
+                <div class="card-name">${hero.name}</div>
+                <div class="faction-badge ${hero.faction}">${hero.faction.charAt(0).toUpperCase()}</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <div class="role-icon ${hero.role}">${hero.role.toUpperCase()}</div>
+                <div style="font-size: 11px; color: #9ca7b3;">LV ${hero.level}</div>
+              </div>
+              <div class="card-stats">
+                <div class="stat-row">
+                  <span class="stat-label">PWR</span>
+                  <span class="power-rating">${hero.power}</span>
+                </div>
+                <div class="star-progress">${starDots.join('')}</div>
+                <div class="copy-progress">${hero.copies}/${hero.maxCopies}</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener('click', () => showDetail(hero));
+        grid.appendChild(card);
+      });
+    }
+
+    // Rarity tabs
+    document.querySelectorAll('.rarity-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.rarity-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentRarity = tab.dataset.rarity;
+        renderGrid();
+      });
+    });
+
+    // Detail view
+    function showDetail(hero) {
+      const overlay = document.getElementById('detail-overlay');
+      const sheet = document.getElementById('detail-sheet');
+
+      const starDots = [];
+      for (let i = 0; i < hero.stars; i++) starDots.push('<span class="ascension-dot filled">★</span>');
+      for (let i = hero.stars; i < 7; i++) {
+        if (i === hero.stars) starDots.push('<span class="ascension-dot next">✓</span>');
+        else starDots.push('<span class="ascension-dot"></span>');
+      }
+
+      sheet.innerHTML = `
+        <div class="detail-header">
+          <div class="detail-portrait" style="border-color: ${getRarityColor(hero.rarity)}; background: linear-gradient(135deg, ${getRarityColor(hero.rarity)}22 0%, transparent 100%);">
+            ${hero.name.charAt(0)}
+          </div>
+          <div class="detail-info">
+            <h2>${hero.name}</h2>
+            <div class="detail-info-row">
+              <span class="detail-info-label">Rarity:</span>
+              <strong>${hero.rarity.charAt(0).toUpperCase() + hero.rarity.slice(1)}</strong>
+            </div>
+            <div class="detail-info-row">
+              <span class="detail-info-label">Faction:</span>
+              <strong>${hero.faction.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</strong>
+            </div>
+            <div class="detail-info-row">
+              <span class="detail-info-label">Role:</span>
+              <strong>${hero.role.toUpperCase()}</strong>
+            </div>
+            <div class="detail-info-row">
+              <span class="detail-info-label">Level:</span>
+              <strong>${hero.level}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Base Stats</h3>
+          <div class="stats-grid">
+            <div class="stat-card atk">
+              <div class="stat-card-label">Attack</div>
+              <div class="stat-card-value">${Math.round(hero.power * 1.2)}</div>
+            </div>
+            <div class="stat-card def">
+              <div class="stat-card-label">Defense</div>
+              <div class="stat-card-value">${Math.round(hero.power * 0.9)}</div>
+            </div>
+            <div class="stat-card sup">
+              <div class="stat-card-label">Support</div>
+              <div class="stat-card-value">${Math.round(hero.power * 1.1)}</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #ffd86b;">
+              <div class="stat-card-label">Power</div>
+              <div class="stat-card-value">${hero.power}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Ascension Path</h3>
+          <div class="ascension-dots">${starDots.join('')}</div>
+          <div style="font-size: 12px; color: #9ca7b3;">
+            ${hero.copies >= hero.maxCopies ? '✓ Ready to ascend!' : `${hero.maxCopies - hero.copies} more copy/copies needed`}
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>About</h3>
+          <div style="font-size: 12px; line-height: 1.6; color: #9ca7b3;">
+            A powerful hero from the ${hero.faction.replace('-', ' ')} faction. Currently at level ${hero.level} with ${hero.stars} stars.
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn btn-primary">Level Up</button>
+          <button class="btn btn-secondary">Ascend</button>
+        </div>
+      `;
+
+      overlay.classList.add('show');
+    }
+
+    function closeDetail() {
+      document.getElementById('detail-overlay').classList.remove('show');
+    }
+
+    function getRarityColor(rarity) {
+      const colors = {
+        common: '#9ca7b3',
+        uncommon: '#6dd39a',
+        rare: '#59a0ff',
+        epic: '#c77dff',
+        legendary: '#ffd86b',
+        myth: '#ff7a59'
+      };
+      return colors[rarity];
+    }
+
+    // Close detail on overlay click
+    document.getElementById('detail-overlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeDetail();
+    });
+
+    // Initial render
+    renderGrid();
+  </script>
+</body>
+</html>
