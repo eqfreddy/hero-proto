@@ -8,7 +8,8 @@
   nav button { background: transparent; color: var(--muted); padding: 6px 12px; border-bottom: 2px solid transparent; border-radius: 0; }
   nav button.active { color: var(--text); border-bottom-color: var(--accent); }
   nav button:hover { color: var(--text); }
-  #who { margin-left: auto; color: var(--muted); font-size: 12px; }
+  #who { margin-left: auto; color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-inset, var(--bg)); border-radius: 4px; border: 1px solid var(--border); }
+  #who.signed-in { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
   main { padding: 18px; max-width: 1100px; margin: 0 auto; }
   main > .loading { color: var(--muted); display: flex; align-items: center; gap: 8px; }
 </style>
@@ -43,9 +44,28 @@
       localStorage.setItem('heroproto_tab', b.dataset.tab);
     });
   });
-  // Signed-in indicator.
-  function refreshWho() {
-    document.getElementById('who').textContent = localStorage.getItem('heroproto_jwt') ? 'signed in' : 'not signed in';
+  // Signed-in indicator. Pull the display name from /me once on load so the
+  // header matches the Me tab's "signed in as X" pill instead of just
+  // showing a generic "signed in".
+  async function refreshWho() {
+    const el = document.getElementById('who');
+    const token = localStorage.getItem('heroproto_jwt');
+    if (!token) {
+      el.textContent = 'not signed in';
+      el.classList.remove('signed-in');
+      return;
+    }
+    el.classList.add('signed-in');
+    try {
+      const r = await fetch('/me', { headers: { authorization: 'Bearer ' + token } });
+      if (r.ok) {
+        const me = await r.json();
+        const name = (me.email || '').split('@')[0] || 'signed in';
+        el.textContent = `✓ ${name}`;
+        return;
+      }
+    } catch {}
+    el.textContent = '✓ signed in';
   }
   document.body.addEventListener('htmx:afterRequest', refreshWho);
   refreshWho();

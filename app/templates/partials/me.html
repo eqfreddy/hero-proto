@@ -133,37 +133,6 @@
   </div>
 </div>
 <script>
-  // --- Summon (x1 / x10) -------------------------------------------------
-  // Renders pulled heroes as a rarity-bordered card grid instead of dumping
-  // raw JSON. After a pull, refreshes the /me partial so shards + pity update.
-  const _rarityColor = {
-    LEGENDARY: 'var(--r-legendary)',
-    EPIC: 'var(--r-epic)',
-    RARE: 'var(--r-rare)',
-    UNCOMMON: 'var(--r-uncommon)',
-    COMMON: 'var(--r-common)',
-  };
-  const _factionEmoji = {
-    HELPDESK: '🎧', DEVOPS: '⚙️', LEGACY: '🗄️',
-    EXECUTIVE: '💼', ROGUE_IT: '🕶️',
-  };
-
-  function _summonCard(item) {
-    const t = item && item.hero && item.hero.template;
-    if (!t) return null;
-    const color = _rarityColor[String(item.rarity)] || 'var(--r-common)';
-    const facEmoji = _factionEmoji[String(t.faction)] || '';
-    const card = document.createElement('div');
-    card.style.cssText = `background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid ${color}; padding: 8px 10px; border-radius: 5px;`;
-    card.innerHTML = `
-      <div style="font-weight: 700; font-size: 13px; margin-bottom: 3px;">${t.name}</div>
-      <div style="color: ${color}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">${item.rarity}</div>
-      <div class="muted" style="font-size: 11px; margin-top: 3px;">${facEmoji} ${t.faction} · ${t.role}</div>
-      ${item.pulled_epic_pity ? '<div style="color: var(--warn); font-size: 10px; margin-top: 4px;">💥 pity triggered</div>' : ''}
-    `;
-    return card;
-  }
-
   // --- Tutorial auto-battle ---------------------------------------------
   // Picks the player's top-power heroes, fires POST /battles against the
   // tutorial stage, shows the result inline. Runs the "first-session" grant
@@ -233,52 +202,6 @@
     } catch (e) {
       out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
       btn.disabled = false;
-    }
-  }
-
-  async function doSummon(btn, count) {
-    btn.disabled = true;
-    const siblings = btn.parentElement.querySelectorAll('button');
-    siblings.forEach(b => b.disabled = true);
-    const spinner = document.getElementById('summon-spinner');
-    if (spinner) spinner.classList.add('active');
-    const out = document.getElementById('summon-result');
-    const token = localStorage.getItem('heroproto_jwt');
-    const path = count === 10 ? '/summon/x10' : '/summon/x1';
-    try {
-      const r = await fetch(path, {
-        method: 'POST',
-        headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
-      });
-      const body = await r.json();
-      if (!r.ok) {
-        out.innerHTML = `<div style="color: var(--bad); padding: 8px;">${r.status}: ${body.detail || 'error'}</div>`;
-        return;
-      }
-      out.innerHTML = '';
-      const items = Array.isArray(body) ? body : [body];
-      const grid = document.createElement('div');
-      grid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;';
-      // Sort by rarity descending so the exciting pulls land first.
-      const order = { LEGENDARY: 5, EPIC: 4, RARE: 3, UNCOMMON: 2, COMMON: 1 };
-      items.sort((a, b) => (order[b.rarity] || 0) - (order[a.rarity] || 0));
-      for (const it of items) {
-        const c = _summonCard(it);
-        if (c) grid.appendChild(c);
-      }
-      const header = document.createElement('div');
-      header.style.cssText = 'font-size: 12px; color: var(--muted); margin-bottom: 6px;';
-      const best = items.find(i => ['LEGENDARY', 'EPIC'].includes(i.rarity));
-      header.textContent = `Pulled ${items.length} hero${items.length === 1 ? '' : 'es'}` + (best ? ` — best: ${best.hero.template.name} (${best.rarity})` : '');
-      out.appendChild(header);
-      out.appendChild(grid);
-      // Refresh balances + pity + announcement area.
-      setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 500);
-    } catch (e) {
-      out.innerHTML = `<div style="color: var(--bad); padding: 8px;">${e.message}</div>`;
-    } finally {
-      siblings.forEach(b => b.disabled = false);
-      if (spinner) spinner.classList.remove('active');
     }
   }
 
