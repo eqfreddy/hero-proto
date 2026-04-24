@@ -437,3 +437,172 @@ def refund_purchase(
         created_at=p.created_at, completed_at=p.completed_at,
         refunded_at=p.refunded_at, refund_reason=p.refund_reason,
     )
+
+
+# --- Analytics ---------------------------------------------------------------
+
+
+class AnalyticsBucket(BaseModel):
+    """Uniform shape for a "count over time window" metric."""
+    last_24h: int
+    last_7d: int
+    total: int
+
+
+class AnalyticsRevenueOut(BaseModel):
+    total_cents: int
+    last_24h_cents: int
+    last_7d_cents: int
+    refunded_cents: int
+
+
+class AnalyticsOverviewOut(BaseModel):
+    # Account funnel
+    accounts_total: int
+    accounts_dau: int          # distinct account_ids active (battled or attacked) in last 24h
+    accounts_wau: int          # same, last 7 days
+    accounts_banned: int
+    accounts_verified: int
+    accounts_with_2fa: int
+
+    # Monetization
+    payers_total: int          # accounts with ≥1 COMPLETED purchase
+    payer_conversion_pct: float
+    revenue: AnalyticsRevenueOut
+    purchases: AnalyticsBucket
+
+    # Engagement
+    battles: AnalyticsBucket
+    arena_matches: AnalyticsBucket
+    raid_attempts: AnalyticsBucket
+    summons: AnalyticsBucket
+    avg_summons_per_account: float
+
+
+@router.get("/analytics/overview", response_model=AnalyticsOverviewOut)
+def analytics_overview(
+    _admin: Annotated[Account, Depends(get_current_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AnalyticsOverviewOut:
+    """Product-level overview. Reads existing tables — no new schema."""
+    # Imports here to avoid bloating the module-top (these are only used in this one place).
+    from app.models import (
+        ArenaMatch as _AM,
+        GachaRecord as _GR,
+        Purchase as _P,
+        PurchaseState as _PS,
+        RaidAttempt as _RA,
+    )
+
+    now = utcnow()
+    d1 = now - timedelta(hours=24)
+    d7 = now - timedelta(days=7)
+
+    def _count(stmt) -> int:
+        return db.scalar(stmt) or 0
+
+    # --- accounts ---
+    accounts_total = _count(select(func.count(Account.id)))
+    accounts_banned = _count(select(func.count(Account.id)).where(Account.is_banned.is_(True)))
+    accounts_verified = _count(select(func.count(Account.id)).where(Account.email_verified.is_(True)))
+    accounts_with_2fa = _count(select(func.count(Account.id)).where(Account.totp_enabled.is_(True)))
+
+    # DAU/WAU: distinct account_id from Battle OR ArenaMatch in the window.
+    # Union of two distinct-selects into a CTE-like subquery is cleanest in raw SQL,
+    # but here we compose it: distinct battle actors + distinct arena actors, dedup.
+    def _active_ids(since) -> set[int]:
+        battle_ids = set(db.scalars(
+            select(Battle.account_id).where(Battle.created_at >= since).distinct()
+        ))
+        arena_ids = set(db.scalars(
+            select(_AM.attacker_id).where(_AM.created_at >= since).distinct()
+        ))
+        return battle_ids | arena_ids
+
+    dau = len(_active_ids(d1))
+    wau = len(_active_ids(d7))
+
+    # --- monetization ---
+    payers_total = _count(
+        select(func.count(func.distinct(_P.account_id)))
+        .where(_P.state == _PS.COMPLETED)
+    )
+    payer_conversion_pct = round(
+        100 * payers_total / accounts_total, 2
+    ) if accounts_total else 0.0
+
+    total_cents = _count(
+        select(func.coalesce(func.sum(_P.price_cents_paid), 0))
+        .where(_P.state == _PS.COMPLETED)
+    )
+    last_24h_cents = _count(
+        select(func.coalesce(func.sum(_P.price_cents_paid), 0))
+        .where(_P.state == _PS.COMPLETED, _P.completed_at >= d1)
+    )
+    last_7d_cents = _count(
+        select(func.coalesce(func.sum(_P.price_cents_paid), 0))
+        .where(_P.state == _PS.COMPLETED, _P.completed_at >= d7)
+    )
+    refunded_cents = _count(
+        select(func.coalesce(func.sum(_P.price_cents_paid), 0))
+        .where(_P.state == _PS.REFUNDED)
+    )
+
+    purchases_bucket = AnalyticsBucket(
+        last_24h=_count(
+            select(func.count(_P.id))
+            .where(_P.state == _PS.COMPLETED, _P.completed_at >= d1)
+        ),
+        last_7d=_count(
+            select(func.count(_P.id))
+            .where(_P.state == _PS.COMPLETED, _P.completed_at >= d7)
+        ),
+        total=_count(select(func.count(_P.id)).where(_P.state == _PS.COMPLETED)),
+    )
+
+    # --- engagement ---
+    battles_bucket = AnalyticsBucket(
+        last_24h=_count(select(func.count(Battle.id)).where(Battle.created_at >= d1)),
+        last_7d=_count(select(func.count(Battle.id)).where(Battle.created_at >= d7)),
+        total=_count(select(func.count(Battle.id))),
+    )
+    arena_bucket = AnalyticsBucket(
+        last_24h=_count(select(func.count(_AM.id)).where(_AM.created_at >= d1)),
+        last_7d=_count(select(func.count(_AM.id)).where(_AM.created_at >= d7)),
+        total=_count(select(func.count(_AM.id))),
+    )
+    raid_bucket = AnalyticsBucket(
+        last_24h=_count(select(func.count(_RA.id)).where(_RA.created_at >= d1)),
+        last_7d=_count(select(func.count(_RA.id)).where(_RA.created_at >= d7)),
+        total=_count(select(func.count(_RA.id))),
+    )
+    summons_bucket = AnalyticsBucket(
+        last_24h=_count(select(func.count(_GR.id)).where(_GR.pulled_at >= d1)),
+        last_7d=_count(select(func.count(_GR.id)).where(_GR.pulled_at >= d7)),
+        total=_count(select(func.count(_GR.id))),
+    )
+
+    avg_summons = round(summons_bucket.total / accounts_total, 2) if accounts_total else 0.0
+
+    return AnalyticsOverviewOut(
+        accounts_total=accounts_total,
+        accounts_dau=dau,
+        accounts_wau=wau,
+        accounts_banned=accounts_banned,
+        accounts_verified=accounts_verified,
+        accounts_with_2fa=accounts_with_2fa,
+        payers_total=payers_total,
+        payer_conversion_pct=payer_conversion_pct,
+        revenue=AnalyticsRevenueOut(
+            total_cents=total_cents,
+            last_24h_cents=last_24h_cents,
+            last_7d_cents=last_7d_cents,
+            refunded_cents=refunded_cents,
+        ),
+        purchases=purchases_bucket,
+        battles=battles_bucket,
+        arena_matches=arena_bucket,
+        raid_attempts=raid_bucket,
+        summons=summons_bucket,
+        avg_summons_per_account=avg_summons,
+    )
