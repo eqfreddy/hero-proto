@@ -126,6 +126,14 @@ Medium-sized but the highest-leverage UX work right now. See Product Direction s
 - [ ] Saved team presets (Arena / Campaign / Raid) — QoL, paid unlock candidate
 - [ ] "Use last team" one-click on the Battle tab
 
+### H. PWA — put it on a phone home screen
+Cheapest path to "on my phone, feels like an app." See [Mobile Strategy](#-mobile-strategy) below for the full roadmap (PWA → Capacitor → native).
+- [ ] `app/static/manifest.webmanifest` — name, short_name, icons (192/512 + maskable), theme_color, background_color, display=standalone
+- [ ] Service worker at `/app/sw.js` — offline shell for `/app/` shell + cached static assets, network-first for `/me` and other live endpoints
+- [ ] Apple touch icons + meta tags in `templates/base.html` (Apple ignores standard manifest icons, needs its own)
+- [ ] Test: install on Android Chrome, install on iOS Safari, confirm icon + splash + offline-launch both work
+- [ ] Register service worker from the dashboard entry template
+
 ### G. Combat depth (from play-testing)
 Design-first sprint — probably 2-3 iterations before it's good. Reference games listed in Product Direction.
 - [ ] Melee / ranged attack split (extend `basic_mult` model → `melee_mult` + `ranged_mult`)
@@ -136,6 +144,53 @@ Design-first sprint — probably 2-3 iterations before it's good. Reference game
 - [ ] Auto-battle as a paid QoL unlock, not the default
 
 **Monetization tone lock:** PoE2-style — cosmetics + QoL. No stat-boosting shop items, no gacha whales fast-tracking power. Stripe pipeline stays; only the SKU catalog changes.
+
+---
+
+## 📱 Mobile strategy
+
+Architecture is already native-friendly — every player feature is an HTTP JSON API, the web UI is just one client. Four paths, ranked by realism:
+
+1. **PWA** (half-day) — installable from browser, home-screen icon, offline shell. No store listing, no native IAP.
+2. **Capacitor wrapper** (1–2 weeks) — same web UI packaged as `.apk` / `.ipa`, submitted to both stores. Adds Apple IAP + Google Play Billing receipt-verification to `shop.py` as separate payment adapters alongside Stripe.
+3. **React Native / Flutter** (months) — native UI, keep backend. Second codebase to maintain. Only if combat/animation layer outgrows mobile browsers.
+4. **Fully native** (Swift + Kotlin) — overkill for this team.
+
+**Recommendation:** ship Sprint H (PWA) first, then Capacitor when ready to submit to stores. `DELETE /me` + 2FA + refresh-token rotation + the audit log already satisfy Apple/Google store policy requirements for data handling.
+
+---
+
+## 🎨 Design-AI work queue (no repo access needed)
+
+Work the design AI can do without committing code. Outputs land as SVG / PNG / Lottie / Figma / markdown — pasted into the repo by hand after review. Ranked by how much they unblock ongoing sprints.
+
+### High leverage
+- [ ] **Stick-figure battle animation sprite sheets** — unblocks Sprint G. Short loops (4–8 frames): idle, melee attack, ranged attack, hit reaction, death, special trigger. SVG sprite sheet or Lottie JSON. One rig per role (ATK/DEF/SUP).
+- [ ] **App icon + maskable PWA icons** — unblocks Sprint H. 192×192, 512×512, maskable-safe (80% inner keep-clear), 1024×1024 for Apple touch icon.
+- [ ] **Roster card redesign mockups** — current is a list, we want rarity-tabbed grid with faction/role/power/upgrade-teaser per hero. Figma or annotated PNG.
+- [ ] **Shop page mockups — PoE2-style** — layout for gem packs, QoL packs, cosmetic frames, seasonal offers. Tone: premium/optional, not FOMO.
+
+### Medium leverage
+- [ ] **Missing hero portraits** — roster currently has 35 heroes; any generic/placeholder slots that need art. Request: faction-tinted backgrounds, role-suggestive poses.
+- [ ] **Stage background set** — 32 stages need environmental variety (server room / cubicle / boss office / cable hell / boardroom / data center / storage closet etc.). SVG or 1024×576 PNG, dark palette compatible.
+- [ ] **Raid boss art** — 3 boss templates (Legacy Colossus, C-Suite Hydra, Chaos Dragon) need hero-card art *and* an animated hit-reaction layer for the raid fight view.
+- [ ] **Faction badges 2.0** — current are fine; a signed-off final palette would let the UI stop tuning colors ad-hoc.
+
+### Low leverage / nice-to-have
+- [ ] **Loading skeleton designs** — shimmer states per section (me / roster / battle setup).
+- [ ] **Empty-state illustrations** — "no opponents in arena", "no guild yet", "no active raid", "no heroes yet — do a pull."
+- [ ] **Hero lore snippets** — 2–3 sentence backstory per template; names exist, flavor doesn't.
+- [ ] **Logo / wordmark** — current header is plain text; a simple mark would help branding.
+- [ ] **Stage tier icons** — NORMAL / HARD / future NIGHTMARE tier badges.
+- [ ] **Achievement art** — once achievements exist, badges for first-clear-stage-X, guild-raid-wins, etc.
+
+### Explicitly NOT for design AI
+- Anything touching Python / SQL / migrations / tests
+- API schema changes
+- CI/CD pipeline
+- Security / auth flow
+
+Output format for everything on this list: **paste the final file(s) back here in chat**; we'll drop them into `app/static/` manually. The design session that tried to commit directly couldn't, and that workflow held us up for a week.
 
 ---
 
