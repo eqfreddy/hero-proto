@@ -64,6 +64,11 @@ class Settings(BaseSettings):
         raw = [x.strip().lower() for x in (self.admin_emails or "").split(",")]
         return {e for e in raw if e}
 
+    # Worker: when False, the in-process background tick doesn't start.
+    # Useful for running a dedicated worker instance separately from web
+    # (run one instance with worker_enabled=True, the rest False).
+    worker_enabled: bool = True
+
     # Economy
     energy_cap: int = 100
     energy_regen_seconds: int = 360

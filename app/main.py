@@ -19,7 +19,7 @@ from app.observability import (
     metrics_response,
 )
 from app.routers import admin, announcements, arena, auth, battles, daily, gear, guilds, heroes, liveops, me, raids, shop, stages, summon, ui
-from app.worker import worker_loop
+from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
 log = logging.getLogger("lifespan")
@@ -63,8 +63,8 @@ async def lifespan(_: FastAPI):
     log.info("startup complete (env=%s)", settings.environment)
 
     worker_task: asyncio.Task | None = None
-    if settings.environment != "test":
-        worker_task = asyncio.create_task(worker_loop(), name="worker_loop")
+    if settings.environment != "test" and settings.worker_enabled:
+        worker_task = asyncio.create_task(supervised_worker_loop(), name="worker_loop")
     try:
         yield
     finally:
@@ -151,7 +151,34 @@ app.include_router(_stripe_ext.router)
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"status": "ok", "env": settings.environment}
+    payload: dict = {"status": "ok", "env": settings.environment}
+    # Expose a light worker status so load balancers / ops dashboards can see
+    # the tick is live. Absence of a tick for several minutes is the signal
+    # that something's wrong — each instance's /healthz reports for itself.
+    if settings.worker_enabled and settings.environment != "test":
+        payload["worker"] = _worker_health_dict()
+    return payload
+
+
+def _worker_health_dict() -> dict:
+    last_tick = worker_health.last_tick_at
+    return {
+        "enabled": settings.worker_enabled,
+        "last_tick_at": last_tick.isoformat() if last_tick else None,
+        "last_tick_success": worker_health.last_tick_success,
+        "last_error": worker_health.last_error,
+        "ticks_total": worker_health.ticks_total,
+        "ticks_failed": worker_health.ticks_failed,
+        "restarts": worker_health.restarts,
+    }
+
+
+@app.get("/worker/status")
+def worker_status() -> dict:
+    """Full worker telemetry — ops endpoint. Does NOT 503 when unhealthy (that
+    would create a cascade between /healthz failing and orchestrators killing
+    the container while the web side is fine). Probes should inspect fields."""
+    return _worker_health_dict()
 
 
 @app.get("/metrics")

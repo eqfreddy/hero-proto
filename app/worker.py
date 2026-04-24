@@ -44,12 +44,51 @@ WORKER_INTERVAL_SECONDS = 60.0
 RAID_ROTATION_COOLDOWN_HOURS = 6
 # Auto-rotated raids run for this long before expiring.
 RAID_AUTO_DURATION_HOURS = 24
+# Backoff on loop-level crash (not individual job failures — those are swallowed).
+SUPERVISOR_RESTART_DELAY_SECONDS = 5.0
+SUPERVISOR_RESTART_DELAY_MAX = 60.0
+
+
+class WorkerHealth:
+    """Per-process worker telemetry. Exposed via /healthz and /worker/status so
+    operators / probes can tell the difference between 'running fine' and 'the
+    loop died and nobody noticed'."""
+
+    last_tick_at: "datetime | None" = None
+    last_tick_success: bool = True
+    last_error: str = ""
+    ticks_total: int = 0
+    ticks_failed: int = 0
+    restarts: int = 0  # loop-level crashes the supervisor recovered from
+
+
+health = WorkerHealth()
+
+
+async def _tick_once() -> None:
+    """Run _run_jobs off-thread and record telemetry. Never raises — per-tick
+    failures are swallowed so the outer loop keeps marching."""
+    try:
+        await asyncio.to_thread(_run_jobs)
+        health.last_tick_success = True
+        health.last_error = ""
+    except Exception as exc:
+        health.last_tick_success = False
+        health.last_error = f"{type(exc).__name__}: {exc}"
+        health.ticks_failed += 1
+        log.exception("worker job failed")
+    finally:
+        health.last_tick_at = utcnow()
+        health.ticks_total += 1
 
 
 async def worker_loop() -> None:
+    """Single iteration of the tick loop. Raises CancelledError on shutdown
+    (normal); any other exception is treated as a bug and the supervisor
+    respawns this function. Per-tick failures inside _tick_once are already
+    swallowed, so worker_loop should almost never raise."""
     log.info("worker loop started (interval=%ss)", WORKER_INTERVAL_SECONDS)
     try:
-        # One immediate pass at startup for a fresh DB state.
         await _tick_once()
         while True:
             await asyncio.sleep(WORKER_INTERVAL_SECONDS)
@@ -59,11 +98,24 @@ async def worker_loop() -> None:
         raise
 
 
-async def _tick_once() -> None:
-    try:
-        await asyncio.to_thread(_run_jobs)
-    except Exception:
-        log.exception("worker job failed")
+async def supervised_worker_loop() -> None:
+    """Supervise worker_loop with exponential backoff. If the loop exits with
+    an unexpected exception, log it, wait, and respawn. Cancellation (shutdown
+    signal) propagates cleanly."""
+    backoff = SUPERVISOR_RESTART_DELAY_SECONDS
+    while True:
+        try:
+            await worker_loop()
+            # Loop returned cleanly — shouldn't happen without CancelledError.
+            # Log it and respawn.
+            log.warning("worker_loop exited without cancellation — respawning")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("worker_loop crashed — restarting in %ss", backoff)
+            health.restarts += 1
+        await asyncio.sleep(backoff)
+        backoff = min(backoff * 2, SUPERVISOR_RESTART_DELAY_MAX)
 
 
 def _run_jobs() -> None:
