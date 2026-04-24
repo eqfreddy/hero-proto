@@ -318,3 +318,40 @@ def test_chat_pagination(client) -> None:
     assert len(page2) == 4
     assert all(m["id"] < oldest_so_far for m in page2)
     assert set(m["id"] for m in page1) & set(m["id"] for m in page2) == set()
+
+
+def test_htmx_guild_chat_renders_load_older_when_full_page(client) -> None:
+    """If the guild chat has >= 20 messages, the HTMX partial renders the 'load older' button."""
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Pager-club {random.randint(1,999999)}", "tag": "PGR"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+    # Post 25 messages so the page is full.
+    for i in range(25):
+        r = client.post(f"/guilds/{guild_id}/messages", json={"body": f"msg {i}"}, headers=leader_hdr)
+        assert r.status_code == 201
+
+    r = client.get("/app/partials/guild", headers=leader_hdr)
+    assert r.status_code == 200
+    # The id="chat-load-older" div wraps the button; that markup is only emitted when messages|length >= 20.
+    assert 'id="chat-load-older"' in r.text, "expected 'load older' button markup when chat is full"
+    assert "data-oldest-id" in r.text
+
+
+def test_htmx_guild_chat_hides_load_older_when_sparse(client) -> None:
+    """With fewer than 20 messages, the load-older button shouldn't render."""
+    leader_hdr, _ = _register(client)
+    r = client.post(
+        "/guilds", json={"name": f"Sparse-club {random.randint(1,999999)}", "tag": "SPR"}, headers=leader_hdr,
+    )
+    guild_id = r.json()["id"]
+    # Post 5 messages only.
+    for i in range(5):
+        client.post(f"/guilds/{guild_id}/messages", json={"body": f"few {i}"}, headers=leader_hdr)
+
+    r = client.get("/app/partials/guild", headers=leader_hdr)
+    assert r.status_code == 200
+    # The *markup* for the button uses id="chat-load-older"; the JS references the same id by string.
+    # We check for the DOM id form only.
+    assert 'id="chat-load-older"' not in r.text, "load-older button shouldn't render for small chats"
