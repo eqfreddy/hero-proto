@@ -22,6 +22,10 @@ from app.routers import admin, announcements, arena, auth, battles, daily, gear,
 from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
+
+# Sentry must init before FastAPI creates the app so middleware hooks attach properly.
+from app.sentry_init import init_sentry
+init_sentry()
 log = logging.getLogger("lifespan")
 
 

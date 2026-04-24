@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     log_requests: bool = True
     json_logs: bool = False  # set HEROPROTO_JSON_LOGS=1 in prod for structured logs
 
+    # Sentry error reporting. Empty DSN disables Sentry entirely (default).
+    # In prod, set HEROPROTO_SENTRY_DSN=<your project DSN> to capture unhandled
+    # exceptions + traces. Expected 4xx HTTPExceptions are filtered out.
+    sentry_dsn: str = ""
+    sentry_environment: str = ""  # defaults to `environment` (dev/prod) if empty
+    sentry_traces_sample_rate: float = 0.0  # 0.0 = no perf tracing; tune up later
+
     # Auth
     jwt_secret: str = "dev-only-change-me-at-least-32-bytes-long!"
     jwt_alg: str = "HS256"
