@@ -35,6 +35,9 @@ router = APIRouter(prefix="/arena", tags=["arena"])
 
 
 RATING_WIN = 25
+# Matchmaking widens the rating window progressively when the tight pool is sparse.
+# Last entry None means "no filter — everyone".
+_MATCHMAKING_WINDOWS: tuple[int | None, ...] = (200, 400, 800, None)
 RATING_LOSS = -15
 MIN_RATING = 0
 OPPONENT_SAMPLE_SIZE = 3
@@ -109,17 +112,35 @@ def list_opponents(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[ArenaOpponentOut]:
-    # Pool: accounts with a defense team set, excluding the caller.
-    pool_ids = list(
-        db.scalars(
-            select(DefenseTeam.account_id).where(DefenseTeam.account_id != account.id)
-        )
-    )
-    if not pool_ids:
-        return []
+    """Rating-proximity matchmaking: start with defenders within ±200 rating of the
+    caller and widen the window until we have at least OPPONENT_SAMPLE_SIZE candidates.
+    Banned accounts are excluded. Final list is shuffled within the selected window
+    so two consecutive calls don't always return the same three faces.
+    """
     rng = random.Random()
-    rng.shuffle(pool_ids)
-    chosen = pool_ids[:OPPONENT_SAMPLE_SIZE]
+    my_rating = account.arena_rating
+    chosen: list[int] = []
+    for window in _MATCHMAKING_WINDOWS:
+        stmt = (
+            select(DefenseTeam.account_id)
+            .join(Account, Account.id == DefenseTeam.account_id)
+            .where(
+                DefenseTeam.account_id != account.id,
+                Account.is_banned.is_(False),
+            )
+        )
+        if window is not None:
+            stmt = stmt.where(
+                Account.arena_rating >= my_rating - window,
+                Account.arena_rating <= my_rating + window,
+            )
+        pool_ids = list(db.scalars(stmt))
+        if len(pool_ids) >= OPPONENT_SAMPLE_SIZE or window is None:
+            rng.shuffle(pool_ids)
+            chosen = pool_ids[:OPPONENT_SAMPLE_SIZE]
+            break
+    if not chosen:
+        return []
 
     out: list[ArenaOpponentOut] = []
     for acct_id in chosen:

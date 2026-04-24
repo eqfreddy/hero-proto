@@ -119,3 +119,72 @@ def test_get_nonexistent_arena_match_is_404(client) -> None:
     hdr, _, _ = _register_and_team(client, "ghost")
     r = client.get("/arena/matches/9999999", headers=hdr)
     assert r.status_code == 404
+
+
+def test_opponents_prefer_rating_proximity(client) -> None:
+    """Matchmaking should favor defenders within ±200 rating when pool is dense enough."""
+    # Seed a handful of defenders at varied ratings: 500, 1000, 1500, 2000, 2500.
+    targets = [500, 1000, 1500, 2000, 2500]
+    defender_ids = []
+    for rating in targets:
+        hdr, aid, team = _register_and_team(client, f"rb{rating}")
+        client.put("/arena/defense", json={"team": team}, headers=hdr)
+        # Patch rating directly — arena win/loss is the only natural way to move
+        # the number, and we want precise values.
+        with SessionLocal() as db:
+            a = db.get(Account, aid)
+            a.arena_rating = rating
+            db.commit()
+        defender_ids.append((aid, rating))
+
+    # Attacker pinned at 1500 — should match the 1500 and 1400 and 1600-ish bucket first.
+    atk_hdr, atk_id, _atk_team = _register_and_team(client, "atkmm")
+    with SessionLocal() as db:
+        a = db.get(Account, atk_id)
+        a.arena_rating = 1500
+        db.commit()
+
+    r = client.get("/arena/opponents", headers=atk_hdr)
+    assert r.status_code == 200
+    opps = r.json()
+    assert opps, "expected at least one opponent"
+    # With 5 defenders at spacing 500, only the 1500 defender is in the ±200 window.
+    # Matchmaking widens until it has OPPONENT_SAMPLE_SIZE=3 candidates → next window
+    # is ±400, still only 1500. Next ±800 brings in 1000 and 2000. So returned pool
+    # should be drawn from {1000, 1500, 2000}, NOT the 500 or 2500 outliers.
+    returned_ratings = {o["arena_rating"] for o in opps}
+    assert 500 not in returned_ratings, f"pulled a too-low-rated opponent: {returned_ratings}"
+    assert 2500 not in returned_ratings, f"pulled a too-high-rated opponent: {returned_ratings}"
+
+
+def test_opponents_skips_banned_defenders(client) -> None:
+    """Banned accounts shouldn't appear in matchmaking even if they have a defense team."""
+    def_hdr, def_id, _ = _setup_defender_with_defense_team(client)
+    # Ban the defender.
+    with SessionLocal() as db:
+        a = db.get(Account, def_id)
+        a.is_banned = True
+        db.commit()
+
+    atk_hdr, _, _ = _register_and_team(client, "atkban")
+    r = client.get("/arena/opponents", headers=atk_hdr)
+    assert r.status_code == 200
+    returned_ids = {o["account_id"] for o in r.json()}
+    assert def_id not in returned_ids, "banned defender leaked into opponent list"
+
+
+def test_opponents_widens_window_when_pool_is_sparse(client) -> None:
+    """With an attacker rating way off the grid, matchmaking's None-window fallback
+    still returns opponents rather than an empty list."""
+    atk_hdr, atk_id, _ = _register_and_team(client, "farfarfar")
+    with SessionLocal() as db:
+        a = db.get(Account, atk_id)
+        a.arena_rating = 9999  # well beyond any seeded defender's rating
+        db.commit()
+
+    r = client.get("/arena/opponents", headers=atk_hdr)
+    assert r.status_code == 200
+    # The widening fallback (None window) should find at least one defender from the
+    # shared test DB, even though no one is within ±800 of 9999.
+    opps = r.json()
+    assert opps, "fallback widening failed — got empty opponent list despite defenders existing"
