@@ -239,6 +239,7 @@ class RaidStartIn(BaseModel):
     boss_template_code: str
     boss_level: int = Field(ge=1, le=60, default=20)
     duration_hours: float = Field(gt=0, le=72, default=24.0)
+    tier: str = Field(default="T1", pattern="^T[123]$")
 
 
 class RaidContributor(BaseModel):
@@ -255,6 +256,7 @@ class RaidOut(BaseModel):
     max_hp: int
     remaining_hp: int
     state: RaidState
+    tier: str = "T1"
     starts_at: datetime
     ends_at: datetime
     contributors: list[RaidContributor] = []

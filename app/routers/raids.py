@@ -27,6 +27,7 @@ from app.models import (
     Raid,
     RaidAttempt,
     RaidState,
+    RaidTier,
     Role,
     utcnow,
 )
@@ -35,12 +36,27 @@ from app.schemas import RaidAttackIn, RaidAttackOut, RaidContributor, RaidOut, R
 router = APIRouter(prefix="/raids", tags=["raids"])
 
 # Boss HP = template-scaled HP × this multiplier. Keeps raids a shared, multi-session fight.
-BOSS_HP_MULTIPLIER = 30
+# Per-tier multipliers apply on top.
+BOSS_HP_MULTIPLIER_BASE = 30
 RAID_ENERGY_COST = 10
-# Guild-wide reward pool when boss falls; split evenly among contributors.
-RAID_DEFEAT_COINS = 2000
-RAID_DEFEAT_GEMS = 50
-RAID_DEFEAT_SHARDS = 5
+# Guild-wide base reward pool when boss falls; per-tier multipliers apply.
+RAID_DEFEAT_COINS_BASE = 2000
+RAID_DEFEAT_GEMS_BASE = 50
+RAID_DEFEAT_SHARDS_BASE = 5
+
+# Tier scaling: T2 is 2x T1 HP + rewards, T3 is 4x. Level bump for higher tiers too.
+_TIER_HP_MULT = {RaidTier.T1: 1.0, RaidTier.T2: 2.0, RaidTier.T3: 4.0}
+_TIER_REWARD_MULT = {RaidTier.T1: 1.0, RaidTier.T2: 2.0, RaidTier.T3: 4.0}
+_TIER_LEVEL_BUMP = {RaidTier.T1: 0, RaidTier.T2: 10, RaidTier.T3: 25}
+
+
+def _tier_enum(raid: Raid) -> RaidTier:
+    return RaidTier(raid.tier) if not isinstance(raid.tier, RaidTier) else raid.tier
+
+
+def boss_hp_for_tier(base_hp: int, level: int, tier: RaidTier) -> int:
+    mult = BOSS_HP_MULTIPLIER_BASE * _TIER_HP_MULT[tier]
+    return int(scale_stat(base_hp, level + _TIER_LEVEL_BUMP[tier]) * mult)
 
 
 def _require_guild(db: Session, account: Account) -> GuildMember:
@@ -75,6 +91,7 @@ def _raid_out(db: Session, raid: Raid) -> RaidOut:
         max_hp=raid.max_hp,
         remaining_hp=raid.remaining_hp,
         state=RaidState(raid.state) if not isinstance(raid.state, RaidState) else raid.state,
+        tier=str(_tier_enum(raid)),
         starts_at=raid.started_at,
         ends_at=raid.ends_at,
         contributors=contributors,
@@ -102,7 +119,8 @@ def start_raid(
     if boss is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "boss template not found")
 
-    max_hp = scale_stat(boss.base_hp, body.boss_level) * BOSS_HP_MULTIPLIER
+    tier = RaidTier(body.tier)
+    max_hp = boss_hp_for_tier(boss.base_hp, body.boss_level, tier)
     now = utcnow()
     raid = Raid(
         guild_id=membership.guild_id,
@@ -111,6 +129,7 @@ def start_raid(
         max_hp=max_hp,
         remaining_hp=max_hp,
         state=RaidState.ACTIVE,
+        tier=tier,
         started_at=now,
         ends_at=now + timedelta(hours=body.duration_hours),
         started_by=account.id,
@@ -260,7 +279,17 @@ def attack_raid(
 
 
 def _distribute_rewards(db: Session, raid: Raid) -> dict:
-    """Pay out rewards proportionally to contribution; minimum payout for any participant."""
+    """Pay out rewards proportionally to contribution; minimum payout for any participant.
+
+    Tier multiplier scales the whole pool — T2 pays double, T3 pays quadruple the
+    T1 base values.
+    """
+    tier = _tier_enum(raid)
+    mult = _TIER_REWARD_MULT[tier]
+    coin_pool = int(RAID_DEFEAT_COINS_BASE * mult)
+    gem_pool = int(RAID_DEFEAT_GEMS_BASE * mult)
+    shard_pool = int(RAID_DEFEAT_SHARDS_BASE * mult)
+
     rows = db.execute(
         select(RaidAttempt.account_id, func.sum(RaidAttempt.damage_dealt))
         .where(RaidAttempt.raid_id == raid.id)
@@ -274,11 +303,11 @@ def _distribute_rewards(db: Session, raid: Raid) -> dict:
         a = db.get(Account, acct_id)
         if a is None:
             continue
-        coins = max(100, int(round(RAID_DEFEAT_COINS * share)))
-        gems = max(5, int(round(RAID_DEFEAT_GEMS * share)))
-        shards = max(1, int(round(RAID_DEFEAT_SHARDS * share)))
+        coins = max(100, int(round(coin_pool * share)))
+        gems = max(5, int(round(gem_pool * share)))
+        shards = max(1, int(round(shard_pool * share)))
         a.coins += coins
         a.gems += gems
         a.shards += shards
         paid[acct_id] = {"coins": coins, "gems": gems, "shards": shards}
-    return {"total_contributions": contributions, "payouts": paid}
+    return {"total_contributions": contributions, "payouts": paid, "tier": str(tier)}

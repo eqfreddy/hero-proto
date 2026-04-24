@@ -133,6 +133,12 @@ class RaidState(StrEnum):
     EXPIRED = "EXPIRED"
 
 
+class RaidTier(StrEnum):
+    T1 = "T1"
+    T2 = "T2"
+    T3 = "T3"
+
+
 class StageDifficulty(StrEnum):
     NORMAL = "NORMAL"
     HARD = "HARD"
@@ -417,8 +423,11 @@ class Raid(Base):
     max_hp: Mapped[int] = mapped_column(Integer)
     remaining_hp: Mapped[int] = mapped_column(Integer)
     state: Mapped[RaidState] = mapped_column(String(16), default=RaidState.ACTIVE, index=True)
+    # Difficulty tier: T1 (easy, always on for new guilds) → T3 (elite).
+    tier: Mapped[RaidTier] = mapped_column(String(8), default=RaidTier.T1, index=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
     ends_at: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    # NULL started_by means the worker auto-rotated this raid in rather than a player.
     started_by: Mapped[int | None] = mapped_column(
         ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
     )
