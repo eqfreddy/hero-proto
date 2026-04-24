@@ -77,7 +77,8 @@ The backend is solid. The *new player experience* isn't:
 **1.1 Guided first-session flow**
 - [ ] `/me` partial shows a persistent **"Next step"** card until the player clears tutorial + first real stage + first summon. Each step has a one-click CTA ("Start tutorial", "Do your first summon", etc.).
 - [ ] Tutorial stage auto-links a pre-populated team (first 1–3 heroes owned) so players don't have to pick IDs the first time.
-- [ ] Post-tutorial victory screen shows "You earned: X coins, Y shards. Spend shards on your first summon →" as a clickable path.
+- [ ] **Tutorial completion reward** — on first clear of `tutorial_first_ticket`, grant a free x1 summon token (new `free_summon_credits` field on `Account`; summon router consumes it before charging shards). Post-tutorial victory screen shows: "You earned X coins, Y shards, **+1 free summon**" with a one-click CTA that spends the token.
+- [ ] Post-tutorial victory screen "Do your first summon →" clickable path.
 
 **1.2 Roster visualization (minimum viable)**
 - [ ] Roster tab becomes a grid of rarity-bordered cards (not a list), sorted by power desc.
@@ -92,7 +93,20 @@ The backend is solid. The *new player experience* isn't:
 - [ ] "Use last team" one-click button everywhere a team is needed — pulls from the most recent successful `Battle` for that player.
 - [ ] Battle result screen adds "Save as preset…" button.
 
-**1.4 Quick fixes**
+**1.4 Dedicated Summon tab**
+- [ ] New top-nav tab "Summon" (promoted from the card embedded in /me).
+- [ ] Visual shine: banner art header, current-pity counter ("37 / 50 — 13 more until guaranteed EPIC"), recent-pulls mini-feed (last 10 across all banners).
+- [ ] One banner row for now — the *Standard Banner*. Space reserved for additional banners (event banner in Phase 2, starter banner reserved).
+- [ ] Shards + access-cards balances visible on the tab so players don't navigate away to check.
+- [ ] x1 and x10 buttons per banner; results keep the rarity-bordered card grid from the earlier fix.
+
+**1.5 Starter Pack — "Jump-Ahead Bundle"** (one-time purchase, first-week conversion)
+- [ ] New `ShopProduct`: `starter_jumpahead`, price $4.99, `per_account_limit=1`, disabled after 7 days of account age or after purchase.
+- [ ] Contents tuned to be **helpful, not decisive** — a few days of head start, not a power ceiling. Proposed: 500 gems, 50 shards, 3 access cards, one 4★ RARE hero of the player's role choice. No EPIC or LEGENDARY — those stay gacha-gated. Locked behind the "not P2W" tone.
+- [ ] Appears on the Summon tab as a "Limited offer" card with countdown until it expires.
+- [ ] Auto-hidden post-purchase; ledger records it as a normal purchase.
+
+**1.6 Quick fixes**
 - [ ] Fix any lingering static/index.html vs templates/partials inconsistencies — we hit one this week.
 - [ ] Consolidate "signed in as X" display across the dashboard so the pill header matches /me partial.
 - [ ] Add a visible "shards left" counter on the Summon button.
@@ -104,6 +118,9 @@ The backend is solid. The *new player experience* isn't:
 - Weapon/armor split — Phase 2.
 - PostHog integration — Phase 2.
 - Myth-tier / event-only heroes — Phase 2.
+- **Story / campaign quests beyond the tutorial** — Phase 2 (see 2.6).
+- **Alignment / moral-choice milestone (Corp Greed vs Resistance)** — Phase 3 (see 3.4).
+- **Account-level XP system** — Phase 2 (new concept; doesn't exist yet).
 
 ### Tools adopted in Phase 1
 - **None.** All Phase 1 work is in-house HTML/CSS/JS + new FastAPI routes. No new deps.
@@ -112,12 +129,13 @@ The backend is solid. The *new player experience* isn't:
 A new user from empty DB can:
 1. Register and land on /app/.
 2. See a "Start tutorial" CTA card without navigating.
-3. Click it, battle auto-team, see the victory screen.
-4. Click "Do your first summon" from the victory screen, get a card-grid result.
+3. Click it, battle auto-team, see the victory screen **with a "+1 free summon" grant visible**.
+4. Click through to the **Summon tab**, see the standard banner + pity counter + the limited "Jump-Ahead" starter pack card, use their free summon token without shards.
 5. Open Roster, see at least one hero as a card, click it, see the detail modal.
 6. Save their roster as a preset named "main".
 7. Use the preset on the Battle tab without typing IDs.
-8. `client_walkthrough.py` still passes all 13 sections.
+8. A mock-payments flow completes a `starter_jumpahead` purchase; a second attempt returns 409 (per-account limit enforced).
+9. `client_walkthrough.py` still passes all 13 sections.
 
 ---
 
@@ -155,7 +173,15 @@ A new user from empty DB can:
 - Google Play Billing receipt validation (google-play-billing-validator).
 - Abstract `PaymentAdapter` interface so Stripe / Apple / Google share the `ShopProduct` table.
 
-**2.5 Balance tooling**
+**2.5 Story campaign + account-level XP**
+- New concept: **account level** (separate from hero level), gained by clearing story stages and daily quests. Currently no such thing — we track stages cleared but not player progression level.
+- New `Chapter` → `StoryStage` hierarchy (extending `Stage`). 3–4 opening chapters at Phase 2 launch, each ~5 stages.
+- Text-driven story beats (Jinja template cutscenes between waves) — no new art needed for v1. Flavor references "The Corp" as an unseen antagonist who owns the servers, the pager rota, and your soul.
+- Stages unlock sequentially within a chapter; chapters unlock at account-level thresholds.
+- Chapter-end bonus rewards, tuned to feel meaningful (free summon tokens, access cards, currency).
+- **Exile faction seeded as the default narrative faction** — all new player heroes not already faction-aligned get `Faction.EXILE`. Represents "not yet picked a side" in the bigger political story. Visible as a 6th rarity-badge color but has no mechanical weight until Phase 3.
+
+**2.6 Balance tooling**
 - Jupyter notebook in `analytics/` with numpy + pandas + matplotlib.
 - Simulators: gacha EV / pity distribution, 10k-pull histogram, arena rating convergence, DPS curves by team comp.
 - YAML balance config read by seed.py so designers can tune without touching Python.
@@ -173,6 +199,8 @@ A new user from empty DB can:
 - PostHog dashboard shows live events from a staging walkthrough run.
 - A mock Apple IAP + mock Google Play receipt each grant contents via the shop router, ledger reflects it, refund works.
 - Balance notebook produces a gacha-EV chart checked into the repo.
+- A new account progresses through Chapter 1 → Chapter 2 gated on account-level, with chapter cutscenes rendering and reward grants firing.
+- New accounts start with `EXILE` faction visible; hero pool references work without schema churn.
 
 ---
 
@@ -204,6 +232,20 @@ A new user from empty DB can:
 - 3 rigs (ATK / DEF / SUP), 5 states each (idle / melee / ranged / hit / death).
 - Battle viewer renders Rive above a CSS stage background.
 - Hero portraits stay for out-of-battle; Rive rigs only appear in active fights.
+
+**3.4 Alignment milestone — "Choose a Side"** (level-50 fork)
+- At account level 50, the story surfaces a one-time binding choice: **Corporate Resistance** (take down the Corp) or **Board Ascendant** (become the Corp).
+- Until chosen, the player stays in `Faction.EXILE` — not visibly penalized, but locked out of alignment-gated content.
+- Post-choice: player locks into `Faction.RESISTANCE` or `Faction.CORP_GREED`. Change requires a gem-sink reset (premium, discouraged, not blocked).
+- Two epic quest chapters (one per side) unlock — ~8 stages each, dedicated bosses.
+- Cosmetic + team-composition rewards tied to alignment (alignment-exclusive frames, one unique hero per side).
+- Arena gets soft alignment matchmaking (same-side preferred, cross-side allowed).
+- Guilds remain cross-alignment (don't split the already-small social surface).
+- **Not stat-balance-relevant.** Alignment is flavor + content access, never raw power. Holds the PoE2-style tone.
+
+### Risks (updated)
+- Phase 3 already had design-cost + scope-creep risks from combat. Adding alignment pushes scope — if the Rive integration slips, alignment goes to Phase 3.5 or Phase 4.
+- Moral choice UX needs to feel weighty; bad implementation ("just pick a color") tanks player buy-in.
 
 ### Tools adopted in Phase 3
 - **Rive** (OSS runtime, MIT) — animated actors.
@@ -272,7 +314,63 @@ A new user from empty DB can:
 
 ---
 
-## 11. OSS landscape summary
+## 11. Narrative spine
+
+Framework captured here so story content across phases stays coherent. **Not all of this ships at once.** Delivery cadence:
+
+- **Phase 1:** tutorial-only flavor. No lore beats.
+- **Phase 2:** Chapters 1–4 introduce the world + foreshadow the Corp + establish Exile as default.
+- **Phase 3:** level-50 alignment fork + two faction-specific epic chapters.
+
+### Setting
+
+A near-future corporate dystopia running on legacy infrastructure, held together by exhausted IT workers, compliance officers who read policies aloud as incantations, and a C-suite that learned "AI" from a Gartner keynote.
+
+### Core conflict
+
+**The Corp** is abstract at first — an unseen owner who schedules the pager rotations, signs the access-policy updates, and measures performance in ticket-closure velocity. As the player progresses, fragments reveal a centralized, self-perpetuating machine. Every faction has its reasons for existing inside it.
+
+### Factions (final set, post-Phase 3)
+
+| Faction | Role | Phase introduced |
+|---|---|---|
+| **HELPDESK** | First-line heroes; high spd, low hp | Phase 0 |
+| **DEVOPS** | Engineers who fight the outages | Phase 0 |
+| **LEGACY** | Ghosts of mainframes past; tanks | Phase 0 |
+| **EXECUTIVE** | Suits + advisors; buffs/debuffs | Phase 0 |
+| **ROGUE_IT** | Off-books operators; burst damage | Phase 0 |
+| **EXILE** | Default for new players until aligned | **Phase 2** |
+| **RESISTANCE** | Take-down-the-Corp alignment | **Phase 3** |
+| **CORP_GREED** | Become-the-Corp alignment | **Phase 3** |
+
+Exile lore: heroes who broke something important, quit loudly, or were audited into irrelevance. They're the player's starting-point ensemble.
+
+### Alignment fork (Phase 3 detail)
+
+Two diverging endgame tracks:
+
+**Resistance (the Corp is the villain)**
+- Epic chapter: the player's team infiltrates the Tower, destroys the performance metrics server, topples the board.
+- Cosmetic palette: muted greens, wrenches, torn lanyards.
+- Exclusive hero: "The Whistleblower" — SUP, debuffs all CORP_GREED units in arena.
+
+**Corp Greed (become the Corp)**
+- Epic chapter: the player schemes their way onto the board, monetizes a SaaS product, acquires a rival.
+- Cosmetic palette: golds, leather-bound planners, limited-edition coffee mugs.
+- Exclusive hero: "The Successor" — ATK, bonus damage against any team containing RESISTANCE units.
+
+**Design rule:** each side has equal mechanical weight. Never introduce a situation where one side is the "correct" choice for win-rate.
+
+### Tone guardrails
+
+- The game is satire, not nihilism. Characters care about each other.
+- No political parties, real people, or real companies named.
+- "Corp" is an archetype, not a specific employer — keeps the audience wide.
+- Humor is specific (ticket numbers, escalation loops, "have you tried turning it off") not generic-workplace.
+
+---
+
+## 12. OSS landscape summary
 
 Pulled from a research sweep 2026-04-24. Full notes retained in session history; concrete bets:
 
@@ -286,12 +384,15 @@ Pulled from a research sweep 2026-04-24. Full notes retained in session history;
 
 ---
 
-## 12. Open questions for review
+## 13. Open questions for review
 
-1. **Phase 1 scope feel right for 1–2 weeks?** Or shorter if we cut the team-presets endpoint and do "use last team" only.
+1. **Phase 1 scope feel right for 2 weeks?** Added: tutorial reward, Summon tab redesign, Jump-Ahead starter pack. Still fits if we don't gold-plate the Summon tab visuals. Could trim: cut team-presets endpoint to just "use last team" button to shave ~2 days.
 2. **When to start Phase 4 prep?** Store-compliance work can kick off in parallel with Phase 2 if we want to be in-store faster.
 3. **Designer source.** Phase 3 assumes design-AI or human delivers Rive files. If neither is available on schedule, Phase 3 reverts to stick-figure placeholders (cheaper but less polished).
 4. **Monetization SKU list.** PoE2-style is the tone; concrete SKUs for Phase 2.4 still need writing. Want a mini-PRD on just that?
+5. **Starter pack power level.** Proposed: 500 gems + 50 shards + 3 access cards + one 4★ RARE. Question: is a 4★ RARE too much for $4.99 (F2P discontent) or not enough (low conversion)? Could swap to "pick one of 3 RARE options" so it feels like choice. Want a sanity check from a target-audience playtester before locking.
+6. **Exile as Phase 2 vs Phase 3.** Right now Exile is Phase 2 (cosmetic default), alignment fork is Phase 3 (mechanical choice). Alternative: push Exile to Phase 3 and keep new players in their factional homes until the fork. Lean against: Exile-as-default reinforces the narrative that new players are *outsiders* the Corp doesn't care about yet.
+7. **Account-level cap.** If alignment fork is at level 50, what's cap? 100? 200? Gacha games usually run 100–500. Open for Phase 2 tuning.
 
 ---
 
