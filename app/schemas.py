@@ -284,6 +284,8 @@ class StageOut(BaseModel):
     coin_reward: int
     first_clear_gems: int
     first_clear_shards: int
+    difficulty_tier: str = "NORMAL"
+    requires_code: str = ""
 
 
 class TeamMember(BaseModel):

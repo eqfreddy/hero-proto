@@ -138,8 +138,10 @@ def partial_stages(
     db: Annotated[Session, Depends(get_db)],
 ) -> HTMLResponse:
     cleared = load_cleared(account)
-    stages = [
-        {
+    rows = []
+    for s in db.scalars(select(Stage).order_by(Stage.order)):
+        locked = bool(s.requires_code) and s.requires_code not in cleared
+        rows.append({
             "id": s.id, "code": s.code, "name": s.name, "order": s.order,
             "energy_cost": s.energy_cost,
             "recommended_power": s.recommended_power,
@@ -147,11 +149,16 @@ def partial_stages(
             "first_clear_gems": s.first_clear_gems,
             "first_clear_shards": s.first_clear_shards,
             "cleared": s.code in cleared,
-        }
-        for s in db.scalars(select(Stage).order_by(Stage.order))
-    ]
+            "difficulty_tier": str(s.difficulty_tier),
+            "requires_code": s.requires_code,
+            "locked": locked,
+        })
+    normal = [r for r in rows if r["difficulty_tier"] == "NORMAL"]
+    hard = [r for r in rows if r["difficulty_tier"] == "HARD"]
+    nightmare = [r for r in rows if r["difficulty_tier"] == "NIGHTMARE"]
     return templates.TemplateResponse(
-        request, "partials/stages.html", {"stages": stages, "me": _me_dict(account)}
+        request, "partials/stages.html",
+        {"normal": normal, "hard": hard, "nightmare": nightmare, "me": _me_dict(account)},
     )
 
 

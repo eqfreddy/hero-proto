@@ -28,6 +28,8 @@ def stage_out(s: Stage) -> StageOut:
         coin_reward=s.coin_reward,
         first_clear_gems=s.first_clear_gems,
         first_clear_shards=s.first_clear_shards,
+        difficulty_tier=str(s.difficulty_tier),
+        requires_code=s.requires_code,
     )
 
 

@@ -3,33 +3,65 @@
     <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Stages</h2>
     <div class="muted" style="font-size: 12px;">⚡ energy {{ me.energy }}/{{ me.energy_cap }} · team size 3</div>
   </div>
-  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px;">
-    {% for s in stages %}
-    <div class="card" style="padding: 12px;">
+
+  {# Reusable stage card — tier determines styling accents. #}
+  {% macro stage_card(s, tier_tint) %}
+    <div class="card{% if s.locked %} stage-locked{% endif %}" style="padding: 12px; {% if s.locked %}opacity: 0.55;{% endif %} border-left: 3px solid {{ tier_tint }};">
       <div class="row" style="justify-content: space-between; align-items: start;">
         <div>
-          <div style="font-weight: 600;">{{ s.order }}. {{ s.name }}</div>
+          <div style="font-weight: 600;">
+            {% if s.locked %}🔒 {% endif %}{{ s.name }}
+          </div>
           <div class="muted" style="font-size: 11px;">{{ s.code }}</div>
         </div>
-        {% if s.cleared %}<span class="pill good">✓ cleared</span>{% endif %}
+        <div>
+          {% if s.cleared %}<span class="pill good">✓ cleared</span>{% endif %}
+          {% if s.difficulty_tier != 'NORMAL' %}<span class="pill" style="color: {{ tier_tint }};">{{ s.difficulty_tier }}</span>{% endif %}
+        </div>
       </div>
       <div class="row" style="gap: 10px; margin-top: 6px; font-size: 12px;">
         <span>⚡ {{ s.energy_cost }}</span>
         <span class="muted">rec power {{ s.recommended_power }}</span>
         <span class="muted">{{ s.coin_reward }} coins</span>
-        {% if not s.cleared %}
+        {% if not s.cleared and not s.locked %}
           <span style="color: var(--r-legendary);">+ {{ s.first_clear_gems }} 💎 + {{ s.first_clear_shards }} ✦ (first clear)</span>
         {% endif %}
       </div>
-      <div class="row" style="margin-top: 10px; gap: 6px;">
-        <input type="text" id="team-{{ s.id }}" placeholder="hero ids (comma-sep)" style="flex: 1; min-width: 0;" />
-        <button class="primary" onclick="battleStage({{ s.id }})">Battle</button>
-        {% if s.cleared %}<button class="secondary" onclick="sweepStage({{ s.id }})" title="sweep cleared stage">Sweep</button>{% endif %}
-      </div>
-      <div id="stage-result-{{ s.id }}" style="margin-top: 8px; font-size: 12px;"></div>
+      {% if s.locked %}
+        <div class="muted" style="margin-top: 10px; font-size: 12px;">
+          🔒 clear <code style="color: var(--r-rare);">{{ s.requires_code }}</code> on NORMAL first
+        </div>
+      {% else %}
+        <div class="row" style="margin-top: 10px; gap: 6px;">
+          <input type="text" id="team-{{ s.id }}" placeholder="hero ids (comma-sep)" style="flex: 1; min-width: 0;" />
+          <button class="primary" onclick="battleStage({{ s.id }})">Battle</button>
+          {% if s.cleared %}<button class="secondary" onclick="sweepStage({{ s.id }})" title="sweep cleared stage">Sweep</button>{% endif %}
+        </div>
+        <div id="stage-result-{{ s.id }}" style="margin-top: 8px; font-size: 12px;"></div>
+      {% endif %}
     </div>
-    {% endfor %}
-  </div>
+  {% endmacro %}
+
+  {% if normal %}
+    <h3 style="margin: 10px 0 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Normal</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px;">
+      {% for s in normal %}{{ stage_card(s, '#9ca7b3') }}{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if hard %}
+    <h3 style="margin: 14px 0 4px; font-size: 12px; color: var(--r-rare); text-transform: uppercase; letter-spacing: 0.5px;">Hard</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px;">
+      {% for s in hard %}{{ stage_card(s, '#59a0ff') }}{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if nightmare %}
+    <h3 style="margin: 14px 0 4px; font-size: 12px; color: var(--r-legendary); text-transform: uppercase; letter-spacing: 0.5px;">Nightmare</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px;">
+      {% for s in nightmare %}{{ stage_card(s, '#ffd86b') }}{% endfor %}
+    </div>
+  {% endif %}
 </div>
 <script>
   async function battleStage(stageId) {

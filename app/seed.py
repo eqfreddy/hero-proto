@@ -27,6 +27,7 @@ from app.models import (
     ShopProduct,
     ShopProductKind,
     Stage,
+    StageDifficulty,
     utcnow,
 )
 
@@ -591,18 +592,44 @@ def seed() -> None:
         existing_stage_codes = set(db.scalars(select(Stage.code)).all())
         added_s = 0
         for s in STAGE_SEEDS:
-            if s["code"] in existing_stage_codes:
-                continue
-            db.add(Stage(
-                code=s["code"], name=s["name"], order=s["order"],
-                energy_cost=s["energy_cost"],
-                recommended_power=s["recommended_power"],
-                waves_json=json.dumps(s["waves"]),
-                coin_reward=s["coin_reward"],
-                first_clear_gems=s["first_clear_gems"],
-                first_clear_shards=s["first_clear_shards"],
-            ))
-            added_s += 1
+            if s["code"] not in existing_stage_codes:
+                db.add(Stage(
+                    code=s["code"], name=s["name"], order=s["order"],
+                    energy_cost=s["energy_cost"],
+                    recommended_power=s["recommended_power"],
+                    waves_json=json.dumps(s["waves"]),
+                    coin_reward=s["coin_reward"],
+                    first_clear_gems=s["first_clear_gems"],
+                    first_clear_shards=s["first_clear_shards"],
+                    difficulty_tier=StageDifficulty.NORMAL,
+                ))
+                added_s += 1
+
+            # --- HARD tier: same waves, enemies +10 levels, 1.5x rewards, gated on NORMAL clear.
+            hard_code = f"H-{s['code']}"
+            if hard_code not in existing_stage_codes:
+                scaled_waves = []
+                for w in s["waves"]:
+                    scaled_waves.append({
+                        "enemies": [
+                            {"template_code": e["template_code"], "level": int(e.get("level", 1)) + 10}
+                            for e in w.get("enemies", [])
+                        ]
+                    })
+                db.add(Stage(
+                    code=hard_code,
+                    name=f"{s['name']} (Hard)",
+                    order=s["order"] + 100,   # keeps NORMAL sorted first by `order`
+                    energy_cost=s["energy_cost"] + 1,
+                    recommended_power=s["recommended_power"] * 2,
+                    waves_json=json.dumps(scaled_waves),
+                    coin_reward=int(s["coin_reward"] * 1.5),
+                    first_clear_gems=s["first_clear_gems"] * 2,
+                    first_clear_shards=s["first_clear_shards"] * 2,
+                    difficulty_tier=StageDifficulty.HARD,
+                    requires_code=s["code"],
+                ))
+                added_s += 1
 
         # Welcome LiveOps event: 7-day DOUBLE_REWARDS window starting now.
         added_l = 0

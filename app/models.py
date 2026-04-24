@@ -133,6 +133,12 @@ class RaidState(StrEnum):
     EXPIRED = "EXPIRED"
 
 
+class StageDifficulty(StrEnum):
+    NORMAL = "NORMAL"
+    HARD = "HARD"
+    NIGHTMARE = "NIGHTMARE"
+
+
 class Account(Base):
     __tablename__ = "accounts"
 
@@ -229,6 +235,14 @@ class Stage(Base):
     coin_reward: Mapped[int] = mapped_column(Integer, default=100)
     first_clear_gems: Mapped[int] = mapped_column(Integer, default=25)
     first_clear_shards: Mapped[int] = mapped_column(Integer, default=1)
+    # Campaign tier. Higher tiers share the waves of their NORMAL counterpart but
+    # with scaled enemy levels + rewards. HARD gated on NORMAL clear.
+    difficulty_tier: Mapped[StageDifficulty] = mapped_column(
+        String(16), default=StageDifficulty.NORMAL, index=True
+    )
+    # For HARD+ tiers: the code of the NORMAL stage whose clear unlocks this one.
+    # Empty string means "no prerequisite" (NORMAL tier stages).
+    requires_code: Mapped[str] = mapped_column(String(64), default="")
 
 
 class Battle(Base):

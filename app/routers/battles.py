@@ -80,6 +80,13 @@ def fight(
     if stage is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "stage not found")
 
+    # Higher tiers gate on their NORMAL prerequisite being cleared.
+    if stage.requires_code and stage.requires_code not in load_cleared(account):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"locked: clear {stage.requires_code!r} on NORMAL first",
+        )
+
     # Load player team (must all be owned).
     heroes: list[HeroInstance] = []
     for hid in body.team:
