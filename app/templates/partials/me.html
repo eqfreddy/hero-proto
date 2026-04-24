@@ -1,4 +1,24 @@
 <div class="stack">
+  {% if next_step %}
+  <div class="card" style="background: linear-gradient(135deg, rgba(78,161,255,0.12), rgba(78,161,255,0.02)); border-left: 3px solid var(--accent);">
+    <div class="row" style="justify-content: space-between; align-items: center; gap: 12px;">
+      <div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 700;">Next step</div>
+        <div style="font-size: 16px; font-weight: 700; margin-top: 2px;">{{ next_step.title }}</div>
+        <div class="muted" style="font-size: 12px; margin-top: 4px;">{{ next_step.body }}</div>
+      </div>
+      <div style="flex-shrink: 0;">
+        {% if next_step.auto_battle_stage %}
+          <button class="primary" onclick="startTutorial(this, '{{ next_step.auto_battle_stage }}')">{{ next_step.cta }} →</button>
+        {% else %}
+          <button class="primary" hx-get="{{ next_step.href }}" hx-target="#content" hx-swap="innerHTML">{{ next_step.cta }} →</button>
+        {% endif %}
+      </div>
+    </div>
+    <div id="next-step-result" style="font-size: 12px; margin-top: 8px;"></div>
+  </div>
+  {% endif %}
+
   {% if announcements %}
   <div class="stack" style="gap: 6px;">
     {% for a in announcements %}
@@ -139,6 +159,78 @@
       ${item.pulled_epic_pity ? '<div style="color: var(--warn); font-size: 10px; margin-top: 4px;">💥 pity triggered</div>' : ''}
     `;
     return card;
+  }
+
+  // --- Tutorial auto-battle ---------------------------------------------
+  // Picks the player's top-power heroes, fires POST /battles against the
+  // tutorial stage, shows the result inline. Runs the "first-session" grant
+  // path so the victory-screen tutorial_reward shows the +1 summon token.
+  async function startTutorial(btn, stageCode) {
+    btn.disabled = true;
+    const out = document.getElementById('next-step-result');
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      // Find the tutorial stage by code (iterate /stages — small set).
+      const stages = await fetch('/stages', {
+        headers: { authorization: 'Bearer ' + token },
+      }).then(r => r.json());
+      const stage = stages.find(s => s.code === stageCode);
+      if (!stage) {
+        out.innerHTML = '<span style="color: var(--bad);">Tutorial stage missing — re-seed content.</span>';
+        btn.disabled = false;
+        return;
+      }
+      // Pick top 3 by power.
+      const heroes = await fetch('/heroes/mine', {
+        headers: { authorization: 'Bearer ' + token },
+      }).then(r => r.json());
+      const team = [...heroes].sort((a, b) => (b.power || 0) - (a.power || 0)).slice(0, 3).map(h => h.id);
+      if (team.length === 0) {
+        out.innerHTML = '<span style="color: var(--bad);">No heroes on your account. Re-register?</span>';
+        btn.disabled = false;
+        return;
+      }
+      out.innerHTML = '<span class="muted">Running auto-battle...</span>';
+      const res = await fetch('/battles', {
+        method: 'POST',
+        headers: {
+          'authorization': 'Bearer ' + token,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ stage_id: stage.id, team }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">Battle failed: ${body.detail || res.status}</span>`;
+        btn.disabled = false;
+        return;
+      }
+      const outcome = body.outcome;
+      const tut = body.rewards && body.rewards.tutorial_reward;
+      let html = '';
+      if (outcome === 'WIN') {
+        html = `<span style="color: var(--good);">✓ ${outcome}</span>`;
+        if (body.first_clear) html += ' <span class="pill good">first clear</span>';
+        const grants = [];
+        if (body.rewards?.coins) grants.push(`+${body.rewards.coins} coins`);
+        if (body.rewards?.gems) grants.push(`+${body.rewards.gems} gems`);
+        if (body.rewards?.shards) grants.push(`+${body.rewards.shards} shards`);
+        if (tut) grants.push('<strong style="color: var(--r-legendary);">+1 free summon</strong>');
+        html += `<div class="muted" style="font-size: 12px; margin-top: 4px;">${grants.join(' · ')}</div>`;
+        if (tut) {
+          html += `<div style="margin-top: 8px;"><button class="primary" hx-get="/app/partials/summon" hx-target="#content" hx-swap="innerHTML">Use your free summon →</button></div>`;
+        }
+      } else {
+        html = `<span style="color: var(--bad);">${outcome} — try upgrading your team or running the battle manually.</span>`;
+      }
+      out.innerHTML = html;
+      if (window.htmx) window.htmx.process(out);
+      // Refresh /me panel after a beat so the Next-Step card advances.
+      setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 1800);
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+      btn.disabled = false;
+    }
   }
 
   async function doSummon(btn, count) {

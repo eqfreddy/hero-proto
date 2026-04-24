@@ -62,10 +62,17 @@ class MeOut(BaseModel):
     coins: int
     shards: int
     access_cards: int
+    # Free x1 summon tokens (tutorial reward, starter pack, LiveOps).
+    free_summon_credits: int = 0
     energy: int
     energy_cap: int
     pulls_since_epic: int
     stages_cleared: list[str]
+    # First-session progression flags — drives the "Next step" CTA card
+    # on the dashboard. Clients use these to know which CTA to show.
+    tutorial_cleared: bool = False
+    has_summoned: bool = False
+    has_battled: bool = False
 
 
 class HeroTemplateOut(BaseModel):

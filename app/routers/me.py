@@ -16,14 +16,20 @@ from app.daily_bonus import (
 from app.db import get_db
 from app.deps import get_current_account
 from app.economy import compute_energy, load_cleared
-from app.models import Account, Guild, GuildMember, GuildRole
+from app.models import Account, Battle, Guild, GuildMember, GuildRole, HeroInstance
 from app.schemas import MeOut
 
 router = APIRouter(prefix="/me", tags=["me"])
 
 
 @router.get("", response_model=MeOut)
-def get_me(account: Annotated[Account, Depends(get_current_account)]) -> MeOut:
+def get_me(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> MeOut:
+    cleared = load_cleared(account)
+    has_summoned = db.query(HeroInstance).filter_by(account_id=account.id).limit(1).first() is not None
+    has_battled = db.query(Battle).filter_by(account_id=account.id).limit(1).first() is not None
     return MeOut(
         id=account.id,
         email=account.email,
@@ -31,10 +37,14 @@ def get_me(account: Annotated[Account, Depends(get_current_account)]) -> MeOut:
         coins=account.coins,
         shards=account.shards,
         access_cards=account.access_cards,
+        free_summon_credits=account.free_summon_credits or 0,
         energy=compute_energy(account),
         energy_cap=settings.energy_cap,
         pulls_since_epic=account.pulls_since_epic,
-        stages_cleared=sorted(load_cleared(account)),
+        stages_cleared=sorted(cleared),
+        tutorial_cleared="tutorial_first_ticket" in cleared,
+        has_summoned=has_summoned,
+        has_battled=has_battled,
     )
 
 

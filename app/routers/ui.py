@@ -61,6 +61,7 @@ def _me_dict(account: Account) -> dict:
         "gems": account.gems,
         "shards": account.shards,
         "access_cards": account.access_cards,
+        "free_summon_credits": account.free_summon_credits or 0,
         "energy": compute_energy(account),
         "energy_cap": settings.energy_cap,
         "pulls_since_epic": account.pulls_since_epic,
@@ -69,6 +70,67 @@ def _me_dict(account: Account) -> dict:
         "arena_wins": account.arena_wins,
         "arena_losses": account.arena_losses,
     }
+
+
+def _next_step(account: Account, db: Session) -> dict | None:
+    """Compute the first unmet onboarding milestone for the Next-Step CTA card.
+    Returns None once all early-game milestones are hit so the card self-dismisses.
+
+    Milestones (ordered; earliest-unmet wins):
+      1. Clear the tutorial stage
+      2. Do your first summon
+      3. Win your first real-campaign battle (post-tutorial)
+      4. Claim your daily login bonus if available
+    """
+    from app.models import Battle, HeroInstance, Stage
+
+    cleared = load_cleared(account)
+
+    if "tutorial_first_ticket" not in cleared:
+        return {
+            "key": "tutorial",
+            "title": "Start the tutorial",
+            "body": "First Ticket — a gentle introduction. We pick the team for you; just click Battle.",
+            "cta": "Start tutorial",
+            "href": "/app/partials/stages",
+            "auto_battle_stage": "tutorial_first_ticket",
+        }
+
+    # Post-tutorial: prompt for the first gacha pull. Starter heroes don't
+    # count — we want the player to experience the summon loop.
+    summons_done = db.query(HeroInstance).filter(
+        HeroInstance.account_id == account.id,
+    ).count()
+    if summons_done <= 3:  # still only starter team
+        credit = account.free_summon_credits or 0
+        body = (
+            f"You have {credit} free summon token" + ("s" if credit != 1 else "") + "."
+            if credit > 0
+            else f"Spend 1 shard ({account.shards} available) to pull your first hero."
+        )
+        return {
+            "key": "summon",
+            "title": "Do your first summon",
+            "body": body,
+            "cta": "Open Summon",
+            "href": "/app/partials/summon",
+        }
+
+    has_real_battle = db.query(Battle).join(Stage).filter(
+        Battle.account_id == account.id,
+        Stage.code != "tutorial_first_ticket",
+    ).limit(1).first() is not None
+    if not has_real_battle:
+        return {
+            "key": "first_battle",
+            "title": "Win your first real battle",
+            "body": "The tutorial's done. Take a team into the main campaign.",
+            "cta": "Open Stages",
+            "href": "/app/partials/stages",
+        }
+
+    # All onboarding milestones hit — no CTA.
+    return None
 
 
 @router.get("", response_class=HTMLResponse)
@@ -122,7 +184,11 @@ def partial_me(
     ]
     return templates.TemplateResponse(
         request, "partials/me.html",
-        {"me": me, "guild": guild, "announcements": announcements, "daily_bonus": daily_bonus},
+        {
+            "me": me, "guild": guild,
+            "announcements": announcements, "daily_bonus": daily_bonus,
+            "next_step": _next_step(account, db),
+        },
     )
 
 

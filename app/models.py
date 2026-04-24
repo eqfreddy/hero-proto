@@ -195,6 +195,17 @@ class Account(Base):
     refills_today_key: Mapped[str] = mapped_column(String(10), default="")
     refills_today_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Free x1 summon tokens — consumed by /summon/x1 before shards. Granted by
+    # first-time events (tutorial completion, starter pack, LiveOps). Can stack.
+    free_summon_credits: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Progression flag: have we granted the tutorial-clear reward for this
+    # account yet? Prevents double-dipping via delete + re-register loops on
+    # the same email address in SQLite dev setups. Stage clears themselves are
+    # tracked in stages_cleared_json; this separate bit records that the
+    # one-time reward was paid out.
+    tutorial_reward_granted: Mapped[bool] = mapped_column(Boolean, default=False)
+
     # Email verification state. Unverified accounts can still play, but endpoints
     # that require verification (trading, big gem purchases, recovery) can gate
     # on this via deps.get_verified_account. Timestamp is set when verified.

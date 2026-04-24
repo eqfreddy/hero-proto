@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_account
-from app.models import Account, EmailVerificationToken, utcnow
+from app.models import Account, EmailVerificationToken, HeroInstance, HeroTemplate, Rarity, utcnow
 from app.schemas import LoginIn, RegisterIn, TokenOut
 from app.security import hash_password, issue_token, verify_password
 
@@ -18,6 +18,37 @@ def _maybe_promote_admin(account: Account) -> None:
     """Promote to admin if their email is in HEROPROTO_ADMIN_EMAILS. Idempotent."""
     if not account.is_admin and account.email.lower() in settings.admin_email_set():
         account.is_admin = True
+
+
+STARTER_TEAM_SIZE = 3
+
+
+def _grant_starter_team(db: Session, account: Account) -> None:
+    """Grant the player a 3-hero starter roster from the COMMON pool.
+
+    Without this, a brand-new account has no heroes to field for the tutorial
+    battle — the whole guided-first-session flow dead-ends at step 1. Keep
+    the starter pool deliberately weak (COMMON only) so gacha pulls still
+    feel like an upgrade.
+    """
+    import random as _random
+
+    commons = list(db.scalars(
+        select(HeroTemplate).where(HeroTemplate.rarity == Rarity.COMMON)
+    ))
+    if not commons:
+        # Degenerate content state; skip silently rather than 500 registration.
+        return
+    rng = _random.Random()
+    # Pick with replacement so small COMMON pools still fill the team; dupes are
+    # fine and actually useful for the ascension-fodder flow.
+    picks = [rng.choice(commons) for _ in range(STARTER_TEAM_SIZE)]
+    for tmpl in picks:
+        db.add(HeroInstance(
+            account_id=account.id,
+            template_id=tmpl.id,
+            level=1, xp=0,
+        ))
 
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
@@ -35,6 +66,7 @@ def register(body: RegisterIn, db: Annotated[Session, Depends(get_db)]) -> Token
     _maybe_promote_admin(account)
     db.add(account)
     db.flush()
+    _grant_starter_team(db, account)
     _row, refresh_raw = _issue_refresh_token(db, account)
     db.commit()
     db.refresh(account)

@@ -170,6 +170,19 @@ def fight(
         liveops_multiplier=reward_multiplier(db),
     )
 
+    # Tutorial completion reward: grant one free summon token on the first
+    # successful clear of the tutorial stage. Gated by tutorial_reward_granted
+    # so delete+re-register loops don't re-award it.
+    tutorial_reward_payload: dict | None = None
+    if (
+        outcome == BattleOutcome.WIN
+        and stage.code == "tutorial_first_ticket"
+        and not account.tutorial_reward_granted
+    ):
+        account.free_summon_credits = (account.free_summon_credits or 0) + 1
+        account.tutorial_reward_granted = True
+        tutorial_reward_payload = {"free_summon_credits": 1}
+
     # Daily quest progression on wins (per-battle + stage-specific + hard-tier).
     completed_dailies: list[int] = []
     if outcome == BattleOutcome.WIN:
@@ -182,6 +195,8 @@ def fight(
     rewards_extra = rewards.as_json()
     rewards_extra["gear"] = None
     rewards_extra["completed_daily_quest_ids"] = completed_dailies
+    if tutorial_reward_payload is not None:
+        rewards_extra["tutorial_reward"] = tutorial_reward_payload
     if outcome == BattleOutcome.WIN:
         drop_chance = 0.70 if first_clear else 0.35
         drop_chance += gear_drop_bonus(db)
