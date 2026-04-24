@@ -33,6 +33,7 @@ def day_key(dt: datetime | None = None) -> str:
 # Templates of daily quests. The rotator picks 3 at random per day.
 # Rewards chosen to be meaningful but not free LEGENDARYs.
 TEMPLATES: list[dict] = [
+    # Early/mid game
     {"kind": DailyQuestKind.WIN_BATTLES, "goal": 3, "reward_coins": 200, "reward_gems": 10},
     {"kind": DailyQuestKind.WIN_BATTLES, "goal": 5, "reward_coins": 350, "reward_gems": 15, "reward_shards": 1},
     {"kind": DailyQuestKind.SUMMON_HEROES, "goal": 3, "reward_coins": 150, "reward_gems": 5},
@@ -40,6 +41,15 @@ TEMPLATES: list[dict] = [
     {"kind": DailyQuestKind.ARENA_ATTACKS, "goal": 2, "reward_coins": 200, "reward_gems": 15},
     {"kind": DailyQuestKind.CLEAR_STAGE_X, "goal": 1, "target": "onboarding_day", "reward_coins": 100, "reward_gems": 5},
     {"kind": DailyQuestKind.CLEAR_STAGE_X, "goal": 1, "target": "first_outage", "reward_coins": 150, "reward_gems": 10},
+    # Late game — pays better because the content is harder.
+    {"kind": DailyQuestKind.CLEAR_HARD_STAGE, "goal": 1, "reward_coins": 400, "reward_gems": 25, "reward_shards": 2},
+    {"kind": DailyQuestKind.CLEAR_HARD_STAGE, "goal": 3, "reward_coins": 800, "reward_gems": 50, "reward_shards": 5},
+    # Raids — deal damage to your guild's active boss. Progress in HP points.
+    {"kind": DailyQuestKind.RAID_DAMAGE, "goal": 50_000, "reward_coins": 500, "reward_gems": 20, "reward_shards": 3},
+    {"kind": DailyQuestKind.RAID_DAMAGE, "goal": 200_000, "reward_coins": 1200, "reward_gems": 50, "reward_shards": 8},
+    # SPEND_GEMS templates intentionally omitted until a gem sink (energy refill,
+    # fast-complete, etc.) lands. The on_gems_spent() hook is staged so wiring is
+    # a one-liner once the sink exists.
 ]
 
 
@@ -132,3 +142,22 @@ def on_summon(db: Session, account: Account, count: int = 1) -> list[DailyQuest]
 
 def on_arena_attack(db: Session, account: Account) -> list[DailyQuest]:
     return _progress_kind(db, account, DailyQuestKind.ARENA_ATTACKS)
+
+
+def on_hard_stage_clear(db: Session, account: Account) -> list[DailyQuest]:
+    """Called when a battle on a HARD-tier stage ends with a WIN outcome."""
+    return _progress_kind(db, account, DailyQuestKind.CLEAR_HARD_STAGE)
+
+
+def on_raid_damage(db: Session, account: Account, damage: int) -> list[DailyQuest]:
+    """Damage-dealt goals advance by the raw damage amount each attack."""
+    if damage <= 0:
+        return []
+    return _progress_kind(db, account, DailyQuestKind.RAID_DAMAGE, amount=damage)
+
+
+def on_gems_spent(db: Session, account: Account, amount: int) -> list[DailyQuest]:
+    """Summon shards were paid for with gems, store gem-equivalent purchase, etc."""
+    if amount <= 0:
+        return []
+    return _progress_kind(db, account, DailyQuestKind.SPEND_GEMS, amount=amount)

@@ -258,6 +258,10 @@ def attack_raid(
 
     db.add(RaidAttempt(raid_id=raid.id, account_id=account.id, damage_dealt=damage))
 
+    # Daily-quest hook: RAID_DAMAGE advances by the raw damage dealt this attack.
+    from app.daily import on_raid_damage
+    on_raid_damage(db, account, damage)
+
     rewards_payload: dict | None = None
     defeated = False
     if raid.remaining_hp <= 0:

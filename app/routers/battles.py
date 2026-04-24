@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.combat import CombatUnit, build_unit, simulate, trim_combat_log
-from app.daily import on_battle_won
+from app.daily import on_battle_won, on_hard_stage_clear
 from app.db import get_db
 from app.deps import get_current_account
 from app.economy import award_rewards, consume_energy, load_cleared, mark_cleared
@@ -166,10 +166,13 @@ def fight(
         liveops_multiplier=reward_multiplier(db),
     )
 
-    # Daily quest progression on wins (per-battle win + stage-specific).
+    # Daily quest progression on wins (per-battle + stage-specific + hard-tier).
     completed_dailies: list[int] = []
     if outcome == BattleOutcome.WIN:
         completed_dailies = [q.id for q in on_battle_won(db, account, stage.code)]
+        from app.models import StageDifficulty as _SD
+        if stage.difficulty_tier == _SD.HARD:
+            completed_dailies += [q.id for q in on_hard_stage_clear(db, account)]
 
     # Gear drop: 35% chance on win, 70% on first clear.
     rewards_extra = rewards.as_json()

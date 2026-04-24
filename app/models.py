@@ -76,10 +76,13 @@ class GearSet(StrEnum):
 
 
 class DailyQuestKind(StrEnum):
-    WIN_BATTLES = "WIN_BATTLES"  # progress per battle WIN
-    SUMMON_HEROES = "SUMMON_HEROES"  # progress per pull
-    ARENA_ATTACKS = "ARENA_ATTACKS"  # progress per arena attack regardless of outcome
-    CLEAR_STAGE_X = "CLEAR_STAGE_X"  # progress when clearing a specific stage code
+    WIN_BATTLES = "WIN_BATTLES"          # progress per battle WIN
+    SUMMON_HEROES = "SUMMON_HEROES"      # progress per pull
+    ARENA_ATTACKS = "ARENA_ATTACKS"      # progress per arena attack regardless of outcome
+    CLEAR_STAGE_X = "CLEAR_STAGE_X"      # progress when clearing a specific stage code
+    CLEAR_HARD_STAGE = "CLEAR_HARD_STAGE"  # progress per clear of any HARD-tier stage
+    RAID_DAMAGE = "RAID_DAMAGE"          # progress per point of damage dealt in raids
+    SPEND_GEMS = "SPEND_GEMS"            # progress per gem spent (summons, shop, etc.)
 
 
 class DailyQuestStatus(StrEnum):
