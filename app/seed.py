@@ -746,13 +746,29 @@ STAGE_SEEDS: list[dict] = [
 # All are catalog entries; real Stripe integration is a later sprint.
 
 SHOP_SEEDS: list[dict] = [
-    # Starter pack — one-time purchase, high perceived value to convert first-time payers.
+    # Starter pack — cheap $1.99 first-purchase converter.
     {
         "sku": "starter_pack", "title": "Starter Pack",
         "description": "New-player bundle: 500 gems, 100 shards, 5 access cards. One-time only.",
         "kind": ShopProductKind.STARTER_BUNDLE,
         "price_cents": 199, "sort_order": 10, "per_account_limit": 1,
         "contents": {"gems": 500, "shards": 100, "access_cards": 5},
+    },
+    # Jump-Ahead Bundle — richer starter for $4.99. Adds one RARE hero so
+    # players who want to skip the early COMMON grind can, without paywalling
+    # EPIC/LEGENDARY (those stay gacha-only to keep the PoE2-style tone).
+    # 7-day availability window is enforced at the UI level (ui.partial_summon
+    # checks starter_expires_at against Account.created_at). Backend just
+    # honors per_account_limit=1.
+    {
+        "sku": "starter_jumpahead", "title": "Jump-Ahead Bundle",
+        "description": "500 gems, 50 shards, 3 access cards, and one RARE helpdesk hero (Keymaster Gary). One-time only, first 7 days.",
+        "kind": ShopProductKind.STARTER_BUNDLE,
+        "price_cents": 499, "sort_order": 20, "per_account_limit": 1,
+        "contents": {
+            "gems": 500, "shards": 50, "access_cards": 3,
+            "hero_template_code": "keymaster_gary",
+        },
     },
     # Gem packs — standard premium-currency ladder.
     {
