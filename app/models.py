@@ -481,6 +481,24 @@ class ArenaMatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
 
 
+class PasswordResetToken(Base):
+    """Single-use password reset token. Stores a SHA-256 hash of the token so the
+    raw value is never persisted (if the DB leaks, attackers can't impersonate resets).
+    Client sends the raw token from the reset URL; server hashes + compares.
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)  # sha256 hex
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+
 class AdminAnnouncement(Base):
     """Server-wide message shown to all players. Think patch notes, outage headsup,
     "2x weekend incoming" teaser. Supports time-windowed visibility so a banner can
