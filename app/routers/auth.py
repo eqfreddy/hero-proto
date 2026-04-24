@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.models import Account, utcnow
+from app.deps import get_current_account
+from app.models import Account, EmailVerificationToken, utcnow
 from app.schemas import LoginIn, RegisterIn, TokenOut
 from app.security import hash_password, issue_token, verify_password
 
@@ -149,3 +150,101 @@ def reset_password(
 
     # Issue a fresh token so the user is immediately signed in after reset.
     return TokenOut(access_token=issue_token(account.id, account.token_version))
+
+
+# --- Email verification ------------------------------------------------------
+
+EMAIL_VERIFY_TTL_HOURS = 48  # longer than password reset because email delivery can be slow
+
+
+def _issue_email_verification(db: Session, account: Account) -> tuple[EmailVerificationToken, str]:
+    """Create a verification token for the account. Returns (row, raw_token)."""
+    raw = secrets.token_urlsafe(32)
+    row = EmailVerificationToken(
+        account_id=account.id,
+        token_hash=_hash_token(raw),
+        expires_at=utcnow() + timedelta(hours=EMAIL_VERIFY_TTL_HOURS),
+    )
+    db.add(row)
+    return row, raw
+
+
+class VerifyRequestOut(BaseModel):
+    status: str = "ok"
+    already_verified: bool = False
+    dev_verify_url: str | None = None
+
+
+class VerifyEmailIn(BaseModel):
+    token: str = Field(min_length=16, max_length=128)
+
+
+class VerifyEmailOut(BaseModel):
+    status: str = "verified"
+    email: str
+
+
+@router.post("/send-verification", response_model=VerifyRequestOut)
+def send_verification(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> VerifyRequestOut:
+    """Issue a fresh verification token for the currently-signed-in account.
+    Idempotent if already verified — returns {already_verified: true} without
+    creating a new token."""
+    if account.email_verified:
+        return VerifyRequestOut(already_verified=True)
+    _row, raw = _issue_email_verification(db, account)
+    db.commit()
+    dev_url = None
+    if settings.environment.lower() != "prod":
+        dev_url = f"/auth/verify-email?token={raw}"
+        _log.info("email verification requested for %s — dev url: %s", account.email, dev_url)
+    return VerifyRequestOut(dev_verify_url=dev_url)
+
+
+@router.post("/verify-email", response_model=VerifyEmailOut)
+def verify_email(
+    body: VerifyEmailIn,
+    db: Annotated[Session, Depends(get_db)],
+) -> VerifyEmailOut:
+    """Consume a verification token. Does not require authentication — the token
+    itself proves the holder controls the inbox, which is the whole point."""
+    row = db.scalar(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token_hash == _hash_token(body.token),
+        )
+    )
+    if row is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid or unknown verification token")
+    if row.used_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "verification token already used")
+    if row.expires_at <= utcnow():
+        raise HTTPException(status.HTTP_410_GONE, "verification token has expired")
+
+    account = db.get(Account, row.account_id)
+    if account is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
+
+    # Idempotent if already verified — consume the token but don't complain.
+    now = utcnow()
+    if not account.email_verified:
+        account.email_verified = True
+        account.email_verified_at = now
+    row.used_at = now
+    db.commit()
+    return VerifyEmailOut(email=account.email)
+
+
+# Import for the deps dependency so routers can require verification.
+def get_current_account_verified_only(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> Account:
+    """Drop-in replacement for get_current_account that additionally requires
+    email_verified. 403 if the caller hasn't verified yet."""
+    if not account.email_verified:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "this action requires a verified email",
+        )
+    return account

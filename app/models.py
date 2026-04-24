@@ -190,6 +190,12 @@ class Account(Base):
     refills_today_key: Mapped[str] = mapped_column(String(10), default="")
     refills_today_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Email verification state. Unverified accounts can still play, but endpoints
+    # that require verification (trading, big gem purchases, recovery) can gate
+    # on this via deps.get_verified_account. Timestamp is set when verified.
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
     heroes: Mapped[list["HeroInstance"]] = relationship(
@@ -479,6 +485,22 @@ class ArenaMatch(Base):
     # works unchanged: [{uid, side, name, role, level, max_hp, template_code}].
     participants_json: Mapped[str] = mapped_column(String(4096), default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+
+
+class EmailVerificationToken(Base):
+    """Single-use email verification token. Same hash-only storage policy as password
+    reset: raw token exists only in the verification URL, server stores sha256."""
+
+    __tablename__ = "email_verification_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class PasswordResetToken(Base):
