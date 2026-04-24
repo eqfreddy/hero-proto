@@ -24,6 +24,14 @@ from contextlib import asynccontextmanager
 import httpx
 import pyotp
 
+# Windows consoles default to cp1252 and crash on em-dashes / Greek letters
+# used below. Force UTF-8 on stdout/stderr so the walkthrough runs anywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    except (AttributeError, OSError):
+        pass
+
 BASE = os.environ.get("HEROPROTO_BASE", "http://127.0.0.1:8000").rstrip("/")
 
 GREEN = "\033[32m" if sys.stdout.isatty() else ""
@@ -242,14 +250,18 @@ async def tour_daily_quests(s: Session) -> None:
 
 
 async def tour_guilds(s: Session) -> None:
-    _section("8. Guilds — create + member view")
+    _section("8. Guilds - create + member view")
+    # Tag is UNIQUE server-wide. Randomize so repeat runs against the same DB
+    # don't collide with guilds left behind by earlier walkthroughs.
+    tag = "".join(random.choices("ABCDEFGHJKLMNPQRSTUVWXYZ", k=5))
+    name = f"Walk {random.randint(1000, 999999)}"
     r = await s.client.post(
         "/guilds",
-        json={"name": f"Walk {random.randint(1000, 9999)}", "tag": "WLK"},
+        json={"name": name, "tag": tag},
         headers=s.auth,
     )
     if r.status_code != 201:
-        _fail(f"guild create failed: {r.status_code}")
+        _fail(f"guild create failed: {r.status_code} {r.text[:200]}")
     guild = r.json()
     _ok(f"created guild [{guild['tag']}] {guild['name']} (id={guild['id']})")
 

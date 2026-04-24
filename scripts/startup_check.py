@@ -30,6 +30,12 @@ from datetime import datetime, timezone
 
 import httpx
 
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    except (AttributeError, OSError):
+        pass
+
 BASE = os.environ.get("HEROPROTO_BASE", "http://127.0.0.1:8000").rstrip("/")
 ADMIN_EMAIL = os.environ.get("STARTUP_CHECK_ADMIN_EMAIL", "")
 ADMIN_PASS = os.environ.get("STARTUP_CHECK_ADMIN_PASS", "")
