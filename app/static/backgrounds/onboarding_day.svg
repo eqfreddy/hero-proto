@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+    <style>
+    .atrium-wall { fill: #2d3847; }
+    .bg-floor { fill: #1b2430; }
+    .confetti { fill: #3a4555; }
+    .confetti-blue { fill: #3a4555; }
+    .confetti-gold { fill: #3a4555; }
+    .confetti-green { fill: #3a4555; }
+    .confetti-purple { fill: #3a4555; }
+    .confetti-red { fill: #3a4555; }
+    .window { fill: #59a0ff; opacity: 0.2; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <defs>
+    <linearGradient id="atrium-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0b0d10;stop-opacity:1"></stop>
+      <stop offset="100%" style="stop-color:#14202b;stop-opacity:1"></stop>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1280" height="720" fill="url(#atrium-grad)"></rect>
+  
+  
+  <rect x="0" y="0" width="1280" height="400" class="atrium-wall"></rect>
+  
+  
+  <rect x="50" y="20" width="180" height="150" class="window"></rect>
+  <rect x="300" y="20" width="180" height="150" class="window"></rect>
+  <rect x="550" y="20" width="180" height="150" class="window"></rect>
+  <rect x="800" y="20" width="180" height="150" class="window"></rect>
+  <rect x="1050" y="20" width="180" height="150" class="window"></rect>
+  
+  
+  <line x1="100" y1="0" x2="100" y2="400" stroke="#0b0d10" stroke-width="8" opacity="0.3"></line>
+  <line x1="350" y1="0" x2="350" y2="400" stroke="#0b0d10" stroke-width="8" opacity="0.3"></line>
+  <line x1="600" y1="0" x2="600" y2="400" stroke="#0b0d10" stroke-width="8" opacity="0.3"></line>
+  <line x1="850" y1="0" x2="850" y2="400" stroke="#0b0d10" stroke-width="8" opacity="0.3"></line>
+  <line x1="1100" y1="0" x2="1100" y2="400" stroke="#0b0d10" stroke-width="8" opacity="0.3"></line>
+  
+  
+  <rect x="0" y="400" width="1280" height="320" class="bg-floor"></rect>
+  
+  
+  <line x1="0" y1="450" x2="1280" y2="450" stroke="#0b0d10" stroke-width="2" opacity="0.2"></line>
+  <line x1="0" y1="500" x2="1280" y2="500" stroke="#0b0d10" stroke-width="2" opacity="0.2"></line>
+  <line x1="0" y1="550" x2="1280" y2="550" stroke="#0b0d10" stroke-width="2" opacity="0.2"></line>
+  <line x1="0" y1="600" x2="1280" y2="600" stroke="#0b0d10" stroke-width="2" opacity="0.2"></line>
+  <line x1="0" y1="650" x2="1280" y2="650" stroke="#0b0d10" stroke-width="2" opacity="0.2"></line>
+  
+  
+  
+  <rect x="100" y="450" width="6" height="8" class="confetti confetti-red" transform="rotate(25 103 454)"></rect>
+  <circle cx="200" cy="480" r="4" class="confetti confetti-red"></circle>
+  <rect x="350" y="500" width="6" height="8" class="confetti confetti-red" transform="rotate(-40 353 504)"></rect>
+  <circle cx="520" cy="460" r="4" class="confetti confetti-red"></circle>
+  <rect x="750" y="520" width="6" height="8" class="confetti confetti-red" transform="rotate(60 753 524)"></rect>
+  <circle cx="980" cy="470" r="4" class="confetti confetti-red"></circle>
+  <rect x="1100" y="530" width="6" height="8" class="confetti confetti-red" transform="rotate(-20 1103 534)"></rect>
+  
+  
+  <circle cx="150" cy="510" r="4" class="confetti confetti-gold"></circle>
+  <rect x="300" y="540" width="6" height="8" class="confetti confetti-gold" transform="rotate(45 303 544)"></rect>
+  <circle cx="600" cy="500" r="4" class="confetti confetti-gold"></circle>
+  <rect x="850" y="480" width="6" height="8" class="confetti confetti-gold" transform="rotate(-60 853 484)"></rect>
+  <circle cx="1050" cy="550" r="4" class="confetti confetti-gold"></circle>
+  
+  
+  <rect x="250" y="470" width="6" height="8" class="confetti confetti-green" transform="rotate(15 253 474)"></rect>
+  <circle cx="450" cy="520" r="4" class="confetti confetti-green"></circle>
+  <rect x="700" y="490" width="6" height="8" class="confetti confetti-green" transform="rotate(-35 703 494)"></rect>
+  <circle cx="950" cy="540" r="4" class="confetti confetti-green"></circle>
+  
+  
+  <circle cx="300" cy="480" r="4" class="confetti confetti-blue"></circle>
+  <rect x="550" y="530" width="6" height="8" class="confetti confetti-blue" transform="rotate(50 553 534)"></rect>
+  <circle cx="800" cy="510" r="4" class="confetti confetti-blue"></circle>
+  <rect x="1000" y="460" width="6" height="8" class="confetti confetti-blue" transform="rotate(-25 1003 464)"></rect>
+  
+  
+  <rect x="180" y="520" width="6" height="8" class="confetti confetti-purple" transform="rotate(35 183 524)"></rect>
+  <circle cx="500" cy="470" r="4" class="confetti confetti-purple"></circle>
+  <rect x="800" y="540" width="6" height="8" class="confetti confetti-purple" transform="rotate(-45 803 544)"></rect>
+  <circle cx="1150" cy="490" r="4" class="confetti confetti-purple"></circle>
+</svg>

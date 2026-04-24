@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-  <defs>
+    <style>
+    .atk-up-bg { fill: #ff7a59; opacity: 0.3; }
+    .atk-up-fg { fill: #ff7a59; }
+  </style>
+<defs>
     
   </defs>
   

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .bg { fill: none; }
+    .code-text { fill: #ffd86b; }
+    .hoodie { fill: #ffd86b; opacity: 0.75; }
+    .screen-glow { fill: #c0c4cb; }
+    .shadow-body { fill: #ffd86b; opacity: 0.75; }
+    .shadow-face { fill: #d9b38c; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <ellipse cx="128" cy="185" rx="50" ry="60" class="shadow-body"></ellipse>
+  
+  
+  <path d="M 105 75 Q 105 60 128 55 Q 151 60 151 80 L 155 140 Q 128 155 101 140 Z" class="hoodie"></path>
+  
+  
+  <circle cx="128" cy="100" r="30" class="shadow-face" opacity="0.5"></circle>
+  
+  
+  <circle cx="118" cy="96" r="3.5" fill="#59a0ff" opacity="0.7"></circle>
+  <circle cx="138" cy="96" r="3.5" fill="#59a0ff" opacity="0.7"></circle>
+  
+  
+  <path d="M 120 110 Q 128 112 136 110" stroke="#5a6a7c" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.5"></path>
+  
+  
+  <rect x="100" y="130" width="56" height="45" class="screen-glow" rx="3"></rect>
+  
+  
+  <text x="105" y="145" class="code-text">192.168.x.x</text>
+  <text x="105" y="155" class="code-text">ROOT@VM:~#</text>
+  <text x="105" y="165" class="code-text">./shadow.sh</text>
+  
+  
+  <rect x="148" y="164" width="2" height="5" fill="#59a0ff" opacity="0.8"></rect>
+  
+  
+  <ellipse cx="75" cy="165" rx="14" ry="40" class="shadow-body" transform="rotate(-30 75 165)"></ellipse>
+  <ellipse cx="181" cy="165" rx="14" ry="40" class="shadow-body" transform="rotate(30 181 165)"></ellipse>
+  
+  
+  <rect x="112" y="235" width="12" height="22" rx="6" class="shadow-body"></rect>
+  <rect x="132" y="235" width="12" height="22" rx="6" class="shadow-body"></rect>
+</svg>

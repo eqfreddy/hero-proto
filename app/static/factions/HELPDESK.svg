@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <defs>
+    <style>
+    .cord { fill: #ff7a59; stroke: #ff7a59; stroke-width: 0; }
+    .headset-band { fill: #ff7a59; stroke: #ff7a59; stroke-width: 0; }
+    .headset-ear { fill: #ff7a59; stroke: #ff7a59; stroke-width: 0; }
+    .headset-mic { fill: #ff7a59; stroke: #ff7a59; stroke-width: 0; }
+  </style>
+<defs>
     
   </defs>
   

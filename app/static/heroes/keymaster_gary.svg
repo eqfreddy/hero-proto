@@ -1,5 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <defs>
+    <style>
+    .bg { fill: none; }
+    .coffee { fill: #5a3a1d; }
+    .coffee-cup { fill: #5a3a1d; }
+    .gary-face { fill: #d9b38c; }
+    .gary-goatee { fill: #3a2818; }
+    .gary-suit { fill: #ff7a59; opacity: 0.75; }
+    .gary-tie { fill: #ff7a59; }
+  </style>
+<defs>
     
   </defs>
   

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .bg { fill: none; }
+    .podium { fill: #59a0ff; }
+    .postmortem-body { fill: #59a0ff; opacity: 0.75; }
+    .postmortem-face { fill: #d9b38c; }
+    .slide { fill: #59a0ff; }
+    .suit { fill: #59a0ff; opacity: 0.75; }
+    .text { fill: #59a0ff; }
+    .tie { fill: #59a0ff; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <rect x="85" y="165" width="86" height="35" class="podium" rx="3"></rect>
+  <rect x="87" y="167" width="82" height="31" fill="#3a4a5c" rx="2"></rect>
+  
+  
+  <rect x="95" y="155" width="56" height="18" class="slide" rx="2"></rect>
+  <text x="123" y="167" class="text" text-anchor="middle">FIVE WHYS</text>
+  
+  
+  <ellipse cx="128" cy="185" rx="50" ry="60" class="suit"></ellipse>
+  
+  
+  <polygon points="120,155 136,155 138,185 118,185" class="tie"></polygon>
+  
+  
+  <circle cx="128" cy="95" r="33" class="postmortem-face"></circle>
+  
+  
+  <path d="M 104 68 Q 128 56 152 68" stroke="#6a7a8c" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.8"></path>
+  
+  
+  <circle cx="117" cy="90" r="4.5" fill="#3a4a5c"></circle>
+  <circle cx="139" cy="90" r="4.5" fill="#3a4a5c"></circle>
+  <circle cx="118" cy="88" r="2" fill="#59a0ff"></circle>
+  <circle cx="140" cy="88" r="2" fill="#59a0ff"></circle>
+  
+  
+  <path d="M 117 107 Q 128 112 139 107" stroke="#5a6a7c" stroke-width="2" fill="none" stroke-linecap="round"></path>
+  <ellipse cx="128" cy="110" rx="4" ry="3" fill="#5a6a7c" opacity="0.4"></ellipse>
+  
+  
+  <ellipse cx="80" cy="170" rx="16" ry="42" class="postmortem-body" transform="rotate(-35 80 170)"></ellipse>
+  
+  
+  <ellipse cx="176" cy="165" rx="16" ry="42" class="postmortem-body" transform="rotate(35 176 165)"></ellipse>
+  
+  
+  <rect x="110" y="235" width="13" height="22" rx="6" class="suit"></rect>
+  <rect x="133" y="235" width="13" height="22" rx="6" class="suit"></rect>
+</svg>

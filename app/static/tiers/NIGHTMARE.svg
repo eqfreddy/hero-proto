@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 16">
+    <style>
+    .flame { fill: #ffd86b; }
+    .glow { fill: #ffd86b; }
+    .ribbon { fill: #ffd86b; }
+    .ribbon-dark { fill: #ffd86b; }
+    .text { fill: #ffd86b; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <g class="glow">
+    <path d="M 2 4 L 8 2 L 24 2 L 30 4 L 30 12 L 2 12 Z" class="ribbon"></path>
+  </g>
+  
+  
+  <path d="M 3 5 L 8 3 L 24 3 L 29 5" stroke="#fff" stroke-width="0.8" fill="none" opacity="0.5"></path>
+  
+  
+  
+  <path d="M 4 6 L 3 4 L 5 5 Z" class="flame" opacity="0.8"></path>
+  
+  
+  <path d="M 28 6 L 29 4 L 27 5 Z" class="flame" opacity="0.8"></path>
+  
+  
+  <path d="M 16 4 L 15 2 L 17 3 Z" class="flame" opacity="0.6"></path>
+  
+  
+  <rect x="2" y="9" width="28" height="2" class="ribbon-dark" opacity="0.9"></rect>
+  
+  
+  <text x="16" y="11" class="text" text-anchor="middle">NIGHTMARE</text>
+</svg>

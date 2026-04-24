@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .bg { fill: none; }
+    .monkey-body { fill: #c0c4cb; }
+    .monkey-face { fill: #d9b38c; }
+    .placard { fill: #f2e8d6; }
+    .placard-text { fill: #f2e8d6; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <ellipse cx="128" cy="175" rx="48" ry="58" class="monkey-body"></ellipse>
+  
+  
+  <ellipse cx="75" cy="160" rx="14" ry="50" class="monkey-body" transform="rotate(-35 75 160)"></ellipse>
+  <ellipse cx="181" cy="160" rx="14" ry="50" class="monkey-body" transform="rotate(35 181 160)"></ellipse>
+  
+  
+  <circle cx="128" cy="90" r="35" class="monkey-face"></circle>
+  
+  
+  <circle cx="105" cy="70" r="8" class="monkey-body" opacity="0.9"></circle>
+  <circle cx="151" cy="70" r="8" class="monkey-body" opacity="0.9"></circle>
+  
+  
+  <ellipse cx="128" cy="95" rx="28" ry="30" class="monkey-face" opacity="0.8"></ellipse>
+  
+  
+  <circle cx="116" cy="88" r="5" fill="#1a1f25"></circle>
+  <circle cx="140" cy="88" r="5" fill="#1a1f25"></circle>
+  <circle cx="117" cy="86" r="2.2" fill="#ff7a59"></circle>
+  <circle cx="141" cy="86" r="2.2" fill="#ff7a59"></circle>
+  
+  
+  <path d="M 115 105 Q 128 115 141 105" stroke="#6a5a4a" stroke-width="2" fill="none" stroke-linecap="round"></path>
+  <path d="M 118 108 L 120 110 M 125 110 L 127 112 M 132 112 L 134 110 M 139 110 L 141 108" stroke="#6a5a4a" stroke-width="0.8"></path>
+  
+  
+  <rect x="85" y="130" width="66" height="48" class="placard" rx="4"></rect>
+  
+  
+  <text x="118" y="160" class="placard-text" text-anchor="middle">kill -9</text>
+  
+  
+  <ellipse cx="110" cy="230" rx="12" ry="20" class="monkey-body"></ellipse>
+  <ellipse cx="146" cy="230" rx="12" ry="20" class="monkey-body"></ellipse>
+</svg>

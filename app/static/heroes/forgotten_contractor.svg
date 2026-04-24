@@ -1,5 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <defs>
+    <style>
+    .badge { fill: #c0c4cb; }
+    .bg { fill: none; }
+    .contractor-body { fill: #ffd86b; opacity: 0.75; }
+    .contractor-face { fill: #d9b38c; }
+    .nda-shadow { fill: #000000; opacity: 0.3; }
+  </style>
+<defs>
     
   </defs>
   

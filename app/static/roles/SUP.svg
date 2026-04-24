@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+    <style>
+    .cross { fill: #6dd39a; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  
+  <rect x="7" y="2" width="2" height="12" class="cross"></rect>
+  
+  
+  <rect x="2" y="7" width="12" height="2" class="cross"></rect>
+  
+  
+  <circle cx="8" cy="8" r="1" class="cross" opacity="0.6"></circle>
+</svg>

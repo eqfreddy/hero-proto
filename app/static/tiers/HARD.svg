@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 16">
+    <style>
+    .glow { fill: #59a0ff; }
+    .ribbon { fill: #59a0ff; }
+    .ribbon-dark { fill: #59a0ff; }
+    .text { fill: #59a0ff; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <g class="glow">
+    <path d="M 2 4 L 8 2 L 24 2 L 30 4 L 30 12 L 2 12 Z" class="ribbon"></path>
+  </g>
+  
+  
+  <path d="M 3 5 L 8 3 L 24 3 L 29 5" stroke="#fff" stroke-width="0.8" fill="none" opacity="0.6"></path>
+  
+  
+  <rect x="2" y="9" width="28" height="2" class="ribbon-dark" opacity="0.8"></rect>
+  
+  
+  <text x="16" y="11" class="text" text-anchor="middle">HARD</text>
+</svg>

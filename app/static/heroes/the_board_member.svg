@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .bg { fill: none; }
+    .board-body { fill: #c77dff; opacity: 0.75; }
+    .board-face { fill: #d9b38c; }
+    .cigar { fill: #c77dff; }
+    .cigar-smoke { fill: #c77dff; }
+    .halo { fill: #c77dff; }
+    .tie { fill: #c77dff; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <circle cx="128" cy="85" r="42" class="halo"></circle>
+  
+  
+  <ellipse cx="128" cy="185" rx="56" ry="66" class="board-body"></ellipse>
+  
+  
+  <line x1="85" y1="160" x2="85" y2="220" stroke="#3a4a5c" stroke-width="1" opacity="0.4"></line>
+  <line x1="100" y1="160" x2="100" y2="220" stroke="#3a4a5c" stroke-width="1" opacity="0.4"></line>
+  <line x1="115" y1="160" x2="115" y2="220" stroke="#3a4a5c" stroke-width="1" opacity="0.4"></line>
+  <line x1="145" y1="160" x2="145" y2="220" stroke="#3a4a5c" stroke-width="1" opacity="0.4"></line>
+  <line x1="160" y1="160" x2="160" y2="220" stroke="#3a4a5c" stroke-width="1" opacity="0.4"></line>
+  <line x1="171" y1="160" x2="171" y2="220" stroke="#3a4a5c" stroke-width="1" opacity="0.4"></line>
+  
+  
+  <polygon points="120,155 136,155 140,195 116,195" class="tie"></polygon>
+  
+  
+  <circle cx="128" cy="100" r="35" class="board-face"></circle>
+  
+  
+  <path d="M 101 68 Q 128 56 155 68" stroke="#a0a0a0" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.9"></path>
+  
+  
+  <circle cx="116" cy="93" r="5" fill="#1a1f25"></circle>
+  <circle cx="140" cy="93" r="5" fill="#1a1f25"></circle>
+  <circle cx="117" cy="91" r="2" fill="#5a6a7c"></circle>
+  <circle cx="141" cy="91" r="2" fill="#5a6a7c"></circle>
+  
+  
+  <path d="M 116 112 Q 128 116 140 112" stroke="#5a6a7c" stroke-width="1.5" fill="none" stroke-linecap="round"></path>
+  
+  
+  
+  <rect x="140" y="108" width="4" height="24" class="cigar" rx="2" transform="rotate(20 142 120)"></rect>
+  
+  
+  <circle cx="146" cy="100" r="2.5" fill="#ff7a59"></circle>
+  
+  
+  <path d="M 145 95 Q 140 85 145 75" class="cigar-smoke" stroke="#b0a0a0" stroke-width="2" stroke-linecap="round"></path>
+  <path d="M 148 92 Q 155 80 150 70" class="cigar-smoke" stroke="#b0a0a0" stroke-width="2" stroke-linecap="round"></path>
+  
+  
+  <ellipse cx="75" cy="180" rx="18" ry="48" class="board-body" transform="rotate(-20 75 180)"></ellipse>
+  <ellipse cx="181" cy="180" rx="18" ry="48" class="board-body" transform="rotate(20 181 180)"></ellipse>
+  
+  
+  <rect x="108" y="240" width="15" height="22" rx="7" class="board-body"></rect>
+  <rect x="133" y="240" width="15" height="22" rx="7" class="board-body"></rect>
+</svg>

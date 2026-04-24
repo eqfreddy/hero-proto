@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <defs>
+    <style>
+    .arrow { fill: #59a0ff; stroke: #59a0ff; stroke-width: 0; }
+    .circle1 { fill: #59a0ff; stroke: #59a0ff; stroke-width: 0; }
+    .circle2 { fill: #59a0ff; stroke: #59a0ff; stroke-width: 0; }
+    .ouroboros { fill: #59a0ff; stroke: #59a0ff; stroke-width: 0; }
+  </style>
+<defs>
     
   </defs>
   

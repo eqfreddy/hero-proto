@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .bg { fill: none; }
+    .confetti { fill: #c77dff; }
+    .sweater { fill: #c77dff; }
+    .vp-body { fill: #c77dff; opacity: 0.75; }
+    .vp-face { fill: #d9b38c; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <circle cx="50" cy="80" r="3" class="confetti"></circle>
+  <circle cx="206" cy="70" r="3" class="confetti"></circle>
+  <circle cx="70" cy="150" r="2.5" class="confetti"></circle>
+  <circle cx="186" cy="160" r="2.5" class="confetti"></circle>
+  <circle cx="45" cy="220" r="2" class="confetti"></circle>
+  <circle cx="211" cy="210" r="2" class="confetti"></circle>
+  <rect x="60" y="100" width="4" height="4" class="confetti" transform="rotate(45 62 102)"></rect>
+  <rect x="190" y="120" width="4" height="4" class="confetti" transform="rotate(30 192 122)"></rect>
+  
+  
+  <ellipse cx="128" cy="185" rx="55" ry="65" class="sweater"></ellipse>
+  
+  
+  <line x1="85" y1="165" x2="171" y2="165" stroke="#9ca7b3" stroke-width="1" opacity="0.3"></line>
+  <line x1="85" y1="180" x2="171" y2="180" stroke="#9ca7b3" stroke-width="1" opacity="0.3"></line>
+  <line x1="85" y1="195" x2="171" y2="195" stroke="#9ca7b3" stroke-width="1" opacity="0.3"></line>
+  <line x1="85" y1="210" x2="171" y2="210" stroke="#9ca7b3" stroke-width="1" opacity="0.3"></line>
+  
+  
+  <circle cx="128" cy="100" r="33" class="vp-face"></circle>
+  
+  
+  <path d="M 103 70 Q 128 58 153 70" stroke="#7a8a9c" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.85"></path>
+  
+  
+  <circle cx="117" cy="95" r="5" fill="#3a4a5c"></circle>
+  <circle cx="139" cy="95" r="5" fill="#3a4a5c"></circle>
+  <circle cx="118" cy="93" r="2.2" fill="#c77dff"></circle>
+  <circle cx="140" cy="93" r="2.2" fill="#c77dff"></circle>
+  
+  
+  <path d="M 116 112 Q 128 118 140 112" stroke="#5a6a7c" stroke-width="2" fill="none" stroke-linecap="round"></path>
+  <line x1="116" y1="112" x2="115" y2="114" stroke="#5a6a7c" stroke-width="1" opacity="0.5"></line>
+  <line x1="128" y1="119" x2="128" y2="121" stroke="#5a6a7c" stroke-width="1" opacity="0.5"></line>
+  <line x1="140" y1="112" x2="141" y2="114" stroke="#5a6a7c" stroke-width="1" opacity="0.5"></line>
+  
+  
+  <ellipse cx="75" cy="175" rx="18" ry="48" class="vp-body" transform="rotate(-35 75 175)"></ellipse>
+  <ellipse cx="181" cy="175" rx="18" ry="48" class="vp-body" transform="rotate(35 181 175)"></ellipse>
+  
+  
+  <rect x="108" y="240" width="14" height="24" rx="7" class="vp-body"></rect>
+  <rect x="134" y="240" width="14" height="24" rx="7" class="vp-body"></rect>
+</svg>

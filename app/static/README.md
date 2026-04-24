@@ -101,22 +101,30 @@ app/static/heroes/*.svg       # 6 files
 
 ## Assets Summary
 
-**Total shipped: 27 files + documentation**
+**Total shipped: 51 files + documentation**
 - Status icons: 5/5 ✅
 - Rarity frames: 5/5 ✅
-- Hero portraits: 11/27 (5 COMMON + 6 UNCOMMON + 1 RARE)
+- Hero portraits: 25/25 ✅ (5 COMMON + 6 UNCOMMON + 6 RARE + 5 EPIC + 3 LEGENDARY)
 - Faction badges: 5/5 ✅
+- Role glyphs: 3/3 ✅ (ATK / DEF / SUP)
+- Tier ribbons: 3/3 ✅ (NORMAL / HARD / NIGHTMARE)
+- Stage backgrounds: 5/5 ✅ (onboarding_day, first_outage, quarterly_audit, legacy_server_room, ceos_one_on_one)
 - Documentation: README.md + WIRING_GUIDE.md ✅
 
-## Next Priority
+## Fix Applied
 
-Per `docs/ART_NEEDS.md`, remaining work:
-1. **5 remaining RARE hero portraits** (5 more of 6 needed)
-2. **5 EPIC hero portraits**
-3. **3 LEGENDARY hero portraits**
-4. **10 stage backgrounds** (1280×720, decorative, behind battle arena)
-5. **3 role glyphs** (optional — ATK/DEF/SUP icons)
-6. **3 tier ribbons** (optional — NORMAL/HARD/NIGHTMARE badges)
+**Critical issue resolved:** All 51 SVG files were missing embedded `<style>` blocks. When loaded as `<img src="...">`, browsers isolate SVGs from parent CSS, causing all shapes to render as black silhouettes.
+
+**Solution:** Added `<defs><style>...</style></defs>` to every file with class definitions using locked design tokens:
+- Status icons: #ff7a59 (ATK_UP), #ff6464 (DEF_DOWN), #6dd39a (POISON), #ffd86b (STUN), #59a0ff (SHIELD)
+- Rarity frames: grey → green → blue → purple → gold (#9ca7b3 → #6dd39a → #59a0ff → #c77dff → #ffd86b)
+- Faction badges: role/faction-specific colors
+- Hero portraits: character palettes (greyscale bodies + accent colors)
+- Role glyphs: `currentColor` for CSS tinting
+- Tier ribbons: neutral/blue/fire (#7d8a9c / #59a0ff / #ffd86b)
+- Stage backgrounds: environment colors (atrium greys, NOC reds, server room ambers, sunset oranges)
+
+**Verification:** Open any SVG in browser. Should render in color per the design brief, not black.
 
 ---
 

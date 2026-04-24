@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .aura { fill: #c77dff; }
+    .bg { fill: none; }
+    .blazer { fill: #c77dff; }
+    .founder-body { fill: #c77dff; opacity: 0.75; }
+    .founder-face { fill: #d9b38c; }
+    .hoodie { fill: #c77dff; opacity: 0.75; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <circle cx="128" cy="140" r="80" class="aura"></circle>
+  
+  
+  <ellipse cx="128" cy="185" rx="54" ry="64" class="hoodie"></ellipse>
+  <ellipse cx="128" cy="180" rx="48" ry="58" class="blazer"></ellipse>
+  
+  
+  <path d="M 100 160 L 110 185 L 85 215 Q 85 225 95 230" class="blazer" stroke="#1a1f25" stroke-width="1"></path>
+  <path d="M 156 160 L 146 185 L 171 215 Q 171 225 161 230" class="blazer" stroke="#1a1f25" stroke-width="1"></path>
+  
+  
+  <circle cx="128" cy="100" r="33" class="founder-face"></circle>
+  
+  
+  <path d="M 103 70 Q 128 58 153 70" stroke="#6a7a8c" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.8"></path>
+  <path d="M 100 68 Q 128 52 156 68" stroke="#7a8a9c" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.5"></path>
+  
+  
+  <circle cx="117" cy="93" r="5" fill="#1a1f25"></circle>
+  <circle cx="139" cy="93" r="5" fill="#1a1f25"></circle>
+  <circle cx="118" cy="91" r="2.2" fill="#ffd86b"></circle>
+  <circle cx="140" cy="91" r="2.2" fill="#ffd86b"></circle>
+  
+  
+  <path d="M 116 110 Q 128 115 140 110" stroke="#5a6a7c" stroke-width="1.5" fill="none" stroke-linecap="round"></path>
+  
+  
+  <ellipse cx="75" cy="175" rx="17" ry="45" class="founder-body" transform="rotate(-25 75 175)"></ellipse>
+  <ellipse cx="181" cy="175" rx="17" ry="45" class="founder-body" transform="rotate(25 181 175)"></ellipse>
+  
+  
+  <rect x="108" y="240" width="14" height="24" rx="7" class="founder-body"></rect>
+  <rect x="134" y="240" width="14" height="24" rx="7" class="founder-body"></rect>
+</svg>

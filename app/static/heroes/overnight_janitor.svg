@@ -1,5 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <defs>
+    <style>
+    .badge { fill: #c0c4cb; }
+    .bg { fill: none; }
+    .glow { fill: #6dd39a; }
+    .janitor-body { fill: #6dd39a; opacity: 0.75; }
+    .janitor-face { fill: #d9b38c; }
+  </style>
+<defs>
     
   </defs>
   

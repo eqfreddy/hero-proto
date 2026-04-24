@@ -1,5 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <defs>
+    <style>
+    .briefcase { fill: #c77dff; stroke: #c77dff; stroke-width: 0; }
+    .dollar { fill: #c77dff; stroke: #c77dff; stroke-width: 0; }
+    .handle { fill: #c77dff; stroke: #c77dff; stroke-width: 0; }
+  </style>
+<defs>
     
   </defs>
   

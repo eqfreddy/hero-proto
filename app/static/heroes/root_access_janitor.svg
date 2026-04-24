@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .bg { fill: none; }
+    .glow { fill: #ffd86b; }
+    .janitor-body { fill: #ffd86b; opacity: 0.75; }
+    .janitor-face { fill: #d9b38c; }
+    .mop { fill: #c0c4cb; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <circle cx="128" cy="130" r="70" class="glow"></circle>
+  
+  
+  <ellipse cx="128" cy="185" rx="52" ry="62" class="janitor-body"></ellipse>
+  
+  
+  <circle cx="128" cy="100" r="32" class="janitor-face"></circle>
+  
+  
+  <path d="M 105 73 Q 128 63 151 73" stroke="#6a7a8c" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.7"></path>
+  
+  
+  <circle cx="118" cy="95" r="4" fill="#1a1f25"></circle>
+  <circle cx="138" cy="95" r="4" fill="#1a1f25"></circle>
+  <circle cx="119" cy="94" r="1.8" fill="#6dd39a"></circle>
+  <circle cx="139" cy="94" r="1.8" fill="#6dd39a"></circle>
+  
+  
+  <path d="M 118 110 Q 128 115 138 110" stroke="#5a6a7c" stroke-width="1.5" fill="none" stroke-linecap="round"></path>
+  
+  
+  <rect x="75" y="120" width="8" height="130" class="mop" rx="4"></rect>
+  
+  
+  <ellipse cx="79" cy="250" rx="20" ry="14" class="mop"></ellipse>
+  <path d="M 62 250 Q 79 256 96 250" stroke="#6dd39a" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"></path>
+  
+  
+  <circle cx="79" cy="240" r="12" fill="#6dd39a" opacity="0.2"></circle>
+  
+  
+  <ellipse cx="85" cy="165" rx="16" ry="45" class="janitor-body" transform="rotate(-30 85 165)"></ellipse>
+  <ellipse cx="171" cy="170" rx="16" ry="45" class="janitor-body" transform="rotate(30 171 170)"></ellipse>
+  
+  
+  <rect x="115" y="235" width="12" height="25" rx="6" class="janitor-body"></rect>
+  <rect x="129" y="235" width="12" height="25" rx="6" class="janitor-body"></rect>
+</svg>

@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-  <defs>
+    <style>
+    .stun-bg { fill: #ffd86b; opacity: 0.3; }
+    .stun-star { fill: #ffd86b; }
+  </style>
+<defs>
     
   </defs>
   

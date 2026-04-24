@@ -1,5 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <defs>
+    <style>
+    .danger { fill: #ffd86b; stroke: #ffd86b; stroke-width: 0; }
+    .dongle { fill: #ffd86b; stroke: #ffd86b; stroke-width: 0; }
+    .skull { fill: #ffd86b; stroke: #ffd86b; stroke-width: 0; }
+  </style>
+<defs>
     
   </defs>
   

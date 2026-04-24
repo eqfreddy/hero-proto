@@ -1,5 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <defs>
+    <style>
+    .bg { fill: none; }
+    .stubble { fill: #ff7a59; }
+    .tshirt { fill: #ff7a59; opacity: 0.75; }
+    .tshirt-text { fill: #ff7a59; opacity: 0.75; }
+    .veteran-body { fill: #ff7a59; opacity: 0.75; }
+    .veteran-face { fill: #d9b38c; }
+  </style>
+<defs>
     
   </defs>
   

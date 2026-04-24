@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+    <style>
+    .bg { fill: #14202b; }
+    .chair { fill: #3a2818; }
+    .floor { fill: #1b2430; }
+    .floor-line { fill: #1b2430; }
+    .glass-line { fill: #59a0ff; opacity: 0.2; }
+    .glass-panel { fill: #2d3847; }
+    .table { fill: #3a2818; }
+    .wall-left { fill: #2d3847; }
+    .wall-right { fill: #2d3847; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="1280" height="720" class="bg"></rect>
+  
+  
+  <rect x="0" y="0" width="400" height="720" class="wall-left"></rect>
+  
+  
+  <rect x="880" y="0" width="400" height="720" class="wall-right"></rect>
+  
+  
+  <rect x="50" y="80" width="300" height="300" class="glass-panel"></rect>
+  <rect x="50" y="80" width="300" height="300" fill="none" class="glass-line"></rect>
+  
+  <rect x="50" y="420" width="300" height="200" class="glass-panel"></rect>
+  <rect x="50" y="420" width="300" height="200" fill="none" class="glass-line"></rect>
+  
+  
+  <rect x="930" y="100" width="300" height="320" class="glass-panel"></rect>
+  <rect x="930" y="100" width="300" height="320" fill="none" class="glass-line"></rect>
+  
+  <rect x="930" y="450" width="300" height="170" class="glass-panel"></rect>
+  <rect x="930" y="450" width="300" height="170" fill="none" class="glass-line"></rect>
+  
+  
+  <rect x="400" y="500" width="480" height="220" class="floor"></rect>
+  
+  
+  <line x1="400" y1="520" x2="880" y2="520" class="floor-line"></line>
+  <line x1="400" y1="545" x2="880" y2="545" class="floor-line"></line>
+  <line x1="400" y1="570" x2="880" y2="570" class="floor-line"></line>
+  <line x1="400" y1="595" x2="880" y2="595" class="floor-line"></line>
+  <line x1="400" y1="620" x2="880" y2="620" class="floor-line"></line>
+  <line x1="400" y1="645" x2="880" y2="645" class="floor-line"></line>
+  
+  <line x1="480" y1="500" x2="480" y2="720" class="floor-line"></line>
+  <line x1="560" y1="500" x2="560" y2="720" class="floor-line"></line>
+  <line x1="640" y1="500" x2="640" y2="720" class="floor-line"></line>
+  <line x1="720" y1="500" x2="720" y2="720" class="floor-line"></line>
+  <line x1="800" y1="500" x2="800" y2="720" class="floor-line"></line>
+  
+  
+  <ellipse cx="640" cy="300" rx="140" ry="90" class="table" stroke="#1a2838" stroke-width="3"></ellipse>
+  
+  
+  <ellipse cx="640" cy="290" rx="130" ry="80" fill="none" stroke="#3a4a5c" stroke-width="1" opacity="0.3"></ellipse>
+  
+  
+  
+  <ellipse cx="480" cy="300" rx="25" ry="35" class="chair"></ellipse>
+  
+  
+  <ellipse cx="800" cy="300" rx="25" ry="35" class="chair"></ellipse>
+  
+  
+  <ellipse cx="640" cy="140" rx="35" ry="25" class="chair"></ellipse>
+  
+  
+  <ellipse cx="640" cy="460" rx="35" ry="25" class="chair"></ellipse>
+  
+  
+  <line x1="400" y1="50" x2="880" y2="50" stroke="#3a4a5c" stroke-width="8" opacity="0.2"></line>
+  <line x1="400" y1="60" x2="880" y2="60" stroke="#3a4a5c" stroke-width="1" opacity="0.1"></line>
+</svg>

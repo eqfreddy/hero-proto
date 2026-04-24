@@ -1,5 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-  <defs>
+    <style>
+    .poison-bg { fill: #6dd39a; opacity: 0.3; }
+    .poison-fg { fill: #6dd39a; }
+    .poison-skull { fill: #6dd39a; }
+  </style>
+<defs>
     
   </defs>
   

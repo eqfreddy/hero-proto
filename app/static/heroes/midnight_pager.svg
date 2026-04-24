@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .bg { fill: none; }
+    .glow { fill: #59a0ff; }
+    .midnight-body { fill: #59a0ff; opacity: 0.75; }
+    .pager-icon { fill: #c0c4cb; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  <ellipse cx="128" cy="185" rx="50" ry="60" class="midnight-body"></ellipse>
+  
+  
+  <circle cx="128" cy="100" r="32" class="midnight-body"></circle>
+  
+  
+  <circle cx="118" cy="95" r="4" fill="#ff7a59" opacity="0.8"></circle>
+  <circle cx="138" cy="95" r="4" fill="#ff7a59" opacity="0.8"></circle>
+  
+  
+  <path d="M 118 112 Q 128 108 138 112" stroke="#5a6a7c" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.6"></path>
+  
+  
+  
+  <g class="glow">
+    <rect x="60" y="140" width="24" height="32" class="pager-icon" rx="2" transform="rotate(-8 72 156)"></rect>
+    <rect x="63" y="143" width="18" height="12" fill="#1a1f25" rx="1" transform="rotate(-8 72 156)"></rect>
+    <circle cx="72" cy="160" r="2" fill="#ff7a59" opacity="0.9"></circle>
+  </g>
+  
+  
+  <g class="glow">
+    <rect x="116" y="145" width="24" height="32" class="pager-icon" rx="2" transform="rotate(0 128 161)"></rect>
+    <rect x="119" y="148" width="18" height="12" fill="#1a1f25" rx="1" transform="rotate(0 128 161)"></rect>
+    <circle cx="128" cy="165" r="2.5" fill="#ff7a59" opacity="0.95"></circle>
+  </g>
+  
+  
+  <g class="glow">
+    <rect x="172" y="140" width="24" height="32" class="pager-icon" rx="2" transform="rotate(8 184 156)"></rect>
+    <rect x="175" y="143" width="18" height="12" fill="#1a1f25" rx="1" transform="rotate(8 184 156)"></rect>
+    <circle cx="184" cy="160" r="2" fill="#ff7a59" opacity="0.9"></circle>
+  </g>
+  
+  
+  <path d="M 50 100 L 55 98 L 50 96" stroke="#ff7a59" stroke-width="1" fill="none" opacity="0.5" stroke-linecap="round"></path>
+  <path d="M 206 100 L 201 98 L 206 96" stroke="#ff7a59" stroke-width="1" fill="none" opacity="0.5" stroke-linecap="round"></path>
+  
+  
+  <ellipse cx="75" cy="160" rx="16" ry="45" class="midnight-body" transform="rotate(-40 75 160)"></ellipse>
+  <ellipse cx="181" cy="160" rx="16" ry="45" class="midnight-body" transform="rotate(40 181 160)"></ellipse>
+  
+  
+  <rect x="110" y="235" width="12" height="22" rx="6" class="midnight-body"></rect>
+  <rect x="134" y="235" width="12" height="22" rx="6" class="midnight-body"></rect>
+</svg>

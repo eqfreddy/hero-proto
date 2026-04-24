@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <style>
+    .bg { fill: none; }
+    .chair { fill: #3a2818; }
+    .chair-seat { fill: #3a2818; }
+    .guru-body { fill: #6dd39a; opacity: 0.75; }
+    .guru-face { fill: #d9b38c; }
+    .punch-cards { fill: #f2e8d6; }
+    .text-punch { fill: #f2e8d6; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <rect width="256" height="256" class="bg"></rect>
+  
+  
+  
+  <path d="M 95 120 L 90 200 Q 90 210 100 215 L 100 145 Q 95 135 95 120" class="chair"></path>
+  
+  
+  <ellipse cx="105" cy="155" rx="20" ry="12" class="chair-seat"></ellipse>
+  
+  
+  <path d="M 85 215 Q 90 225 100 225" stroke="#7a6a5a" stroke-width="4" fill="none" stroke-linecap="round"></path>
+  <path d="M 115 215 Q 120 225 130 225" stroke="#7a6a5a" stroke-width="4" fill="none" stroke-linecap="round"></path>
+  
+  
+  
+  <rect x="110" y="170" width="32" height="50" class="punch-cards" rx="2"></rect>
+  <text x="126" y="190" class="text-punch" text-anchor="middle">●●●●●</text>
+  <text x="126" y="198" class="text-punch" text-anchor="middle">●●●●●</text>
+  
+  
+  <rect x="108" y="160" width="32" height="50" class="punch-cards" rx="2" transform="rotate(-5 124 160)"></rect>
+  <text x="124" y="180" class="text-punch" text-anchor="middle">●●●●●</text>
+  
+  
+  <rect x="112" y="150" width="32" height="50" class="punch-cards" rx="2" transform="rotate(5 128 150)"></rect>
+  <text x="128" y="170" class="text-punch" text-anchor="middle">●●●●●</text>
+  
+  
+  <circle cx="105" cy="95" r="32" class="guru-face"></circle>
+  
+  
+  <path d="M 82 75 Q 85 50 105 45 Q 125 50 128 75" stroke="#6a7a8c" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.75"></path>
+  <path d="M 80 80 Q 82 55 105 50 Q 128 55 130 80" stroke="#7a8a9c" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.5"></path>
+  
+  
+  <path d="M 95 115 Q 105 125 115 115" stroke="#6a7a8c" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.8"></path>
+  
+  
+  <circle cx="95" cy="90" r="4" fill="#3a4a5c"></circle>
+  <circle cx="115" cy="90" r="4" fill="#3a4a5c"></circle>
+  <circle cx="96" cy="88" r="1.8" fill="#6dd39a"></circle>
+  <circle cx="116" cy="88" r="1.8" fill="#6dd39a"></circle>
+  
+  
+  <path d="M 95 108 Q 105 112 115 108" stroke="#5a6a7c" stroke-width="1.5" fill="none" stroke-linecap="round"></path>
+  
+  
+  <ellipse cx="75" cy="160" rx="14" ry="40" class="guru-body" transform="rotate(-25 75 160)"></ellipse>
+  <ellipse cx="135" cy="160" rx="14" ry="40" class="guru-body" transform="rotate(25 135 160)"></ellipse>
+</svg>

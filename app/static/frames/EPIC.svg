@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <defs>
+    <style>
+    .frame-border { fill: none; stroke: #c77dff; stroke-width: 3; }
+    .frame-glow { filter: drop-shadow(0 0 4px #c77dff); }
+  </style>
+<defs>
     
   </defs>
   

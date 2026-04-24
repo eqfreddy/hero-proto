@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-  <defs>
+    <style>
+    .shield-bg { fill: #59a0ff; opacity: 0.3; }
+    .shield-fg { fill: #59a0ff; }
+  </style>
+<defs>
     
   </defs>
   

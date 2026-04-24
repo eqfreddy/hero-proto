@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+    <style>
+    .shield { fill: #59a0ff; }
+  </style>
+<defs>
+    
+  </defs>
+  
+  
+  <path d="M 8 2 L 12 5 L 12 10 Q 8 13 8 14 Q 4 13 4 10 L 4 5 Z" class="shield"></path>
+  
+  
+  <circle cx="8" cy="9" r="1.5" class="shield" opacity="0.6"></circle>
+</svg>

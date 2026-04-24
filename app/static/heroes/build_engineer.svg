@@ -1,5 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <defs>
+    <style>
+    .bg { fill: none; }
+    .engineer-body { fill: #59a0ff; opacity: 0.75; }
+    .engineer-face { fill: #d9b38c; }
+    .goggles { fill: #59a0ff; }
+    .goggles-lens { fill: #59a0ff; }
+  </style>
+<defs>
     
   </defs>
   

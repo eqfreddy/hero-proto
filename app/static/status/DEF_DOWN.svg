@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-  <defs>
+    <style>
+    .def-down-bg { fill: #ff6464; opacity: 0.3; }
+    .def-down-fg { fill: #ff6464; }
+  </style>
+<defs>
     
   </defs>
   
