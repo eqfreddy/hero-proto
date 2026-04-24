@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_account
+from app.deps import enforce_guild_message_rate_limit, get_current_account
 from app.models import (
     Account,
     Guild,
@@ -327,7 +327,7 @@ def list_messages(
 def post_message(
     guild_id: int,
     body: GuildMessageIn,
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(enforce_guild_message_rate_limit)],
     db: Annotated[Session, Depends(get_db)],
 ) -> GuildMessageOut:
     _require_membership(db, account, guild_id)

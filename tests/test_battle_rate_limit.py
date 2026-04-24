@@ -64,3 +64,49 @@ def test_test_env_bypasses(monkeypatch: pytest.MonkeyPatch) -> None:
     acct = _FakeAccount(1)
     for _ in range(5):
         deps_mod.enforce_battle_rate_limit(acct)
+
+
+# --- Sprint B: arena + guild-message buckets follow the same pattern. ---
+
+
+def test_arena_bucket_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(deps_mod, "_arena_bucket", TokenBucket(limit_per_minute=2))
+    monkeypatch.setattr(deps_mod.settings, "environment", "dev")
+    monkeypatch.setattr(deps_mod.settings, "rate_limit_disabled", False)
+    acct = _FakeAccount(10)
+    deps_mod.enforce_arena_rate_limit(acct)
+    deps_mod.enforce_arena_rate_limit(acct)
+    with pytest.raises(HTTPException) as exc:
+        deps_mod.enforce_arena_rate_limit(acct)
+    assert exc.value.status_code == 429
+    assert "arena attack" in exc.value.detail.lower()
+
+
+def test_guild_message_bucket_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(deps_mod, "_guild_msg_bucket", TokenBucket(limit_per_minute=2))
+    monkeypatch.setattr(deps_mod.settings, "environment", "dev")
+    monkeypatch.setattr(deps_mod.settings, "rate_limit_disabled", False)
+    acct = _FakeAccount(11)
+    deps_mod.enforce_guild_message_rate_limit(acct)
+    deps_mod.enforce_guild_message_rate_limit(acct)
+    with pytest.raises(HTTPException) as exc:
+        deps_mod.enforce_guild_message_rate_limit(acct)
+    assert exc.value.status_code == 429
+    assert "guild chat" in exc.value.detail.lower()
+
+
+def test_buckets_are_independent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Battle bucket full must not block arena or guild-chat."""
+    monkeypatch.setattr(deps_mod, "_battle_bucket", TokenBucket(limit_per_minute=1))
+    monkeypatch.setattr(deps_mod, "_arena_bucket", TokenBucket(limit_per_minute=5))
+    monkeypatch.setattr(deps_mod, "_guild_msg_bucket", TokenBucket(limit_per_minute=5))
+    monkeypatch.setattr(deps_mod.settings, "environment", "dev")
+    monkeypatch.setattr(deps_mod.settings, "rate_limit_disabled", False)
+    acct = _FakeAccount(12)
+
+    deps_mod.enforce_battle_rate_limit(acct)
+    with pytest.raises(HTTPException):
+        deps_mod.enforce_battle_rate_limit(acct)
+    # Arena + chat still open for the same account.
+    deps_mod.enforce_arena_rate_limit(acct)
+    deps_mod.enforce_guild_message_rate_limit(acct)

@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     # to the per-IP general bucket. 30/min = ~1 fight every 2s, generous for
     # humans but catches bot-like loops signed in as a real account.
     battle_per_minute_per_account: int = 30
+    # Per-account anti-hammer on /arena/attack. Arenas pay a matchmaking cost
+    # server-side, so tighter: 20/min = one attack every 3s.
+    arena_attack_per_minute_per_account: int = 20
+    # Per-account anti-flood on /guilds/{id}/messages. 30/min matches a fast
+    # human chatter; bots trying to spam a guild chat hit this first.
+    guild_message_per_minute_per_account: int = 30
     # Smoke scripts hammering a single IP can trip the general bucket — this lets
     # dev/CI short-circuit the middleware entirely. Never enable in prod.
     rate_limit_disabled: bool = False

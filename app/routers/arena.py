@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.combat import power_rating, scale_stat, simulate, trim_combat_log
 from app.daily import on_arena_attack
 from app.db import get_db
-from app.deps import get_current_account
+from app.deps import enforce_arena_rate_limit, get_current_account
 from app.gear_logic import gear_bonus_for
 from app.models import (
     Account,
@@ -224,7 +224,7 @@ def list_opponents(
 @router.post("/attack", response_model=ArenaMatchOut, status_code=status.HTTP_201_CREATED)
 def attack(
     body: ArenaAttackIn,
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(enforce_arena_rate_limit)],
     db: Annotated[Session, Depends(get_db)],
 ) -> ArenaMatchOut:
     if body.defender_account_id == account.id:
