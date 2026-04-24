@@ -26,6 +26,21 @@ class Settings(BaseSettings):
     # dev/CI short-circuit the middleware entirely. Never enable in prod.
     rate_limit_disabled: bool = False
 
+    # Email sender — drives forgot-password / send-verification delivery.
+    # Valid: console (default), file, smtp, disabled. In prod, console/disabled
+    # are rejected at startup (see main._check_secrets).
+    email_sender_type: str = "console"
+    email_file_path: str = "./emails.log"
+    email_from_address: str = "no-reply@hero-proto.local"
+    email_smtp_host: str = ""
+    email_smtp_port: int = 587
+    email_smtp_username: str = ""
+    email_smtp_password: str = ""
+    email_smtp_use_tls: bool = True
+    # Public-facing base URL used to construct clickable links in emails.
+    # e.g. https://app.hero-proto.com — in dev, defaults to the local server.
+    public_base_url: str = "http://127.0.0.1:8000"
+
     # Store: when True, POST /shop/purchases accepts unsigned "mock" payments that
     # immediately grant contents. Used in dev/CI before real Stripe is wired.
     # Auto-disabled in prod by main._check_secrets.

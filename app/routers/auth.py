@@ -123,6 +123,25 @@ def forgot_password(
             expires_at=utcnow() + timedelta(hours=PASSWORD_RESET_TTL_HOURS),
         ))
         db.commit()
+        # Email the reset link via the configured sender. In non-prod we also
+        # return the URL directly so clients can skip the mailbox step.
+        from app.email_sender import get_sender as _get_sender
+        full_url = f"{settings.public_base_url.rstrip('/')}/auth/reset-password?token={raw}"
+        try:
+            _get_sender().send(
+                to_email=account.email,
+                subject="hero-proto — password reset",
+                body_text=(
+                    f"Someone asked to reset the password for this account.\n\n"
+                    f"Click this link within {PASSWORD_RESET_TTL_HOURS} hour(s) to pick a new password:\n"
+                    f"  {full_url}\n\n"
+                    f"If that wasn't you, you can safely ignore this message — "
+                    f"your existing password keeps working."
+                ),
+            )
+        except Exception:
+            # Failures are non-fatal for the request (attacker enumeration resistance).
+            _log.exception("password reset email delivery failed for %s", account.email)
         if settings.environment.lower() != "prod":
             dev_url = f"/auth/reset-password?token={raw}"
             _log.info("password reset requested for %s — dev url: %s", account.email, dev_url)
@@ -210,6 +229,20 @@ def send_verification(
         return VerifyRequestOut(already_verified=True)
     _row, raw = _issue_email_verification(db, account)
     db.commit()
+    from app.email_sender import get_sender as _get_sender
+    full_url = f"{settings.public_base_url.rstrip('/')}/auth/verify-email?token={raw}"
+    try:
+        _get_sender().send(
+            to_email=account.email,
+            subject="hero-proto — verify your email",
+            body_text=(
+                f"Confirm this email address belongs to you:\n\n"
+                f"  {full_url}\n\n"
+                f"Link expires in {EMAIL_VERIFY_TTL_HOURS} hours."
+            ),
+        )
+    except Exception:
+        _log.exception("email verification delivery failed for %s", account.email)
     dev_url = None
     if settings.environment.lower() != "prod":
         dev_url = f"/auth/verify-email?token={raw}"

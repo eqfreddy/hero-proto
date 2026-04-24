@@ -41,6 +41,11 @@ def _check_secrets() -> None:
                 "HEROPROTO_MOCK_PAYMENTS_ENABLED must be false in production — real "
                 "payment processor required"
             )
+        if (settings.email_sender_type or "").lower() in ("", "console", "disabled"):
+            raise RuntimeError(
+                f"HEROPROTO_EMAIL_SENDER_TYPE={settings.email_sender_type!r} is not "
+                f"allowed in production — set to 'smtp' with real credentials"
+            )
 
 
 def _run_migrations() -> None:
