@@ -2,7 +2,7 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-04-24.
+Last updated: 2026-04-24 (post Sprint A–D close-out).
 
 ---
 
@@ -28,9 +28,7 @@ Last updated: 2026-04-24.
 
 ### Known papercuts still open
 
-- **Ban doesn't invalidate existing JWTs.** Banned user's token stays technically valid until expiry — `deps.py` blocks the request at 403 but the token hasn't been killed. Token-version field on `Account` fixes it.
-- **`Battle.log_json` is unbounded.** Long arena matches can balloon the row. Server-side cap (e.g. 200 events) is trivial but not in.
-- **Postgres is only CI-verified.** Never run against a live compose stack end-to-end, never had the 10 E2E smokes pointed at it.
+- **Postgres compose-stack smoke is runnable but unrun.** `scripts/postgres_stack_validate.sh` brings up the stack and runs both acceptance scripts against it, but needs Docker Desktop up — once someone runs it green it's a trust-but-verify step before calling Postgres "done."
 - **Frontend is a bare shell.** Works for smoke-testing; not shippable to real users.
 
 ---
@@ -39,43 +37,41 @@ Last updated: 2026-04-24.
 
 Each sprint is sized to be shippable in one session. Pick one; don't interleave.
 
-### A. Hardening leftovers (small, immediate value)
-Closes the papercuts above.
-- [ ] **JWT token-version on Account** — increment on ban; `issue_token` embeds it; `decode_token` dep checks it. Banning now kills the session for real.
-- [ ] **Combat log pruning** — cap `Battle.log_json` entries server-side (e.g. 200 events). Stops long fights from bloating the DB row.
-- [ ] **Per-account rate limit on `/battles`** (in addition to per-IP) — one honest anti-cheat layer before we start thinking about client-authoritative.
-- [ ] Tests for all of the above.
-
-### B. Guild completeness
-Entirely in `routers/guilds.py` + tests.
-- [ ] `POST /guilds/{id}/promote/{account_id}` — leader promotes MEMBER → OFFICER
-- [ ] `POST /guilds/{id}/transfer/{account_id}` — leader hands off without leaving
-- [ ] Application / invite flow (replace "anyone can join public guilds")
-- [ ] `smoke_guild.py` E2E mirror (or add guild section depth to `client_walkthrough.py`)
-
-### C. Postgres live validation
-CI runs against Postgres on every push; nothing's ever run against a compose-stacked Postgres with the worker + real HTTP.
-- [ ] `docker compose up --build`, run `startup_check` against it
-- [ ] Run `client_walkthrough` against the compose stack
-- [ ] Fix any SQLite-isms that surface (JSON column differences, string-as-enum comparisons)
-- [ ] Document the exact flow in `README.md`
-
-### D. Content expansion
-User-facing variety. Touches `seed.py` + content tables.
-- [ ] 10–20 more hero templates (currently 25)
-- [ ] 5–10 more stages (currently 10 normal + 10 hard)
-- [ ] Boss-only hero templates for raids (higher stats, unique specials)
-- [ ] Tutorial stage 0 / first-time walkthrough
-- [ ] Seed additional LiveOps event presets (`BONUS_GEAR_DROPS` kind is wired but unseeded)
-
-### E. Frontend polish
-The dashboard works; nobody wants to look at it.
+### A. Frontend polish
+The dashboard works; nobody wants to look at it. Biggest perceived-quality lift per hour.
 - [ ] CSS pass on `/app/*` (currently unstyled vanilla HTML)
-- [ ] Loading states + error toasts (right now failures are silent alert() boxes)
-- [ ] Mobile layout for the dashboard
-- [ ] Or: rewrite as a real SPA (React / Svelte) — bigger bet
+- [ ] Loading states + error toasts (right now failures are silent `alert()` boxes)
+- [ ] Mobile-responsive layout
+- [ ] Or: rewrite as a real SPA (React / Svelte) — bigger bet; needs a build step
 
-**Recommendation:** ship **A** next — the JWT-on-ban gap is the one real security smell still sitting in the repo, and log pruning + per-account battle rate-limit are both tiny. C is a close second if we want to de-risk Postgres before content/frontend work scales the DB up.
+### B. Anti-cheat depth
+One layer shipped (per-account battle rate limit). More to add.
+- [ ] Cap arena attack attempts per hour (separate from /battles bucket)
+- [ ] Audit all endpoints for `hero_instance_id` ownership check
+- [ ] Reject implausible combat outcomes (if a client-authoritative layer is ever added)
+- [ ] Per-IP guild-message rate limit to stop chat flooding
+
+### C. Deploy pipeline
+Dockerfile + compose exist; nothing's been pushed or deployed.
+- [ ] Run `scripts/postgres_stack_validate.sh` once green (trust-but-verify the Postgres path)
+- [ ] Build + push Docker image to a registry (Fly / GHCR / ECR)
+- [ ] Pick a hosted target (Fly / Railway / Render / plain VM) and do a first deploy
+- [ ] Automated daily DB backup (volume → dated tarball on a schedule)
+- [ ] Graceful shutdown — worker cancels + in-flight battles finish
+
+### D. Raid depth
+Raids work; they're shallow.
+- [ ] Scheduled raid auto-start (worker rotates when guild has no active raid)
+- [ ] Per-attempt cooldown (currently only gated by energy)
+- [ ] Leaderboard endpoint (top-contributing guilds this week)
+- [ ] Unique boss-only specials (dedicated templates now exist, still use hero specials)
+
+### E. Observability next steps
+- [ ] OpenTelemetry tracing (propagate request IDs into spans)
+- [ ] Alerting thresholds documented (5xx rate, p99 latency)
+- [ ] Dashboard screenshots / PromQL cookbook in `RUNBOOK.md`
+
+**Recommendation:** ship **A** next — the backend is stable enough that the next real-user bottleneck is how the thing looks. **C** is the right choice if the goal is "put it in front of external testers" rather than "make it prettier."
 
 ---
 
@@ -248,6 +244,12 @@ The dashboard works; nobody wants to look at it.
 - 50 SVGs patched to render standalone (scripts/patch_art_styles.py)
 - Admin analytics overview endpoint
 - API audit: cap unbounded list endpoints + conventions doc
+
+**Sprint A–D close-out (2026-04-24)**
+- Sprint A: JWT token-version on ban (already shipped earlier), combat log pruning (already shipped), per-account /battles rate limit (new)
+- Sprint B: guild promote/demote/transfer/apply/accept/reject/withdraw — all shipped + unit + smoke coverage
+- Sprint C: `scripts/postgres_stack_validate.sh` — one-shot compose-Postgres smoke (runs on demand)
+- Sprint D: +10 heroes (7 roster + 3 raid-boss templates), +6 stages (tutorial stage 0 + orders 11–15), +1 BONUS_GEAR_DROPS liveops seed
 
 **Testing / docs**
 - CI on every push with Postgres matrix
