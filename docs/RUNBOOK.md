@@ -254,6 +254,34 @@ curl https://.../admin/audit?target_id=42 -H ...           # filter by target
 curl https://.../admin/audit?action=ban -H ...             # filter by action
 ```
 
+### Back up the database
+
+```bash
+# SQLite: auto-detects the path from HEROPROTO_DATABASE_URL and writes a
+# gzipped snapshot to ./backups/ (override with BACKUP_DIR). Keeps the
+# newest 14 backups (override with RETAIN).
+bash scripts/backup_db.sh
+
+# Postgres works the same; the script shells out to pg_dump in custom
+# format. Requires pg_dump on PATH.
+HEROPROTO_DATABASE_URL=postgresql+psycopg://user:pw@host/db \
+  bash scripts/backup_db.sh
+```
+
+Scheduling (cron example — daily at 3 AM UTC):
+
+```cron
+0 3 * * *  cd /app && HEROPROTO_DATABASE_URL=... bash scripts/backup_db.sh >> /var/log/heroproto-backup.log 2>&1
+```
+
+Output files are named `hero-proto-<UTC timestamp>.(db.gz|dump)` so `ls -1` sorts chronologically. Retention prunes the oldest beyond `RETAIN`.
+
+### Graceful shutdown
+
+Send SIGTERM to the uvicorn process. FastAPI waits for in-flight HTTP requests to finish, then the `lifespan` context cancels the worker task and awaits its `CancelledError`. No special action needed — `docker stop`, `systemctl stop`, and `kubectl delete` all send SIGTERM.
+
+Safe default timeout: 30s. Raise it if you're seeing shutdown logs that mention "active connections remaining" (heavy arena match in flight, etc.).
+
 ### Post a server-wide announcement
 
 ```bash
