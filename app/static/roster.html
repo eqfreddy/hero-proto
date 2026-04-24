@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hero Roster & Team Builder</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0b0d10;
+      color: #ddd;
+      margin: 0;
+      padding: 24px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 36px;
+      color: #fff;
+      margin: 0 0 8px 0;
+      font-weight: 800;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #8a9aac;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 32px;
+    }
+
+    /* ROSTER SECTION */
+    .roster-section {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 8px 16px;
+      border: 2px solid rgba(255,255,255,0.1);
+      background: transparent;
+      color: #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 200ms ease;
+    }
+
+    .filter-btn:hover {
+      border-color: #59a0ff;
+      color: #59a0ff;
+    }
+
+    .filter-btn.active {
+      background: #59a0ff;
+      border-color: #59a0ff;
+      color: #000;
+    }
+
+    .roster-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .roster-card {
+      background: linear-gradient(135deg, #16191f 0%, #0f1217 100%);
+      border: 2px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 200ms ease;
+      text-align: center;
+    }
+
+    .roster-card:hover {
+      border-color: var(--primary-color, #59a0ff);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      transform: translateY(-2px);
+    }
+
+    .roster-card.selected {
+      background: var(--primary-color, #59a0ff);
+      color: #000;
+      border-color: var(--primary-color, #59a0ff);
+    }
+
+    .roster-card.selected .roster-name,
+    .roster-card.selected .roster-stats {
+      color: #000;
+    }
+
+    .roster-card.selected .roster-class {
+      color: rgba(0,0,0,0.7);
+    }
+
+    .roster-rarity {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      background: var(--rarity-color, #59a0ff);
+      color: white;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      letter-spacing: 0.4px;
+    }
+
+    .roster-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .roster-class {
+      font-size: 10px;
+      color: #8a9aac;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 8px;
+    }
+
+    .roster-role {
+      display: inline-block;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      background: var(--role-bg, rgba(89,160,255,0.15));
+      color: var(--role-color, #59a0ff);
+      border-radius: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .roster-stats {
+      font-size: 10px;
+      color: #8a9aac;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+    }
+
+    .roster-stat {
+      font-size: 9px;
+    }
+
+    /* TEAM BUILDER SIDEBAR */
+    .team-builder {
+      position: sticky;
+      top: 24px;
+      height: fit-content;
+      background: linear-gradient(135deg, #16191f 0%, #0f1217 100%);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .team-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .team-slots {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .team-slot {
+      background: rgba(255,255,255,0.04);
+      border: 2px dashed rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      transition: all 200ms ease;
+    }
+
+    .team-slot:hover {
+      border-color: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .team-slot.filled {
+      background: var(--primary-color, #59a0ff);
+      border-color: var(--primary-color, #59a0ff);
+      cursor: pointer;
+    }
+
+    .team-slot.filled .slot-name {
+      color: #000;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .team-slot.filled .slot-class {
+      color: rgba(0,0,0,0.6);
+      font-size: 9px;
+    }
+
+    .team-slot.empty {
+      color: #5a6a7c;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .team-stats {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .team-stat {
+      text-align: center;
+    }
+
+    .team-stat-label {
+      font-size: 9px;
+      color: #6a7a8c;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 2px;
+    }
+
+    .team-stat-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffd86b;
+    }
+
+    .synergy-info {
+      background: rgba(255,216,107,0.1);
+      border: 1px solid rgba(255,216,107,0.3);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .synergy-label {
+      font-size: 9px;
+      color: #ffd86b;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+    }
+
+    .synergy-text {
+      font-size: 10px;
+      color: #e5d890;
+      line-height: 1.4;
+    }
+
+    .synergy-text.no-bonus {
+      color: #6a7a8c;
+    }
+
+    .clear-team {
+      padding: 10px;
+      background: rgba(255,122,89,0.15);
+      border: 1px solid rgba(255,122,89,0.3);
+      color: #ff7a59;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      transition: all 200ms ease;
+    }
+
+    .clear-team:hover {
+      background: rgba(255,122,89,0.25);
+    }
+
+    /* FACTION COLORS */
+    .faction-HELPDESK { --primary-color: #ff7a59; }
+    .faction-DEVOPS { --primary-color: #59a0ff; }
+    .faction-EXECUTIVE { --primary-color: #c77dff; }
+    .faction-ROGUE_IT { --primary-color: #ffd86b; }
+    .faction-LEGACY { --primary-color: #6dd39a; }
+
+    /* ROLE COLORS */
+    .role-ATK { --role-bg: rgba(255,122,89,0.15); --role-color: #ff7a59; }
+    .role-DEF { --role-bg: rgba(89,160,255,0.15); --role-color: #59a0ff; }
+    .role-SUP { --role-bg: rgba(109,211,154,0.15); --role-color: #6dd39a; }
+
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      .team-builder {
+        position: relative;
+        top: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Hero Roster & Team Builder</h1>
+  <p class="subtitle">Select 5 characters to form your team. View synergy bonuses based on faction composition.</p>
+
+  <div class="container">
+    <div class="roster-section">
+      <div class="filter-bar">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="HELPDESK">Helpdesk</button>
+        <button class="filter-btn" data-filter="DEVOPS">DevOps</button>
+        <button class="filter-btn" data-filter="EXECUTIVE">Executive</button>
+        <button class="filter-btn" data-filter="ROGUE_IT">Rogue IT</button>
+        <button class="filter-btn" data-filter="LEGACY">Legacy</button>
+        <button class="filter-btn" data-filter="role-ATK">ATK</button>
+        <button class="filter-btn" data-filter="role-DEF">DEF</button>
+        <button class="filter-btn" data-filter="role-SUP">SUP</button>
+      </div>
+      <div class="roster-grid" id="rosterGrid"></div>
+    </div>
+
+    <div class="team-builder">
+      <div class="team-title">Your Team</div>
+      <div class="team-slots" id="teamSlots"></div>
+      <div class="team-stats" id="teamStats"></div>
+      <div class="synergy-info" id="synergyInfo"></div>
+      <button class="clear-team" id="clearTeam">Clear Team</button>
+    </div>
+  </div>
+
+  <script>
+    const characters = [
+      // COMMON
+      { code: "ticket_gremlin", name: "Ticket Gremlin", faction: "HELPDESK", role: "ATK", rarity: "COMMON", stats: { hp: 42, atk: 64, def: 28, spd: 58 } },
+      { code: "printer_whisperer", name: "Printer Whisperer", faction: "HELPDESK", role: "SUP", rarity: "COMMON", stats: { hp: 48, atk: 42, def: 42, spd: 48 } },
+      { code: "overnight_janitor", name: "Overnight Janitor", faction: "LEGACY", role: "DEF", rarity: "COMMON", stats: { hp: 65, atk: 38, def: 72, spd: 32 } },
+      { code: "devops_apprentice", name: "DevOps Apprentice", faction: "DEVOPS", role: "ATK", rarity: "COMMON", stats: { hp: 44, atk: 66, def: 30, spd: 62 } },
+      { code: "forgotten_contractor", name: "Forgotten Contractor", faction: "ROGUE_IT", role: "ATK", rarity: "COMMON", stats: { hp: 40, atk: 60, def: 26, spd: 56 } },
+
+      // UNCOMMON
+      { code: "jaded_intern", name: "Jaded Intern", faction: "HELPDESK", role: "ATK", rarity: "UNCOMMON", stats: { hp: 46, atk: 68, def: 32, spd: 60 } },
+      { code: "sre_on_call", name: "SRE on Call", faction: "DEVOPS", role: "SUP", rarity: "UNCOMMON", stats: { hp: 54, atk: 44, def: 48, spd: 52 } },
+      { code: "compliance_officer", name: "Compliance Officer", faction: "EXECUTIVE", role: "DEF", rarity: "UNCOMMON", stats: { hp: 72, atk: 40, def: 80, spd: 28 } },
+      { code: "security_auditor", name: "Security Auditor", faction: "EXECUTIVE", role: "ATK", rarity: "UNCOMMON", stats: { hp: 50, atk: 70, def: 34, spd: 64 } },
+      { code: "helpdesk_veteran", name: "Helpdesk Veteran", faction: "HELPDESK", role: "DEF", rarity: "UNCOMMON", stats: { hp: 70, atk: 36, def: 78, spd: 30 } },
+      { code: "build_engineer", name: "Build Engineer", faction: "DEVOPS", role: "ATK", rarity: "UNCOMMON", stats: { hp: 48, atk: 69, def: 31, spd: 66 } },
+
+      // RARE
+      { code: "the_sysadmin", name: "The Sysadmin", faction: "LEGACY", role: "DEF", rarity: "RARE", stats: { hp: 80, atk: 42, def: 90, spd: 26 } },
+      { code: "root_access_janitor", name: "Root-Access Janitor", faction: "ROGUE_IT", role: "ATK", rarity: "RARE", stats: { hp: 50, atk: 76, def: 28, spd: 70 } },
+      { code: "vp_of_vibes", name: "VP of Vibes", faction: "EXECUTIVE", role: "SUP", rarity: "RARE", stats: { hp: 60, atk: 48, def: 52, spd: 54 } },
+      { code: "keymaster_gary", name: "Keymaster (Gary)", faction: "HELPDESK", role: "ATK", rarity: "RARE", stats: { hp: 52, atk: 74, def: 36, spd: 68 } },
+      { code: "rogue_dba", name: "Rogue DBA", faction: "ROGUE_IT", role: "SUP", rarity: "RARE", stats: { hp: 56, atk: 46, def: 50, spd: 60 } },
+      { code: "oncall_warrior", name: "Oncall Warrior", faction: "DEVOPS", role: "DEF", rarity: "RARE", stats: { hp: 84, atk: 44, def: 96, spd: 28 } },
+
+      // EPIC
+      { code: "the_post_mortem", name: "The Post-Mortem", faction: "DEVOPS", role: "SUP", rarity: "EPIC", stats: { hp: 62, atk: 50, def: 56, spd: 58 } },
+      { code: "midnight_pager", name: "Midnight Pager", faction: "DEVOPS", role: "ATK", rarity: "EPIC", stats: { hp: 54, atk: 80, def: 32, spd: 76 } },
+      { code: "the_consultant", name: "The Consultant", faction: "EXECUTIVE", role: "DEF", rarity: "EPIC", stats: { hp: 88, atk: 48, def: 100, spd: 30 } },
+      { code: "retired_mainframe_guru", name: "Retired Mainframe Guru", faction: "LEGACY", role: "SUP", rarity: "EPIC", stats: { hp: 68, atk: 52, def: 60, spd: 56 } },
+      { code: "shadow_it_operator", name: "Shadow IT Operator", faction: "ROGUE_IT", role: "ATK", rarity: "EPIC", stats: { hp: 56, atk: 82, def: 30, spd: 74 } },
+
+      // LEGENDARY
+      { code: "the_founder", name: "The Founder", faction: "EXECUTIVE", role: "ATK", rarity: "LEGENDARY", stats: { hp: 60, atk: 88, def: 38, spd: 80 } },
+      { code: "chaos_monkey", name: "Chaos Monkey", faction: "DEVOPS", role: "ATK", rarity: "LEGENDARY", stats: { hp: 58, atk: 90, def: 34, spd: 82 } },
+      { code: "the_board_member", name: "The Board Member", faction: "EXECUTIVE", role: "SUP", rarity: "LEGENDARY", stats: { hp: 70, atk: 56, def: 64, spd: 62 } },
+    ];
+
+    const factionSynergies = {
+      HELPDESK: { name: "Helpdesk Team", bonus: "+25% ATK, +20% DEF, +15% accuracy" },
+      DEVOPS: { name: "DevOps Squad", bonus: "+25% ATK, +20% DEF, +15% uptime" },
+      EXECUTIVE: { name: "Executive Board", bonus: "+30% leadership aura, +20% team defense, +25% policy power" },
+      ROGUE_IT: { name: "Shadow Operators", bonus: "+35% stealth actions, +25% system access, +20% exploit damage" },
+      LEGACY: { name: "Mainframe Masters", bonus: "+30% stability, +25% system resilience, +20% legacy protocol power" }
+    };
+
+    let team = [null, null, null, null, null];
+    let currentFilter = "all";
+
+    // Render roster
+    function renderRoster() {
+      const rosterGrid = document.getElementById("rosterGrid");
+      rosterGrid.innerHTML = "";
+
+      characters
+        .filter(char => {
+          if (currentFilter === "all") return true;
+          if (currentFilter.startsWith("role-")) return char.role === currentFilter.slice(5);
+          return char.faction === currentFilter;
+        })
+        .forEach(char => {
+          const card = document.createElement("div");
+          card.className = `roster-card faction-${char.faction}`;
+          if (team.includes(char.code)) card.classList.add("selected");
+
+          const rarityColorMap = { COMMON: "#7d8a9c", UNCOMMON: "#6dd39a", RARE: "#59a0ff", EPIC: "#c77dff", LEGENDARY: "#ffd86b" };
+
+          card.style.setProperty("--primary-color", `var(--faction-${char.faction})`);
+          card.style.setProperty("--rarity-color", rarityColorMap[char.rarity]);
+
+          const roleClass = `role-${char.role}`;
+          card.innerHTML = `
+            <div class="roster-rarity">${char.rarity}</div>
+            <div class="roster-name">${char.name}</div>
+            <div class="roster-class">${char.faction}</div>
+            <div class="roster-role ${roleClass}">${char.role}</div>
+            <div class="roster-stats">
+              <div class="roster-stat">HP: ${char.stats.hp}</div>
+              <div class="roster-stat">ATK: ${char.stats.atk}</div>
+              <div class="roster-stat">DEF: ${char.stats.def}</div>
+              <div class="roster-stat">SPD: ${char.stats.spd}</div>
+            </div>
+          `;
+
+          card.addEventListener("click", () => toggleTeamMember(char));
+          rosterGrid.appendChild(card);
+        });
+    }
+
+    function toggleTeamMember(char) {
+      const index = team.indexOf(char.code);
+      if (index !== -1) {
+        team[index] = null;
+      } else {
+        const emptySlot = team.indexOf(null);
+        if (emptySlot !== -1) {
+          team[emptySlot] = char.code;
+        } else {
+          alert("Team is full!");
+          return;
+        }
+      }
+      renderRoster();
+      renderTeam();
+    }
+
+    function renderTeam() {
+      const teamSlots = document.getElementById("teamSlots");
+      teamSlots.innerHTML = "";
+
+      team.forEach((charCode, idx) => {
+        const slot = document.createElement("div");
+        slot.className = "team-slot";
+        if (charCode) {
+          slot.classList.add("filled");
+          const char = characters.find(c => c.code === charCode);
+          slot.classList.add(`faction-${char.faction}`);
+          slot.innerHTML = `<div class="slot-name">${char.name}</div><div class="slot-class">${char.role}</div>`;
+          slot.addEventListener("click", () => {
+            team[idx] = null;
+            renderRoster();
+            renderTeam();
+          });
+        } else {
+          slot.classList.add("empty");
+          slot.textContent = `Slot ${idx + 1}`;
+        }
+        teamSlots.appendChild(slot);
+      });
+
+      updateTeamStats();
+    }
+
+    function updateTeamStats() {
+      const members = team.filter(m => m !== null).map(code => characters.find(c => c.code === code));
+      
+      let totalHp = 0, totalAtk = 0, totalDef = 0, totalSpd = 0;
+      members.forEach(char => {
+        totalHp += char.stats.hp;
+        totalAtk += char.stats.atk;
+        totalDef += char.stats.def;
+        totalSpd += char.stats.spd;
+      });
+
+      const teamStats = document.getElementById("teamStats");
+      teamStats.innerHTML = `
+        <div class="team-stat"><div class="team-stat-label">HP</div><div class="team-stat-value">${totalHp}</div></div>
+        <div class="team-stat"><div class="team-stat-label">ATK</div><div class="team-stat-value">${totalAtk}</div></div>
+        <div class="team-stat"><div class="team-stat-label">DEF</div><div class="team-stat-value">${totalDef}</div></div>
+        <div class="team-stat"><div class="team-stat-label">SPD</div><div class="team-stat-value">${totalSpd}</div></div>
+      `;
+
+      // Check for full faction synergy
+      const synergyInfo = document.getElementById("synergyInfo");
+      if (members.length === 5) {
+        const factions = members.map(m => m.faction);
+        const uniqueFactions = new Set(factions);
+        if (uniqueFactions.size === 1) {
+          const factionKey = factions[0];
+          const synergy = factionSynergies[factionKey];
+          synergyInfo.innerHTML = `<div class="synergy-label">✨ Full Faction Synergy!</div><div class="synergy-text">${synergy.name}<br>${synergy.bonus}</div>`;
+        } else {
+          synergyInfo.innerHTML = `<div class="synergy-label">No Synergy</div><div class="synergy-text no-bonus">Mixed factions detected. Use all characters from one faction for synergy bonuses.</div>`;
+        }
+      } else {
+        synergyInfo.innerHTML = `<div class="synergy-label">Team Incomplete</div><div class="synergy-text no-bonus">Select 5 characters to unlock synergy bonuses.</div>`;
+      }
+    }
+
+    // Filter buttons
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentFilter = btn.dataset.filter;
+        renderRoster();
+      });
+    });
+
+    // Clear team
+    document.getElementById("clearTeam").addEventListener("click", () => {
+      team = [null, null, null, null, null];
+      renderRoster();
+      renderTeam();
+    });
+
+    // Initial render
+    renderRoster();
+    renderTeam();
+  </script>
+
+</body>
+</html>

@@ -67,11 +67,12 @@ async def main() -> int:
         print("OK other accounts get 404 on foreign battle")
 
         # Static page served.
-        r = await client.get("/app/battle.html")
+        r = await client.get("/app/battle-replay.html")
         assert r.status_code == 200
-        assert "battle replay" in r.text.lower(), "battle.html missing expected content"
-        assert "loadBattle" in r.text, "battle.html missing JS"
-        print("OK /app/battle.html served")
+        assert "battle replay" in r.text.lower() or "mockBattle" in r.text, \
+            "battle-replay.html missing expected content"
+        assert "/battles/" in r.text, "battle-replay.html missing battles fetch"
+        print("OK /app/battle-replay.html served")
 
         print("SMOKE BATTLE VIEW OK")
         return 0

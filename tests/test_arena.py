@@ -209,8 +209,8 @@ def test_arena_partial_shows_recent_matches_with_replay_link(client) -> None:
     # Recent matches section + per-row replay link pointing at the Phaser page
     # in arena mode.
     assert "Recent matches" in body
-    assert f"/app/battle-phaser.html?id={match_id}&amp;mode=arena" in body or \
-           f"/app/battle-phaser.html?id={match_id}&mode=arena" in body
+    assert f"/app/battle-replay.html?id={match_id}&amp;mode=arena" in body or \
+           f"/app/battle-replay.html?id={match_id}&mode=arena" in body
 
 
 def test_arena_partial_hides_recent_matches_when_empty(client) -> None:

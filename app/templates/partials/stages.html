@@ -1,7 +1,11 @@
 <div class="stack">
   <div class="row" style="justify-content: space-between;">
     <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Stages</h2>
-    <div class="muted" style="font-size: 12px;">⚡ energy {{ me.energy }}/{{ me.energy_cap }} · team size 3</div>
+    <div class="row" style="gap: 8px; align-items: center;">
+      <a href="/app/battle-setup.html" target="_blank" class="pill" style="color: var(--accent); text-decoration: none; padding: 4px 10px;">⚔ Fight (visual)</a>
+      <a href="/app/roster.html" target="_blank" class="pill" style="color: var(--muted); text-decoration: none; padding: 4px 10px;">📖 Codex</a>
+      <div class="muted" style="font-size: 12px;">⚡ energy {{ me.energy }}/{{ me.energy_cap }} · team size 3</div>
+    </div>
   </div>
 
   {# Reusable stage card — tier determines styling accents. #}
@@ -83,8 +87,8 @@
       out.innerHTML = `
         <span class="pill ${cls}">${body.outcome}</span>
         ${body.first_clear ? ' <span class="pill good">first clear!</span>' : ''}
-        <a href="/app/battle-phaser.html?id=${body.id}" target="_blank" style="margin-left: 6px;">▶ watch replay</a>
-        <a href="/app/battle.html?id=${body.id}" target="_blank" style="margin-left: 4px; font-size: 11px; color: var(--muted);">(DOM)</a>
+        <a href="/app/battle-replay.html?id=${body.id}" target="_blank" style="margin-left: 6px;">▶ watch replay</a>
+        <a href="/app/battle-phaser.html?id=${body.id}" target="_blank" style="margin-left: 4px; font-size: 11px; color: var(--muted);">(animated)</a>
       `;
     } catch (e) { out.innerHTML = '<span style="color: var(--bad);">' + e.message + '</span>'; }
   }

@@ -47,7 +47,7 @@
           </td>
           <td class="muted" style="font-size: 11px;">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
           <td>
-            <a href="/app/battle-phaser.html?id={{ m.id }}&mode=arena" target="_blank" class="pill" style="color: var(--accent); text-decoration: none;">▶ replay</a>
+            <a href="/app/battle-replay.html?id={{ m.id }}&mode=arena" target="_blank" class="pill" style="color: var(--accent); text-decoration: none;">▶ replay</a>
           </td>
         </tr>
         {% endfor %}
@@ -96,7 +96,7 @@
     out.innerHTML = `
       <span class="pill ${cls}">${body.outcome}</span>
       rating ${delta} → ${body.attacker_rating_after}
-      <a href="/app/battle-phaser.html?id=${body.id}&mode=arena" target="_blank" style="margin-left: 8px;">▶ watch replay</a>
+      <a href="/app/battle-replay.html?id=${body.id}&mode=arena" target="_blank" style="margin-left: 8px;">▶ watch replay</a>
     `;
     // Refresh the tab after a beat so the new match joins the recent-matches list.
     setTimeout(() => htmx.ajax('GET', '/app/partials/arena', '#content'), 1500);

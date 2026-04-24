@@ -102,21 +102,25 @@ if _STATIC_DIR.is_dir():
 # UI router (HTMX shell + partials) must register BEFORE any /app fallback.
 app.include_router(ui.router)
 
-# Backwards-compat: /app/battle.html and /app/index.html used to be served by the
-# /app static mount with html=True. Serve them explicitly now.
+# Explicit routes for the dashboard's static pages — the /app static mount was
+# moved to /app/static/ so root-level filenames here need direct routes.
 from fastapi.responses import FileResponse as _FR
 
-_battle_html = _STATIC_DIR / "battle.html"
-if _battle_html.is_file():
-    @app.get("/app/battle.html", include_in_schema=False)
-    def _serve_battle_html() -> _FR:
-        return _FR(str(_battle_html))
 
-_battle_phaser_html = _STATIC_DIR / "battle-phaser.html"
-if _battle_phaser_html.is_file():
-    @app.get("/app/battle-phaser.html", include_in_schema=False)
-    def _serve_battle_phaser_html() -> _FR:
-        return _FR(str(_battle_phaser_html))
+def _serve_static(filename: str):
+    path = _STATIC_DIR / filename
+    if not path.is_file():
+        return None
+    async def handler() -> _FR:
+        return _FR(str(path))
+    handler.__name__ = f"_serve_{filename.replace('-', '_').replace('.', '_')}"
+    return handler
+
+
+for _html in ("battle-phaser.html", "battle-setup.html", "battle-replay.html", "roster.html"):
+    _h = _serve_static(_html)
+    if _h is not None:
+        app.add_api_route(f"/app/{_html}", _h, methods=["GET"], include_in_schema=False)
 
 app.include_router(auth.router)
 app.include_router(me.router)

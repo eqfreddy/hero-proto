@@ -59,7 +59,7 @@
     const params = new URLSearchParams(location.search);
     const battleId = params.get("id");
     document.getElementById("bid").textContent = battleId || "?";
-    document.getElementById("toggle-dom").href = battleId ? `/app/battle.html?id=${battleId}` : "/app/";
+    document.getElementById("toggle-dom").href = battleId ? `/app/battle-replay.html?id=${battleId}` : "/app/";
 
     // Mode selector: ?mode=arena fetches /arena/matches/{id}; default is /battles/{id}.
     const mode = params.get("mode") || "battle";
