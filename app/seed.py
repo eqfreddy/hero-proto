@@ -347,6 +347,127 @@ HERO_SEEDS: list[dict] = [
         },
         "special_cooldown": 4,
     },
+    # --- Expansion 2: more roster variety + 3 boss-scaled templates for raids ---
+    {
+        "code": "frontline_l1_tech",
+        "name": "Frontline L1 Tech",
+        "rarity": Rarity.COMMON, "faction": Faction.HELPDESK, "role": Role.DEF,
+        "base_hp": 1200, "base_atk": 60, "base_def": 100, "base_spd": 80,
+        "basic_mult": 0.9, "special": None, "special_cooldown": 0,
+    },
+    {
+        "code": "office_coffee_hoarder",
+        "name": "Office Coffee Hoarder",
+        "rarity": Rarity.COMMON, "faction": Faction.ROGUE_IT, "role": Role.SUP,
+        "base_hp": 950, "base_atk": 65, "base_def": 70, "base_spd": 110,
+        "basic_mult": 0.8,
+        "special": {
+            "name": "Fresh Brew", "type": "BUFF",
+            "target": "ally_lowest_hp",
+            "effect": {"kind": "ATK_UP", "turns": 2, "value": 0.15},
+        },
+        "special_cooldown": 3,
+    },
+    {
+        "code": "database_archaeologist",
+        "name": "Database Archaeologist",
+        "rarity": Rarity.UNCOMMON, "faction": Faction.LEGACY, "role": Role.SUP,
+        "base_hp": 1100, "base_atk": 80, "base_def": 95, "base_spd": 90,
+        "basic_mult": 0.9,
+        "special": {
+            "name": "Forgotten Query", "type": "DEBUFF",
+            "target": "enemy_lowest_hp",
+            "effect": {"kind": "POISON", "turns": 3, "value": 0.1},
+        },
+        "special_cooldown": 3,
+    },
+    {
+        "code": "agile_coach",
+        "name": "Agile Coach",
+        "rarity": Rarity.UNCOMMON, "faction": Faction.EXECUTIVE, "role": Role.SUP,
+        "base_hp": 1100, "base_atk": 80, "base_def": 85, "base_spd": 110,
+        "basic_mult": 0.8,
+        "special": {
+            "name": "Sprint Retro", "type": "AOE_BUFF",
+            "effect": {"kind": "ATK_UP", "turns": 2, "value": 0.18},
+        },
+        "special_cooldown": 4,
+    },
+    {
+        "code": "cert_collector",
+        "name": "Cert Collector",
+        "rarity": Rarity.RARE, "faction": Faction.HELPDESK, "role": Role.DEF,
+        "base_hp": 1700, "base_atk": 90, "base_def": 150, "base_spd": 90,
+        "basic_mult": 1.0,
+        "special": {
+            "name": "Hyper-V / vSphere / K8s", "type": "SHIELD",
+            "target": "self",
+            "self_effect": {"kind": "ATK_UP", "turns": 2, "value": 0.2},
+        },
+        "special_cooldown": 4,
+    },
+    {
+        "code": "blue_team_lead",
+        "name": "Blue Team Lead",
+        "rarity": Rarity.RARE, "faction": Faction.DEVOPS, "role": Role.DEF,
+        "base_hp": 1650, "base_atk": 95, "base_def": 145, "base_spd": 100,
+        "basic_mult": 1.0,
+        "special": {
+            "name": "Incident Commander", "type": "AOE_BUFF",
+            "effect": {"kind": "ATK_UP", "turns": 2, "value": 0.25},
+        },
+        "special_cooldown": 4,
+    },
+    {
+        "code": "tape_library_ghost",
+        "name": "Tape Library Ghost",
+        "rarity": Rarity.EPIC, "faction": Faction.LEGACY, "role": Role.DEF,
+        "base_hp": 2100, "base_atk": 110, "base_def": 170, "base_spd": 85,
+        "basic_mult": 1.0,
+        "special": {
+            "name": "Backup From 2003", "type": "REVIVE",
+            "frac": 0.5,
+        },
+        "special_cooldown": 6,
+    },
+    # --- Boss-tier raid templates: hp-heavy, long cooldown signature specials ---
+    {
+        "code": "raidboss_legacy_colossus",
+        "name": "Legacy Colossus",
+        "rarity": Rarity.LEGENDARY, "faction": Faction.LEGACY, "role": Role.DEF,
+        "base_hp": 3400, "base_atk": 180, "base_def": 220, "base_spd": 80,
+        "basic_mult": 1.1,
+        "special": {
+            "name": "Thirty-Year Accretion", "type": "AOE_DAMAGE",
+            "mult": 1.6, "effect": {"kind": "DEF_DOWN", "turns": 3, "value": 0.35},
+        },
+        "special_cooldown": 5,
+    },
+    {
+        "code": "raidboss_c_suite_hydra",
+        "name": "C-Suite Hydra",
+        "rarity": Rarity.LEGENDARY, "faction": Faction.EXECUTIVE, "role": Role.ATK,
+        "base_hp": 3100, "base_atk": 260, "base_def": 140, "base_spd": 130,
+        "basic_mult": 1.2,
+        "special": {
+            "name": "Re-Org The Re-Org", "type": "DAMAGE",
+            "mult": 3.2, "hits": 3, "target": "enemy_lowest_hp",
+            "effect": {"kind": "STUN", "turns": 1, "value": 1.0},
+        },
+        "special_cooldown": 4,
+    },
+    {
+        "code": "raidboss_chaos_dragon",
+        "name": "Chaos Dragon",
+        "rarity": Rarity.LEGENDARY, "faction": Faction.DEVOPS, "role": Role.ATK,
+        "base_hp": 3600, "base_atk": 240, "base_def": 160, "base_spd": 150,
+        "basic_mult": 1.15,
+        "special": {
+            "name": "Prod Is Down", "type": "AOE_DAMAGE",
+            "mult": 1.8, "effect": {"kind": "POISON", "turns": 3, "value": 0.15},
+        },
+        "special_cooldown": 5,
+    },
 ]
 
 
@@ -358,6 +479,21 @@ def _wave(enemies: list[tuple[str, int]]) -> dict:
 
 
 STAGE_SEEDS: list[dict] = [
+    # --- Tutorial: order=0, single-wave trivial enemy, no real cost. Used by
+    # the first-time-walkthrough UI to teach the combat loop before order=1.
+    {
+        "code": "tutorial_first_ticket",
+        "name": "First Ticket",
+        "order": 0,
+        "energy_cost": 0,
+        "recommended_power": 60,
+        "coin_reward": 50,
+        "first_clear_gems": 10,
+        "first_clear_shards": 0,
+        "waves": [
+            _wave([("ticket_gremlin", 1)]),
+        ],
+    },
     {
         "code": "onboarding_day",
         "name": "Onboarding Day",
@@ -507,6 +643,82 @@ STAGE_SEEDS: list[dict] = [
             _wave([("the_founder", 30), ("chaos_monkey", 30), ("the_board_member", 30)]),
         ],
     },
+    # --- Expansion 2: endgame progression (orders 11-15) ---
+    {
+        "code": "tape_room_breach",
+        "name": "Tape Room Breach",
+        "order": 11,
+        "energy_cost": 15,
+        "recommended_power": 2800,
+        "coin_reward": 2100,
+        "first_clear_gems": 220,
+        "first_clear_shards": 7,
+        "waves": [
+            _wave([("tape_library_ghost", 30), ("cert_collector", 30), ("database_archaeologist", 30)]),
+            _wave([("tape_library_ghost", 32), ("retired_mainframe_guru", 31)]),
+            _wave([("raidboss_legacy_colossus", 30), ("tape_library_ghost", 32)]),
+        ],
+    },
+    {
+        "code": "boardroom_coup",
+        "name": "The Boardroom Coup",
+        "order": 12,
+        "energy_cost": 16,
+        "recommended_power": 3100,
+        "coin_reward": 2400,
+        "first_clear_gems": 250,
+        "first_clear_shards": 8,
+        "waves": [
+            _wave([("the_board_member", 30), ("agile_coach", 30), ("the_consultant", 30)]),
+            _wave([("the_founder", 31), ("vp_of_vibes", 31), ("the_board_member", 31)]),
+            _wave([("raidboss_c_suite_hydra", 30), ("the_founder", 31)]),
+        ],
+    },
+    {
+        "code": "prod_is_down",
+        "name": "Prod Is Down",
+        "order": 13,
+        "energy_cost": 16,
+        "recommended_power": 3400,
+        "coin_reward": 2700,
+        "first_clear_gems": 275,
+        "first_clear_shards": 8,
+        "waves": [
+            _wave([("midnight_pager", 30), ("oncall_warrior", 30), ("the_post_mortem", 30)]),
+            _wave([("chaos_monkey", 32), ("shadow_it_operator", 32), ("blue_team_lead", 32)]),
+            _wave([("raidboss_chaos_dragon", 30), ("chaos_monkey", 32)]),
+        ],
+    },
+    {
+        "code": "the_unauthorized_tool",
+        "name": "The Unauthorized Tool",
+        "order": 14,
+        "energy_cost": 17,
+        "recommended_power": 3700,
+        "coin_reward": 3000,
+        "first_clear_gems": 300,
+        "first_clear_shards": 9,
+        "waves": [
+            _wave([("shadow_it_operator", 32), ("rogue_dba", 32), ("root_access_janitor", 32)]),
+            _wave([("forgotten_contractor", 33), ("shadow_it_operator", 33), ("chaos_monkey", 33)]),
+            _wave([("raidboss_chaos_dragon", 32), ("raidboss_legacy_colossus", 32)]),
+        ],
+    },
+    {
+        "code": "the_all_hands",
+        "name": "The All-Hands",
+        "order": 15,
+        "energy_cost": 18,
+        "recommended_power": 4100,
+        "coin_reward": 3400,
+        "first_clear_gems": 350,
+        "first_clear_shards": 10,
+        "waves": [
+            _wave([("the_board_member", 33), ("the_founder", 33), ("vp_of_vibes", 33)]),
+            _wave([("raidboss_legacy_colossus", 33), ("raidboss_chaos_dragon", 33), ("raidboss_c_suite_hydra", 33)]),
+            _wave([("the_founder", 35), ("raidboss_c_suite_hydra", 35), ("the_board_member", 35)]),
+        ],
+    },
 ]
 
 
@@ -631,21 +843,24 @@ def seed() -> None:
                 ))
                 added_s += 1
 
-        # Welcome LiveOps event: 7-day DOUBLE_REWARDS window starting now.
+        # Welcome LiveOps events: 7-day DOUBLE_REWARDS window + 3-day
+        # BONUS_GEAR_DROPS overlapping. Both seed idempotently by name.
         added_l = 0
-        has_event = db.scalar(
-            select(LiveOpsEvent).where(LiveOpsEvent.name == "Launch Week 2x")
-        )
-        if has_event is None:
-            now = utcnow()
-            db.add(LiveOpsEvent(
-                kind=LiveOpsKind.DOUBLE_REWARDS,
-                name="Launch Week 2x",
-                starts_at=now,
-                ends_at=now + timedelta(days=7),
-                payload_json=json.dumps({"multiplier": 2.0}),
-            ))
-            added_l = 1
+        now = utcnow()
+        _events_to_seed = [
+            ("Launch Week 2x", LiveOpsKind.DOUBLE_REWARDS, 7, {"multiplier": 2.0}),
+            ("Gear Hunt Weekend", LiveOpsKind.BONUS_GEAR_DROPS, 3, {"chance_add": 0.25}),
+        ]
+        for ev_name, kind, days, payload in _events_to_seed:
+            if db.scalar(select(LiveOpsEvent).where(LiveOpsEvent.name == ev_name)) is None:
+                db.add(LiveOpsEvent(
+                    kind=kind,
+                    name=ev_name,
+                    starts_at=now,
+                    ends_at=now + timedelta(days=days),
+                    payload_json=json.dumps(payload),
+                ))
+                added_l += 1
 
         # Shop catalog.
         existing_skus = set(db.scalars(select(ShopProduct.sku)).all())
