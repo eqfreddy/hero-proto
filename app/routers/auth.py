@@ -44,8 +44,11 @@ def register(body: RegisterIn, db: Annotated[Session, Depends(get_db)]) -> Token
     )
 
 
-@router.post("/login", response_model=TokenOut)
-def login(body: LoginIn, db: Annotated[Session, Depends(get_db)]) -> TokenOut:
+@router.post("/login")
+def login(body: LoginIn, db: Annotated[Session, Depends(get_db)]) -> dict:
+    """Password login. If the account has TOTP enabled, returns a short-lived
+    challenge_token instead of a real access token — the client must follow up
+    with POST /auth/2fa/verify using that token + the current TOTP code."""
     account = db.scalar(select(Account).where(Account.email == body.email))
     if account is None or not verify_password(body.password, account.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
@@ -55,12 +58,18 @@ def login(body: LoginIn, db: Annotated[Session, Depends(get_db)]) -> TokenOut:
             f"account is banned: {account.banned_reason or 'no reason given'}",
         )
     _maybe_promote_admin(account)
+
+    # TOTP-gated accounts get a challenge, not tokens.
+    if account.totp_enabled:
+        db.commit()
+        return LoginChallengeOut(challenge_token=_issue_totp_challenge(account)).model_dump()
+
     _row, refresh_raw = _issue_refresh_token(db, account)
     db.commit()
     return TokenOut(
         access_token=issue_token(account.id, account.token_version),
         refresh_token=refresh_raw,
-    )
+    ).model_dump()
 
 
 # --- Password reset ----------------------------------------------------------
@@ -408,3 +417,165 @@ def logout(
     row.revoked_at = utcnow()
     db.commit()
     return LogoutOut(revoked=True)
+
+
+# --- TOTP 2FA ----------------------------------------------------------------
+
+import pyotp
+import jwt as _jwt
+
+TOTP_ISSUER = "hero-proto"
+TOTP_CHALLENGE_TTL_MINUTES = 5
+
+
+class TotpEnrollOut(BaseModel):
+    """Response from /auth/2fa/enroll. The client should render `otpauth_uri`
+    as a QR code (or show `secret` for manual entry) so the user can add
+    this account to an authenticator app."""
+    secret: str
+    otpauth_uri: str
+
+
+class TotpCodeIn(BaseModel):
+    code: str = Field(min_length=6, max_length=8)  # 6 digits; 8 accommodates some authenticators
+
+
+class TotpStatusOut(BaseModel):
+    enabled: bool
+
+
+class LoginChallengeOut(BaseModel):
+    """Returned by /auth/login when the account has TOTP enabled. The client
+    prompts for a TOTP code, then POSTs both `challenge_token` and the code
+    to /auth/2fa/verify to receive the real access+refresh tokens."""
+    status: str = "totp_required"
+    challenge_token: str
+
+
+class TotpVerifyIn(BaseModel):
+    challenge_token: str = Field(min_length=16, max_length=512)
+    code: str = Field(min_length=6, max_length=8)
+
+
+def _issue_totp_challenge(account: Account) -> str:
+    """Short-lived JWT that authorizes a TOTP verification attempt. Kept
+    stateless (no DB row) — only the signing secret and expiry gate it.
+    Uses aware UTC datetime so .timestamp() reflects UTC epoch seconds, not
+    local-time seconds (matching security.issue_token's convention)."""
+    from datetime import datetime as _dt, timezone as _tz
+    now = _dt.now(_tz.utc)
+    payload = {
+        "sub": str(account.id),
+        "typ": "totp_challenge",
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=TOTP_CHALLENGE_TTL_MINUTES)).timestamp()),
+    }
+    return _jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_alg)
+
+
+def _decode_totp_challenge(token: str) -> int:
+    """Returns account_id on success. Raises HTTPException with 401 on any
+    signature/expiry/type problem."""
+    try:
+        payload = _jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_alg])
+    except _jwt.PyJWTError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, f"invalid challenge: {exc}") from exc
+    if payload.get("typ") != "totp_challenge":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "wrong challenge type")
+    return int(payload["sub"])
+
+
+@router.post("/2fa/enroll", response_model=TotpEnrollOut)
+def totp_enroll(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> TotpEnrollOut:
+    """Generate a fresh secret and return the otpauth URI. Not yet enabled —
+    the user must /2fa/confirm with a valid code before TOTP gates login."""
+    if account.totp_enabled:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "2FA is already enabled — disable it first to re-enroll",
+        )
+    secret = pyotp.random_base32()
+    account.totp_secret = secret
+    account.totp_enabled = False  # stays off until confirmed
+    db.commit()
+    uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=account.email, issuer_name=TOTP_ISSUER,
+    )
+    return TotpEnrollOut(secret=secret, otpauth_uri=uri)
+
+
+@router.post("/2fa/confirm", response_model=TotpStatusOut)
+def totp_confirm(
+    body: TotpCodeIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> TotpStatusOut:
+    """Verify the first code + flip totp_enabled. Requires a prior /2fa/enroll
+    to have set a secret."""
+    if not account.totp_secret:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "no pending 2FA enrollment — call /auth/2fa/enroll first",
+        )
+    if account.totp_enabled:
+        return TotpStatusOut(enabled=True)  # idempotent
+    if not pyotp.TOTP(account.totp_secret).verify(body.code, valid_window=1):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP code")
+    account.totp_enabled = True
+    db.commit()
+    return TotpStatusOut(enabled=True)
+
+
+@router.post("/2fa/disable", response_model=TotpStatusOut)
+def totp_disable(
+    body: TotpCodeIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> TotpStatusOut:
+    """Turn off 2FA. Requires a current valid TOTP code — can't disable just
+    because you're logged in, so a stolen access token can't remove the factor.
+    Clears the secret completely so re-enrollment picks a fresh one."""
+    if not account.totp_enabled:
+        return TotpStatusOut(enabled=False)  # idempotent
+    if not account.totp_secret or not pyotp.TOTP(account.totp_secret).verify(body.code, valid_window=1):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP code")
+    account.totp_enabled = False
+    account.totp_secret = ""
+    db.commit()
+    return TotpStatusOut(enabled=False)
+
+
+@router.post("/2fa/verify", response_model=TokenOut)
+def totp_verify(
+    body: TotpVerifyIn,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenOut:
+    """Consume a login challenge + TOTP code, return the real access+refresh."""
+    account_id = _decode_totp_challenge(body.challenge_token)
+    account = db.get(Account, account_id)
+    if account is None or not account.totp_enabled:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "account or 2FA state changed")
+    if account.is_banned:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"account is banned: {account.banned_reason or 'no reason given'}",
+        )
+    if not pyotp.TOTP(account.totp_secret).verify(body.code, valid_window=1):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP code")
+
+    _row, refresh_raw = _issue_refresh_token(db, account)
+    db.commit()
+    return TokenOut(
+        access_token=issue_token(account.id, account.token_version),
+        refresh_token=refresh_raw,
+    )
+
+
+@router.get("/2fa/status", response_model=TotpStatusOut)
+def totp_status(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> TotpStatusOut:
+    return TotpStatusOut(enabled=account.totp_enabled)

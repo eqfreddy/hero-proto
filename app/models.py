@@ -196,6 +196,13 @@ class Account(Base):
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
+    # TOTP (RFC 6238) two-factor auth. totp_secret is the Base32-encoded shared
+    # key (stored plain — acceptable for alpha; DB-at-rest encryption is a
+    # separate concern). totp_enabled is flipped once the user confirms their
+    # first valid code during enrollment.
+    totp_secret: Mapped[str] = mapped_column(String(64), default="")
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
     heroes: Mapped[list["HeroInstance"]] = relationship(
