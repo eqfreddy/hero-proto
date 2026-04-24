@@ -30,6 +30,7 @@ from app.gear_logic import gear_bonus_for
 from app.combat import power_rating, scale_stat
 from app.models import (
     Account,
+    AdminAnnouncement,
     DailyQuest,
     HeroTemplate,
     DailyQuestStatus,
@@ -91,7 +92,23 @@ def partial_me(
     # Guild name for the badge, if any.
     membership = db.get(GuildMember, account.id)
     guild = db.get(Guild, membership.guild_id) if membership else None
-    return templates.TemplateResponse(request, "partials/me.html", {"me": me, "guild": guild})
+    # Active announcements, highest-priority first.
+    from datetime import datetime as _dt
+    now = _dt.utcnow()
+    announcements = [
+        {"id": a.id, "title": a.title, "body": a.body, "priority": a.priority}
+        for a in db.scalars(
+            select(AdminAnnouncement)
+            .where(AdminAnnouncement.is_active.is_(True), AdminAnnouncement.starts_at <= now)
+            .order_by(desc(AdminAnnouncement.priority), desc(AdminAnnouncement.id))
+            .limit(5)
+        )
+        if a.ends_at is None or a.ends_at > now
+    ]
+    return templates.TemplateResponse(
+        request, "partials/me.html",
+        {"me": me, "guild": guild, "announcements": announcements},
+    )
 
 
 def _hero_row(h: HeroInstance) -> dict:

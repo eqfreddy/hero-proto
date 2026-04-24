@@ -465,6 +465,27 @@ class ArenaMatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
 
 
+class AdminAnnouncement(Base):
+    """Server-wide message shown to all players. Think patch notes, outage headsup,
+    "2x weekend incoming" teaser. Supports time-windowed visibility so a banner can
+    auto-disappear after an event. Multiple can be active at once; client sorts by
+    priority desc then id desc."""
+
+    __tablename__ = "admin_announcements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(128))
+    body: Mapped[str] = mapped_column(String(2048))
+    priority: Mapped[int] = mapped_column(Integer, default=0, index=True)  # higher pins to top
+    starts_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+
+
 class AdminAuditLog(Base):
     """Append-only record of admin actions. Referenced accounts nulled on delete so
     the audit trail survives account deletion."""

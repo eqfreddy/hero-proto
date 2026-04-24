@@ -1,4 +1,20 @@
 <div class="stack">
+  {% if announcements %}
+  <div class="stack" style="gap: 6px;">
+    {% for a in announcements %}
+    <div class="card" style="padding: 10px; background: rgba(78, 161, 255, 0.08); border-left: 3px solid var(--accent);">
+      <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
+        <div>
+          <div style="font-weight: 700; font-size: 13px; color: var(--accent);">📢 {{ a.title }}</div>
+          <div style="font-size: 12px; margin-top: 4px;">{{ a.body }}</div>
+        </div>
+        {% if a.priority >= 50 %}<span class="pill bad" style="white-space: nowrap;">important</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div class="card">
     <h2 style="margin-top: 0; font-size: 14px; color: var(--muted);">Account</h2>
     <div class="row" style="gap: 20px;">

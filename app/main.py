@@ -18,7 +18,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import admin, arena, auth, battles, daily, gear, guilds, heroes, liveops, me, raids, shop, stages, summon, ui
+from app.routers import admin, announcements, arena, auth, battles, daily, gear, guilds, heroes, liveops, me, raids, shop, stages, summon, ui
 from app.worker import worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -131,6 +131,8 @@ app.include_router(guilds.router)
 app.include_router(liveops.router)
 app.include_router(raids.router)
 app.include_router(admin.router)
+app.include_router(announcements.public)
+app.include_router(announcements.admin)
 app.include_router(shop.router)
 
 # Stripe checkout + webhook. Endpoints 503 until HEROPROTO_STRIPE_* vars are set.
