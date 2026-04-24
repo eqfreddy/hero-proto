@@ -1,0 +1,17 @@
+{
+  "name": "hero-proto",
+  "short_name": "hero-proto",
+  "description": "Satirical corporate-IT gacha RPG — burnout warriors in the age of infinite tickets.",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0b0d10",
+  "background_color": "#0b0d10",
+  "icons": [
+    { "src": "/app/static/icons/hero-proto-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/app/static/icons/hero-proto-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/app/static/icons/hero-proto-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["games", "entertainment"]
+}

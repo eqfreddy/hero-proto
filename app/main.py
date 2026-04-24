@@ -133,6 +133,24 @@ for _html in ("battle-phaser.html", "battle-setup.html", "battle-replay.html", "
     if _h is not None:
         app.add_api_route(f"/app/{_html}", _h, methods=["GET"], include_in_schema=False)
 
+
+# PWA service worker served at /app/sw.js so its default scope is /app/
+# (SW scope is capped at the path the file is served from). Manifest served
+# from /app/manifest.webmanifest for the same reason — simpler root path for
+# browsers that don't love deep manifest URLs.
+async def _serve_sw() -> _FR:
+    path = _STATIC_DIR / "sw.js"
+    return _FR(str(path), media_type="application/javascript")
+
+
+async def _serve_manifest() -> _FR:
+    path = _STATIC_DIR / "manifest.webmanifest"
+    return _FR(str(path), media_type="application/manifest+json")
+
+
+app.add_api_route("/app/sw.js", _serve_sw, methods=["GET"], include_in_schema=False)
+app.add_api_route("/app/manifest.webmanifest", _serve_manifest, methods=["GET"], include_in_schema=False)
+
 app.include_router(auth.router)
 app.include_router(me.router)
 app.include_router(heroes.router)

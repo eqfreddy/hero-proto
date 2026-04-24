@@ -4,6 +4,17 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}hero-proto{% endblock %}</title>
+
+  <!-- PWA: installable from Android/Chrome, iOS Safari (via apple-touch-icon) -->
+  <link rel="manifest" href="/app/manifest.webmanifest" />
+  <meta name="theme-color" content="#0b0d10" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/app/static/icons/hero-proto-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/app/static/icons/hero-proto-512.png" />
+  <!-- Apple ignores web-manifest icons; uses apple-touch-icon instead. -->
+  <link rel="apple-touch-icon" href="/app/static/icons/hero-proto-1024.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="hero-proto" />
   <style>
     :root {
       color-scheme: dark;
@@ -87,6 +98,16 @@
         if (nav) nav.click();
       }
     });
+  </script>
+  <script>
+    // Register the PWA service worker (offline shell + faster re-loads).
+    // Only on secure contexts / localhost — browsers refuse SW registration over plain http elsewhere.
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" })
+          .catch((err) => console.warn("[hero-proto] SW register failed:", err));
+      });
+    }
   </script>
   {% block scripts %}{% endblock %}
 </body>
