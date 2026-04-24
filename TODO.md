@@ -2,24 +2,36 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-04-23.
+Last updated: 2026-04-24.
 
 ---
 
 ## 📊 Where we're at
 
-- **Backend:** 22 slices shipped (1–21 + 62) + admin polish sprint.
-- **Tests:** `pytest` 52/52 green. 10 E2E smoke scripts all pass against a live uvicorn.
-- **Git:** `master` pushed to `github.com/eqfreddy/hero-proto` — latest commit `4d0bc36`.
-- **DB:** SQLite dev, Postgres wire-up exists in `docker-compose.yml` (profile) but **not yet verified end-to-end**.
-- **Frontend:** bare-bones vanilla-JS shell at `/app` — functional for smoke tests, not styled for users.
+- **Backend:** 22 backend slices + admin polish + auth hardening + observability + payments + art wiring. `master` @ `5426eb7`, tree clean.
+- **Auth:** refresh-token rotation w/ reuse detection, password reset, email verification, TOTP 2FA + recovery codes — all green in walkthrough.
+- **Payments:** Stripe Checkout + webhooks wired; mock-payments mode for dev. Shop purchase round-trip passes.
+- **Observability:** Prometheus `/metrics`, JSON logs, request IDs, Sentry (DSN-gated), worker supervisor w/ health telemetry.
+- **Infra:** Redis-backed rate limiter (horizontal-scale ready). CI matrix runs on SQLite + Postgres per push.
+- **Tests:** `pytest` green. Two automated acceptance scripts wrap everything:
+  - `scripts/startup_check.py` — admin/operator health check (7 OK today)
+  - `scripts/client_walkthrough.py` — 13-section end-to-end feature tour (all green today)
+- **Docs:** `README.md`, `docs/RUNBOOK.md`, `docs/STARTUP_AND_TESTING.md`, `docs/ART_NEEDS.md` all current.
+- **Frontend:** vanilla-JS shell at `/app` with integrated design-handoff battle UI + roster codex + Phaser replay. Functional but not a real SPA.
+- **Art:** 50/51 SVGs patched to render standalone (designer tokens + heuristic class styles). One designer-styled file left alone.
 
-### Known papercuts surfaced recently
+### Verified green today (2026-04-24)
 
-- **Rate limits in `.env` (10 auth/min, 120 general/min) are too tight for the full smoke suite.** Need to either raise the shipped defaults or add a `HEROPROTO_RATE_LIMIT_DISABLED=1` short-circuit for local dev.
-- **Banned user's JWT is still technically valid until expiry** — blocked only by the 403 in `deps.py`. Token-version or revocation list would fix this properly.
-- **`smoke_cli.py` must be invoked as `python -m scripts.smoke_cli`** (not `python scripts/smoke_cli.py`) because of the `from scripts import play_hero` line. Worth either a README note or restructuring.
-- **`smoke_sets.py` doesn't gracefully handle an error payload from `/gear/mine`** — it iterates dict keys as strings and crashes with `'str' object has no attribute 'get'` instead of a clean fail. Exposed when rate-limited.
+- Server starts, worker ticks, migrations + seed idempotent.
+- `startup_check` — 7 OK, 2 optional warns (admin creds + Stripe probe both gated on env vars).
+- `client_walkthrough` — auth / daily bonus / gacha / combat / energy refill / arena / daily quests / guilds / raids / shop / password reset / email verify / 2FA.
+
+### Known papercuts still open
+
+- **Ban doesn't invalidate existing JWTs.** Banned user's token stays technically valid until expiry — `deps.py` blocks the request at 403 but the token hasn't been killed. Token-version field on `Account` fixes it.
+- **`Battle.log_json` is unbounded.** Long arena matches can balloon the row. Server-side cap (e.g. 200 events) is trivial but not in.
+- **Postgres is only CI-verified.** Never run against a live compose stack end-to-end, never had the 10 E2E smokes pointed at it.
+- **Frontend is a bare shell.** Works for smoke-testing; not shippable to real users.
 
 ---
 
@@ -27,12 +39,11 @@ Last updated: 2026-04-23.
 
 Each sprint is sized to be shippable in one session. Pick one; don't interleave.
 
-### A. Hardening + footguns (small, immediate value)
-Addresses the papercuts above head-on.
-- [ ] **JWT version on Account** (`token_version: int`, increment on ban). `issue_token` embeds it; `decode_token` dep checks it. Banning a user now kills their session for real.
-- [ ] **Sane default rate limits + dev bypass** — raise `AUTH_RATE_PER_MINUTE` / `GENERAL_RATE_PER_MINUTE` defaults, or add `HEROPROTO_RATE_LIMIT_DISABLED=1`. Ship `.env.example` aligned with the bypass.
-- [ ] **Combat log pruning** — cap `Battle.log_json` entries server-side (e.g. 200 events) so long arena matches don't balloon the DB row.
-- [ ] **Fix `smoke_sets.py`** to break cleanly on an error payload + fix `smoke_cli.py` invocation (either `-m` the file directly, or drop the `from scripts import` pattern).
+### A. Hardening leftovers (small, immediate value)
+Closes the papercuts above.
+- [ ] **JWT token-version on Account** — increment on ban; `issue_token` embeds it; `decode_token` dep checks it. Banning now kills the session for real.
+- [ ] **Combat log pruning** — cap `Battle.log_json` entries server-side (e.g. 200 events). Stops long fights from bloating the DB row.
+- [ ] **Per-account rate limit on `/battles`** (in addition to per-IP) — one honest anti-cheat layer before we start thinking about client-authoritative.
 - [ ] Tests for all of the above.
 
 ### B. Guild completeness
@@ -40,93 +51,85 @@ Entirely in `routers/guilds.py` + tests.
 - [ ] `POST /guilds/{id}/promote/{account_id}` — leader promotes MEMBER → OFFICER
 - [ ] `POST /guilds/{id}/transfer/{account_id}` — leader hands off without leaving
 - [ ] Application / invite flow (replace "anyone can join public guilds")
-- [ ] Chat pagination (currently hard-capped at 50 newest)
-- [ ] `smoke_guild.py` E2E mirror
+- [ ] `smoke_guild.py` E2E mirror (or add guild section depth to `client_walkthrough.py`)
 
-### C. Postgres validation
-We claim it's supported; nothing's ever run against a real Postgres.
-- [ ] Run full `pytest` against `postgresql+psycopg://…` URL
-- [ ] Fix any SQLite-isms that surface (string-as-enum comparisons, `JSON` columns, etc.)
-- [ ] Run the 10 E2E smokes against the compose stack
-- [ ] Document the flow in `README.md`
+### C. Postgres live validation
+CI runs against Postgres on every push; nothing's ever run against a compose-stacked Postgres with the worker + real HTTP.
+- [ ] `docker compose up --build`, run `startup_check` against it
+- [ ] Run `client_walkthrough` against the compose stack
+- [ ] Fix any SQLite-isms that surface (JSON column differences, string-as-enum comparisons)
+- [ ] Document the exact flow in `README.md`
 
 ### D. Content expansion
 User-facing variety. Touches `seed.py` + content tables.
 - [ ] 10–20 more hero templates (currently 25)
-- [ ] 5–10 more stages (currently 10)
-- [ ] "Hard mode" campaign tier (same stages, scaled stats, better rewards)
-- [ ] Boss-only hero templates for raids (higher stats)
+- [ ] 5–10 more stages (currently 10 normal + 10 hard)
+- [ ] Boss-only hero templates for raids (higher stats, unique specials)
 - [ ] Tutorial stage 0 / first-time walkthrough
+- [ ] Seed additional LiveOps event presets (`BONUS_GEAR_DROPS` kind is wired but unseeded)
 
-### E. Auth hardening
-Heavier — needs email-send infra decision (SES? Postmark? console sink for dev?).
-- [ ] Email verification flow (send token, `GET /auth/verify?token=…`)
-- [ ] Forgot-password / reset-password flow
-- [ ] Refresh tokens + rotation
-- [ ] 2FA (TOTP)
+### E. Frontend polish
+The dashboard works; nobody wants to look at it.
+- [ ] CSS pass on `/app/*` (currently unstyled vanilla HTML)
+- [ ] Loading states + error toasts (right now failures are silent alert() boxes)
+- [ ] Mobile layout for the dashboard
+- [ ] Or: rewrite as a real SPA (React / Svelte) — bigger bet
 
-**Recommendation:** ship **A** next — the JWT-on-ban gap is the most embarrassing one to leave open after an admin sprint, and the rate-limit papercut bit us during this very sprint's smoke run.
+**Recommendation:** ship **A** next — the JWT-on-ban gap is the one real security smell still sitting in the repo, and log pruning + per-account battle rate-limit are both tiny. C is a close second if we want to de-risk Postgres before content/frontend work scales the DB up.
 
 ---
 
 ## 🚧 Backlog — everything else
 
-### Admin tooling (follow-ups)
-- [ ] Ban should invalidate existing JWTs (see Sprint A above)
-- [ ] Admin "broadcast announcement" — pinned MOTD visible on `GET /me`
+### Admin tooling
+- [ ] Ban should invalidate existing JWTs (Sprint A)
+- [ ] Admin UI over the existing `/admin/*` endpoints (currently curl-only)
 
 ### Auth / account
-- [ ] Email verification flow
-- [ ] Forgot-password / reset-password flow
 - [ ] Account data export (GDPR art. 20)
-- [ ] Refresh tokens + rotation
-- [ ] 2FA (TOTP)
+- [ ] Login history / active sessions list
+- [ ] Device fingerprinting for refresh-token anomaly detection
 
 ### Guilds
-- [ ] `POST /guilds/{id}/promote/{account_id}` — MEMBER → OFFICER
-- [ ] `POST /guilds/{id}/transfer/{account_id}` — leader handoff
-- [ ] Application / invite flow (right now anyone can join a public guild)
-- [ ] Chat pagination (hard-capped at 50 newest)
+- [ ] Promote / transfer endpoints (Sprint B)
+- [ ] Application / invite flow (Sprint B)
 - [ ] Soft-delete / archive for messages
+- [ ] Per-guild achievements / milestones
 
 ### Raids
 - [ ] Scheduled raid auto-start (worker rotates when guild has no active raid)
-- [ ] Difficulty tiers with scaled rewards
 - [ ] Per-attempt cooldown (currently only gated by energy)
 - [ ] Leaderboard endpoint (top-contributing guilds this week)
+- [ ] Boss-only unique specials
 
 ### LiveOps
 - [ ] Scheduled future events (`starts_at` in the future — admin endpoint always uses `now`)
 - [ ] Preview endpoint for upcoming / not-yet-started events
-- [ ] `BONUS_GEAR_DROPS` kind is wired but has no seeded event or template helpers
+- [ ] Seed event for `BONUS_GEAR_DROPS` kind
 
 ### Content
-- [ ] 10–20 more hero templates (currently 25)
-- [ ] 5–10 more stages (currently 10)
-- [ ] "Hard mode" campaign tier
-- [ ] Boss-only hero templates (higher stats, meant for raids)
-- [ ] Tutorial stage 0 / first-time walkthrough
+- [ ] See Sprint D
 
 ### Combat
 - [ ] More status effects (FREEZE, BURN, HEAL_BLOCK, REFLECT)
 - [ ] Faction affinity / synergy bonuses ("3 DEVOPS on team = +10% ATK")
 - [ ] AoE revive
-- [ ] Combat log pruning (`log_json` size cap — see Sprint A)
+- [ ] Combat log pruning (Sprint A)
 
 ### Infrastructure
-- [ ] Redis-backed rate limiter (in-memory per-process; doesn't coordinate across replicas)
-- [ ] Postgres end-to-end smoke (Docker; see Sprint C)
+- [ ] Postgres end-to-end smoke (Sprint C)
 - [ ] Docker image build + push to a registry (Dockerfile exists, never built)
 - [ ] Automated daily DB backup (SQLite volume → dated tarball on a schedule)
 - [ ] Graceful shutdown — worker cancels + in-flight battles finish
+- [ ] Deploy target picked (Fly / Railway / Render / plain VM)
 
-### Observability (beyond slice 20)
+### Observability
 - [ ] OpenTelemetry tracing (propagate request IDs into spans)
-- [ ] Sentry error reporting
 - [ ] Alerting thresholds documented (5xx rate, p99 latency)
+- [ ] Dashboard screenshots in `RUNBOOK.md`
 
 ### Anti-cheat / validation
-- [ ] Per-account rate limit on `/battles` (not just per-IP)
+- [ ] Per-account rate limit on `/battles` (Sprint A)
 - [ ] Cap arena attack attempts per hour
 - [ ] Audit all endpoints for `hero_instance_id` ownership check
 - [ ] Reject combat outcomes that couldn't happen (if client-authoritative layer ever gets added)
@@ -137,15 +140,15 @@ Heavier — needs email-send infra decision (SES? Postmark? console sink for dev
 - [ ] `Accept-Language` header handling
 
 ### Payments
-- [ ] Stripe integration (checkout session + webhook handling)
 - [ ] `OfferBundle` table (premium shard bundles, starter packs)
-- [ ] Purchase history / refund flow
-- [ ] Anti-fraud basics (rate limit / device fingerprint)
+- [ ] Purchase history / refund flow UI
+- [ ] Anti-fraud basics (velocity limits, device fingerprint)
+- [ ] Subscriptions / monthly pass
 
-### Frontend (beyond slice 21 minimal shell)
-- [ ] Real SPA (React / Svelte / Vue)
-- [ ] Battle-log playback animation
+### Frontend
+- [ ] CSS + loading/error states (Sprint E)
 - [ ] Mobile-responsive layout
+- [ ] Real SPA (React / Svelte / Vue)
 - [ ] PWA offline shell
 - [ ] Native iOS / Android wrapper
 
@@ -154,27 +157,19 @@ Heavier — needs email-send infra decision (SES? Postmark? console sink for dev
 ## 🧪 Test matrix — coverage
 
 ### Covered ✅
-- `test_combat.py` — deterministic resolver (seed=1312, hash-stable)
-- `test_combat_unit.py` — scale_stat, level cap, power rating, strong-team-wins
-- `test_gacha.py` — pity trigger, counter reset, 2000-pull distribution
-- `test_active_sets.py` — LIFESTEAL heals, VIOLENT extra turns, control
-- `test_api_core.py` — health, register+onboarding, full loop, dailies, 401s, shard depletion
-- `test_guilds.py` — create, list, get, single-guild-per-account, succession, chat membership, kick
-- `test_liveops_and_account.py` — endpoint shape, DOUBLE_REWARDS multiplier, delete email-match, leader-delete promotes
-- `test_raids.py` — guild-required, full lifecycle, one-active-raid-per-guild
-- `test_admin.py` — grant/ban/unban/promote, liveops CRUD, stats, audit log + filters, timed bans, worker auto-unban, CLI
-- `test_observability.py` — /metrics shape + counters, X-Request-ID round-trip, static HTML markers
-- `smoke_hero.py`, `smoke_gear.py`, `smoke_skill.py`, `smoke_arena.py`, `smoke_daily.py`, `smoke_cli.py`, `smoke_sets.py`, `smoke_ascend.py`, `smoke_sweep.py`, `smoke_web.py` — E2E against live server
+- Unit: `test_combat.py`, `test_combat_unit.py`, `test_gacha.py`, `test_active_sets.py`
+- API: `test_api_core.py`, `test_guilds.py`, `test_liveops_and_account.py`, `test_raids.py`, `test_admin.py`, `test_observability.py`
+- Scripts: `smoke_hero.py`, `smoke_gear.py`, `smoke_skill.py`, `smoke_arena.py`, `smoke_daily.py`, `smoke_cli.py`, `smoke_sets.py`, `smoke_ascend.py`, `smoke_sweep.py`, `smoke_web.py`
+- Acceptance: `scripts/startup_check.py`, `scripts/client_walkthrough.py` (13 sections)
+- CI: SQLite + Postgres matrix per push
 
 ### Gaps ❌
-- [ ] `test_liveops_crud.py` — LiveOps events end-to-end against admin endpoints (partially covered in `test_admin.py`)
-- [ ] Worker coverage — `_run_jobs()` tested directly for auto-unban, but not for daily-prune or raid-expiry
-- [ ] Postgres end-to-end — full `pytest` against `postgresql+psycopg://…`
+- [ ] Full `pytest` + E2E smokes against live compose-Postgres (not just CI) — Sprint C
 - [ ] Docker container smoke — `docker compose up --build`, hit `/healthz` + `/docs`
-- [ ] `smoke_guild.py` E2E mirror of `test_guilds.py`
-- [ ] `smoke_raid.py` E2E mirror of `test_raids.py`
+- [ ] `smoke_guild.py` / `smoke_raid.py` E2E mirrors of the unit tests
 - [ ] Load test — 100 concurrent players on `/battles` + `/summon` (k6 or locust)
 - [ ] Long-running soak — 24 h with the worker task, verify no memory creep
+- [ ] Stripe webhook signature round-trip against real `stripe listen` (tested with mocks, not the CLI)
 
 ---
 
@@ -184,8 +179,9 @@ Heavier — needs email-send infra decision (SES? Postmark? console sink for dev
 - Should raid bosses have unique skills? (Currently they reuse hero-template specials — reads fine but shallow.)
 - How do we want to handle energy overflow for LiveOps grants? (Currently `compute_energy` preserves surplus above cap.)
 - Server-side combat animations (timing info in log) or let the client pace it?
-- Guild size — 30 max feels right for alpha; revisit after first cohort
+- Guild size — 30 max feels right for alpha; revisit after first cohort.
 - Arena: defense teams snapshotted at the moment they're set, or live-computed? Currently live.
+- Frontend: real SPA vs keep polishing the vanilla shell? SPA means a build step + deploy story.
 
 ---
 
@@ -194,6 +190,7 @@ Heavier — needs email-send infra decision (SES? Postmark? console sink for dev
 <details>
 <summary>Completed slices (click to expand)</summary>
 
+**Foundations**
 - Slice 1 — Project scaffold (uv, FastAPI, SQLAlchemy, SQLite)
 - Slice 2 — Schema + core models (Account, HeroTemplate, HeroInstance, Stage, Battle)
 - Slice 3 — Combat resolver v1 (turn meter, basic + special, 4 status effects)
@@ -215,8 +212,48 @@ Heavier — needs email-send infra decision (SES? Postmark? console sink for dev
 - Slice 19 — Admin panel (grant / ban / promote / liveops CRUD / stats)
 - Slice 20 — Observability (Prometheus `/metrics`, JSON logs, `X-Request-ID`)
 - Slice 21 — Minimal HTML client at `/app` (vanilla JS, no build step)
-- Slice 62 — Migrations + test coverage for 19/20/21 (alembic admin columns, `test_admin.py`, `test_observability.py`)
-- **Admin polish sprint** — CLI (`python -m app.admin`), `AdminAuditLog` + `/admin/audit`, timed bans (`banned_until` + worker auto-unban + lazy clear in deps)
+- Slice 62 — Migrations + test coverage for 19/20/21
+
+**Admin polish sprint** — CLI (`python -m app.admin`), `AdminAuditLog` + `/admin/audit`, timed bans (`banned_until` + worker auto-unban + lazy clear in deps)
+
+**Auth hardening sprint**
+- Password reset flow with dev-mode bypass
+- Email verification flow
+- Email sender adapter (SMTP + console + file sinks)
+- Refresh tokens with rotation + reuse-detection
+- 2FA (TOTP) — enroll, confirm, disable, login challenge, verify
+- 2FA recovery codes — lost-phone backup
+
+**Observability / reliability sprint**
+- Sentry error reporting — DSN-gated, filters expected 4xx
+- Worker supervisor — respawn + health telemetry on `/worker/status`
+- Redis-backed rate limiter — horizontal-scale ready
+- `docs/RUNBOOK.md` — operator quickstart
+
+**Economy + arena sprint**
+- Daily login bonus / streak
+- Daily quest variety: CLEAR_HARD_STAGE + RAID_DAMAGE + SPEND_GEMS
+- Gem sink — energy refill + SPEND_GEMS quest activation
+- Arena matchmaking — rating-proximity with progressive widening
+- Arena match replay endpoint + UI links
+- Guild chat — keyset pagination ("load older" button)
+
+**Payments**
+- Stripe Checkout + webhook handling
+- Shop products + purchases + mock-payments for dev
+- DELETE /me audit + SQLite FK enforcement
+
+**Content / UX**
+- Design-handoff battle UI integration (setup / replay / roster)
+- 50 SVGs patched to render standalone (scripts/patch_art_styles.py)
+- Admin analytics overview endpoint
+- API audit: cap unbounded list endpoints + conventions doc
+
+**Testing / docs**
+- CI on every push with Postgres matrix
+- `scripts/startup_check.py` — admin-side health check
+- `scripts/client_walkthrough.py` — 13-section client feature tour
+- `docs/STARTUP_AND_TESTING.md` — operator runbook
 
 </details>
 
