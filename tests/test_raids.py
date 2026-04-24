@@ -235,6 +235,81 @@ def test_worker_does_not_rotate_empty_guild(client) -> None:
             "worker should skip guilds with no members"
 
 
+def test_raid_attempt_cooldown_enforced_when_env_not_test(client, monkeypatch) -> None:
+    """Sprint D: per-account cooldown between attacks on the same raid.
+
+    Lifecycle tests above bypass this because settings.environment == 'test';
+    flipping to 'dev' makes the cooldown active.
+    """
+    from app.config import settings
+
+    hdr, _, team, _ = _register_with_team(client, extra_energy=500)
+    _new_guild(client, hdr, "RC")
+    r = client.post(
+        "/raids/start",
+        json={"boss_template_code": "the_founder", "boss_level": 30, "duration_hours": 24},
+        headers=hdr,
+    )
+    assert r.status_code == 201, r.text
+    rid = r.json()["id"]
+
+    # One attack in test env (no cooldown) to seed a RaidAttempt row.
+    r = client.post(f"/raids/{rid}/attack", json={"team": team}, headers=hdr)
+    assert r.status_code == 201, r.text
+
+    # Flip env so the cooldown gate activates, then retry.
+    monkeypatch.setattr(settings, "environment", "dev")
+    monkeypatch.setattr(settings, "rate_limit_disabled", False)
+    r = client.post(f"/raids/{rid}/attack", json={"team": team}, headers=hdr)
+    assert r.status_code == 429, r.text
+    assert "cooldown" in r.json()["detail"].lower()
+    assert "Retry-After" in r.headers
+
+
+def test_raid_leaderboard_returns_damage_ranked_guilds(client) -> None:
+    """Sprint D: /raids/leaderboard surfaces top-contributing guilds."""
+    # Guild A: one attack.
+    hdr_a, _, team_a, _ = _register_with_team(client, extra_energy=500)
+    _new_guild(client, hdr_a, "LA")
+    r = client.post(
+        "/raids/start",
+        json={"boss_template_code": "the_founder", "boss_level": 30, "duration_hours": 24},
+        headers=hdr_a,
+    )
+    assert r.status_code == 201
+    rid_a = r.json()["id"]
+    r = client.post(f"/raids/{rid_a}/attack", json={"team": team_a}, headers=hdr_a)
+    assert r.status_code == 201
+    dmg_a = r.json()["damage_dealt"]
+
+    # Guild B: two attacks (by the same leader — contributors dedup).
+    hdr_b, _, team_b, _ = _register_with_team(client, extra_energy=500)
+    _new_guild(client, hdr_b, "LB")
+    r = client.post(
+        "/raids/start",
+        json={"boss_template_code": "the_founder", "boss_level": 30, "duration_hours": 24},
+        headers=hdr_b,
+    )
+    assert r.status_code == 201
+    rid_b = r.json()["id"]
+    for _ in range(2):
+        r = client.post(f"/raids/{rid_b}/attack", json={"team": team_b}, headers=hdr_b)
+        assert r.status_code == 201
+
+    board = client.get("/raids/leaderboard?days=7&limit=10").json()
+    assert isinstance(board, list) and len(board) >= 2
+    # Sorted by total_damage desc. Each entry has the expected shape.
+    for e in board:
+        assert set(e.keys()) >= {"guild_id", "name", "tag", "total_damage", "contributors"}
+        assert e["total_damage"] >= 0
+    sorted_by_damage = sorted(board, key=lambda e: e["total_damage"], reverse=True)
+    assert board == sorted_by_damage, "leaderboard must be sorted by total_damage desc"
+    # Guild B contributed two attacks, so its damage should be higher than A's single-attack damage.
+    a_row = next(e for e in board if e["tag"].startswith("LA"))
+    b_row = next(e for e in board if e["tag"].startswith("LB"))
+    assert b_row["total_damage"] >= dmg_a, "B's 2-attack total should beat A's single attack"
+
+
 def test_worker_respects_rotation_cooldown(client, monkeypatch) -> None:
     """After a raid ends, the worker waits RAID_ROTATION_COOLDOWN_HOURS before rotating."""
     from datetime import timedelta

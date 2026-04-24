@@ -39,6 +39,11 @@ router = APIRouter(prefix="/raids", tags=["raids"])
 # Per-tier multipliers apply on top.
 BOSS_HP_MULTIPLIER_BASE = 30
 RAID_ENERGY_COST = 10
+# Per-account cooldown between attacks on the SAME raid. Stops a guild member
+# from hammering a fresh raid with a bot loop, and also paces the pool of
+# contributors so it's not one person's score. Separate from /battles' global
+# per-account rate limit — this is scoped to one raid.
+RAID_ATTEMPT_COOLDOWN_SECONDS = 600  # 10 minutes
 # Guild-wide base reward pool when boss falls; per-tier multipliers apply.
 RAID_DEFEAT_COINS_BASE = 2000
 RAID_DEFEAT_GEMS_BASE = 50
@@ -140,6 +145,47 @@ def start_raid(
     return _raid_out(db, raid)
 
 
+@router.get("/leaderboard", response_model=list[dict])
+def raid_leaderboard(
+    db: Annotated[Session, Depends(get_db)],
+    days: int = 7,
+    limit: int = 25,
+) -> list[dict]:
+    """Top-contributing guilds by total raid damage over the last `days`.
+
+    Public — no auth needed. Use for a hall-of-fame widget. Bounded limit
+    so one slow query can't dominate.
+    """
+    days = max(1, min(30, days))
+    limit = max(1, min(100, limit))
+    since = utcnow() - timedelta(days=days)
+    rows = db.execute(
+        select(
+            Guild.id,
+            Guild.name,
+            Guild.tag,
+            func.sum(RaidAttempt.damage_dealt),
+            func.count(func.distinct(RaidAttempt.account_id)),
+        )
+        .join(Raid, Raid.id == RaidAttempt.raid_id)
+        .join(Guild, Guild.id == Raid.guild_id)
+        .where(RaidAttempt.created_at >= since)
+        .group_by(Guild.id, Guild.name, Guild.tag)
+        .order_by(func.sum(RaidAttempt.damage_dealt).desc())
+        .limit(limit)
+    )
+    return [
+        {
+            "guild_id": int(r[0]),
+            "name": r[1],
+            "tag": r[2],
+            "total_damage": int(r[3] or 0),
+            "contributors": int(r[4] or 0),
+        }
+        for r in rows
+    ]
+
+
 @router.get("/mine", response_model=RaidOut | None)
 def my_guild_raid(
     account: Annotated[Account, Depends(get_current_account)],
@@ -187,6 +233,26 @@ def attack_raid(
         raid.state = RaidState.EXPIRED
         db.commit()
         raise HTTPException(status.HTTP_409_CONFLICT, "raid has expired")
+
+    # Per-account cooldown against THIS raid. Bypassed in tests (where
+    # lifecycle tests hammer hundreds of attacks) and when rate-limiting
+    # is globally disabled.
+    if not (settings.rate_limit_disabled or settings.environment == "test"):
+        last = db.scalar(
+            select(RaidAttempt)
+            .where(RaidAttempt.raid_id == raid.id, RaidAttempt.account_id == account.id)
+            .order_by(RaidAttempt.created_at.desc())
+            .limit(1)
+        )
+        if last is not None:
+            elapsed = (now - last.created_at).total_seconds()
+            if elapsed < RAID_ATTEMPT_COOLDOWN_SECONDS:
+                retry = int(RAID_ATTEMPT_COOLDOWN_SECONDS - elapsed)
+                raise HTTPException(
+                    status.HTTP_429_TOO_MANY_REQUESTS,
+                    f"raid attempt cooldown — try again in {retry}s",
+                    headers={"Retry-After": str(retry)},
+                )
 
     heroes: list[HeroInstance] = []
     for hid in body.team:
