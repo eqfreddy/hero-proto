@@ -169,6 +169,13 @@ uv run python -m scripts.smoke_guild
 
 CI (`.github/workflows/test.yml`) runs pytest against SQLite and Postgres on every push to `master`.
 
+For a full compose-stack smoke against Postgres (runs the app container, worker, and both acceptance scripts end-to-end):
+
+```bash
+# Requires Docker Desktop running. Tears down on exit.
+bash scripts/postgres_stack_validate.sh
+```
+
 ---
 
 ## Migrations
