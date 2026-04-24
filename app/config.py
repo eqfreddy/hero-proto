@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     # Smoke scripts hammering a single IP can trip the general bucket — this lets
     # dev/CI short-circuit the middleware entirely. Never enable in prod.
     rate_limit_disabled: bool = False
+    # Backend for rate-limit state: "memory" (in-process, per-instance — breaks
+    # under horizontal scaling) or "redis" (shared across instances).
+    rate_limit_backend: str = "memory"
+    # Used when rate_limit_backend=redis. Leave as default for dev; point at
+    # a real Redis for prod. fakeredis drives the test suite.
+    redis_url: str = "redis://localhost:6379/0"
 
     # Email sender — drives forgot-password / send-verification delivery.
     # Valid: console (default), file, smtp, disabled. In prod, console/disabled
