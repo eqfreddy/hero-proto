@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # Tighten these for production — defaults here assume dev/alpha sharing an IP.
     auth_rate_per_minute: int = 60        # register + login combined
     general_rate_per_minute: int = 600    # everything else
+    # Per-account anti-hammer on /battles (and /battles/sweep/*). In addition
+    # to the per-IP general bucket. 30/min = ~1 fight every 2s, generous for
+    # humans but catches bot-like loops signed in as a real account.
+    battle_per_minute_per_account: int = 30
     # Smoke scripts hammering a single IP can trip the general bucket — this lets
     # dev/CI short-circuit the middleware entirely. Never enable in prod.
     rate_limit_disabled: bool = False

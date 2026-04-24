@@ -1,12 +1,21 @@
+import time
 from typing import Annotated
 
 import jwt
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
+from app.middleware import TokenBucket
 from app.models import Account, utcnow
 from app.security import decode_token
+
+# Per-account rate bucket, separate from the per-IP middleware buckets.
+# Memory-only for now; per-account fanout is small enough that a single-process
+# bucket is accurate for single-instance deploys. Horizontal scale can add a
+# redis variant later if needed.
+_battle_bucket = TokenBucket(settings.battle_per_minute_per_account)
 
 
 def get_current_account(
@@ -46,4 +55,21 @@ def get_current_admin(
 ) -> Account:
     if not account.is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "admin only")
+    return account
+
+
+def enforce_battle_rate_limit(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> Account:
+    """Per-account anti-hammer gate on /battles. Runs AFTER auth so a rejected
+    token doesn't consume the bucket. Honors the global rate_limit_disabled
+    flag so tests and dev smoke runs don't trip it."""
+    if settings.rate_limit_disabled or settings.environment == "test":
+        return account
+    if not _battle_bucket.allow(f"acct:{account.id}", time.monotonic()):
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "battle rate limit exceeded for this account — slow down",
+            headers={"Retry-After": "60"},
+        )
     return account

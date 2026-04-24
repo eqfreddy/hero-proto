@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.combat import CombatUnit, build_unit, simulate, trim_combat_log
 from app.daily import on_battle_won, on_hard_stage_clear
 from app.db import get_db
-from app.deps import get_current_account
+from app.deps import enforce_battle_rate_limit, get_current_account
 from app.economy import award_rewards, consume_energy, load_cleared, mark_cleared
 from app.gear_logic import gear_bonus_for, roll_gear
 from app.liveops import gear_drop_bonus, reward_multiplier
@@ -73,7 +73,7 @@ def _unit_from_template(t: HeroTemplate, level: int, side: str, idx: int) -> Com
 @router.post("", response_model=BattleOut, status_code=status.HTTP_201_CREATED)
 def fight(
     body: BattleIn,
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(enforce_battle_rate_limit)],
     db: Annotated[Session, Depends(get_db)],
 ) -> BattleOut:
     stage = db.get(Stage, body.stage_id)
@@ -269,7 +269,7 @@ def get_battle(
 def sweep(
     stage_id: int,
     body: SweepIn,
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(enforce_battle_rate_limit)],
     db: Annotated[Session, Depends(get_db)],
 ) -> SweepOut:
     stage = db.get(Stage, stage_id)
