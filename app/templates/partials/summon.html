@@ -1,0 +1,185 @@
+<div class="stack">
+  <!-- Banner header -->
+  <div class="card" style="padding: 18px; background: linear-gradient(135deg, rgba(78,161,255,0.12), rgba(78,161,255,0.02)); border-left: 3px solid var(--accent);">
+    <div class="row" style="justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 700;">Standard Banner</div>
+        <h2 style="margin: 4px 0 6px; font-size: 22px;">Summon Heroes</h2>
+        <div class="muted" style="font-size: 12px;">Every pull has a chance at any rarity. 50-pull pity guarantees at least one EPIC.</div>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: center;">
+        <div title="Free summon tokens — consumed before shards on x1 pulls.">
+          <div class="muted" style="font-size: 10px;">FREE</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--r-legendary);">🎫 {{ me.free_summon_credits }}</div>
+        </div>
+        <div title="Shards needed for summons.">
+          <div class="muted" style="font-size: 10px;">✦ SHARDS</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--good);">{{ me.shards }}</div>
+        </div>
+        <div title="Premium character-pack currency.">
+          <div class="muted" style="font-size: 10px;">🎟 CARDS</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--warn);">{{ me.access_cards }}</div>
+        </div>
+      </div>
+    </div>
+    <!-- Pity progress bar -->
+    <div style="margin-top: 14px;">
+      <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <div class="muted" style="font-size: 11px;">Pity progress</div>
+        <div style="font-size: 11px; font-weight: 700;">{{ pity_current }} / {{ pity_cap }} — <span style="color: var(--r-epic);">{{ pulls_to_pity }} more to guaranteed EPIC</span></div>
+      </div>
+      <div class="hpbar" style="height: 10px;"><div class="fill" style="width: {{ (100 * pity_current / pity_cap) | round(1) }}%; background: linear-gradient(90deg, var(--r-rare), var(--r-epic));"></div></div>
+    </div>
+  </div>
+
+  <!-- Starter pack card (Phase 1.5 surfaces this) -->
+  {% if starter_product and starter_eligible %}
+  <div class="card" style="padding: 14px; background: linear-gradient(135deg, rgba(255,216,107,0.14), rgba(255,216,107,0.02)); border: 2px solid var(--r-legendary); position: relative;">
+    <div class="row" style="gap: 12px; align-items: start; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 240px;">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--r-legendary); font-weight: 800;">⚡ Limited offer · new player</div>
+        <h3 style="margin: 4px 0 4px; font-size: 17px;">{{ starter_product.title }}</h3>
+        <div class="muted" style="font-size: 12px; line-height: 1.4;">{{ starter_product.description }}</div>
+        {% if starter_expires_at %}
+        <div class="muted" style="font-size: 11px; margin-top: 6px;">Expires: {{ starter_expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</div>
+        {% endif %}
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 26px; font-weight: 800; color: var(--r-legendary);">${{ "%.2f"|format(starter_product.price_cents / 100) }}</div>
+        <button class="primary" onclick="buyStarterPack()" style="margin-top: 6px;">Buy pack</button>
+      </div>
+    </div>
+    <div id="starter-pack-result" style="font-size: 12px; margin-top: 8px;"></div>
+  </div>
+  {% endif %}
+
+  <!-- Summon action card -->
+  <div class="card" style="padding: 16px;">
+    <h3 style="margin: 0 0 10px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Pull</h3>
+    <div class="row" style="gap: 10px; align-items: center;">
+      <button class="primary" onclick="summonFromTab(this, 1)" style="padding: 10px 20px; font-size: 14px;">
+        Summon x1
+        <span style="font-size: 11px; opacity: 0.8; margin-left: 6px;">
+          {% if me.free_summon_credits > 0 %}(free){% else %}(1 ✦){% endif %}
+        </span>
+      </button>
+      <button class="primary" onclick="summonFromTab(this, 10)" style="padding: 10px 20px; font-size: 14px;" {% if me.shards < 10 %}disabled{% endif %}>
+        Summon x10 <span style="font-size: 11px; opacity: 0.8; margin-left: 6px;">(10 ✦)</span>
+      </button>
+      <span class="htmx-indicator spinner" id="summon-spinner-tab"></span>
+    </div>
+    <div id="summon-tab-result" style="margin-top: 14px;"></div>
+  </div>
+
+  <!-- Recent pulls feed -->
+  <div class="card" style="padding: 14px;">
+    <h3 style="margin: 0 0 10px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Recent pulls</h3>
+    {% if recent %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px;">
+      {% for r in recent %}
+      <div style="padding: 6px 8px; border-radius: 4px; background: var(--panel); border-left: 3px solid var(--r-{{ r.rarity | lower }});">
+        <div style="font-size: 12px; font-weight: 600;">{{ r.name }}</div>
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--r-{{ r.rarity | lower }}); font-weight: 700;">{{ r.rarity }}</div>
+        <div class="muted" style="font-size: 10px;">{{ r.faction }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="muted" style="font-size: 12px;">No pulls yet. Do your first summon above.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  // Reuse renderSummonPull if it's already on the page (me tab), otherwise
+  // define an inline version. Summon tab uses its own result container.
+  const _rarityColorTab = {
+    LEGENDARY: 'var(--r-legendary)', EPIC: 'var(--r-epic)',
+    RARE: 'var(--r-rare)', UNCOMMON: 'var(--r-uncommon)',
+    COMMON: 'var(--r-common)', MYTH: '#ff66c4',
+  };
+
+  function _tabSummonCard(item) {
+    const t = item && item.hero && item.hero.template;
+    if (!t) return null;
+    const color = _rarityColorTab[String(item.rarity)] || 'var(--r-common)';
+    const card = document.createElement('div');
+    card.style.cssText = `background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid ${color}; padding: 10px 12px; border-radius: 5px;`;
+    card.innerHTML = `
+      <div style="font-weight: 700; font-size: 13px; margin-bottom: 3px;">${t.name}</div>
+      <div style="color: ${color}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">${item.rarity}</div>
+      <div class="muted" style="font-size: 11px; margin-top: 3px;">${t.faction} · ${t.role}</div>
+      ${item.pulled_epic_pity ? '<div style="color: var(--warn); font-size: 10px; margin-top: 4px;">💥 pity triggered</div>' : ''}
+    `;
+    return card;
+  }
+
+  async function summonFromTab(btn, count) {
+    const siblings = btn.parentElement.querySelectorAll('button');
+    siblings.forEach(b => b.disabled = true);
+    const spinner = document.getElementById('summon-spinner-tab');
+    if (spinner) spinner.classList.add('active');
+    const out = document.getElementById('summon-tab-result');
+    const token = localStorage.getItem('heroproto_jwt');
+    const path = count === 10 ? '/summon/x10' : '/summon/x1';
+    try {
+      const r = await fetch(path, {
+        method: 'POST',
+        headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<div style="color: var(--bad); padding: 10px;">${r.status}: ${body.detail || 'error'}</div>`;
+        return;
+      }
+      out.innerHTML = '';
+      const items = Array.isArray(body) ? body : [body];
+      const order = { MYTH: 6, LEGENDARY: 5, EPIC: 4, RARE: 3, UNCOMMON: 2, COMMON: 1 };
+      items.sort((a, b) => (order[b.rarity] || 0) - (order[a.rarity] || 0));
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size: 12px; color: var(--muted); margin-bottom: 8px;';
+      const best = items.find(i => ['MYTH', 'LEGENDARY', 'EPIC'].includes(i.rarity));
+      header.textContent = `Pulled ${items.length} hero${items.length === 1 ? '' : 'es'}` + (best ? ` — best: ${best.hero.template.name} (${best.rarity})` : '');
+      out.appendChild(header);
+      const grid = document.createElement('div');
+      grid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;';
+      for (const it of items) {
+        const c = _tabSummonCard(it);
+        if (c) grid.appendChild(c);
+      }
+      out.appendChild(grid);
+      // Refresh the tab so pity/recent-pulls/shards all update.
+      setTimeout(() => htmx.ajax('GET', '/app/partials/summon', '#content'), 1200);
+    } catch (e) {
+      out.innerHTML = `<div style="color: var(--bad); padding: 10px;">${e.message}</div>`;
+    } finally {
+      siblings.forEach(b => b.disabled = false);
+      if (spinner) spinner.classList.remove('active');
+    }
+  }
+
+  async function buyStarterPack() {
+    const out = document.getElementById('starter-pack-result');
+    const token = localStorage.getItem('heroproto_jwt');
+    out.innerHTML = '<span class="muted">Processing...</span>';
+    try {
+      const r = await fetch('/shop/purchases', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({
+          sku: 'starter_jumpahead',
+          client_ref: 'starter-' + Date.now(),
+        }),
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${body.detail || r.status}</span>`;
+        return;
+      }
+      out.innerHTML = `<span style="color: var(--good);">✓ Purchased! Your new loot: ${JSON.stringify(body.granted)}</span>`;
+      setTimeout(() => htmx.ajax('GET', '/app/partials/summon', '#content'), 1500);
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+    }
+  }
+</script>

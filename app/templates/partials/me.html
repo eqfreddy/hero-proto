@@ -111,14 +111,17 @@
   </div>
 
   <div class="card">
-    <h2 style="margin-top: 0; font-size: 14px; color: var(--muted);">Summon</h2>
-    <div class="row">
-      <button class="primary" onclick="doSummon(this, 1)">Summon x1</button>
-      <button class="primary" onclick="doSummon(this, 10)">Summon x10</button>
-      <span class="muted" style="font-size: 12px;">uses ✦ shards · pity: {{ me.pulls_since_epic }}/50</span>
-      <span class="htmx-indicator spinner" id="summon-spinner"></span>
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Summon</h2>
+      <button class="primary" hx-get="/app/partials/summon" hx-target="#content" hx-swap="innerHTML">Open Summon →</button>
     </div>
-    <div id="summon-result" style="margin-top: 10px;"></div>
+    <div class="muted" style="font-size: 12px; margin-top: 6px;">
+      {% if me.free_summon_credits %}
+        <strong style="color: var(--r-legendary);">{{ me.free_summon_credits }} free summon{{ 's' if me.free_summon_credits != 1 else '' }}</strong> · {{ me.shards }} ✦ shards · pity {{ me.pulls_since_epic }}/50
+      {% else %}
+        {{ me.shards }} ✦ shards · pity {{ me.pulls_since_epic }}/50
+      {% endif %}
+    </div>
   </div>
 
   <div class="card">

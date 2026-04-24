@@ -214,6 +214,72 @@ def _hero_row(h: HeroInstance) -> dict:
     }
 
 
+@router.get("/partials/summon", response_class=HTMLResponse)
+def partial_summon(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    """Dedicated Summon tab — banner header, pity counter, recent-pulls
+    feed, standard banner card with x1/x10 buttons. Starter-pack offer card
+    surfaces here (Phase 1.5) when eligible.
+    """
+    from app.models import GachaRecord
+    # Recent pulls — last 10 across all banners.
+    recent_rows = list(db.execute(
+        select(
+            GachaRecord.id, GachaRecord.template_id, GachaRecord.rarity,
+            GachaRecord.created_at, HeroTemplate.name, HeroTemplate.faction,
+        )
+        .join(HeroTemplate, HeroTemplate.id == GachaRecord.template_id)
+        .where(GachaRecord.account_id == account.id)
+        .order_by(desc(GachaRecord.id))
+        .limit(10)
+    ))
+    recent = [
+        {
+            "id": int(r[0]),
+            "template_id": int(r[1]),
+            "rarity": str(r[2]),
+            "created_at": r[3].isoformat() if r[3] else "",
+            "name": r[4],
+            "faction": str(r[5]),
+        }
+        for r in recent_rows
+    ]
+    # Pity progress — pulls_since_epic out of 50.
+    pity_current = account.pulls_since_epic or 0
+    PITY_CAP = 50
+    pulls_to_pity = max(0, PITY_CAP - pity_current)
+
+    # Starter-pack eligibility (Phase 1.5 surfaces the card here).
+    from datetime import datetime as _dt, timedelta as _td
+    starter_sku = "starter_jumpahead"
+    starter_product = db.scalar(select(ShopProduct).where(ShopProduct.sku == starter_sku))
+    starter_eligible = False
+    starter_expires_at: _dt | None = None
+    if starter_product is not None:
+        already_purchased = count_account_purchases(db, account.id, starter_sku) > 0
+        seven_day_window = account.created_at + _td(days=7) if getattr(account, "created_at", None) else None
+        still_in_window = seven_day_window is None or seven_day_window > _dt.utcnow()
+        starter_eligible = (not already_purchased) and still_in_window
+        starter_expires_at = seven_day_window
+
+    return templates.TemplateResponse(
+        request, "partials/summon.html",
+        {
+            "me": _me_dict(account),
+            "recent": recent,
+            "pity_current": pity_current,
+            "pity_cap": PITY_CAP,
+            "pulls_to_pity": pulls_to_pity,
+            "starter_product": starter_product,
+            "starter_eligible": starter_eligible,
+            "starter_expires_at": starter_expires_at,
+        },
+    )
+
+
 @router.get("/partials/roster", response_class=HTMLResponse)
 def partial_roster(
     request: Request,
