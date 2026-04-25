@@ -79,6 +79,8 @@ def summon_one(
     out = _do_one_pull(db, account, rng)
     on_summon(db, account, 1)
     event_on_activity(db, account, "summon_pull", quest_kinds=QUEST_KINDS_SUMMON)
+    from app.achievements import check_achievements as _ca
+    _ca(db, account)
     db.commit()
     return out
 
@@ -96,5 +98,7 @@ def summon_ten(
     out = [_do_one_pull(db, account, rng, allow_free=False) for _ in range(10)]
     on_summon(db, account, 10)
     event_on_activity(db, account, "summon_pull", amount=10, quest_kinds=QUEST_KINDS_SUMMON)
+    from app.achievements import check_achievements as _ca
+    _ca(db, account)
     db.commit()
     return out

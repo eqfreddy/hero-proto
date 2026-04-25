@@ -20,7 +20,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import admin, announcements, arena, auth, battles, crafting, daily, events, gear, guilds, heroes, inventory, liveops, me, raids, shop, stages, summon, ui
+from app.routers import achievements, admin, announcements, arena, auth, battles, crafting, daily, events, gear, guilds, heroes, inventory, liveops, me, notifications, raids, shop, stages, summon, ui
 from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -172,6 +172,8 @@ app.include_router(shop.router)
 app.include_router(events.router)
 app.include_router(crafting.router)
 app.include_router(inventory.router)
+app.include_router(achievements.router)
+app.include_router(notifications.router)
 
 # Stripe checkout + webhook. Endpoints 503 until HEROPROTO_STRIPE_* vars are set.
 from app import stripe_ext as _stripe_ext
@@ -414,6 +416,48 @@ def devblog_index(request: _Request):
     return _WELCOME_TEMPLATES.TemplateResponse(
         request, "site/devblog_index.html", {"posts": all_posts()},
     )
+
+
+@app.get("/devblog.xml", include_in_schema=False)
+def devblog_rss():
+    """RSS 2.0 feed of the devblog."""
+    from datetime import datetime, timezone
+    from email.utils import format_datetime
+    from fastapi.responses import Response
+    from html import escape as _esc
+    from app.devblog import all_posts
+
+    base = settings.public_base_url.rstrip("/")
+    items_xml = []
+    for p in all_posts():
+        link = f"{base}/devblog/{p.slug}"
+        pub_dt = datetime.combine(p.date, datetime.min.time()).replace(hour=12, tzinfo=timezone.utc)
+        items_xml.append(
+            "<item>"
+            f"<title>{_esc(p.title)}</title>"
+            f"<link>{link}</link>"
+            f'<guid isPermaLink="true">{link}</guid>'
+            f"<pubDate>{format_datetime(pub_dt)}</pubDate>"
+            f"<description>{_esc(p.summary or p.title)}</description>"
+            f"<author>noreply@hero-proto.local ({_esc(p.author)})</author>"
+            f"<content:encoded><![CDATA[{p.body_html}]]></content:encoded>"
+            "</item>"
+        )
+
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" '
+        'xmlns:atom="http://www.w3.org/2005/Atom">'
+        "<channel>"
+        "<title>hero-proto devblog</title>"
+        f"<link>{base}/devblog</link>"
+        f'<atom:link href="{base}/devblog.xml" rel="self" type="application/rss+xml" />'
+        "<description>Build-in-public posts from the hero-proto team.</description>"
+        "<language>en-us</language>"
+        + "".join(items_xml) +
+        "</channel></rss>"
+    )
+    return Response(content=body, media_type="application/rss+xml; charset=utf-8")
 
 
 @app.get("/devblog/{slug}", include_in_schema=False)

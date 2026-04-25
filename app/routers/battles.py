@@ -185,6 +185,15 @@ def fight(
         account.free_summon_credits = (account.free_summon_credits or 0) + 1
         account.tutorial_reward_granted = True
         tutorial_reward_payload = {"free_summon_credits": 1}
+        from app.notifications import notify as _notify
+        _notify(
+            db, account,
+            kind="tutorial_reward",
+            title="Tutorial cleared — free summon ready",
+            body="Spend it on the standard banner whenever you're ready.",
+            link="/app/partials/summon",
+            icon="🎫",
+        )
 
     # Daily quest progression on wins (per-battle + stage-specific + hard-tier).
     completed_dailies: list[int] = []
@@ -209,6 +218,12 @@ def fight(
         rewards_extra["tutorial_reward"] = tutorial_reward_payload
     if event_progress is not None:
         rewards_extra["event_progress"] = event_progress
+
+    # Achievements: check on every battle (cheap predicates, short-circuit fast).
+    from app.achievements import check_achievements as _check_achievements
+    new_achievements = _check_achievements(db, account)
+    if new_achievements:
+        rewards_extra["achievements_unlocked"] = new_achievements
 
     # Crafting material drops on win — independent of gear drops.
     if outcome == BattleOutcome.WIN:

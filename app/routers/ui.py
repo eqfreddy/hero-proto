@@ -271,6 +271,21 @@ def partial_crafting(
     )
 
 
+@router.get("/partials/achievements", response_class=HTMLResponse)
+def partial_achievements(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    from app.achievements import unlock_progress as _up
+    items = _up(db, account)
+    unlocked = sum(1 for i in items if i["unlocked"])
+    return templates.TemplateResponse(
+        request, "partials/achievements.html",
+        {"items": items, "unlocked": unlocked, "total": len(items)},
+    )
+
+
 @router.get("/partials/event", response_class=HTMLResponse)
 def partial_event(
     request: Request,

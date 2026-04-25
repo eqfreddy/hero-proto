@@ -192,3 +192,113 @@ def ascend(
     db.commit()
     db.refresh(hero)
     return instance_out(hero)
+
+
+# --- Sell hero ---------------------------------------------------------------
+#
+# Inventory pressure relief — players accumulate dupes and need a way to
+# convert them to currency without ascending. Coin + shard payouts scale by
+# rarity + level + stars. Equipped gear auto-unequips before delete.
+
+from pydantic import BaseModel as _BM
+
+_SELL_COIN_BY_RARITY = {
+    Rarity.COMMON: 50,
+    Rarity.UNCOMMON: 120,
+    Rarity.RARE: 280,
+    Rarity.EPIC: 600,
+    Rarity.LEGENDARY: 1500,
+    Rarity.MYTH: 3000,
+}
+_SELL_SHARD_BY_RARITY = {
+    Rarity.COMMON: 0,
+    Rarity.UNCOMMON: 1,
+    Rarity.RARE: 3,
+    Rarity.EPIC: 6,
+    Rarity.LEGENDARY: 15,
+    Rarity.MYTH: 30,
+}
+
+
+def _sell_value(hero: HeroInstance) -> tuple[int, int]:
+    """Returns (coins, shards) the player gets when selling this hero.
+
+    Base from rarity + 5% per level above 1 + 25% per star above 1. Keeps
+    sell-then-resummon strictly worse than holding for ascension fodder.
+    """
+    rarity = Rarity(hero.template.rarity) if not isinstance(hero.template.rarity, Rarity) else hero.template.rarity
+    base_coins = _SELL_COIN_BY_RARITY.get(rarity, 50)
+    base_shards = _SELL_SHARD_BY_RARITY.get(rarity, 0)
+    level_mult = 1.0 + 0.05 * max(0, hero.level - 1)
+    star_mult = 1.0 + 0.25 * max(0, hero.stars - 1)
+    coins = int(round(base_coins * level_mult * star_mult))
+    shards = int(round(base_shards * star_mult))
+    return coins, shards
+
+
+class SellPreviewOut(_BM):
+    hero_instance_id: int
+    coins: int
+    shards: int
+    rarity: str
+    level: int
+    stars: int
+
+
+class SellOut(_BM):
+    sold_hero_instance_id: int
+    coins_granted: int
+    shards_granted: int
+    coins: int
+    shards: int
+
+
+@router.get("/{hero_instance_id}/sell-preview", response_model=SellPreviewOut)
+def sell_preview(
+    hero_instance_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SellPreviewOut:
+    """How much would I get for selling this hero? Read-only."""
+    hero = db.get(HeroInstance, hero_instance_id)
+    if hero is None or hero.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "hero not found")
+    coins, shards = _sell_value(hero)
+    rarity = str(Rarity(hero.template.rarity) if not isinstance(hero.template.rarity, Rarity) else hero.template.rarity)
+    return SellPreviewOut(
+        hero_instance_id=hero.id, coins=coins, shards=shards,
+        rarity=rarity, level=hero.level, stars=hero.stars,
+    )
+
+
+@router.post("/{hero_instance_id}/sell", response_model=SellOut, status_code=status.HTTP_201_CREATED)
+def sell_hero(
+    hero_instance_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SellOut:
+    """Sell a hero for coins + shards. Auto-unequips gear; gear stays in
+    inventory unattached (player can re-equip on someone else)."""
+    hero = db.get(HeroInstance, hero_instance_id)
+    if hero is None or hero.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "hero not found")
+
+    coins, shards = _sell_value(hero)
+
+    # Auto-unequip any gear pinned to this hero so it doesn't get cascade-deleted.
+    from app.models import Gear
+    equipped = list(db.scalars(select(Gear).where(Gear.hero_instance_id == hero.id)))
+    for g in equipped:
+        g.hero_instance_id = None
+
+    sold_id = hero.id
+    db.delete(hero)
+    account.coins += coins
+    account.shards += shards
+    db.commit()
+    db.refresh(account)
+    return SellOut(
+        sold_hero_instance_id=sold_id,
+        coins_granted=coins, shards_granted=shards,
+        coins=account.coins, shards=account.shards,
+    )

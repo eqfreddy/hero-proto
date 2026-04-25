@@ -335,6 +335,9 @@ def attack_raid(
     raid_mat_drops = roll_raid_drops(rng)
     for code, qty in raid_mat_drops:
         _grant_mat(db, account, code, qty)
+    # Achievements: raid_1 + raid_25.
+    from app.achievements import check_achievements as _ca
+    _ca(db, account)
 
     rewards_payload: dict | None = None
     defeated = False

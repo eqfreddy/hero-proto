@@ -38,12 +38,29 @@
     <button data-tab="crafting" hx-get="/app/partials/crafting" hx-target="#content">⚒️ Crafting</button>
     <button data-tab="stages" hx-get="/app/partials/stages" hx-target="#content">Stages</button>
     <button data-tab="daily" hx-get="/app/partials/daily" hx-target="#content">Daily</button>
+    <button data-tab="achievements" hx-get="/app/partials/achievements" hx-target="#content">🏆 Achievements</button>
     <button data-tab="event" id="tab-event" hx-get="/app/partials/event" hx-target="#content" style="display: none;">⚡ Event</button>
     <button data-tab="arena" hx-get="/app/partials/arena" hx-target="#content">Arena</button>
     <button data-tab="guild" hx-get="/app/partials/guild" hx-target="#content">Guild</button>
     <button data-tab="shop" hx-get="/app/partials/shop" hx-target="#content">Shop</button>
   </nav>
   <span id="who"></span>
+  <button id="bell" onclick="toggleBellPopover()" title="Notifications" style="position: relative; background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+    🔔
+    <span id="bell-badge" style="display: none; position: absolute; top: -4px; right: -4px; background: var(--bad); color: white; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 8px; min-width: 14px; text-align: center;"></span>
+  </button>
+  <div id="bell-popover" onclick="event.stopPropagation()" style="position: absolute; top: 50px; right: 60px; z-index: 100; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-width: 320px; max-width: 400px; max-height: 480px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none;">
+    <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <h3 style="margin: 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Notifications</h3>
+      <div style="display: flex; gap: 4px;">
+        <button onclick="markAllRead()" style="font-size: 10px; padding: 2px 6px; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 3px; cursor: pointer;">Mark all read</button>
+        <button onclick="clearNotifications()" style="font-size: 10px; padding: 2px 6px; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 3px; cursor: pointer;">Clear</button>
+      </div>
+    </div>
+    <div id="bell-list">
+      <div class="muted" style="font-size: 12px; padding: 12px; text-align: center;">Loading…</div>
+    </div>
+  </div>
   <button id="sound-gear" onclick="toggleSoundPopover()" title="Sound settings">🔊</button>
   <div id="sound-popover" onclick="event.stopPropagation()">
     <h3>Sound</h3>
@@ -195,6 +212,141 @@
   }
   document.body.addEventListener('htmx:afterRequest', probeEvent);
   probeEvent();
+
+  // --- Notification bell -------------------------------------------------
+  // Polls /notifications/unread-count every 30s. Click bell → fetch full
+  // list + render in popover. Mark-all-read + clear-all wired to the
+  // header buttons in the popover.
+
+  async function refreshBellBadge() {
+    const token = localStorage.getItem('heroproto_jwt');
+    const badge = document.getElementById('bell-badge');
+    if (!token || !badge) { if (badge) badge.style.display = 'none'; return; }
+    try {
+      const r = await fetch('/notifications/unread-count', {
+        headers: { authorization: 'Bearer ' + token },
+      });
+      if (!r.ok) { badge.style.display = 'none'; return; }
+      const body = await r.json();
+      if (body.unread > 0) {
+        badge.textContent = body.unread > 99 ? '99+' : String(body.unread);
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    } catch { badge.style.display = 'none'; }
+  }
+
+  async function toggleBellPopover() {
+    const pop = document.getElementById('bell-popover');
+    pop.style.display = pop.style.display === 'block' ? 'none' : 'block';
+    if (pop.style.display === 'block') {
+      await renderBellList();
+    }
+  }
+
+  async function renderBellList() {
+    const list = document.getElementById('bell-list');
+    const token = localStorage.getItem('heroproto_jwt');
+    if (!token) {
+      list.innerHTML = '<div class="muted" style="font-size: 12px; padding: 12px; text-align: center;">Sign in to see notifications.</div>';
+      return;
+    }
+    try {
+      const r = await fetch('/notifications?limit=30', {
+        headers: { authorization: 'Bearer ' + token },
+      });
+      const body = await r.json();
+      const items = body.items || [];
+      if (items.length === 0) {
+        list.innerHTML = '<div class="muted" style="font-size: 12px; padding: 12px; text-align: center;">No notifications yet.</div>';
+        return;
+      }
+      list.innerHTML = items.map(n => `
+        <div class="notif-item" style="padding: 8px 10px; border-radius: 4px; margin-bottom: 4px; background: ${n.read_at ? 'transparent' : 'rgba(78,161,255,0.08)'}; border-left: 2px solid ${n.read_at ? 'var(--border)' : 'var(--accent)'}; cursor: pointer;" onclick="onNotifClick(${n.id}, '${(n.link || '').replace(/'/g, "\\'")}')">
+          <div style="display: flex; justify-content: space-between; gap: 8px;">
+            <div style="font-weight: 600; font-size: 12px; flex: 1;">
+              ${n.icon || '🔔'} ${escapeHtml(n.title)}
+            </div>
+            <div class="muted" style="font-size: 10px; white-space: nowrap;">${formatRelTime(n.created_at)}</div>
+          </div>
+          ${n.body ? `<div class="muted" style="font-size: 11px; margin-top: 2px;">${escapeHtml(n.body)}</div>` : ''}
+        </div>
+      `).join('');
+    } catch (e) {
+      list.innerHTML = `<div style="color: var(--bad); font-size: 12px; padding: 12px;">${e.message}</div>`;
+    }
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function formatRelTime(iso) {
+    if (!iso) return '';
+    const dt = new Date(iso);
+    const sec = Math.max(1, Math.floor((Date.now() - dt) / 1000));
+    if (sec < 60) return sec + 's';
+    if (sec < 3600) return Math.floor(sec / 60) + 'm';
+    if (sec < 86400) return Math.floor(sec / 3600) + 'h';
+    return Math.floor(sec / 86400) + 'd';
+  }
+
+  async function onNotifClick(notifId, link) {
+    const token = localStorage.getItem('heroproto_jwt');
+    fetch(`/notifications/${notifId}/read`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + token },
+    }).catch(() => {});
+    if (link && link.startsWith('/app/partials/')) {
+      // Navigate via htmx into the dashboard's content area.
+      htmx.ajax('GET', link, '#content');
+      // Highlight the corresponding nav button if there is one.
+      const tabName = link.split('/').pop();
+      const btn = document.querySelector(`[data-tab="${tabName}"]`);
+      if (btn) btn.click();
+    }
+    document.getElementById('bell-popover').style.display = 'none';
+    setTimeout(refreshBellBadge, 200);
+  }
+
+  async function markAllRead() {
+    const token = localStorage.getItem('heroproto_jwt');
+    await fetch('/notifications/read-all', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + token },
+    });
+    refreshBellBadge();
+    renderBellList();
+  }
+
+  async function clearNotifications() {
+    if (!confirm('Clear all notifications?')) return;
+    const token = localStorage.getItem('heroproto_jwt');
+    await fetch('/notifications', {
+      method: 'DELETE',
+      headers: { authorization: 'Bearer ' + token },
+    });
+    refreshBellBadge();
+    renderBellList();
+  }
+
+  // Click outside to dismiss bell popover.
+  document.addEventListener('click', (e) => {
+    const pop = document.getElementById('bell-popover');
+    const bell = document.getElementById('bell');
+    if (pop && pop.style.display === 'block' && !pop.contains(e.target) && e.target !== bell && !bell.contains(e.target)) {
+      pop.style.display = 'none';
+    }
+  });
+
+  // Refresh badge on any htmx request, on a 30s timer, and on first load.
+  document.body.addEventListener('htmx:afterRequest', refreshBellBadge);
+  setInterval(refreshBellBadge, 30000);
+  refreshBellBadge();
+
   // Auto-load last-used tab (or login if none).
   const startTab = localStorage.getItem('heroproto_tab') || (localStorage.getItem('heroproto_jwt') ? 'me' : 'login');
   const startBtn = document.querySelector(`[data-tab="${startTab}"]`) || document.querySelector('[data-tab="login"]');

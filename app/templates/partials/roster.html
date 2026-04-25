@@ -133,17 +133,16 @@
     overlay.style.display = 'flex';
 
     try {
-      const heroes = await fetch('/heroes/mine', {
-        headers: { authorization: 'Bearer ' + token },
-      }).then(r => r.json());
-      // Find this instance (by id) to read canonical stats.
+      const [heroes, sellPreview] = await Promise.all([
+        fetch('/heroes/mine', { headers: { authorization: 'Bearer ' + token } }).then(r => r.json()),
+        fetch(`/heroes/${Number(instanceId)}/sell-preview`, { headers: { authorization: 'Bearer ' + token } }).then(r => r.ok ? r.json() : null),
+      ]);
       const hero = heroes.find(h => h.id === Number(instanceId));
       if (!hero) {
         sheet.innerHTML = '<div style="color: var(--bad); padding: 20px;">Hero not found.</div>';
         return;
       }
       const t = hero.template;
-      // Probe for card art — fall back to bust if card missing.
       const cardSrc = `/app/static/heroes/cards/${code}.png`;
       const bustSrc = `/app/static/heroes/busts/${code}.png`;
 
@@ -152,6 +151,20 @@
         EPIC: '#c97aff', LEGENDARY: '#ffd86b', MYTH: '#ff66c4',
       };
       const color = rarityColors[String(t.rarity)] || '#9ca7b3';
+
+      // Same-template duplicates the player owns — used for ascend/skill-up.
+      const dupes = heroes.filter(h => h.template && h.template.code === t.code && h.id !== hero.id);
+
+      // Ascend cost table (matches app/routers/heroes.py).
+      const ascendCost = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 0 };
+      const needForAscend = ascendCost[hero.stars] || 0;
+      const canAscend = hero.stars < 5 && dupes.length >= needForAscend;
+
+      // Skill-up needs at least 1 dupe; consumes up to 4 per skill_up call.
+      const canSkillUp = (hero.special_level || 1) < 5 && dupes.length >= 1 && t.special;
+
+      // Power preview if ascended (rough: +15% per star).
+      const previewedPower = Math.round(hero.power * 1.15);
 
       sheet.innerHTML = `
         <div style="display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 16px;">
@@ -178,18 +191,162 @@
             <div style="margin-top: 14px;">
               <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Power</div>
               <div style="font-size: 24px; font-weight: 800; color: var(--r-legendary);">${hero.power}</div>
+              ${hero.stars < 5 ? `<div class="muted" style="font-size: 11px; margin-top: 2px;">+15% to ~${previewedPower} after star-up</div>` : ''}
             </div>
             ${t.special ? `
               <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);">
                 <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Signature</div>
                 <div style="font-size: 13px; font-weight: 600; margin-top: 4px;">${t.special.name || '(unnamed)'}</div>
-                <div class="muted" style="font-size: 11px; margin-top: 2px;">Level ${hero.special_level} · ${t.special.type || ''}</div>
+                <div class="muted" style="font-size: 11px; margin-top: 2px;">Level ${hero.special_level} / 5 · ${t.special.type || ''}</div>
               </div>` : ''}
           </div>
+        </div>
+
+        <!-- Action panel: ascend / skill-up / sell. -->
+        <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;">Actions</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+
+            <!-- Ascend -->
+            <div style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel);">
+              <div style="font-weight: 700; font-size: 13px;">⭐ Ascend ${hero.stars}★ → ${hero.stars + 1}★</div>
+              <div class="muted" style="font-size: 11px; margin-top: 4px; min-height: 32px;">
+                ${hero.stars >= 5
+                  ? 'Already at max stars.'
+                  : `Costs ${needForAscend} duplicate${needForAscend !== 1 ? 's' : ''} of ${t.name}. You have ${dupes.length}.`}
+              </div>
+              <button class="${canAscend ? 'primary' : 'secondary'}" onclick="ascendHero(${hero.id}, ${needForAscend})" style="width: 100%; margin-top: 6px;" ${canAscend ? '' : 'disabled'}>
+                ${canAscend ? 'Ascend' : (hero.stars >= 5 ? 'Maxed' : 'Need more dupes')}
+              </button>
+            </div>
+
+            <!-- Skill-up -->
+            <div style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel);">
+              <div style="font-weight: 700; font-size: 13px;">📈 Skill-up ${hero.special_level || 1} → ${(hero.special_level || 1) + 1}</div>
+              <div class="muted" style="font-size: 11px; margin-top: 4px; min-height: 32px;">
+                ${!t.special
+                  ? 'No signature ability.'
+                  : (hero.special_level || 1) >= 5
+                    ? 'Skill is at max level (5).'
+                    : `Consumes 1-4 duplicates. You have ${dupes.length}.`}
+              </div>
+              <button class="${canSkillUp ? 'primary' : 'secondary'}" onclick="skillUpHero(${hero.id})" style="width: 100%; margin-top: 6px;" ${canSkillUp ? '' : 'disabled'}>
+                ${canSkillUp ? 'Skill up (1 dupe)' : 'Need a dupe'}
+              </button>
+            </div>
+
+            <!-- Sell -->
+            <div style="padding: 12px; border: 1px solid var(--bad); border-radius: 6px; background: rgba(255,107,74,0.05);">
+              <div style="font-weight: 700; font-size: 13px; color: var(--bad);">💰 Sell</div>
+              ${sellPreview ? `
+                <div class="muted" style="font-size: 11px; margin-top: 4px; min-height: 32px;">
+                  Get <strong style="color: var(--text);">${sellPreview.coins} 🪙</strong>${sellPreview.shards > 0 ? ` + <strong style="color: var(--good);">${sellPreview.shards} ✦</strong>` : ''}.
+                  Equipped gear stays in inventory.
+                </div>
+                <button class="secondary" onclick="sellHero(${hero.id}, '${t.name.replace(/'/g, "\\'")}')" style="width: 100%; margin-top: 6px; border-color: var(--bad); color: var(--bad);">Sell hero</button>
+              ` : `
+                <div class="muted" style="font-size: 11px; margin-top: 4px;">Sell preview unavailable.</div>
+              `}
+            </div>
+
+          </div>
+          <div id="hero-action-result" style="font-size: 12px; margin-top: 10px;"></div>
         </div>
       `;
     } catch (e) {
       sheet.innerHTML = `<div style="color: var(--bad); padding: 20px;">${e.message}</div>`;
+    }
+  }
+
+  // --- Hero action handlers (called from the detail overlay) -----------------
+
+  async function ascendHero(heroId, fodderNeeded) {
+    const out = document.getElementById('hero-action-result');
+    const token = localStorage.getItem('heroproto_jwt');
+    // Pick the lowest-level/lowest-star dupes as fodder so we don't burn an
+    // ascended copy by accident.
+    try {
+      const heroes = await fetch('/heroes/mine', { headers: { authorization: 'Bearer ' + token } }).then(r => r.json());
+      const target = heroes.find(h => h.id === heroId);
+      if (!target) { out.innerHTML = '<span style="color: var(--bad);">Hero not found.</span>'; return; }
+      const code = target.template.code;
+      const dupes = heroes
+        .filter(h => h.template.code === code && h.id !== heroId)
+        .sort((a, b) => (a.stars * 100 + a.level) - (b.stars * 100 + b.level))
+        .slice(0, fodderNeeded);
+      if (dupes.length < fodderNeeded) {
+        out.innerHTML = `<span style="color: var(--bad);">Need ${fodderNeeded} dupes, only ${dupes.length} available.</span>`;
+        return;
+      }
+      const r = await fetch(`/heroes/${heroId}/ascend`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ fodder_ids: dupes.map(d => d.id) }),
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${body.detail || r.status}</span>`;
+        return;
+      }
+      out.innerHTML = `<span style="color: var(--good);">✓ Ascended to ${body.stars}★ — power ${body.power}</span>`;
+      if (window.sound) window.sound.play('victory');
+      setTimeout(() => htmx.ajax('GET', '/app/partials/roster', '#content'), 900);
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+    }
+  }
+
+  async function skillUpHero(heroId) {
+    const out = document.getElementById('hero-action-result');
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      const heroes = await fetch('/heroes/mine', { headers: { authorization: 'Bearer ' + token } }).then(r => r.json());
+      const target = heroes.find(h => h.id === heroId);
+      if (!target) { out.innerHTML = '<span style="color: var(--bad);">Hero not found.</span>'; return; }
+      const code = target.template.code;
+      // Consume the lowest-tier dupe.
+      const dupe = heroes
+        .filter(h => h.template.code === code && h.id !== heroId)
+        .sort((a, b) => (a.stars * 100 + a.level) - (b.stars * 100 + b.level))[0];
+      if (!dupe) { out.innerHTML = '<span style="color: var(--bad);">No dupes available.</span>'; return; }
+      const r = await fetch(`/heroes/${heroId}/skill_up`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ fodder_ids: [dupe.id] }),
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${body.detail || r.status}</span>`;
+        return;
+      }
+      out.innerHTML = `<span style="color: var(--good);">✓ Skill is now level ${body.special_level}</span>`;
+      if (window.sound) window.sound.play('coin_grant');
+      setTimeout(() => htmx.ajax('GET', '/app/partials/roster', '#content'), 900);
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+    }
+  }
+
+  async function sellHero(heroId, name) {
+    if (!confirm(`Sell ${name}? This is permanent.`)) return;
+    const out = document.getElementById('hero-action-result');
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      const r = await fetch(`/heroes/${heroId}/sell`, {
+        method: 'POST',
+        headers: { authorization: 'Bearer ' + token },
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${body.detail || r.status}</span>`;
+        return;
+      }
+      out.innerHTML = `<span style="color: var(--good);">✓ Sold ${name} for ${body.coins_granted} 🪙${body.shards_granted ? ' + ' + body.shards_granted + ' ✦' : ''}</span>`;
+      if (window.sound) window.sound.play('coin_grant');
+      closeHeroDetail();
+      setTimeout(() => htmx.ajax('GET', '/app/partials/roster', '#content'), 700);
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
     }
   }
 

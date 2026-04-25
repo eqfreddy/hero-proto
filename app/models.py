@@ -224,6 +224,11 @@ class Account(Base):
     # from JSON specs and we don't want a new table per event kind.
     event_state_json: Mapped[str] = mapped_column(String(8192), default="{}")
 
+    # Achievements unlocked by this account. JSON dict keyed by achievement
+    # code with value = ISO timestamp of unlock. Catalog lives in
+    # app/achievements.py — content-as-code, not DB-driven.
+    achievements_json: Mapped[str] = mapped_column(String(4096), default="{}")
+
     # Progression flag: have we granted the tutorial-clear reward for this
     # account yet? Prevents double-dipping via delete + re-register loops on
     # the same email address in SQLite dev setups. Stage clears themselves are
@@ -381,6 +386,28 @@ class DefenseTeam(Base):
     hero_ids_json: Mapped[str] = mapped_column(String(256))
     power: Mapped[int] = mapped_column(Integer, default=0, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
+class Notification(Base):
+    """In-app notification stream. Backs the bell icon + unread count badge.
+
+    Examples: tutorial reward dropped, mailbox item available, achievement
+    unlocked, daily reset, friend joined guild. read_at NULL = unread.
+    Worker can prune rows older than ~30d in bulk.
+    """
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(String(512), default="")
+    link: Mapped[str] = mapped_column(String(256), default="")
+    icon: Mapped[str] = mapped_column(String(8), default="🔔")
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True, index=True)
 
 
 class CraftMaterial(Base):

@@ -48,11 +48,23 @@ def test_unauth_endpoints_reject(client) -> None:
 
 
 def test_summon_requires_shards(client) -> None:
-    # Register, burn all shards, then expect 409 on another pull.
+    # Register, burn all shards + any free credits achievement rewards
+    # might have granted, then expect 409 on another pull.
     r = client.post("/auth/register", json={"email": "broke@example.com", "password": "hunter22"})
     hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
     # 20 shards starter+onboarding → 2 x10 pulls max.
     client.post("/summon/x10", headers=hdr)
     client.post("/summon/x10", headers=hdr)
+    # Achievement rewards (first_summon, first_rare/epic/legendary, roster_10,
+    # etc.) can grant additional shards + free summon credits during those
+    # 20 pulls. Drain both before asserting the no-currency 409.
+    from app.db import SessionLocal as _SL
+    from app.models import Account as _A
+    me = client.get("/me", headers=hdr).json()
+    with _SL() as db:
+        a = db.get(_A, me["id"])
+        a.shards = 0
+        a.free_summon_credits = 0
+        db.commit()
     r = client.post("/summon", headers=hdr)
     assert r.status_code == 409

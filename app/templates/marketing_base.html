@@ -1,5 +1,19 @@
 {% extends "base.html" %}
 {% block head %}
+{# Open Graph + Twitter Card meta. Pages override og_title / og_description /
+   og_image via these blocks; defaults match the marketing pitch. #}
+<meta property="og:site_name" content="hero-proto" />
+<meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+<meta property="og:title" content="{% block og_title %}hero-proto · the corporate IT gacha RPG{% endblock %}" />
+<meta property="og:description" content="{% block og_description %}Collect overworked sysadmins, predatory consultants, and feral helpdesk gremlins. Free to play. No pay-to-win.{% endblock %}" />
+<meta property="og:image" content="{% block og_image %}/app/static/icons/hero-proto-1024.png{% endblock %}" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{{ self.og_title() }}" />
+<meta name="twitter:description" content="{{ self.og_description() }}" />
+<meta name="twitter:image" content="{{ self.og_image() }}" />
+{% if active_page == 'devblog' %}
+<link rel="alternate" type="application/rss+xml" title="hero-proto devblog" href="/devblog.xml" />
+{% endif %}
 <style>
   body {
     background:

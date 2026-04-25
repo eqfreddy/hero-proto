@@ -1,6 +1,9 @@
 {% extends "marketing_base.html" %}
 {% set active_page = 'devblog' %}
 {% block title %}{{ post.title }} · hero-proto devblog{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ post.title }} · hero-proto devblog{% endblock %}
+{% block og_description %}{{ post.summary or 'Build-in-public post from the hero-proto devblog.' }}{% endblock %}
 {% block page_head %}
 <style>
   .post-meta { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
