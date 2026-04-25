@@ -271,6 +271,35 @@ def partial_crafting(
     )
 
 
+@router.get("/partials/friends", response_class=HTMLResponse)
+def partial_friends(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    """Friends + DMs tab. All data fetched client-side after first render —
+    keeps the partial cheap and lets the client poll for unread DMs."""
+    return templates.TemplateResponse(request, "partials/friends.html", {})
+
+
+@router.get("/partials/story", response_class=HTMLResponse)
+def partial_story(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    from app.account_level import chapter_status_for_account, xp_to_next as _xpn
+    return templates.TemplateResponse(
+        request, "partials/story.html",
+        {
+            "account_level": int(account.account_level or 1),
+            "account_xp": int(account.account_xp or 0),
+            "account_xp_to_next": _xpn(account.account_level or 1),
+            "chapters": chapter_status_for_account(account),
+        },
+    )
+
+
 @router.get("/partials/achievements", response_class=HTMLResponse)
 def partial_achievements(
     request: Request,

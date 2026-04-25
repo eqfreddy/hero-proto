@@ -1,0 +1,307 @@
+<div class="stack">
+  <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Friends</h2>
+
+  <!-- Tab strip -->
+  <div class="row" style="gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 4px;">
+    <button id="ftab-friends" class="primary" onclick="showFriendsView('friends')" style="padding: 6px 12px; font-size: 12px;">Friends</button>
+    <button id="ftab-requests" class="secondary" onclick="showFriendsView('requests')" style="padding: 6px 12px; font-size: 12px;">Requests <span id="ftab-requests-badge" style="display: none; background: var(--bad); color: white; padding: 1px 5px; border-radius: 8px; font-size: 10px; margin-left: 4px;"></span></button>
+    <button id="ftab-dms" class="secondary" onclick="showFriendsView('dms')" style="padding: 6px 12px; font-size: 12px;">Messages <span id="ftab-dms-badge" style="display: none; background: var(--bad); color: white; padding: 1px 5px; border-radius: 8px; font-size: 10px; margin-left: 4px;"></span></button>
+    <button id="ftab-add" class="secondary" onclick="showFriendsView('add')" style="padding: 6px 12px; font-size: 12px;">+ Add friend</button>
+  </div>
+
+  <div id="friends-content" style="min-height: 240px;"></div>
+</div>
+
+<script>
+  const _fheaders = () => ({ authorization: 'Bearer ' + localStorage.getItem('heroproto_jwt') });
+  let _currentDmThread = null;  // other_account_id of the open thread
+
+  function _setActiveFTab(name) {
+    for (const k of ['friends', 'requests', 'dms', 'add']) {
+      const el = document.getElementById('ftab-' + k);
+      if (!el) continue;
+      el.className = (k === name) ? 'primary' : 'secondary';
+    }
+  }
+
+  function showFriendsView(view) {
+    _setActiveFTab(view);
+    if (view === 'friends') return _renderFriends();
+    if (view === 'requests') return _renderRequests();
+    if (view === 'dms') return _renderDmList();
+    if (view === 'add') return _renderAddFriend();
+  }
+
+  // --- Friends list ---
+  async function _renderFriends() {
+    const out = document.getElementById('friends-content');
+    out.innerHTML = '<div class="muted" style="padding: 12px;">Loading...</div>';
+    try {
+      const friends = await fetch('/friends', { headers: _fheaders() }).then(r => r.json());
+      if (!friends.length) {
+        out.innerHTML = '<div class="card muted" style="padding: 18px; text-align: center;">No friends yet. Use <strong>+ Add friend</strong> to send a request.</div>';
+        return;
+      }
+      out.innerHTML = friends.map(f => `
+        <div style="padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+          <div>
+            <div style="font-weight: 700; font-size: 13px;">${escapeHtml(f.name)}</div>
+            <div class="muted" style="font-size: 11px;">Lv ${f.account_level} · arena ${f.arena_rating}</div>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <button class="primary" onclick="openDmThread(${f.account_id}, '${escapeJsAttr(f.name)}')" style="padding: 4px 10px; font-size: 11px;">💬 Message</button>
+            <button class="secondary" onclick="confirmUnfriend(${f.account_id}, '${escapeJsAttr(f.name)}')" style="padding: 4px 10px; font-size: 11px;">Unfriend</button>
+            <button class="secondary" onclick="confirmBlock(${f.account_id}, '${escapeJsAttr(f.name)}')" style="padding: 4px 10px; font-size: 11px;" title="Block">🚫</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      out.innerHTML = `<div style="color: var(--bad); padding: 12px;">${e.message}</div>`;
+    }
+  }
+
+  // --- Requests (incoming + outgoing) ---
+  async function _renderRequests() {
+    const out = document.getElementById('friends-content');
+    out.innerHTML = '<div class="muted" style="padding: 12px;">Loading...</div>';
+    try {
+      const [incoming, outgoing] = await Promise.all([
+        fetch('/friends/requests', { headers: _fheaders() }).then(r => r.json()),
+        fetch('/friends/requests/sent', { headers: _fheaders() }).then(r => r.json()),
+      ]);
+      let html = '';
+      html += '<h3 style="margin: 0 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase;">Incoming requests</h3>';
+      if (!incoming.length) {
+        html += '<div class="muted" style="font-size: 12px; padding: 8px;">No pending requests.</div>';
+      } else {
+        html += incoming.map(f => `
+          <div style="padding: 10px; border-radius: 6px; border: 1px solid var(--accent); background: rgba(78,161,255,0.06); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13px;">${escapeHtml(f.name)}</div>
+              <div class="muted" style="font-size: 11px;">Lv ${f.account_level} · arena ${f.arena_rating}</div>
+            </div>
+            <div style="display: flex; gap: 4px;">
+              <button class="primary" onclick="acceptRequest(${f.account_id})" style="padding: 4px 10px; font-size: 11px;">Accept</button>
+              <button class="secondary" onclick="rejectRequest(${f.account_id})" style="padding: 4px 10px; font-size: 11px;">Reject</button>
+            </div>
+          </div>
+        `).join('');
+      }
+      html += '<h3 style="margin: 14px 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase;">Sent requests</h3>';
+      if (!outgoing.length) {
+        html += '<div class="muted" style="font-size: 12px; padding: 8px;">None.</div>';
+      } else {
+        html += outgoing.map(f => `
+          <div style="padding: 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 6px; opacity: 0.7;">
+            <div style="font-weight: 600; font-size: 13px;">${escapeHtml(f.name)} <span class="muted" style="font-size: 11px;">— pending</span></div>
+          </div>
+        `).join('');
+      }
+      out.innerHTML = html;
+    } catch (e) {
+      out.innerHTML = `<div style="color: var(--bad); padding: 12px;">${e.message}</div>`;
+    }
+  }
+
+  // --- DM thread list ---
+  async function _renderDmList() {
+    const out = document.getElementById('friends-content');
+    out.innerHTML = '<div class="muted" style="padding: 12px;">Loading...</div>';
+    try {
+      const threads = await fetch('/dm/threads', { headers: _fheaders() }).then(r => r.json());
+      if (!threads.length) {
+        out.innerHTML = '<div class="card muted" style="padding: 18px; text-align: center;">No conversations yet. Open a friend\'s profile from the Friends tab and tap 💬 Message.</div>';
+        return;
+      }
+      out.innerHTML = threads.map(t => `
+        <div onclick="openDmThread(${t.other_account_id}, '${escapeJsAttr(t.other_name)}')" style="padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 6px; cursor: pointer; ${t.unread_count > 0 ? 'background: rgba(78,161,255,0.06); border-color: var(--accent);' : ''}">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-weight: 600; font-size: 13px;">${escapeHtml(t.other_name)} ${t.unread_count > 0 ? `<span style="background: var(--bad); color: white; padding: 1px 6px; border-radius: 8px; font-size: 10px; margin-left: 4px;">${t.unread_count}</span>` : ''}</div>
+            <div class="muted" style="font-size: 10px;">${formatRelTime(t.last_created_at)}</div>
+          </div>
+          <div class="muted" style="font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(t.last_body)}</div>
+        </div>
+      `).join('');
+    } catch (e) {
+      out.innerHTML = `<div style="color: var(--bad); padding: 12px;">${e.message}</div>`;
+    }
+  }
+
+  // --- Open one thread ---
+  async function openDmThread(otherId, otherName) {
+    _currentDmThread = otherId;
+    _setActiveFTab('dms');
+    const out = document.getElementById('friends-content');
+    out.innerHTML = '<div class="muted" style="padding: 12px;">Loading...</div>';
+    try {
+      const msgs = await fetch(`/dm/with/${otherId}?limit=80`, { headers: _fheaders() }).then(r => r.json());
+      // Mark thread read.
+      fetch(`/dm/with/${otherId}/read-all`, { method: 'POST', headers: _fheaders() }).catch(() => {});
+      out.innerHTML = `
+        <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <button class="secondary" onclick="_renderDmList()" style="padding: 4px 10px; font-size: 11px;">← Back</button>
+          <div style="font-weight: 700;">${escapeHtml(otherName)}</div>
+          <button class="secondary" onclick="openDmThread(${otherId}, '${escapeJsAttr(otherName)}')" style="padding: 4px 8px; font-size: 11px;" title="Refresh">↻</button>
+        </div>
+        <div id="dm-messages" style="max-height: 400px; overflow-y: auto; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column-reverse; gap: 6px;">
+          ${msgs.map(m => `
+            <div style="display: flex; justify-content: ${m.is_mine ? 'flex-end' : 'flex-start'};">
+              <div style="max-width: 80%; padding: 8px 12px; border-radius: 12px; background: ${m.is_mine ? 'var(--accent)' : 'var(--panel-2)'}; color: ${m.is_mine ? '#0b0d10' : 'var(--text)'}; font-size: 13px; ${m.is_mine ? '' : 'border: 1px solid var(--border);'}">
+                ${escapeHtml(m.body)}
+                <div style="font-size: 10px; opacity: 0.7; margin-top: 4px;">${formatRelTime(m.created_at)}${m.is_mine ? '' : ` · <a href="#" onclick="event.preventDefault(); reportMessage(${m.id})" style="color: inherit; text-decoration: underline;">report</a>`}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="row" style="gap: 6px; margin-top: 8px;">
+          <input id="dm-input" type="text" placeholder="Write a message..." maxlength="1000" style="flex: 1;" onkeydown="if(event.key==='Enter') sendDm(${otherId})" />
+          <button class="primary" onclick="sendDm(${otherId})">Send</button>
+        </div>
+      `;
+      document.getElementById('dm-input').focus();
+    } catch (e) {
+      out.innerHTML = `<div style="color: var(--bad); padding: 12px;">${e.message}</div>`;
+    }
+  }
+
+  async function sendDm(otherId) {
+    const inp = document.getElementById('dm-input');
+    const body = (inp.value || '').trim();
+    if (!body) return;
+    inp.value = '';
+    inp.disabled = true;
+    try {
+      const r = await fetch(`/dm/with/${otherId}`, {
+        method: 'POST',
+        headers: { ..._fheaders(), 'content-type': 'application/json' },
+        body: JSON.stringify({ body }),
+      });
+      const json = await r.json();
+      if (!r.ok) {
+        alert(json.detail || 'Send failed');
+        inp.value = body;  // restore
+      }
+      // Re-fetch the thread to show the new message + any new incoming.
+      const threadCard = document.querySelector('.row + #dm-messages');
+      // Easier: just re-render the whole thread.
+      const otherName = document.querySelector('#friends-content > .row > div[style*="font-weight"]').textContent;
+      openDmThread(otherId, otherName);
+    } finally {
+      inp.disabled = false;
+    }
+  }
+
+  async function reportMessage(messageId) {
+    const reason = prompt('Why are you reporting this message? (optional, max 256 chars)', '');
+    if (reason === null) return;
+    const r = await fetch(`/dm/${messageId}/report`, {
+      method: 'POST',
+      headers: { ..._fheaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({ reason: reason.slice(0, 256) }),
+    });
+    if (r.ok) alert('Reported. A moderator will review it.');
+    else alert('Report failed.');
+  }
+
+  // --- Add friend ---
+  function _renderAddFriend() {
+    document.getElementById('friends-content').innerHTML = `
+      <div class="card" style="padding: 18px; max-width: 420px;">
+        <h3 style="margin: 0 0 8px; font-size: 14px;">Send a friend request</h3>
+        <p class="muted" style="font-size: 12px; margin: 0 0 12px;">Search by the other player's email prefix (the part before the @). Case-insensitive.</p>
+        <div class="row" style="gap: 6px;">
+          <input id="add-friend-input" type="text" placeholder="email prefix" style="flex: 1;" onkeydown="if(event.key==='Enter') sendFriendRequest()" />
+          <button class="primary" onclick="sendFriendRequest()">Send</button>
+        </div>
+        <div id="add-friend-result" style="margin-top: 10px; font-size: 12px;"></div>
+      </div>
+    `;
+    document.getElementById('add-friend-input').focus();
+  }
+
+  async function sendFriendRequest() {
+    const inp = document.getElementById('add-friend-input');
+    const out = document.getElementById('add-friend-result');
+    const prefix = (inp.value || '').trim();
+    if (!prefix) return;
+    out.innerHTML = '<span class="muted">Sending...</span>';
+    try {
+      const r = await fetch('/friends/request', {
+        method: 'POST',
+        headers: { ..._fheaders(), 'content-type': 'application/json' },
+        body: JSON.stringify({ email_prefix: prefix }),
+      });
+      const json = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${json.detail || r.status}</span>`;
+        return;
+      }
+      out.innerHTML = `<span style="color: var(--good);">✓ Request sent to ${escapeHtml(json.name)}</span>`;
+      inp.value = '';
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+    }
+  }
+
+  // --- Friend actions ---
+  async function acceptRequest(otherId) {
+    await fetch(`/friends/${otherId}/accept`, { method: 'POST', headers: _fheaders() });
+    if (window.sound) window.sound.play('success');
+    _renderRequests();
+  }
+  async function rejectRequest(otherId) {
+    await fetch(`/friends/${otherId}/reject`, { method: 'POST', headers: _fheaders() });
+    _renderRequests();
+  }
+  async function confirmUnfriend(otherId, name) {
+    if (!confirm(`Remove ${name} from friends?`)) return;
+    await fetch(`/friends/${otherId}`, { method: 'DELETE', headers: _fheaders() });
+    _renderFriends();
+  }
+  async function confirmBlock(otherId, name) {
+    if (!confirm(`Block ${name}? They won't be able to DM you.`)) return;
+    await fetch(`/friends/${otherId}/block`, { method: 'POST', headers: _fheaders() });
+    _renderFriends();
+  }
+
+  // --- Helpers (reused from shell.html if available, else local) ---
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+  function escapeJsAttr(s) {
+    return (s || '').replace(/'/g, "\\'");
+  }
+  function formatRelTime(iso) {
+    if (!iso) return '';
+    const dt = new Date(iso);
+    const sec = Math.max(1, Math.floor((Date.now() - dt) / 1000));
+    if (sec < 60) return sec + 's';
+    if (sec < 3600) return Math.floor(sec / 60) + 'm';
+    if (sec < 86400) return Math.floor(sec / 3600) + 'h';
+    return Math.floor(sec / 86400) + 'd';
+  }
+
+  // --- Boot ---
+  showFriendsView('friends');
+
+  // Update tab badges from /friends/requests + /dm/threads.
+  (async () => {
+    try {
+      const reqs = await fetch('/friends/requests', { headers: _fheaders() }).then(r => r.json());
+      if (reqs.length) {
+        const b = document.getElementById('ftab-requests-badge');
+        b.textContent = reqs.length;
+        b.style.display = '';
+      }
+      const threads = await fetch('/dm/threads', { headers: _fheaders() }).then(r => r.json());
+      const unread = threads.reduce((sum, t) => sum + (t.unread_count || 0), 0);
+      if (unread) {
+        const b = document.getElementById('ftab-dms-badge');
+        b.textContent = unread;
+        b.style.display = '';
+      }
+    } catch {}
+  })();
+</script>

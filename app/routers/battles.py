@@ -225,6 +225,19 @@ def fight(
     if new_achievements:
         rewards_extra["achievements_unlocked"] = new_achievements
 
+    # Account XP — wins drive account-level progression. First clear pays a
+    # bonus. Level-ups grant currency rewards + a notification automatically.
+    if outcome == BattleOutcome.WIN:
+        from app.account_level import (
+            XP_PER_BATTLE_WIN, XP_PER_FIRST_CLEAR, grant_xp as _grant_xp,
+        )
+        levelups = _grant_xp(
+            db, account,
+            XP_PER_BATTLE_WIN + (XP_PER_FIRST_CLEAR if first_clear else 0),
+        )
+        if levelups:
+            rewards_extra["account_levelups"] = levelups
+
     # Crafting material drops on win — independent of gear drops.
     if outcome == BattleOutcome.WIN:
         material_drops = roll_battle_drops(rng, stage.order)

@@ -18,6 +18,8 @@ from app.security import decode_token
 _battle_bucket = TokenBucket(settings.battle_per_minute_per_account)
 _arena_bucket = TokenBucket(settings.arena_attack_per_minute_per_account)
 _guild_msg_bucket = TokenBucket(settings.guild_message_per_minute_per_account)
+_friend_request_bucket = TokenBucket(settings.friend_request_per_minute_per_account)
+_direct_message_bucket = TokenBucket(settings.direct_message_per_minute_per_account)
 
 
 def get_current_account(
@@ -93,3 +95,15 @@ def enforce_guild_message_rate_limit(
 ) -> Account:
     """Per-account anti-flood gate on /guilds/{id}/messages (POST)."""
     return _enforce_account_bucket(account, _guild_msg_bucket, "guild chat")
+
+
+def enforce_friend_request_rate_limit(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> Account:
+    return _enforce_account_bucket(account, _friend_request_bucket, "friend request")
+
+
+def enforce_direct_message_rate_limit(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> Account:
+    return _enforce_account_bucket(account, _direct_message_bucket, "direct message")

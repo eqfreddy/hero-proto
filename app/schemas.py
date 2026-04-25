@@ -73,6 +73,10 @@ class MeOut(BaseModel):
     tutorial_cleared: bool = False
     has_summoned: bool = False
     has_battled: bool = False
+    # Account-level progression (separate from per-hero levels).
+    account_level: int = 1
+    account_xp: int = 0
+    account_xp_to_next: int = 100
 
 
 class HeroTemplateOut(BaseModel):

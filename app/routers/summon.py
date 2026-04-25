@@ -81,6 +81,8 @@ def summon_one(
     event_on_activity(db, account, "summon_pull", quest_kinds=QUEST_KINDS_SUMMON)
     from app.achievements import check_achievements as _ca
     _ca(db, account)
+    from app.account_level import XP_PER_SUMMON_PULL, grant_xp as _gxp
+    _gxp(db, account, XP_PER_SUMMON_PULL)
     db.commit()
     return out
 
@@ -100,5 +102,7 @@ def summon_ten(
     event_on_activity(db, account, "summon_pull", amount=10, quest_kinds=QUEST_KINDS_SUMMON)
     from app.achievements import check_achievements as _ca
     _ca(db, account)
+    from app.account_level import XP_PER_SUMMON_PULL, grant_xp as _gxp
+    _gxp(db, account, XP_PER_SUMMON_PULL * 10)
     db.commit()
     return out

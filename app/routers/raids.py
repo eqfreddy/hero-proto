@@ -338,6 +338,9 @@ def attack_raid(
     # Achievements: raid_1 + raid_25.
     from app.achievements import check_achievements as _ca
     _ca(db, account)
+    # Account XP for raid attacks.
+    from app.account_level import XP_PER_RAID_ATTACK, grant_xp as _gxp
+    _gxp(db, account, XP_PER_RAID_ATTACK)
 
     rewards_payload: dict | None = None
     defeated = False

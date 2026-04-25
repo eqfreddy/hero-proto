@@ -26,6 +26,12 @@ dependencies = [
 [project.optional-dependencies]
 # Install with: `uv sync --extra postgres`
 postgres = ["psycopg[binary]>=3.2.0"]
+analytics = [
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.9",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+]
 
 [dependency-groups]
 dev = [

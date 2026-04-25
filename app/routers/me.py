@@ -30,6 +30,7 @@ def get_me(
     cleared = load_cleared(account)
     has_summoned = db.query(HeroInstance).filter_by(account_id=account.id).limit(1).first() is not None
     has_battled = db.query(Battle).filter_by(account_id=account.id).limit(1).first() is not None
+    from app.account_level import xp_to_next as _xp_to_next
     return MeOut(
         id=account.id,
         email=account.email,
@@ -45,6 +46,9 @@ def get_me(
         tutorial_cleared="tutorial_first_ticket" in cleared,
         has_summoned=has_summoned,
         has_battled=has_battled,
+        account_level=account.account_level or 1,
+        account_xp=account.account_xp or 0,
+        account_xp_to_next=_xp_to_next(account.account_level or 1),
     )
 
 
@@ -151,6 +155,8 @@ def daily_bonus_claim(
             f"daily bonus not yet available — next claim at {next_at.isoformat() if next_at else 'unknown'}",
         )
     result = apply_claim(account)
+    from app.account_level import XP_PER_DAILY_BONUS, grant_xp as _gxp
+    _gxp(db, account, XP_PER_DAILY_BONUS)
     db.commit()
     return DailyBonusClaimOut(
         granted=_reward_schema(result.granted),

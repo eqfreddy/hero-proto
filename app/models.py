@@ -229,6 +229,18 @@ class Account(Base):
     # app/achievements.py — content-as-code, not DB-driven.
     achievements_json: Mapped[str] = mapped_column(String(4096), default="{}")
 
+    # Account-level progression — separate from per-hero levels. Battle wins,
+    # summon pulls, and raid attacks all grant account XP. Level-ups grant
+    # rewards from app.account_level.LEVEL_REWARDS. Gates story chapters and
+    # (Phase 3) the alignment fork at level 50.
+    account_level: Mapped[int] = mapped_column(Integer, default=1)
+    account_xp: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Story state — JSON dict tracking which chapter cutscenes the player has
+    # already seen. Keyed by "chapter_code:beat_index" with timestamp values.
+    # Lets the client hide already-seen cutscenes on replay.
+    story_state_json: Mapped[str] = mapped_column(String(2048), default="{}")
+
     # Progression flag: have we granted the tutorial-clear reward for this
     # account yet? Prevents double-dipping via delete + re-register loops on
     # the same email address in SQLite dev setups. Stage clears themselves are
@@ -386,6 +398,71 @@ class DefenseTeam(Base):
     hero_ids_json: Mapped[str] = mapped_column(String(256))
     power: Mapped[int] = mapped_column(Integer, default=0, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
+class FriendshipStatus(StrEnum):
+    PENDING = "PENDING"     # request sent, not yet accepted
+    ACCEPTED = "ACCEPTED"
+    BLOCKED = "BLOCKED"     # one direction — blocker hides messages from blockee
+
+
+class Friendship(Base):
+    """Directed friendship/block edge.
+
+    Two-row pattern: when A and B both accept, rows (A→B, ACCEPTED) and
+    (B→A, ACCEPTED) exist. Pending request: only requester→recipient.
+    Block: single-direction row.
+    """
+    __tablename__ = "friendships"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    other_account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[FriendshipStatus] = mapped_column(String(16), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("account_id", "other_account_id", name="uq_friendship_pair"),
+    )
+
+
+class DirectMessage(Base):
+    """1:1 message between two accounts. Read state tracked on the recipient
+    side via read_at. Cascade-deletes when either account is removed.
+    """
+    __tablename__ = "direct_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sender_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    recipient_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    body: Mapped[str] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True, index=True)
+
+
+class DirectMessageReport(Base):
+    """Abuse-report row. Player flags a DM; admin reviews via /admin/reports.
+    Doesn't delete the message — preserves evidence."""
+    __tablename__ = "direct_message_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    reporter_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    message_id: Mapped[int] = mapped_column(
+        ForeignKey("direct_messages.id", ondelete="CASCADE"), index=True
+    )
+    reason: Mapped[str] = mapped_column(String(256), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class Notification(Base):

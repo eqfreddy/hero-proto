@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # Per-account anti-flood on /guilds/{id}/messages. 30/min matches a fast
     # human chatter; bots trying to spam a guild chat hit this first.
     guild_message_per_minute_per_account: int = 30
+    # Per-account caps on friend system + DMs to slow abuse without
+    # frustrating real users.
+    friend_request_per_minute_per_account: int = 10
+    direct_message_per_minute_per_account: int = 30
 
     # Shard store — in-game gems-to-shards exchange. Set the rate so a
     # mid-game gem balance buys a meaningful pull batch but real-money
@@ -95,6 +99,17 @@ class Settings(BaseSettings):
     stripe_api_key: str = ""           # sk_test_... for test mode, sk_live_... for prod
     stripe_webhook_secret: str = ""    # whsec_... from `stripe listen` or dashboard
     stripe_publishable_key: str = ""   # pk_... — not used server-side, exposed to client
+
+    # Apple StoreKit 2 (iOS in-app purchases) — only used when the Capacitor
+    # mobile build POSTs receipts to /shop/iap/apple. All empty by default
+    # so non-mobile deploys don't need to configure these.
+    apple_bundle_id: str = ""
+    apple_app_id: int = 0              # numeric app store id; required by SignedDataVerifier
+    apple_sandbox: bool = True         # set False in production
+    # Google Play Billing — service-account JSON content (not a path) to
+    # avoid filesystem assumptions in container deploys. Empty = unconfigured.
+    google_package_name: str = ""
+    google_service_account_json: str = ""
     # Where Stripe Checkout redirects after payment. Use {CHECKOUT_SESSION_ID} literal
     # in success_url if you want to verify session server-side on return.
     stripe_success_url: str = "http://127.0.0.1:8000/app/shop?checkout=success"

@@ -251,6 +251,111 @@ def create_purchase(
     return _purchase_out(purchase)
 
 
+# --- IAP receipt verification (Apple StoreKit + Google Play Billing) ---
+#
+# The mobile clients (Capacitor wrapping the PWA) POST signed receipts here
+# after the platform-native payment flow completes. We verify with Apple /
+# Google, look up the matching ShopProduct, and grant — same idempotency
+# pattern as the mock endpoint above (one Purchase per processor_ref).
+
+
+class ReceiptIn(BaseModel):
+    """Mobile-client payload after a successful native IAP."""
+    sku: str
+    receipt: str   # opaque blob — signed JWS for Apple, JSON for Google
+
+
+def _complete_iap(
+    db: Session, account: Account, processor: str, body: ReceiptIn,
+) -> Purchase:
+    """Common path for /shop/iap/{apple,google}. Verifies receipt, idempotent
+    by (processor, processor_ref), grants contents, returns the Purchase."""
+    from app.payment_adapters import ReceiptError, get_adapter
+
+    try:
+        adapter = get_adapter(processor)
+        verified = adapter.verify(body.receipt, claimed_sku=body.sku)
+    except ReceiptError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+
+    product = db.scalar(select(ShopProduct).where(ShopProduct.sku == verified.sku))
+    if product is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no product {verified.sku!r}")
+
+    # Idempotency: same (processor, processor_ref) returns the existing row.
+    existing = db.scalar(
+        select(Purchase).where(
+            Purchase.processor == verified.processor,
+            Purchase.processor_ref == verified.processor_ref,
+        )
+    )
+    if existing is not None:
+        if existing.account_id != account.id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "duplicate purchase reference")
+        return existing
+
+    contents = product_contents(product)
+    purchase = Purchase(
+        account_id=account.id,
+        sku=product.sku,
+        title_snapshot=product.title,
+        price_cents_paid=product.price_cents,
+        currency_code=product.currency_code,
+        processor=verified.processor,
+        processor_ref=verified.processor_ref,
+        state=PurchaseState.PENDING,
+        contents_snapshot_json=json.dumps(contents),
+    )
+    db.add(purchase)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(
+            select(Purchase).where(
+                Purchase.processor == verified.processor,
+                Purchase.processor_ref == verified.processor_ref,
+            )
+        )
+        if existing is not None and existing.account_id == account.id:
+            return existing
+        raise HTTPException(status.HTTP_409_CONFLICT, "duplicate purchase reference") from None
+
+    try:
+        apply_grant(db, account, purchase, contents)
+    except ValueError as exc:
+        purchase.state = PurchaseState.FAILED
+        purchase.refund_reason = str(exc)[:256]
+        db.commit()
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc)) from exc
+
+    purchase.state = PurchaseState.COMPLETED
+    purchase.completed_at = utcnow()
+    db.commit()
+    db.refresh(purchase)
+    return purchase
+
+
+@router.post("/iap/apple", response_model=PurchaseOut, status_code=status.HTTP_201_CREATED)
+def iap_apple(
+    body: ReceiptIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PurchaseOut:
+    """Apple StoreKit 2 receipt verification + grant."""
+    return _purchase_out(_complete_iap(db, account, "apple", body))
+
+
+@router.post("/iap/google", response_model=PurchaseOut, status_code=status.HTTP_201_CREATED)
+def iap_google(
+    body: ReceiptIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PurchaseOut:
+    """Google Play Billing receipt verification + grant."""
+    return _purchase_out(_complete_iap(db, account, "google", body))
+
+
 @router.get("/purchases/mine", response_model=list[PurchaseOut])
 def list_my_purchases(
     account: Annotated[Account, Depends(get_current_account)],
