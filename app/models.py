@@ -743,6 +743,12 @@ class RefreshToken(Base):
     replaced_by_id: Mapped[int | None] = mapped_column(
         ForeignKey("refresh_tokens.id", ondelete="SET NULL"), nullable=True
     )
+    # Captured at issue time for the active-sessions list. Optional because
+    # historical rows pre-date the columns. user_agent is truncated to 256 chars
+    # at the call site so we don't carry pathological strings around.
+    created_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class EmailVerificationToken(Base):

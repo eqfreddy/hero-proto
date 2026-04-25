@@ -2,7 +2,7 @@ import time
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -20,6 +20,9 @@ _arena_bucket = TokenBucket(settings.arena_attack_per_minute_per_account)
 _guild_msg_bucket = TokenBucket(settings.guild_message_per_minute_per_account)
 _friend_request_bucket = TokenBucket(settings.friend_request_per_minute_per_account)
 _direct_message_bucket = TokenBucket(settings.direct_message_per_minute_per_account)
+# Per-IP layer that sits *underneath* per-account buckets. Used by guild chat
+# to defend against rotating-account-on-one-IP spam.
+_guild_msg_ip_bucket = TokenBucket(settings.guild_message_per_minute_per_ip)
 
 
 def get_current_account(
@@ -93,8 +96,32 @@ def enforce_arena_rate_limit(
 def enforce_guild_message_rate_limit(
     account: Annotated[Account, Depends(get_current_account)],
 ) -> Account:
-    """Per-account anti-flood gate on /guilds/{id}/messages (POST)."""
+    """Per-account anti-flood gate on /guilds/{id}/messages (POST).
+
+    The per-IP layer lives in `enforce_guild_message_ip_rate_limit` and is
+    composed alongside this dep on the route. Splitting the two keeps the
+    unit-test entry point Request-free and the dep stack readable.
+    """
     return _enforce_account_bucket(account, _guild_msg_bucket, "guild chat")
+
+
+def enforce_guild_message_ip_rate_limit(request: Request) -> None:
+    """Per-IP anti-flood layer for guild chat — botnet defense.
+
+    Stops a botnet on one IP from cycling through fresh accounts to bypass
+    the per-account bucket. Cap is 3x the per-account rate so legit shared-IP
+    cohorts (offices, NAT, dorms) hit the per-account gate first for whoever
+    is actually misbehaving.
+    """
+    if settings.rate_limit_disabled or settings.environment == "test":
+        return
+    ip = request.client.host if request.client else "unknown"
+    if not _guild_msg_ip_bucket.allow(f"ip:{ip}", time.monotonic()):
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "guild chat rate limit exceeded for this network — slow down",
+            headers={"Retry-After": "60"},
+        )
 
 
 def enforce_friend_request_rate_limit(

@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # Per-account anti-flood on /guilds/{id}/messages. 30/min matches a fast
     # human chatter; bots trying to spam a guild chat hit this first.
     guild_message_per_minute_per_account: int = 30
+    # Additional per-IP cap on POST /guilds/{id}/messages. Stops botnets from
+    # cycling through compromised accounts on one IP to bypass the per-account
+    # gate. Higher than the per-account cap because legit shared-IP cases (NAT,
+    # offices, dorms) exist.
+    guild_message_per_minute_per_ip: int = 90
     # Per-account caps on friend system + DMs to slow abuse without
     # frustrating real users.
     friend_request_per_minute_per_account: int = 10

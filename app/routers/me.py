@@ -386,3 +386,110 @@ def last_team(
         raw = []
     clean = _validate_team(db, account, [int(x) for x in raw if isinstance(x, int) or (isinstance(x, str) and x.isdigit())])
     return LastTeamOut(team=clean, source="battle")
+
+
+# --- Active sessions / login history ----------------------------------------
+#
+# Each live RefreshToken row IS a session: a credential issued at some point
+# from some IP/UA, still good until expired or revoked. We expose them so the
+# user can see "where am I logged in" and revoke individual sessions (lost
+# laptop, shared computer) or all of them at once.
+
+from app.models import RefreshToken as _RefreshToken, utcnow as _utcnow
+
+
+class SessionOut(BaseModel):
+    id: int
+    issued_at: datetime
+    expires_at: datetime
+    last_used_at: datetime | None = None
+    ip: str | None = None
+    user_agent: str | None = None
+    is_current: bool = False  # always False for now — we don't know caller's refresh-token id
+
+
+@router.get("/sessions", response_model=list[SessionOut])
+def list_sessions(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[SessionOut]:
+    """All live refresh tokens for the account, newest-first. Revoked, expired,
+    and rotated-out tokens are excluded — they're not real sessions anymore."""
+    now = _utcnow()
+    rows = list(db.scalars(
+        _select(_RefreshToken)
+        .where(
+            _RefreshToken.account_id == account.id,
+            _RefreshToken.revoked_at.is_(None),
+            _RefreshToken.replaced_by_id.is_(None),
+            _RefreshToken.expires_at > now,
+        )
+        .order_by(_desc(_RefreshToken.id))
+    ))
+    return [
+        SessionOut(
+            id=r.id,
+            issued_at=r.issued_at,
+            expires_at=r.expires_at,
+            last_used_at=r.last_used_at,
+            ip=r.created_ip,
+            user_agent=r.user_agent,
+        )
+        for r in rows
+    ]
+
+
+@router.post("/sessions/{session_id}/revoke", response_model=dict)
+def revoke_session(
+    session_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """Kill one specific session. Other sessions (and the access token that
+    made *this* call) keep working — only the targeted refresh chain dies."""
+    row = db.get(_RefreshToken, session_id)
+    if row is None or row.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found")
+    if row.revoked_at is None:
+        row.revoked_at = _utcnow()
+        db.commit()
+    return {"revoked": True, "id": session_id}
+
+
+@router.post("/sessions/revoke-all", response_model=dict)
+def revoke_all_sessions(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """Logout-everywhere: revokes all live refresh tokens AND bumps token_version
+    so any in-flight access tokens (including the one that called this) die.
+    Caller will need to re-login on every device, here included."""
+    now = _utcnow()
+    revoked = 0
+    for row in db.scalars(
+        _select(_RefreshToken).where(
+            _RefreshToken.account_id == account.id,
+            _RefreshToken.revoked_at.is_(None),
+        )
+    ):
+        row.revoked_at = now
+        revoked += 1
+    account.token_version = (account.token_version or 0) + 1
+    db.commit()
+    return {"revoked": revoked}
+
+
+# --- GDPR data export -------------------------------------------------------
+
+
+@router.get("/export")
+def export_account_data(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """GDPR art. 20 — return everything the system holds about this account
+    as a single JSON blob. Sensitive material (password hash, TOTP secret,
+    raw refresh tokens) is redacted; per-table caps prevent unbounded blobs.
+    """
+    from app.data_export import export_account as _export
+    return _export(db, account)

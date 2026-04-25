@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -52,7 +52,11 @@ def _grant_starter_team(db: Session, account: Account) -> None:
 
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
-def register(body: RegisterIn, db: Annotated[Session, Depends(get_db)]) -> TokenOut:
+def register(
+    body: RegisterIn,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenOut:
     if db.scalar(select(Account).where(Account.email == body.email)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "email already registered")
     account = Account(
@@ -67,7 +71,7 @@ def register(body: RegisterIn, db: Annotated[Session, Depends(get_db)]) -> Token
     db.add(account)
     db.flush()
     _grant_starter_team(db, account)
-    _row, refresh_raw = _issue_refresh_token(db, account)
+    _row, refresh_raw = _issue_refresh_token(db, account, request)
     db.commit()
     db.refresh(account)
     return TokenOut(
@@ -77,7 +81,11 @@ def register(body: RegisterIn, db: Annotated[Session, Depends(get_db)]) -> Token
 
 
 @router.post("/login")
-def login(body: LoginIn, db: Annotated[Session, Depends(get_db)]) -> dict:
+def login(
+    body: LoginIn,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
     """Password login. If the account has TOTP enabled, returns a short-lived
     challenge_token instead of a real access token — the client must follow up
     with POST /auth/2fa/verify using that token + the current TOTP code."""
@@ -96,7 +104,7 @@ def login(body: LoginIn, db: Annotated[Session, Depends(get_db)]) -> dict:
         db.commit()
         return LoginChallengeOut(challenge_token=_issue_totp_challenge(account)).model_dump()
 
-    _row, refresh_raw = _issue_refresh_token(db, account)
+    _row, refresh_raw = _issue_refresh_token(db, account, request)
     db.commit()
     return TokenOut(
         access_token=issue_token(account.id, account.token_version),
@@ -194,6 +202,7 @@ def forgot_password(
 @router.post("/reset-password", response_model=TokenOut)
 def reset_password(
     body: ResetPasswordIn,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenOut:
     """Consume a reset token and set a new password. Bumps token_version so any
@@ -219,7 +228,7 @@ def reset_password(
     # previously-issued credential (access or refresh) is usable post-reset.
     _revoke_chain_for_account(db, account)
     token_row.used_at = utcnow()
-    _new_refresh_row, refresh_raw = _issue_refresh_token(db, account)
+    _new_refresh_row, refresh_raw = _issue_refresh_token(db, account, request)
     db.commit()
     # Issue a fresh access + refresh so the user is immediately signed in.
     return TokenOut(
@@ -346,13 +355,41 @@ def get_current_account_verified_only(
 from app.models import RefreshToken
 
 
-def _issue_refresh_token(db: Session, account: Account) -> tuple[RefreshToken, str]:
-    """Persist a new RefreshToken row and return (row, raw_token)."""
+def _client_ip(req: Request | None) -> str | None:
+    if req is None:
+        return None
+    # Trust X-Forwarded-For only if the deployment terminates TLS at a proxy;
+    # for the dev/test env, request.client.host is what we have.
+    fwd = req.headers.get("x-forwarded-for") if req else None
+    if fwd:
+        return fwd.split(",")[0].strip()[:64]
+    return req.client.host[:64] if req.client else None
+
+
+def _client_ua(req: Request | None) -> str | None:
+    if req is None:
+        return None
+    ua = req.headers.get("user-agent")
+    return ua[:256] if ua else None
+
+
+def _issue_refresh_token(
+    db: Session,
+    account: Account,
+    request: Request | None = None,
+) -> tuple[RefreshToken, str]:
+    """Persist a new RefreshToken row and return (row, raw_token).
+
+    Captures IP + user-agent at issue time when a Request is available, so
+    the active-sessions list can show the user where each session came from.
+    """
     raw = secrets.token_urlsafe(40)
     row = RefreshToken(
         account_id=account.id,
         token_hash=_hash_token(raw),
         expires_at=utcnow() + timedelta(days=settings.refresh_token_ttl_days),
+        created_ip=_client_ip(request),
+        user_agent=_client_ua(request),
     )
     db.add(row)
     return row, raw
@@ -387,6 +424,7 @@ class LogoutOut(BaseModel):
 @router.post("/refresh", response_model=TokenOut)
 def refresh(
     body: RefreshIn,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenOut:
     """Rotate the refresh token. Returns a fresh access token + a new refresh
@@ -425,7 +463,8 @@ def refresh(
         )
 
     # Rotate: issue a new token, mark old replaced.
-    new_row, new_raw = _issue_refresh_token(db, account)
+    row.last_used_at = now
+    new_row, new_raw = _issue_refresh_token(db, account, request)
     db.flush()
     row.replaced_by_id = new_row.id
     row.revoked_at = now
@@ -680,6 +719,7 @@ def totp_disable(
 @router.post("/2fa/verify", response_model=TokenOut)
 def totp_verify(
     body: TotpVerifyIn,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenOut:
     """Consume a login challenge + TOTP code OR recovery code, return the real
@@ -702,7 +742,7 @@ def totp_verify(
     if not (valid_totp or valid_recovery):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid TOTP or recovery code")
 
-    _row, refresh_raw = _issue_refresh_token(db, account)
+    _row, refresh_raw = _issue_refresh_token(db, account, request)
     db.commit()
     return TokenOut(
         access_token=issue_token(account.id, account.token_version),

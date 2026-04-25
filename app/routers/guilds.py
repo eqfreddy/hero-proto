@@ -6,7 +6,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import enforce_guild_message_rate_limit, get_current_account
+from app.deps import (
+    enforce_guild_message_ip_rate_limit,
+    enforce_guild_message_rate_limit,
+    get_current_account,
+)
 from app.models import (
     Account,
     Guild,
@@ -323,7 +327,12 @@ def list_messages(
     ]
 
 
-@router.post("/{guild_id}/messages", response_model=GuildMessageOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{guild_id}/messages",
+    response_model=GuildMessageOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(enforce_guild_message_ip_rate_limit)],
+)
 def post_message(
     guild_id: int,
     body: GuildMessageIn,
