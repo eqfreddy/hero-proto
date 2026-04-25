@@ -183,12 +183,26 @@ def partial_me(
         )
         if a.ends_at is None or a.ends_at > now
     ]
+    # Inventory cap status — drives the "Inventory" card on /me with usage
+    # bars + expansion + mailbox.
+    from app.inventory import gear_usage as _gu, hero_usage as _hu, list_mailbox
+    h_use = _hu(db, account)
+    g_use = _gu(db, account)
+    inv_status = {
+        "hero": {"used": h_use.used, "cap": h_use.cap, "full": h_use.full},
+        "gear": {"used": g_use.used, "cap": g_use.cap, "full": g_use.full},
+        "mailbox_count": len(list_mailbox(account)),
+        "expansion_step": settings.slot_expansion_step,
+        "expansion_cost_gems": settings.slot_expansion_cost_gems,
+        "cap_max": settings.slot_cap_max,
+    }
     return templates.TemplateResponse(
         request, "partials/me.html",
         {
             "me": me, "guild": guild,
             "announcements": announcements, "daily_bonus": daily_bonus,
             "next_step": _next_step(account, db),
+            "inv": inv_status,
         },
     )
 

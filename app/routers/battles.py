@@ -10,6 +10,7 @@ from app.combat import CombatUnit, build_unit, simulate, trim_combat_log
 from app.crafting import grant_material, roll_battle_drops
 from app.daily import on_battle_won, on_hard_stage_clear
 from app.event_state import QUEST_KINDS_BATTLE_WIN, on_activity as event_on_activity
+from app.inventory import gear_usage, queue_mailbox
 from app.db import get_db
 from app.deps import enforce_battle_rate_limit, get_current_account
 from app.economy import award_rewards, consume_energy, load_cleared, mark_cleared
@@ -223,23 +224,36 @@ def fight(
         drop_chance += gear_drop_bonus(db)
         if rng.random() < drop_chance:
             slot, rarity, set_code, stats = roll_gear(rng, stage.order)
-            gear = Gear(
-                account_id=account.id,
-                slot=slot,
-                rarity=rarity,
-                set_code=set_code,
-                stats_json=json.dumps(stats),
-                hero_instance_id=None,
-            )
-            db.add(gear)
-            db.flush()
-            rewards_extra["gear"] = {
-                "id": gear.id,
-                "slot": str(slot),
-                "rarity": str(rarity),
-                "set": str(set_code),
-                "stats": stats,
-            }
+            usage = gear_usage(db, account)
+            if usage.full:
+                # Cap-out: stash in mailbox so the player can claim later.
+                queue_mailbox(account, "gear", {
+                    "slot": str(slot), "rarity": str(rarity),
+                    "set_code": str(set_code), "stats": stats,
+                })
+                rewards_extra["gear"] = {
+                    "mailboxed": True,
+                    "slot": str(slot), "rarity": str(rarity),
+                    "set": str(set_code), "stats": stats,
+                }
+            else:
+                gear = Gear(
+                    account_id=account.id,
+                    slot=slot,
+                    rarity=rarity,
+                    set_code=set_code,
+                    stats_json=json.dumps(stats),
+                    hero_instance_id=None,
+                )
+                db.add(gear)
+                db.flush()
+                rewards_extra["gear"] = {
+                    "id": gear.id,
+                    "slot": str(slot),
+                    "rarity": str(rarity),
+                    "set": str(set_code),
+                    "stats": stats,
+                }
 
     trimmed_log = trim_combat_log(combined_log)
     battle = Battle(

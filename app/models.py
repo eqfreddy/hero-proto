@@ -206,6 +206,14 @@ class Account(Base):
     shard_exchanges_today_key: Mapped[str] = mapped_column(String(10), default="")
     shard_exchanges_today_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Inventory caps. Default values come from settings on Account creation.
+    # Soft-enforced: a drop over cap doesn't vanish, it spills into
+    # mailbox_overflow_json (a JSON list of {kind, payload, ts} entries that
+    # the player redeems via the inventory tab once they make room).
+    hero_slot_cap: Mapped[int] = mapped_column(Integer, default=50)
+    gear_slot_cap: Mapped[int] = mapped_column(Integer, default=200)
+    mailbox_overflow_json: Mapped[str] = mapped_column(String(8192), default="[]")
+
     # Per-event progression state. Keyed by event id (matches LiveOpsEvent.name's
     # slugified form), value is a dict containing:
     #   currency: int             — accumulated event currency balance

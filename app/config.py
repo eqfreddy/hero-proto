@@ -48,6 +48,17 @@ class Settings(BaseSettings):
     shard_exchange_gems_per_batch: int = 50
     shard_exchange_shards_per_batch: int = 10
     shard_exchange_max_per_day: int = 20  # 20 batches = 200 shards/day
+
+    # Inventory slot caps. Soft-enforced: drops over the cap go to the
+    # mailbox (Account.mailbox_overflow_json) rather than disappearing —
+    # players reclaim them after expanding cap or selling/sweeping junk.
+    hero_slot_cap_default: int = 50
+    gear_slot_cap_default: int = 200
+    # Per-slot expansion price (gems). Each purchase adds slot_expansion_step
+    # slots. Tuned so 5 expansions ≈ a $5 gem pack — cosmetics/QoL pricing.
+    slot_expansion_step: int = 10
+    slot_expansion_cost_gems: int = 50
+    slot_cap_max: int = 500  # absolute ceiling so accounts can't unbounded-grow
     # Smoke scripts hammering a single IP can trip the general bucket — this lets
     # dev/CI short-circuit the middleware entirely. Never enable in prod.
     rate_limit_disabled: bool = False

@@ -124,6 +124,135 @@
     </div>
   </div>
 
+  {% if inv %}
+  <div class="card">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Inventory</h2>
+      {% if inv.mailbox_count > 0 %}
+        <span class="pill bad">📬 {{ inv.mailbox_count }} in mailbox</span>
+      {% endif %}
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+      <div>
+        <div class="muted" style="font-size: 11px;">Heroes</div>
+        <div style="font-size: 16px; font-weight: 700;">{{ inv.hero.used }} / {{ inv.hero.cap }}</div>
+        <div class="hpbar" style="height: 5px; margin-top: 3px;">
+          <div class="fill" style="width: {{ (100 * inv.hero.used / inv.hero.cap) | round(1) }}%; background: {% if inv.hero.full %}var(--bad){% elif inv.hero.used / inv.hero.cap > 0.85 %}var(--warn){% else %}var(--good){% endif %};"></div>
+        </div>
+        {% if inv.hero.cap < inv.cap_max %}
+          <button class="secondary" style="margin-top: 6px; font-size: 11px; padding: 4px 8px;" onclick="expandSlots('hero', this)">+{{ inv.expansion_step }} slots ({{ inv.expansion_cost_gems }}💎)</button>
+        {% else %}
+          <div class="muted" style="font-size: 10px; margin-top: 6px;">at hard cap ({{ inv.cap_max }})</div>
+        {% endif %}
+      </div>
+      <div>
+        <div class="muted" style="font-size: 11px;">Gear</div>
+        <div style="font-size: 16px; font-weight: 700;">{{ inv.gear.used }} / {{ inv.gear.cap }}</div>
+        <div class="hpbar" style="height: 5px; margin-top: 3px;">
+          <div class="fill" style="width: {{ (100 * inv.gear.used / inv.gear.cap) | round(1) }}%; background: {% if inv.gear.full %}var(--bad){% elif inv.gear.used / inv.gear.cap > 0.85 %}var(--warn){% else %}var(--good){% endif %};"></div>
+        </div>
+        {% if inv.gear.cap < inv.cap_max %}
+          <button class="secondary" style="margin-top: 6px; font-size: 11px; padding: 4px 8px;" onclick="expandSlots('gear', this)">+{{ inv.expansion_step }} slots ({{ inv.expansion_cost_gems }}💎)</button>
+        {% else %}
+          <div class="muted" style="font-size: 10px; margin-top: 6px;">at hard cap ({{ inv.cap_max }})</div>
+        {% endif %}
+      </div>
+    </div>
+    {% if inv.mailbox_count > 0 %}
+    <div style="margin-top: 10px;">
+      <button class="primary" onclick="openMailbox(this)" style="font-size: 12px; padding: 6px 12px;">📬 Open mailbox</button>
+      <div id="mailbox-list" style="margin-top: 10px;"></div>
+    </div>
+    {% endif %}
+    <div id="inv-result" style="font-size: 11px; margin-top: 8px;"></div>
+  </div>
+  <script>
+    async function expandSlots(kind, btn) {
+      btn.disabled = true;
+      const out = document.getElementById('inv-result');
+      const token = localStorage.getItem('heroproto_jwt');
+      try {
+        const r = await fetch(`/inventory/expand/${kind}`, {
+          method: 'POST',
+          headers: { authorization: 'Bearer ' + token },
+        });
+        const body = await r.json();
+        if (!r.ok) {
+          out.innerHTML = `<span style="color: var(--bad);">${body.detail || r.status}</span>`;
+          btn.disabled = false;
+          return;
+        }
+        out.innerHTML = `<span style="color: var(--good);">✓ +${body.new_cap - (body.new_cap - {{ inv.expansion_step }})} slots, -${body.gems_spent} 💎 (now ${body.gems_after} 💎)</span>`;
+        setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 700);
+      } catch (e) {
+        out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+        btn.disabled = false;
+      }
+    }
+
+    async function openMailbox(btn) {
+      btn.disabled = true;
+      const list = document.getElementById('mailbox-list');
+      const token = localStorage.getItem('heroproto_jwt');
+      try {
+        const items = await fetch('/inventory/mailbox', {
+          headers: { authorization: 'Bearer ' + token },
+        }).then(r => r.json());
+        if (!Array.isArray(items) || items.length === 0) {
+          list.innerHTML = '<div class="muted" style="font-size: 12px;">Mailbox is empty.</div>';
+          return;
+        }
+        list.innerHTML = items.map(it => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 4px; gap: 8px;">
+            <div style="flex: 1; font-size: 12px;">
+              <strong>${it.kind}</strong>: ${JSON.stringify(it.payload)}
+            </div>
+            <button class="primary" style="font-size: 11px; padding: 4px 10px;" onclick="claimMailbox(${it.idx}, this)">Claim</button>
+            <button class="secondary" style="font-size: 11px; padding: 4px 8px;" onclick="dismissMailbox(${it.idx}, this)">×</button>
+          </div>
+        `).join('');
+      } catch (e) {
+        list.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function claimMailbox(idx, btn) {
+      btn.disabled = true;
+      const out = document.getElementById('inv-result');
+      const token = localStorage.getItem('heroproto_jwt');
+      try {
+        const r = await fetch(`/inventory/mailbox/${idx}/claim`, {
+          method: 'POST',
+          headers: { authorization: 'Bearer ' + token },
+        });
+        const body = await r.json();
+        if (!r.ok) {
+          out.innerHTML = `<span style="color: var(--bad);">${body.detail || r.status}</span>`;
+          btn.disabled = false;
+          return;
+        }
+        out.innerHTML = `<span style="color: var(--good);">✓ Claimed ${body.kind}</span>`;
+        setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 700);
+      } catch (e) {
+        out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+        btn.disabled = false;
+      }
+    }
+
+    async function dismissMailbox(idx, btn) {
+      btn.disabled = true;
+      const token = localStorage.getItem('heroproto_jwt');
+      await fetch(`/inventory/mailbox/${idx}/dismiss`, {
+        method: 'POST',
+        headers: { authorization: 'Bearer ' + token },
+      });
+      setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 400);
+    }
+  </script>
+  {% endif %}
+
   <div class="card">
     <h2 style="margin-top: 0; font-size: 14px; color: var(--muted);">Progress</h2>
     <div class="muted" style="font-size: 12px;">
