@@ -199,6 +199,13 @@ class Account(Base):
     # first-time events (tutorial completion, starter pack, LiveOps). Can stack.
     free_summon_credits: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Shard-store usage tracking (gems → shards exchange). Mirrors the energy
+    # refill counter shape: a UTC day key + a counter. Reset on first
+    # exchange of a new day. Caps total per-day batches so a player can't
+    # nuke their gem balance into shards faster than the gacha pacing intends.
+    shard_exchanges_today_key: Mapped[str] = mapped_column(String(10), default="")
+    shard_exchanges_today_count: Mapped[int] = mapped_column(Integer, default=0)
+
     # Per-event progression state. Keyed by event id (matches LiveOpsEvent.name's
     # slugified form), value is a dict containing:
     #   currency: int             — accumulated event currency balance

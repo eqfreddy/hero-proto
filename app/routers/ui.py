@@ -44,6 +44,7 @@ from app.models import (
     Purchase,
     ShopProduct,
     Stage,
+    utcnow,
 )
 from app.store import product_contents, count_account_purchases
 
@@ -680,9 +681,25 @@ def partial_shop(
             "created_at": pr.created_at, "granted_short": ", ".join(short_bits),
         })
 
+    # Shard exchange status for the in-game gems → shards exchange UI block.
+    today_key = utcnow().strftime("%Y-%m-%d")
+    sx_used = (account.shard_exchanges_today_count
+               if account.shard_exchanges_today_key == today_key else 0)
+    shard_exchange = {
+        "gems_per_batch": settings.shard_exchange_gems_per_batch,
+        "shards_per_batch": settings.shard_exchange_shards_per_batch,
+        "max_per_day": settings.shard_exchange_max_per_day,
+        "used_today": sx_used,
+        "remaining_today": max(0, settings.shard_exchange_max_per_day - sx_used),
+    }
+
     return templates.TemplateResponse(
         request, "partials/shop.html",
-        {"me": _me_dict(account), "products": products, "starter": starter, "history": history},
+        {
+            "me": _me_dict(account),
+            "products": products, "starter": starter, "history": history,
+            "shard_exchange": shard_exchange,
+        },
     )
 
 

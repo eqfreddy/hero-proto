@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     # Per-account anti-flood on /guilds/{id}/messages. 30/min matches a fast
     # human chatter; bots trying to spam a guild chat hit this first.
     guild_message_per_minute_per_account: int = 30
+
+    # Shard store — in-game gems-to-shards exchange. Set the rate so a
+    # mid-game gem balance buys a meaningful pull batch but real-money
+    # shard purchases still feel cheaper. 50 gems → 10 shards = 5 gems
+    # per shard. Daily cap stops players from converting away their entire
+    # gem stack the moment they get a free-summon-credit reward.
+    shard_exchange_gems_per_batch: int = 50
+    shard_exchange_shards_per_batch: int = 10
+    shard_exchange_max_per_day: int = 20  # 20 batches = 200 shards/day
     # Smoke scripts hammering a single IP can trip the general bucket — this lets
     # dev/CI short-circuit the middleware entirely. Never enable in prod.
     rate_limit_disabled: bool = False

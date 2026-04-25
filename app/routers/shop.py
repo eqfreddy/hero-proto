@@ -265,3 +265,111 @@ def list_my_purchases(
         .limit(limit)
     )
     return [_purchase_out(p) for p in rows]
+
+
+# --- Shard store (in-game gems → shards exchange) ---------------------------
+#
+# A second monetization-adjacent path: rather than buying shards with real
+# money (the existing shards_pack SKU), players can spend the gems they
+# already have. Rate is fixed in settings. Daily cap stops one whale account
+# from converting infinite gems → shards in a single sitting.
+
+
+class ShardExchangeStatusOut(BaseModel):
+    gems_per_batch: int
+    shards_per_batch: int
+    max_per_day: int
+    used_today: int
+    remaining_today: int
+
+
+class ShardExchangeIn(BaseModel):
+    batches: int = Field(ge=1, le=20, default=1)
+
+
+class ShardExchangeOut(BaseModel):
+    batches: int
+    gems_spent: int
+    shards_gained: int
+    gems: int
+    shards: int
+    used_today: int
+    remaining_today: int
+
+
+def _today_key() -> str:
+    return utcnow().strftime("%Y-%m-%d")
+
+
+@router.get("/shard-exchange", response_model=ShardExchangeStatusOut)
+def shard_exchange_status(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> ShardExchangeStatusOut:
+    """Caller's remaining daily exchange budget + the configured rate."""
+    today = _today_key()
+    used = account.shard_exchanges_today_count if account.shard_exchanges_today_key == today else 0
+    return ShardExchangeStatusOut(
+        gems_per_batch=settings.shard_exchange_gems_per_batch,
+        shards_per_batch=settings.shard_exchange_shards_per_batch,
+        max_per_day=settings.shard_exchange_max_per_day,
+        used_today=used,
+        remaining_today=max(0, settings.shard_exchange_max_per_day - used),
+    )
+
+
+@router.post("/shard-exchange", response_model=ShardExchangeOut, status_code=status.HTTP_201_CREATED)
+def exchange_gems_for_shards(
+    body: ShardExchangeIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ShardExchangeOut:
+    """Atomic gems → shards swap. Bounded by the per-day cap and the player's
+    current gem balance. The whole `batches` count succeeds or fails — no
+    partial credit if budget runs out mid-request.
+    """
+    today = _today_key()
+    if account.shard_exchanges_today_key != today:
+        account.shard_exchanges_today_key = today
+        account.shard_exchanges_today_count = 0
+
+    requested = body.batches
+    remaining = settings.shard_exchange_max_per_day - account.shard_exchanges_today_count
+    if remaining <= 0:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"daily shard-exchange limit reached ({settings.shard_exchange_max_per_day} batches)",
+        )
+    if requested > remaining:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"daily limit only allows {remaining} more batches today",
+        )
+
+    gems_cost = settings.shard_exchange_gems_per_batch * requested
+    shards_gain = settings.shard_exchange_shards_per_batch * requested
+
+    if account.gems < gems_cost:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"not enough gems (need {gems_cost}, have {account.gems})",
+        )
+
+    account.gems -= gems_cost
+    account.shards += shards_gain
+    account.shard_exchanges_today_count += requested
+
+    # Daily-quest hook — counts as gem spend.
+    from app.daily import on_gems_spent
+    on_gems_spent(db, account, gems_cost)
+
+    db.commit()
+    db.refresh(account)
+    return ShardExchangeOut(
+        batches=requested,
+        gems_spent=gems_cost,
+        shards_gained=shards_gain,
+        gems=account.gems,
+        shards=account.shards,
+        used_today=account.shard_exchanges_today_count,
+        remaining_today=max(0, settings.shard_exchange_max_per_day - account.shard_exchanges_today_count),
+    )
