@@ -114,6 +114,7 @@
         return;
       }
       if (out) out.innerHTML = `<span style="color: var(--good);">✓ Claimed +${body.currency_granted} sparks (balance: ${body.currency_balance})</span>`;
+      if (window.sound) window.sound.play('quest_claim');
       // Refresh tab so UI reflects new balance + claimed state.
       setTimeout(() => htmx.ajax('GET', '/app/partials/event', '#content'), 800);
     } catch (e) {
@@ -139,6 +140,7 @@
       }
       const grants = Object.entries(body.granted || {}).map(([k, v]) => `+${v} ${k.replace('_', ' ')}`).join(' · ');
       out.innerHTML = `<span style="color: var(--good);">✓ Redeemed (balance: ${body.currency_balance}) — ${grants || 'rewards granted'}</span>`;
+      if (window.sound) window.sound.play('purchase');
       setTimeout(() => htmx.ajax('GET', '/app/partials/event', '#content'), 1000);
     } catch (e) {
       out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;

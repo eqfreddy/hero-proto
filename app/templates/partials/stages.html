@@ -152,6 +152,8 @@
       const body = await r.json();
       if (!r.ok) { out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${body.detail || JSON.stringify(body)}</span>`; return; }
       const cls = body.outcome === 'WIN' ? 'good' : 'bad';
+      // Outcome sound — victory / defeat sting.
+      if (window.sound) window.sound.play(body.outcome === 'WIN' ? 'victory' : 'defeat');
       const teamCsv = team.join(',');
       out.innerHTML = `
         <span class="pill ${cls}">${body.outcome}</span>

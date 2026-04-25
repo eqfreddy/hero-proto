@@ -51,6 +51,7 @@
           return;
         }
         out.innerHTML = `<span style="color: var(--good);">✓ -${body.gems_spent} 💎  +${body.shards_gained} ✦  (now ${body.gems} 💎 / ${body.shards} ✦)</span>`;
+        if (window.sound) window.sound.play('coin_grant');
         // Refresh the partial so balances + cap-bar update.
         setTimeout(() => htmx.ajax('GET', '/app/partials/shop', '#content'), 1000);
       } catch (e) {

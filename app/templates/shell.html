@@ -10,6 +10,19 @@
   nav button:hover { color: var(--text); }
   #who { margin-left: auto; color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-inset, var(--bg)); border-radius: 4px; border: 1px solid var(--border); }
   #who.signed-in { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+  /* Sound settings gear + popover */
+  #sound-gear { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+  #sound-gear:hover { color: var(--text); border-color: var(--text); }
+  #sound-gear.muted { color: var(--bad); }
+  #sound-popover { position: absolute; top: 50px; right: 16px; z-index: 100; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; min-width: 240px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none; }
+  #sound-popover.show { display: block; }
+  #sound-popover h3 { margin: 0 0 10px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  #sound-popover label { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 8px; }
+  #sound-popover input[type=range] { flex: 1; }
+  #sound-popover input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+  #sound-popover .test-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  #sound-popover .test-row button { font-size: 10px; padding: 3px 8px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 3px; cursor: pointer; }
+  #sound-popover .test-row button:hover { border-color: var(--accent); color: var(--accent); }
   main { padding: 18px; max-width: 1100px; margin: 0 auto; }
   main > .loading { color: var(--muted); display: flex; align-items: center; gap: 8px; }
 </style>
@@ -31,21 +44,106 @@
     <button data-tab="shop" hx-get="/app/partials/shop" hx-target="#content">Shop</button>
   </nav>
   <span id="who"></span>
+  <button id="sound-gear" onclick="toggleSoundPopover()" title="Sound settings">🔊</button>
+  <div id="sound-popover" onclick="event.stopPropagation()">
+    <h3>Sound</h3>
+    <label>
+      <span>Mute</span>
+      <input id="sx-mute" type="checkbox" />
+    </label>
+    <label>
+      <span>Master <span id="sx-master-val">60</span>%</span>
+      <input id="sx-master" type="range" min="0" max="100" value="60" />
+    </label>
+    <label>
+      <span>SFX <span id="sx-sfx-val">80</span>%</span>
+      <input id="sx-sfx" type="range" min="0" max="100" value="80" />
+    </label>
+    <div class="test-row">
+      <button onclick="window.sound && window.sound.test('ui')">UI</button>
+      <button onclick="window.sound && window.sound.test('combat')">Combat</button>
+      <button onclick="window.sound && window.sound.test('gacha')">Gacha</button>
+      <button onclick="window.sound && window.sound.test('events')">Events</button>
+    </div>
+  </div>
 </header>
 <main>
   <div id="content"><div class="loading"><span class="spinner"></span> loading…</div></div>
 </main>
 {% endblock %}
 {% block scripts %}
+<script src="/app/static/sound.js"></script>
 <script>
+  // --- Sound settings popover wiring -------------------------------------
+  function toggleSoundPopover() {
+    const pop = document.getElementById('sound-popover');
+    pop.classList.toggle('show');
+    if (pop.classList.contains('show')) syncSoundUI();
+  }
+  function syncSoundUI() {
+    if (!window.sound) return;
+    document.getElementById('sx-mute').checked = !!window.sound.muted;
+    const m = Math.round(window.sound.master * 100);
+    const s = Math.round(window.sound.sfx * 100);
+    document.getElementById('sx-master').value = m;
+    document.getElementById('sx-sfx').value = s;
+    document.getElementById('sx-master-val').textContent = m;
+    document.getElementById('sx-sfx-val').textContent = s;
+    document.getElementById('sound-gear').classList.toggle('muted', !!window.sound.muted);
+    document.getElementById('sound-gear').textContent = window.sound.muted ? '🔇' : '🔊';
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!window.sound) return;
+    syncSoundUI();
+    document.getElementById('sx-mute').addEventListener('change', e => {
+      window.sound.setMute(e.target.checked);
+      syncSoundUI();
+    });
+    document.getElementById('sx-master').addEventListener('input', e => {
+      window.sound.setMaster(Number(e.target.value) / 100);
+      document.getElementById('sx-master-val').textContent = e.target.value;
+    });
+    document.getElementById('sx-sfx').addEventListener('input', e => {
+      window.sound.setSfx(Number(e.target.value) / 100);
+      document.getElementById('sx-sfx-val').textContent = e.target.value;
+      // Subtle preview while dragging.
+      window.sound.play('click');
+    });
+  });
+  // Click outside the popover dismisses it.
+  document.addEventListener('click', (e) => {
+    const pop = document.getElementById('sound-popover');
+    const gear = document.getElementById('sound-gear');
+    if (pop && pop.classList.contains('show') && !pop.contains(e.target) && e.target !== gear) {
+      pop.classList.remove('show');
+    }
+  });
+
   // Tab state: highlight active tab and persist choice.
   document.querySelectorAll('nav button').forEach(b => {
     b.addEventListener('click', () => {
       document.querySelectorAll('nav button').forEach(x => x.classList.remove('active'));
       b.classList.add('active');
       localStorage.setItem('heroproto_tab', b.dataset.tab);
+      if (window.sound) window.sound.play('tab');
     });
   });
+
+  // Global click sfx — fires on any .primary or .secondary button.
+  // Avoids needing to wire every individual button. Skipped on the gear
+  // (it has its own preview) and skipped during drag-from-slider events.
+  document.body.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.id === 'sound-gear') return;
+    if (btn.closest('#sound-popover .test-row')) return;
+    if (!window.sound) return;
+    if (btn.classList.contains('primary')) {
+      window.sound.play('click');
+    } else if (btn.classList.contains('secondary')) {
+      window.sound.play('click');
+    }
+  }, true);
   // Signed-in indicator. Pull the display name from /me once on load so the
   // header matches the Me tab's "signed in as X" pill instead of just
   // showing a generic "signed in".

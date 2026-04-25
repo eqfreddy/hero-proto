@@ -136,6 +136,12 @@
       const items = Array.isArray(body) ? body : [body];
       const order = { MYTH: 6, LEGENDARY: 5, EPIC: 4, RARE: 3, UNCOMMON: 2, COMMON: 1 };
       items.sort((a, b) => (order[b.rarity] || 0) - (order[a.rarity] || 0));
+      // Sound: play the highest-rarity pull cue. Players want to hear the
+      // EPIC/LEGENDARY moment, not five COMMONs in a row.
+      if (window.sound) {
+        const best = items[0] && items[0].rarity ? String(items[0].rarity).toLowerCase() : 'common';
+        window.sound.play('pull_' + best);
+      }
       const header = document.createElement('div');
       header.style.cssText = 'font-size: 12px; color: var(--muted); margin-bottom: 8px;';
       const best = items.find(i => ['MYTH', 'LEGENDARY', 'EPIC'].includes(i.rarity));
@@ -177,6 +183,7 @@
         return;
       }
       out.innerHTML = `<span style="color: var(--good);">✓ Purchased! Your new loot: ${JSON.stringify(body.granted)}</span>`;
+      if (window.sound) window.sound.play('purchase');
       setTimeout(() => htmx.ajax('GET', '/app/partials/summon', '#content'), 1500);
     } catch (e) {
       out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;

@@ -234,6 +234,7 @@
           return;
         }
         out.innerHTML = `<span style="color: var(--good);">✓ Claimed ${body.kind}</span>`;
+        if (window.sound) window.sound.play('mailbox');
         setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 700);
       } catch (e) {
         out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
@@ -308,6 +309,7 @@
       }
       const outcome = body.outcome;
       const tut = body.rewards && body.rewards.tutorial_reward;
+      if (window.sound) window.sound.play(outcome === 'WIN' ? 'victory' : 'defeat');
       let html = '';
       if (outcome === 'WIN') {
         html = `<span style="color: var(--good);">✓ ${outcome}</span>`;
@@ -375,6 +377,7 @@
       const bits = [];
       for (const [k, v] of Object.entries(body.granted || {})) if (v) bits.push(`+${v} ${k}`);
       out.innerHTML = `<span style="color: var(--good);">✓ day ${body.streak_after}: ${bits.join(', ')}</span>`;
+      if (window.sound) window.sound.play('daily_bonus');
       // Reload /me partial so balances + claim card update.
       setTimeout(() => htmx.ajax('GET', '/app/partials/me', '#content'), 800);
     } catch (e) {
