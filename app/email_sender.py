@@ -31,17 +31,23 @@ log = logging.getLogger("email")
 
 
 class EmailSender(Protocol):
-    def send(self, to_email: str, subject: str, body_text: str) -> None: ...
+    def send(
+        self, to_email: str, subject: str, body_text: str,
+        body_html: str | None = None,
+    ) -> None: ...
 
 
 @dataclass
 class ConsoleSender:
     """Log-only sender. Writes every outbound email to the console/logs."""
 
-    def send(self, to_email: str, subject: str, body_text: str) -> None:
+    def send(
+        self, to_email: str, subject: str, body_text: str,
+        body_html: str | None = None,
+    ) -> None:
         log.info(
-            "EMAIL [console] to=%s subject=%r\n---\n%s\n---",
-            to_email, subject, body_text,
+            "EMAIL [console] to=%s subject=%r html=%s\n---\n%s\n---",
+            to_email, subject, "yes" if body_html else "no", body_text,
         )
 
 
@@ -52,17 +58,27 @@ class FileSender:
 
     path: Path
 
-    def send(self, to_email: str, subject: str, body_text: str) -> None:
+    def send(
+        self, to_email: str, subject: str, body_text: str,
+        body_html: str | None = None,
+    ) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as f:
-            f.write(f"To: {to_email}\nSubject: {subject}\n\n{body_text}\n\n====\n")
+            f.write(f"To: {to_email}\nSubject: {subject}\n\n{body_text}\n")
+            if body_html:
+                f.write(f"\n--- HTML ---\n{body_html}\n")
+            f.write("\n====\n")
 
 
 @dataclass
 class SmtpSender:
     """SMTP relay. Works with SES SMTP, Postmark, Mailgun, Gmail, etc.
     Plain SMTP+STARTTLS only (no SSL-on-connect variant); every modern provider
-    supports this."""
+    supports this. Sends a multipart message when body_html is provided —
+    text/plain stays the canonical content (good clients respect it for
+    screen readers + spam scoring), html is the alternative the average
+    inbox renders.
+    """
 
     host: str
     port: int
@@ -71,12 +87,17 @@ class SmtpSender:
     from_address: str
     use_tls: bool = True
 
-    def send(self, to_email: str, subject: str, body_text: str) -> None:
+    def send(
+        self, to_email: str, subject: str, body_text: str,
+        body_html: str | None = None,
+    ) -> None:
         msg = EmailMessage()
         msg["From"] = self.from_address
         msg["To"] = to_email
         msg["Subject"] = subject
         msg.set_content(body_text)
+        if body_html:
+            msg.add_alternative(body_html, subtype="html")
         with smtplib.SMTP(self.host, self.port, timeout=30) as s:
             if self.use_tls:
                 s.starttls()
@@ -89,7 +110,10 @@ class SmtpSender:
 class DisabledSender:
     """Drop every message on the floor. Only safe in dev/test; prod refuses to start."""
 
-    def send(self, to_email: str, subject: str, body_text: str) -> None:
+    def send(
+        self, to_email: str, subject: str, body_text: str,
+        body_html: str | None = None,
+    ) -> None:
         log.warning("EMAIL DROPPED — sender is disabled. to=%s subject=%r", to_email, subject)
 
 

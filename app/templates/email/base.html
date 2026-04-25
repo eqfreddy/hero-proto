@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block subject %}hero-proto{% endblock %}</title>
+</head>
+<body style="margin: 0; padding: 0; background: #0b0d10; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #e8eaed;">
+<!-- Outer wrapper for max email-client compatibility -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #0b0d10;">
+  <tr>
+    <td align="center" style="padding: 32px 16px;">
+      <!-- Card -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width: 560px; background: #14181e; border: 1px solid #2d3847; border-radius: 12px; overflow: hidden;">
+        <!-- Header -->
+        <tr>
+          <td style="padding: 24px 28px 12px; border-bottom: 1px solid #2d3847;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="vertical-align: middle;">
+                  <a href="{{ public_base_url }}" style="text-decoration: none; color: #e8eaed; display: inline-flex; align-items: center;">
+                    <img src="{{ public_base_url }}/app/static/icons/hero-proto-192.png" alt="" width="36" height="36" style="border-radius: 6px; vertical-align: middle; margin-right: 10px;" />
+                    <span style="font-size: 18px; font-weight: 800; letter-spacing: 0.02em;">hero-proto</span>
+                  </a>
+                </td>
+                <td align="right" style="vertical-align: middle;">
+                  <span style="font-size: 11px; color: #7d8a9c; padding: 3px 8px; background: #1b2430; border-radius: 4px;">alpha</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding: 28px;">
+            {% block content %}{% endblock %}
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding: 18px 28px 24px; border-top: 1px solid #2d3847; color: #7d8a9c; font-size: 12px; line-height: 1.55;">
+            <p style="margin: 0 0 6px;">You're getting this because someone (hopefully you) initiated this action on your hero-proto account.</p>
+            <p style="margin: 0 0 6px;">Questions? Reply to this email or visit <a href="{{ public_base_url }}/support" style="color: #4ea1ff;">our support page</a>.</p>
+            <p style="margin: 12px 0 0; font-size: 11px; opacity: 0.75;">
+              hero-proto · the corporate-IT gacha RPG · Satire of the IT industry. No real companies named. Probably.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

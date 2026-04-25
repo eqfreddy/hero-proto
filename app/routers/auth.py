@@ -166,19 +166,18 @@ def forgot_password(
         db.commit()
         # Email the reset link via the configured sender. In non-prod we also
         # return the URL directly so clients can skip the mailbox step.
+        from app.email_render import render_password_reset
         from app.email_sender import get_sender as _get_sender
         full_url = f"{settings.public_base_url.rstrip('/')}/auth/reset-password?token={raw}"
         try:
+            subject, text_body, html_body = render_password_reset(
+                reset_url=full_url, ttl_hours=PASSWORD_RESET_TTL_HOURS,
+            )
             _get_sender().send(
                 to_email=account.email,
-                subject="hero-proto — password reset",
-                body_text=(
-                    f"Someone asked to reset the password for this account.\n\n"
-                    f"Click this link within {PASSWORD_RESET_TTL_HOURS} hour(s) to pick a new password:\n"
-                    f"  {full_url}\n\n"
-                    f"If that wasn't you, you can safely ignore this message — "
-                    f"your existing password keeps working."
-                ),
+                subject=subject,
+                body_text=text_body,
+                body_html=html_body,
             )
         except Exception:
             # Failures are non-fatal for the request (attacker enumeration resistance).
@@ -270,17 +269,18 @@ def send_verification(
         return VerifyRequestOut(already_verified=True)
     _row, raw = _issue_email_verification(db, account)
     db.commit()
+    from app.email_render import render_verify_email
     from app.email_sender import get_sender as _get_sender
     full_url = f"{settings.public_base_url.rstrip('/')}/auth/verify-email?token={raw}"
     try:
+        subject, text_body, html_body = render_verify_email(
+            verify_url=full_url, ttl_hours=EMAIL_VERIFY_TTL_HOURS,
+        )
         _get_sender().send(
             to_email=account.email,
-            subject="hero-proto — verify your email",
-            body_text=(
-                f"Confirm this email address belongs to you:\n\n"
-                f"  {full_url}\n\n"
-                f"Link expires in {EMAIL_VERIFY_TTL_HOURS} hours."
-            ),
+            subject=subject,
+            body_text=text_body,
+            body_html=html_body,
         )
     except Exception:
         _log.exception("email verification delivery failed for %s", account.email)

@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from sqlalchemy import text as _text
+
 from app.config import settings
 from app.middleware import RateLimitMiddleware, RequestLogMiddleware
 from app.observability import (
@@ -237,8 +239,193 @@ def _site_page(name: str):
     return handler
 
 
-for _page in ("about", "faq", "support", "privacy", "terms", "press"):
+for _page in ("about", "faq", "support", "privacy", "terms", "press", "roadmap"):
     app.add_api_route(f"/{_page}", _site_page(_page), methods=["GET"], include_in_schema=False)
+
+
+_STARTED_AT = _datetime_module_for_uptime = None
+
+
+@app.on_event("startup")
+def _record_start_time():
+    global _STARTED_AT
+    from datetime import datetime as _dt
+    _STARTED_AT = _dt.utcnow()
+
+
+def _format_uptime(started_at) -> str:
+    from datetime import datetime as _dt
+    if started_at is None:
+        return "unknown"
+    delta = _dt.utcnow() - started_at
+    s = int(delta.total_seconds())
+    days, s = divmod(s, 86400)
+    hours, s = divmod(s, 3600)
+    minutes, _ = divmod(s, 60)
+    if days > 0:
+        return f"{days}d {hours}h {minutes}m"
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
+
+
+@app.get("/status", include_in_schema=False)
+def status_page(request: _Request):
+    """Public status board. Reads live state from the same systems that
+    /healthz + /worker/status expose, dressed up for humans."""
+    from datetime import datetime as _dt, timedelta as _td
+    from sqlalchemy import func, select
+    from app.db import SessionLocal
+    from app.models import Account, ArenaMatch, Battle, GachaRecord, RaidAttempt
+    from app.worker import health as worker_health
+
+    now = _dt.utcnow()
+    one_hour_ago = now - _td(hours=1)
+
+    # Database — try a trivial query.
+    db_status = "ok"
+    db_pill = "ok"
+    db_head = "—"
+    activity = {
+        "battles": "—", "summons": "—",
+        "arena_attacks": "—", "raid_attacks": "—",
+        "new_accounts": "—",
+    }
+    try:
+        with SessionLocal() as db:
+            db.execute(select(func.count(Account.id)))
+            # Migration head from alembic_version.
+            row = db.execute(_text("SELECT version_num FROM alembic_version LIMIT 1")).first()
+            if row is not None:
+                db_head = str(row[0])[:12]
+            # Counts in last hour.
+            activity["battles"] = db.scalar(
+                select(func.count(Battle.id)).where(Battle.created_at >= one_hour_ago)
+            ) or 0
+            activity["summons"] = db.scalar(
+                select(func.count(GachaRecord.id)).where(GachaRecord.pulled_at >= one_hour_ago)
+            ) or 0
+            activity["arena_attacks"] = db.scalar(
+                select(func.count(ArenaMatch.id)).where(ArenaMatch.created_at >= one_hour_ago)
+            ) or 0
+            activity["raid_attacks"] = db.scalar(
+                select(func.count(RaidAttempt.id)).where(RaidAttempt.created_at >= one_hour_ago)
+            ) or 0
+            activity["new_accounts"] = db.scalar(
+                select(func.count(Account.id)).where(Account.created_at >= one_hour_ago)
+            ) or 0
+    except Exception:
+        db_status = "✗ unreachable"
+        db_pill = "bad"
+
+    # Worker.
+    worker_status_str = "✓ ticking"
+    worker_pill = "ok"
+    worker_detail = "—"
+    if not settings.worker_enabled:
+        worker_status_str = "disabled"
+        worker_pill = "muted"
+        worker_detail = "HEROPROTO_WORKER_ENABLED=0 — web-only deploy"
+    elif worker_health.last_tick_at is None:
+        worker_status_str = "⏳ starting"
+        worker_pill = "warn"
+        worker_detail = "no tick yet — first tick within ~60s of startup"
+    else:
+        delta = (now - worker_health.last_tick_at.replace(tzinfo=None)).total_seconds()
+        worker_detail = f"last tick {int(delta)}s ago · ticks={worker_health.ticks_total} · failed={worker_health.ticks_failed}"
+        if delta > 300:
+            worker_status_str = "✗ stale"
+            worker_pill = "bad"
+        elif delta > 90:
+            worker_status_str = "⚠ slow"
+            worker_pill = "warn"
+
+    # Rate limiter.
+    rate_backend = settings.rate_limit_backend
+    rate_status = "✓ active"
+    rate_pill = "ok"
+    if settings.rate_limit_disabled:
+        rate_status = "disabled"
+        rate_pill = "muted"
+
+    # Stripe.
+    if settings.stripe_api_key:
+        stripe_status = "✓ configured"
+        stripe_pill = "ok"
+        key_kind = "live" if settings.stripe_api_key.startswith("sk_live_") else "test"
+        stripe_detail = f"keys present · {key_kind} mode"
+    else:
+        stripe_status = "not configured"
+        stripe_pill = "muted"
+        stripe_detail = "HEROPROTO_STRIPE_API_KEY unset — purchases via mock-payments only"
+
+    # Email.
+    email_kind = (settings.email_sender_type or "").lower() or "console"
+    email_detail = f"adapter: {email_kind}"
+    if email_kind == "smtp":
+        email_status = "✓ smtp"
+        email_pill = "ok"
+    elif email_kind in ("console", "file"):
+        email_status = "dev-mode"
+        email_pill = "warn"
+    else:
+        email_status = "disabled"
+        email_pill = "muted"
+
+    # Sentry.
+    if settings.sentry_dsn:
+        sentry_status = "✓ enabled"
+        sentry_pill = "ok"
+        sentry_detail = "DSN configured · errors will report"
+    else:
+        sentry_status = "not configured"
+        sentry_pill = "muted"
+        sentry_detail = "HEROPROTO_SENTRY_DSN unset — errors stay in local logs"
+
+    # Overall banner — worst pill rules.
+    pills = [db_pill, worker_pill]
+    if "bad" in pills:
+        overall = {"cls": "bad", "icon": "✗", "label": "Some systems are down"}
+    elif "warn" in pills:
+        overall = {"cls": "warn", "icon": "⚠", "label": "Operational with warnings"}
+    else:
+        overall = {"cls": "ok", "icon": "✓", "label": "All systems operational"}
+
+    return _WELCOME_TEMPLATES.TemplateResponse(
+        request, "site/status.html",
+        {
+            "overall": overall,
+            "uptime": _format_uptime(_STARTED_AT),
+            "db_status": db_status, "db_pill": db_pill, "db_head": db_head,
+            "worker_status": worker_status_str, "worker_pill": worker_pill, "worker_detail": worker_detail,
+            "rate_backend": rate_backend, "rate_status": rate_status, "rate_pill": rate_pill,
+            "stripe_status": stripe_status, "stripe_pill": stripe_pill, "stripe_detail": stripe_detail,
+            "email_status": email_status, "email_pill": email_pill, "email_detail": email_detail,
+            "sentry_status": sentry_status, "sentry_pill": sentry_pill, "sentry_detail": sentry_detail,
+            "activity": activity,
+            "checked_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+        },
+    )
+
+
+@app.get("/devblog", include_in_schema=False)
+def devblog_index(request: _Request):
+    from app.devblog import all_posts
+    return _WELCOME_TEMPLATES.TemplateResponse(
+        request, "site/devblog_index.html", {"posts": all_posts()},
+    )
+
+
+@app.get("/devblog/{slug}", include_in_schema=False)
+def devblog_post(slug: str, request: _Request):
+    from app.devblog import post_by_slug
+    post = post_by_slug(slug)
+    if post is None:
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse("<h1>Post not found</h1><p><a href='/devblog'>back</a></p>", status_code=404)
+    return _WELCOME_TEMPLATES.TemplateResponse(
+        request, "site/devblog_post.html", {"post": post},
+    )
 
 
 @app.get("/changelog", include_in_schema=False)
@@ -267,7 +454,7 @@ def changelog_page(request: _Request):
 # --- robots.txt + sitemap.xml -----------------------------------------------
 
 
-_PUBLIC_PAGES = ("/", "/about", "/faq", "/support", "/privacy", "/terms", "/press", "/changelog")
+_PUBLIC_PAGES = ("/", "/about", "/devblog", "/changelog", "/roadmap", "/faq", "/press", "/support", "/status", "/privacy", "/terms")
 
 
 @app.get("/robots.txt", include_in_schema=False)

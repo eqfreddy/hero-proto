@@ -1,0 +1,31 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'devblog' %}
+{% block title %}{{ post.title }} · hero-proto devblog{% endblock %}
+{% block page_head %}
+<style>
+  .post-meta { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .post-meta .date { color: var(--accent); font-weight: 600; }
+  .post-body { line-height: 1.7; font-size: 16px; }
+  .post-body h1, .post-body h2, .post-body h3 { color: var(--text); }
+  .post-body h2 { font-size: 22px; margin: 32px 0 10px; padding-top: 4px; border-top: 1px solid var(--border); }
+  .post-body h3 { font-size: 16px; margin: 24px 0 6px; }
+  .post-body code { background: var(--panel); padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .post-body pre { background: var(--panel-2); border: 1px solid var(--border); padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+  .post-body pre code { background: transparent; padding: 0; }
+  .post-body blockquote { border-left: 3px solid var(--accent); padding: 4px 14px; color: var(--muted); margin: 14px 0; }
+  .post-body ul, .post-body ol { line-height: 1.7; }
+  .post-body table { border-collapse: collapse; margin: 14px 0; width: 100%; font-size: 14px; }
+  .post-body th, .post-body td { padding: 6px 10px; border: 1px solid var(--border); text-align: left; }
+  .post-body th { background: var(--panel); }
+  .post-back { display: inline-block; color: var(--muted); text-decoration: none; margin-bottom: 18px; font-size: 13px; }
+  .post-back:hover { color: var(--text); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="site-content">
+  <a class="post-back" href="/devblog">← back to devblog</a>
+  <h1>{{ post.title }}</h1>
+  <div class="post-meta"><span class="date">{{ post.date.strftime("%B %d, %Y") }}</span> · {{ post.author }}</div>
+  <div class="post-body">{{ post.body_html | safe }}</div>
+</div>
+{% endblock %}

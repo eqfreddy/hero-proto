@@ -22,7 +22,10 @@ from app.email_sender import (
 class _SpySender:
     calls: list[tuple[str, str, str]]
 
-    def send(self, to_email: str, subject: str, body_text: str) -> None:
+    def send(
+        self, to_email: str, subject: str, body_text: str,
+        body_html: str | None = None,
+    ) -> None:
         self.calls.append((to_email, subject, body_text))
 
 

@@ -1,0 +1,136 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'status' %}
+{% block title %}Status · hero-proto{% endblock %}
+{% block page_head %}
+<style>
+  .status-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 14px 0; }
+  .status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); gap: 16px; flex-wrap: wrap; }
+  .status-row:last-child { border-bottom: none; }
+  .status-label { font-weight: 600; }
+  .status-detail { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .status-pill.ok { background: rgba(109,211,154,0.15); color: var(--good); border: 1px solid rgba(109,211,154,0.3); }
+  .status-pill.warn { background: rgba(255,216,107,0.15); color: var(--r-legendary); border: 1px solid rgba(255,216,107,0.3); }
+  .status-pill.bad { background: rgba(255,107,74,0.15); color: var(--bad); border: 1px solid rgba(255,107,74,0.3); }
+  .status-pill.muted { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+  .last-checked { color: var(--muted); font-size: 11px; margin-top: 8px; text-align: right; }
+  .overall-banner { padding: 18px 22px; border-radius: 10px; margin-bottom: 18px; font-size: 18px; font-weight: 700; text-align: center; }
+  .overall-banner.ok { background: rgba(109,211,154,0.12); color: var(--good); border: 1px solid rgba(109,211,154,0.4); }
+  .overall-banner.warn { background: rgba(255,216,107,0.12); color: var(--r-legendary); border: 1px solid rgba(255,216,107,0.4); }
+  .overall-banner.bad { background: rgba(255,107,74,0.12); color: var(--bad); border: 1px solid rgba(255,107,74,0.4); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="site-content">
+  <h1>Service status</h1>
+  <p class="lead">Live read of the running server. Auto-refreshes every 30 seconds. For deeper introspection, ops uses <code>/healthz</code> + <code>/worker/status</code>.</p>
+
+  <div class="overall-banner {{ overall.cls }}">
+    {{ overall.icon }} {{ overall.label }}
+  </div>
+
+  <div class="status-card">
+    <h2 style="margin-top: 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Core systems</h2>
+
+    <div class="status-row">
+      <div>
+        <div class="status-label">Web server</div>
+        <div class="status-detail">FastAPI · uptime {{ uptime }}</div>
+      </div>
+      <span class="status-pill ok">✓ online</span>
+    </div>
+
+    <div class="status-row">
+      <div>
+        <div class="status-label">Database</div>
+        <div class="status-detail">migration head: <code>{{ db_head }}</code></div>
+      </div>
+      <span class="status-pill {{ db_pill }}">{{ db_status }}</span>
+    </div>
+
+    <div class="status-row">
+      <div>
+        <div class="status-label">Background worker</div>
+        <div class="status-detail">{{ worker_detail }}</div>
+      </div>
+      <span class="status-pill {{ worker_pill }}">{{ worker_status }}</span>
+    </div>
+
+    <div class="status-row">
+      <div>
+        <div class="status-label">Rate limiter</div>
+        <div class="status-detail">backend: {{ rate_backend }}</div>
+      </div>
+      <span class="status-pill {{ rate_pill }}">{{ rate_status }}</span>
+    </div>
+  </div>
+
+  <div class="status-card">
+    <h2 style="margin-top: 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Integrations</h2>
+
+    <div class="status-row">
+      <div>
+        <div class="status-label">Stripe (web payments)</div>
+        <div class="status-detail">{{ stripe_detail }}</div>
+      </div>
+      <span class="status-pill {{ stripe_pill }}">{{ stripe_status }}</span>
+    </div>
+
+    <div class="status-row">
+      <div>
+        <div class="status-label">Email sender</div>
+        <div class="status-detail">{{ email_detail }}</div>
+      </div>
+      <span class="status-pill {{ email_pill }}">{{ email_status }}</span>
+    </div>
+
+    <div class="status-row">
+      <div>
+        <div class="status-label">Sentry error reporting</div>
+        <div class="status-detail">{{ sentry_detail }}</div>
+      </div>
+      <span class="status-pill {{ sentry_pill }}">{{ sentry_status }}</span>
+    </div>
+  </div>
+
+  <div class="status-card">
+    <h2 style="margin-top: 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Recent activity (last hour)</h2>
+
+    <div class="status-row">
+      <div>
+        <div class="status-label">Battles</div>
+      </div>
+      <span class="status-pill muted">{{ activity.battles }}</span>
+    </div>
+    <div class="status-row">
+      <div>
+        <div class="status-label">Summons</div>
+      </div>
+      <span class="status-pill muted">{{ activity.summons }}</span>
+    </div>
+    <div class="status-row">
+      <div>
+        <div class="status-label">Arena attacks</div>
+      </div>
+      <span class="status-pill muted">{{ activity.arena_attacks }}</span>
+    </div>
+    <div class="status-row">
+      <div>
+        <div class="status-label">Raid attacks</div>
+      </div>
+      <span class="status-pill muted">{{ activity.raid_attacks }}</span>
+    </div>
+    <div class="status-row">
+      <div>
+        <div class="status-label">New accounts</div>
+      </div>
+      <span class="status-pill muted">{{ activity.new_accounts }}</span>
+    </div>
+  </div>
+
+  <div class="last-checked">checked at {{ checked_at }} UTC · auto-refresh every 30s</div>
+</div>
+<script>
+  setTimeout(() => location.reload(), 30000);
+</script>
+{% endblock %}

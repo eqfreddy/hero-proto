@@ -1,0 +1,33 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'devblog' %}
+{% block title %}Devblog · hero-proto{% endblock %}
+{% block page_head %}
+<style>
+  .post-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 14px 0; transition: transform 0.15s, border-color 0.15s; display: block; text-decoration: none; color: var(--text); }
+  .post-card:hover { transform: translateY(-2px); border-color: var(--accent); text-decoration: none; }
+  .post-card .meta { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .post-card .meta .date { color: var(--accent); font-weight: 600; }
+  .post-card h2 { font-size: 22px; margin: 0 0 8px; }
+  .post-card .summary { color: var(--muted); font-size: 14px; line-height: 1.55; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="site-content">
+  <h1>Devblog</h1>
+  <p class="lead">Build-in-public posts. Why we made specific decisions, what shipped, what broke, what's next.</p>
+
+  {% if not posts %}
+    <div class="card">
+      <p class="muted" style="margin: 0;">No posts yet. Add markdown files to <code>app/devblog/posts/</code> and restart the server.</p>
+    </div>
+  {% else %}
+    {% for p in posts %}
+    <a class="post-card" href="/devblog/{{ p.slug }}">
+      <div class="meta"><span class="date">{{ p.date.strftime("%b %d, %Y") }}</span> · {{ p.author }}</div>
+      <h2>{{ p.title }}</h2>
+      {% if p.summary %}<div class="summary">{{ p.summary }}</div>{% endif %}
+    </a>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

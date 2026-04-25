@@ -1,0 +1,144 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'roadmap' %}
+{% block title %}Roadmap · hero-proto{% endblock %}
+{% block page_head %}
+<style>
+  .phase-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 22px; margin: 18px 0; position: relative; overflow: hidden; }
+  .phase-card.shipped { border-left: 4px solid var(--good); }
+  .phase-card.active  { border-left: 4px solid var(--accent); background: linear-gradient(135deg, rgba(78,161,255,0.08), transparent); }
+  .phase-card.future  { border-left: 4px solid var(--border); opacity: 0.85; }
+  .phase-card .badge { position: absolute; top: 16px; right: 18px; padding: 4px 10px; border-radius: 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .phase-card.shipped .badge { background: rgba(109,211,154,0.18); color: var(--good); }
+  .phase-card.active  .badge { background: rgba(78,161,255,0.18); color: var(--accent); }
+  .phase-card.future  .badge { background: rgba(255,255,255,0.06); color: var(--muted); }
+  .phase-card h2 { font-size: 20px; margin: 0 0 4px; }
+  .phase-card .tagline { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .phase-card ul { margin: 8px 0; line-height: 1.7; }
+  .phase-card ul li { color: var(--text); }
+  .phase-card ul li.done { color: var(--good); }
+  .phase-card ul li.done::marker { content: "✓ "; }
+  .phase-card .meta { color: var(--muted); font-size: 11px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; gap: 16px; flex-wrap: wrap; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="site-content">
+  <h1>Roadmap</h1>
+  <p class="lead">Where we are, where we're going. Pulled from <a href="https://github.com/eqfreddy/hero-proto/blob/master/docs/PRD.md" target="_blank" rel="noopener">docs/PRD.md</a> in the repo. Dates are best-effort.</p>
+
+  <!-- Phase 0: shipped reference layer -->
+  <div class="phase-card shipped">
+    <span class="badge">✓ Shipped</span>
+    <h2>Phase 0 — Foundations</h2>
+    <p class="tagline">22 backend slices + admin polish + auth hardening + observability + payments + art wiring.</p>
+    <ul>
+      <li class="done">Auth: JWT + refresh rotation + reuse detection, password reset, email verify, TOTP 2FA + recovery codes</li>
+      <li class="done">Gacha: x1/x10, 50-pull pity, 6 rarity tiers, 36 heroes</li>
+      <li class="done">Combat: deterministic resolver, status effects, gear sets, log pruning</li>
+      <li class="done">Guilds: chat, raids (3 tiers, leaderboard), apply/accept/transfer/promote</li>
+      <li class="done">Arena: rating-proximity matchmaking, defense teams, replays</li>
+      <li class="done">Daily quests, daily bonus, energy refill, LiveOps events</li>
+      <li class="done">Stripe payments + mock-payments dev mode + per-account-limit + refund flow</li>
+      <li class="done">Admin: CLI, ban (timed + permanent), audit log, analytics overview, announcements</li>
+      <li class="done">Anti-cheat: per-account rate limits, JWT-on-ban, ownership checks</li>
+      <li class="done">Observability: Prometheus, JSON logs, request IDs, Sentry, worker supervisor + telemetry</li>
+      <li class="done">PWA: installable manifest, service worker, Apple touch icons</li>
+    </ul>
+    <div class="meta"><span>~6 months · 320+ tests · Postgres CI</span></div>
+  </div>
+
+  <!-- Phase 1: shipped quick win -->
+  <div class="phase-card shipped">
+    <span class="badge">✓ Shipped</span>
+    <h2>Phase 1 — First 10 minutes feel good</h2>
+    <p class="tagline">A new player can register, do the tutorial, get a free summon, and use the dashboard without typing hero IDs into a text box.</p>
+    <ul>
+      <li class="done">Guided first-session flow (Next-Step CTA card on /me)</li>
+      <li class="done">Tutorial completion grants +1 free summon credit</li>
+      <li class="done">Roster redesign — rarity-tabbed grid + bottom-sheet detail overlay with real card art</li>
+      <li class="done">Team presets — POST/GET /me/team-presets, "Use last team" one-click, "Save team" on victory</li>
+      <li class="done">Dedicated Summon tab — banner header, pity bar, recent-pulls feed</li>
+      <li class="done">Jump-Ahead Bundle — $4.99 starter pack, one-time, 7-day window</li>
+      <li class="done">Polish — signed-in pill, shards counter, dead-code cleanup</li>
+      <li class="done">Acceptance test — 9-step E2E flow, all green</li>
+    </ul>
+    <div class="meta"><span>1 week · 6 sub-sections · 275 → 320 tests</span></div>
+  </div>
+
+  <!-- Add-ons shipped after Phase 1 -->
+  <div class="phase-card shipped">
+    <span class="badge">✓ Shipped</span>
+    <h2>Phase 1.5 — Systems on top of the foundation</h2>
+    <p class="tagline">Side quests off the main PRD that came up while play-testing.</p>
+    <ul>
+      <li class="done">Event quests + currency exchange (gather-and-spend mechanic, week-long Summer Slowdown spec)</li>
+      <li class="done">Shard store (in-game gems → shards exchange with daily cap)</li>
+      <li class="done">Crafting (6 materials, 5 recipes, drops on battles + raids, dedicated tab)</li>
+      <li class="done">Inventory slots — caps + gem-priced expansion + mailbox overflow</li>
+      <li class="done">Sound system — synth-based SFX, settings panel, mute persistence</li>
+      <li class="done">Marketing site — about / FAQ / support / privacy / terms / press / changelog / devblog / status / roadmap</li>
+    </ul>
+  </div>
+
+  <!-- Phase 2: actively planned -->
+  <div class="phase-card active">
+    <span class="badge">⏳ In progress / next</span>
+    <h2>Phase 2 — Feels like a real game</h2>
+    <p class="tagline">3–4 weeks. Players have reasons to come back daily beyond login bonus. We measure what they actually do.</p>
+    <ul>
+      <li><strong>Hero detail page V2</strong> — weapon/armor/accessory slot semantics, skill tree UI, star-up flow with "pick which dupes to use", next-stat preview</li>
+      <li><strong>Sell heroes / gear</strong> for currency + auto-sell rule presets</li>
+      <li><strong>Achievements system</strong> — ~30 lifetime milestones with rewards</li>
+      <li><strong>Story campaign + account-level XP</strong> — Chapter / StoryStage hierarchy, text-driven cutscenes, Exile faction wired</li>
+      <li><strong>Myth-tier event hero</strong> end-to-end (TBFAM playable during banner windows)</li>
+      <li><strong>Stat variance on duplicate summons</strong> so owned copies aren't identical</li>
+      <li><strong>PostHog self-hosted analytics</strong> — 12 events instrumented, retention funnels</li>
+      <li><strong>Apple StoreKit 2 + Google Play Billing</strong> receipt verification</li>
+      <li><strong>Balance notebook</strong> — Jupyter, gacha EV / DPS curves / arena rating convergence</li>
+    </ul>
+    <div class="meta"><span>New deps: PostHog, app-store-server-library, google-play-billing-validator, numpy/pandas/Jupyter</span></div>
+  </div>
+
+  <!-- Phase 3: the design-heavy fun bet -->
+  <div class="phase-card future">
+    <span class="badge">Planned</span>
+    <h2>Phase 3 — Combat depth</h2>
+    <p class="tagline">4–6 weeks. The biggest fun bet. Player can win a hard fight by playing well, not just by stats.</p>
+    <ul>
+      <li>Melee / ranged attack split, mana / focus resource for casters</li>
+      <li>5%-HP "hail-mary" abilities — role/faction-flavored one-shots</li>
+      <li>Active combat UI — turn pause, click-to-target, auto-pause on special ready</li>
+      <li>Auto-battle as a paid QoL unlock (never default; always optional)</li>
+      <li>Animated battle actors via Rive — 3 rigs (ATK/DEF/SUP), 5 states each (idle/melee/ranged/hit/death)</li>
+      <li>Evolution-art mechanic — heroes get visual upgrades as they ascend (1★/3★/5★ tiers)</li>
+      <li><strong>Level-50 Alignment Fork</strong> — Corporate Resistance vs Board Ascendant. Two epic chapters, one exclusive hero per side, cosmetic-only mechanical impact</li>
+    </ul>
+    <div class="meta"><span>New deps: Rive runtime · Highest design cost of any phase</span></div>
+  </div>
+
+  <!-- Phase 4: in stores -->
+  <div class="phase-card future">
+    <span class="badge">Planned</span>
+    <h2>Phase 4 — In the stores</h2>
+    <p class="tagline">3–4 weeks once Phase 2's IAP work is done. Ship to Apple App Store + Google Play.</p>
+    <ul>
+      <li>Capacitor wrap — same web UI, native shell, store-submittable .apk + .ipa</li>
+      <li>Native push notifications — APNs + FCM for raid-ending, daily-reset, guild @mentions</li>
+      <li>Store compliance — privacy + ToS post-lawyer-review, kids age-gate, screenshots</li>
+      <li>Hosted backend on Fly.io or Railway with TLS</li>
+      <li>Production Stripe + Apple + Google live keys + nightly DB backup</li>
+    </ul>
+    <div class="meta"><span>New deps: Capacitor + @capacitor/push-notifications + @capacitor-community/in-app-purchases · hosted target TBD</span></div>
+  </div>
+
+  <h2>Things we won't do</h2>
+  <div class="card">
+    <ul style="margin: 0;">
+      <li><strong>Real-time multiplayer combat.</strong> Async turn-based is the genre's selling point.</li>
+      <li><strong>NFT / web3 / crypto.</strong> Irrelevant audience, hostile in many jurisdictions, contradicts the satire.</li>
+      <li><strong>Full SPA rewrite.</strong> HTMX works fine for this scope. Revisit if Phase 3 outgrows it.</li>
+      <li><strong>Procedurally generated content.</strong> The hand-crafted IT-satire tone <em>is</em> the product.</li>
+      <li><strong>LLM-generated hero lore in-game.</strong> Useful as a writing tool. Gimmicky as a player feature.</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

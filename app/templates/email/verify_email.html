@@ -1,0 +1,30 @@
+{% extends "email/base.html" %}
+{% block subject %}hero-proto — verify your email{% endblock %}
+{% block content %}
+<h1 style="font-size: 22px; font-weight: 800; margin: 0 0 12px; color: #e8eaed;">Confirm your email</h1>
+<p style="margin: 0 0 14px; line-height: 1.65; color: #e8eaed;">
+  Welcome to hero-proto. We need to confirm that this email address belongs to you before unlocking some of the more sensitive flows (like big purchases or account recovery).
+</p>
+<p style="margin: 0 0 20px; line-height: 1.65; color: #e8eaed;">
+  Click below within <strong>{{ ttl_hours }} hour{{ 's' if ttl_hours != 1 else '' }}</strong> to verify.
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 8px auto 24px;">
+  <tr>
+    <td align="center" bgcolor="#6dd39a" style="border-radius: 6px;">
+      <a href="{{ verify_url }}" style="display: inline-block; padding: 12px 28px; color: #0b0d10; font-weight: 700; text-decoration: none; font-size: 14px;">
+        Verify email →
+      </a>
+    </td>
+  </tr>
+</table>
+<p style="margin: 0 0 8px; color: #7d8a9c; font-size: 12px;">
+  Or paste this link into your browser:
+</p>
+<p style="margin: 0 0 18px; color: #6dd39a; font-size: 12px; word-break: break-all; font-family: 'SF Mono', Menlo, Consolas, monospace;">
+  {{ verify_url }}
+</p>
+<hr style="border: 0; border-top: 1px solid #2d3847; margin: 18px 0;" />
+<p style="margin: 0; color: #7d8a9c; font-size: 12px; line-height: 1.6;">
+  <strong style="color: #e8eaed;">Didn't sign up?</strong> Someone may have entered your address by mistake. You can ignore this — without verifying, no further mail goes to you.
+</p>
+{% endblock %}
