@@ -375,6 +375,43 @@ class DefenseTeam(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
 
+class CraftMaterial(Base):
+    """Per-account inventory of a crafting material.
+
+    Materials drop from battles + raids and are spent on `CraftRecipe`s. We
+    track quantity-per-account-per-code rather than a row per dropped item:
+    materials are stackable and identical, so one row per (account, code)
+    keeps query cost flat and avoids 50,000-row inventory pages.
+
+    Material codes are defined in app/crafting.py — there's no separate
+    CraftMaterialTemplate table; the catalog is content-as-code so balance
+    edits go through the normal review flow.
+    """
+    __tablename__ = "craft_materials"
+
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True
+    )
+    code: Mapped[str] = mapped_column(String(48), primary_key=True)
+    quantity: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class CraftLog(Base):
+    """Audit row per successful craft. Used by analytics + refund flows + the
+    'recently crafted' history widget. Cheap to index by account/created_at.
+    """
+    __tablename__ = "craft_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    recipe_code: Mapped[str] = mapped_column(String(64), index=True)
+    inputs_json: Mapped[str] = mapped_column(String(512), default="{}")  # snapshot of materials spent
+    output_summary: Mapped[str] = mapped_column(String(256), default="")  # human-readable
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+
+
 class TeamPreset(Base):
     """Named team saved for quick-pick on Battle / Arena / Raid tabs.
 

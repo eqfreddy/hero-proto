@@ -1,0 +1,118 @@
+<div class="stack">
+  <div class="row" style="justify-content: space-between;">
+    <h2 style="margin: 0; font-size: 14px; color: var(--muted);">Crafting</h2>
+    <div class="muted" style="font-size: 12px;">
+      💎 {{ "{:,}".format(me.gems) }} ·
+      🪙 {{ "{:,}".format(me.coins) }} ·
+      ✦ {{ "{:,}".format(me.shards) }}
+    </div>
+  </div>
+
+  <!-- Materials inventory -->
+  <div class="card" style="padding: 14px;">
+    <h3 style="margin: 0 0 10px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Materials</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px;">
+      {% for m in materials %}
+      <div title="{{ m.description }}" style="padding: 10px; border-radius: 6px; border: 1px solid var(--border); border-left: 3px solid var(--r-{{ m.rarity | lower }}); background: {% if m.quantity > 0 %}var(--panel){% else %}transparent{% endif %}; opacity: {% if m.quantity > 0 %}1{% else %}0.55{% endif %};">
+        <div class="row" style="justify-content: space-between; align-items: center; gap: 6px;">
+          <div style="font-size: 22px;">{{ m.icon }}</div>
+          <div style="font-size: 18px; font-weight: 800; color: {% if m.quantity > 0 %}var(--r-legendary){% else %}var(--muted){% endif %};">×{{ m.quantity }}</div>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; margin-top: 4px;">{{ m.name }}</div>
+        <div class="muted" style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--r-{{ m.rarity | lower }}); font-weight: 700;">{{ m.rarity }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Recipes -->
+  <div class="card" style="padding: 14px;">
+    <h3 style="margin: 0 0 10px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Recipes</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+      {% for r in recipes %}
+      <div style="padding: 12px; border-radius: 8px; border: 1px solid {% if r.craftable %}var(--good){% else %}var(--border){% endif %}; background: {% if r.craftable %}linear-gradient(135deg, rgba(109,211,154,0.06), transparent){% else %}var(--panel){% endif %}; {% if not r.craftable %}opacity: 0.7;{% endif %}">
+        <div class="row" style="gap: 10px; align-items: start;">
+          <div style="font-size: 28px;">{{ r.icon }}</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 14px;">{{ r.name }}</div>
+            <div class="muted" style="font-size: 11px; line-height: 1.4; margin-top: 2px;">{{ r.description }}</div>
+          </div>
+        </div>
+
+        <!-- Inputs -->
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);">
+          <div class="muted" style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Costs</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+            {% for code, qty in r.materials.items() %}
+              {% set m = material_lookup[code] %}
+              {% set ok = m.quantity >= qty %}
+              <span class="pill" style="background: {% if ok %}rgba(109,211,154,0.12){% else %}rgba(255,107,74,0.10){% endif %}; color: {% if ok %}var(--good){% else %}var(--bad){% endif %}; border: 1px solid {% if ok %}rgba(109,211,154,0.3){% else %}rgba(255,107,74,0.3){% endif %};">
+                {{ m.icon }} {{ qty }}× {{ m.name }} ({{ m.quantity }}/{{ qty }})
+              </span>
+            {% endfor %}
+            {% if r.coin_cost %}
+              <span class="pill" style="background: rgba(255,255,255,0.04); color: {% if me.coins >= r.coin_cost %}var(--text){% else %}var(--bad){% endif %};">🪙 {{ r.coin_cost }}</span>
+            {% endif %}
+            {% if r.gem_cost %}
+              <span class="pill" style="background: rgba(255,255,255,0.04); color: {% if me.gems >= r.gem_cost %}var(--text){% else %}var(--bad){% endif %};">💎 {{ r.gem_cost }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Output -->
+        <div style="margin-top: 8px;">
+          <div class="muted" style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Output</div>
+          <div style="font-size: 12px; margin-top: 3px; color: var(--r-legendary);">
+            {% set parts = [] %}
+            {% if r.output.gems %}{% set _ = parts.append('+' ~ r.output.gems ~ ' 💎') %}{% endif %}
+            {% if r.output.shards %}{% set _ = parts.append('+' ~ r.output.shards ~ ' ✦') %}{% endif %}
+            {% if r.output.coins %}{% set _ = parts.append('+' ~ r.output.coins ~ ' 🪙') %}{% endif %}
+            {% if r.output.access_cards %}{% set _ = parts.append('+' ~ r.output.access_cards ~ ' 🎫') %}{% endif %}
+            {% if r.output.free_summon_credits %}{% set _ = parts.append('+' ~ r.output.free_summon_credits ~ ' free summons') %}{% endif %}
+            {% if r.output.hero_template_code %}{% set _ = parts.append('Hero: ' ~ r.output.hero_template_code) %}{% endif %}
+            {{ parts | join(' · ') }}
+          </div>
+        </div>
+
+        <!-- Action -->
+        <div style="margin-top: 10px;">
+          {% if r.craftable %}
+            <button class="primary" onclick="craftRecipe('{{ r.code }}', this)" style="width: 100%;">⚒️ Craft</button>
+          {% else %}
+            <button class="secondary" disabled style="width: 100%; cursor: not-allowed; opacity: 0.5;">{{ r.blocking_reason or 'Locked' }}</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div id="craft-result" style="font-size: 12px; margin-top: 12px;"></div>
+  </div>
+</div>
+<script>
+  async function craftRecipe(code, btn) {
+    btn.disabled = true;
+    const out = document.getElementById('craft-result');
+    out.innerHTML = '<span class="muted">Crafting...</span>';
+    const token = localStorage.getItem('heroproto_jwt');
+    try {
+      const r = await fetch(`/crafting/${encodeURIComponent(code)}/craft`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ multiplier: 1 }),
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${body.detail || r.status}</span>`;
+        btn.disabled = false;
+        return;
+      }
+      const grants = Object.entries(body.granted || {}).map(([k, v]) => `+${v} ${k.replace('_', ' ')}`).join(' · ');
+      out.innerHTML = `<span style="color: var(--good);">✓ Crafted "${code}" — ${grants || 'reward granted'}</span>`;
+      // Refresh tab so material counts and craftability flags update.
+      setTimeout(() => htmx.ajax('GET', '/app/partials/crafting', '#content'), 900);
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+      btn.disabled = false;
+    }
+  }
+</script>

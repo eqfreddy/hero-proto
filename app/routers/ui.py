@@ -215,6 +215,48 @@ def _hero_row(h: HeroInstance) -> dict:
     }
 
 
+@router.get("/partials/crafting", response_class=HTMLResponse)
+def partial_crafting(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    """Crafting tab — material inventory across the top, recipe grid below.
+    Recipe craftability is computed server-side (same logic as the JSON
+    endpoint) so the template doesn't have to re-derive it."""
+    from app.crafting import (
+        MATERIALS as _MATS,
+        all_materials as _all_mats,
+        list_recipe_dicts as _recipes,
+    )
+    inv = _all_mats(db, account)
+    materials = []
+    for m in _MATS.values():
+        materials.append({
+            "code": m.code, "name": m.name, "rarity": m.rarity,
+            "description": m.description, "icon": m.icon,
+            "quantity": inv.get(m.code, 0),
+        })
+    recipes = []
+    for r in _recipes():
+        reason = None
+        for code, qty in r["materials"].items():
+            have = inv.get(code, 0)
+            if have < qty:
+                reason = f"need {qty - have} more {_MATS[code].name if code in _MATS else code}"
+                break
+        if reason is None and account.coins < r["coin_cost"]:
+            reason = f"need {r['coin_cost'] - account.coins} more coins"
+        if reason is None and account.gems < r["gem_cost"]:
+            reason = f"need {r['gem_cost'] - account.gems} more gems"
+        recipes.append({**r, "craftable": reason is None, "blocking_reason": reason})
+    return templates.TemplateResponse(
+        request, "partials/crafting.html",
+        {"me": _me_dict(account), "materials": materials, "recipes": recipes,
+         "material_lookup": {m["code"]: m for m in materials}},
+    )
+
+
 @router.get("/partials/event", response_class=HTMLResponse)
 def partial_event(
     request: Request,

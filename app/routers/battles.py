@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.combat import CombatUnit, build_unit, simulate, trim_combat_log
+from app.crafting import grant_material, roll_battle_drops
 from app.daily import on_battle_won, on_hard_stage_clear
 from app.event_state import QUEST_KINDS_BATTLE_WIN, on_activity as event_on_activity
 from app.db import get_db
@@ -207,6 +208,16 @@ def fight(
         rewards_extra["tutorial_reward"] = tutorial_reward_payload
     if event_progress is not None:
         rewards_extra["event_progress"] = event_progress
+
+    # Crafting material drops on win — independent of gear drops.
+    if outcome == BattleOutcome.WIN:
+        material_drops = roll_battle_drops(rng, stage.order)
+        for code, qty in material_drops:
+            grant_material(db, account, code, qty)
+        if material_drops:
+            rewards_extra["materials"] = [
+                {"code": c, "qty": q} for c, q in material_drops
+            ]
     if outcome == BattleOutcome.WIN:
         drop_chance = 0.70 if first_clear else 0.35
         drop_chance += gear_drop_bonus(db)

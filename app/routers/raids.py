@@ -330,6 +330,11 @@ def attack_raid(
     # Event hook: count one raid attack regardless of damage value.
     from app.event_state import QUEST_KINDS_RAID, on_activity as _event_on_activity
     _event_on_activity(db, account, "raid_attack", quest_kinds=QUEST_KINDS_RAID)
+    # Crafting material drops — every raid attack rolls the raid pool.
+    from app.crafting import grant_material as _grant_mat, roll_raid_drops
+    raid_mat_drops = roll_raid_drops(rng)
+    for code, qty in raid_mat_drops:
+        _grant_mat(db, account, code, qty)
 
     rewards_payload: dict | None = None
     defeated = False
