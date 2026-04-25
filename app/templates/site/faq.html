@@ -1,0 +1,56 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'faq' %}
+{% block title %}FAQ · hero-proto{% endblock %}
+{% block content %}
+<div class="site-content">
+  <h1>Frequently asked questions</h1>
+  <p class="lead">Common questions, honest answers. If yours isn't here, hit <a href="/support">support</a>.</p>
+
+  <h2>Is this free to play?</h2>
+  <p>Yes. Register, get a starter team, do the tutorial, never pay a cent if you don't want to. Optional purchases are gem packs (premium currency), QoL bundles (saved team presets, auto-battle unlock — Phase 3), and limited-time event packs. None of them sell raw stat power. See <a href="/about">about</a> for the monetization tone lock.</p>
+
+  <h2>Is it pay-to-win?</h2>
+  <p>No. Money buys faster progress and convenience. The starter "Jump-Ahead Bundle" gives you a one-tier head start (a RARE hero, some currency) — it doesn't unlock EPIC or LEGENDARY heroes that gacha can't. The shop catalog will never sell stat-boosting items. If you find yourself feeling like spending is necessary to compete, that's a balance bug — tell us.</p>
+
+  <h2>How does the gacha work?</h2>
+  <p>Standard 5-tier rarity (Common / Uncommon / Rare / Epic / Legendary) with a Myth tier reserved for special events. Pull rates are fixed and visible. After 50 pulls without an EPIC+, the next pull guarantees an EPIC ("pity"). The pity counter is shown in the UI — no hidden state. You can also gather event currency from gameplay and trade it for free summon credits at the Event Exchange.</p>
+
+  <h2>What happens if I delete my account?</h2>
+  <p>Everything related to your account is hard-deleted (heroes, gear, purchases, mailbox, event progress). The audit log retains a record that account &lt;id&gt; was deleted at &lt;timestamp&gt; for ~90 days for fraud-prevention purposes, then is purged. Email goes immediately. You can re-register with the same address afterward — it'll be a brand-new account.</p>
+
+  <h2>I forgot my password.</h2>
+  <p>On the login screen, click "forgot password" — you'll get a reset link emailed. In dev mode the link is also returned in the API response so you don't need a real mail server.</p>
+
+  <h2>Does it work on iPhone / Android?</h2>
+  <p>Yes — the dashboard is a Progressive Web App. Install:</p>
+  <ul>
+    <li><strong>Android Chrome:</strong> three-dot menu → "Install app" or "Add to Home screen"</li>
+    <li><strong>iOS Safari:</strong> share sheet → "Add to Home Screen"</li>
+  </ul>
+  <p>Native apps for Apple App Store and Google Play are planned (Phase 4). The same backend serves both.</p>
+
+  <h2>Why am I in a "starter team" of 3 random heroes?</h2>
+  <p>Tutorial design — you need <em>a</em> team to do the tutorial battle, and we don't want to force a summon first. The starter heroes are random Commons; gacha pulls are an upgrade path, not a replacement for them.</p>
+
+  <h2>Can I have more than one account?</h2>
+  <p>Technically yes — we don't device-fingerprint or block multi-accounts. We do detect and ban accounts attempting to abuse the welcome bonuses or run gold-farming bots. Be reasonable.</p>
+
+  <h2>What is "TBFAM" / "The Brother From Another Mother"?</h2>
+  <p>The first Myth-tier hero, only summonable during specific event windows. Slim, tall, sharply dressed, eyes that shift between smokey red, gold, and electric blue. Specials are unhinged. He's our pilot for the Myth rarity — more event-only heroes will follow.</p>
+
+  <h2>How do guilds and raids work?</h2>
+  <p>You can be in one guild at a time. Guilds have up to 30 members with three roles (Leader → Officer → Member). Raids are shared-HP boss fights initiated by the leader/officers. Every guild member can attack the raid boss; damage is tracked per-account and rewards pay out proportionally. Three difficulty tiers (T1 → T3) scale boss HP and rewards. Auto-rotation: when a guild has no active raid, the worker starts a fresh T1 raid for them every 24h.</p>
+
+  <h2>Is there a story?</h2>
+  <p>Phase 2 work — text-driven story chapters with cutscenes between battle waves. The world is a near-future corporate dystopia where IT workers fight tickets, audits, and pager storms while figuring out who actually owns the servers. At account level 50 there's a moral fork — Corporate Resistance vs. Board Ascendant. See <a href="/about">about</a>.</p>
+
+  <h2>What data do you collect?</h2>
+  <p>Email + password hash for auth. Gameplay state (heroes, gear, progress, purchases, audit log). Server-side request logs with anonymized IP. No cross-site tracking, no advertising IDs, no third-party analytics until <a href="/privacy">privacy policy</a> is updated to disclose them. We use Sentry for error reporting (filtered to exclude personal data) and Prometheus for ops metrics (no per-user data). See <a href="/privacy">privacy</a>.</p>
+
+  <h2>I found a bug. What now?</h2>
+  <p>Open an issue on <a href="https://github.com/eqfreddy/hero-proto" target="_blank" rel="noopener">GitHub</a>, or use the <a href="/support">support page</a>. Include: what you were doing, what you expected to happen, what actually happened, and (if you're brave) the request ID from the response header.</p>
+
+  <h2>Is this a real game or a tech demo?</h2>
+  <p>Both. It's a working alpha with 300+ tests, Postgres CI, and a roadmap. It's also a tech-demo of how to build a clean game backend in FastAPI without losing your mind. Either is a valid way to enjoy it.</p>
+</div>
+{% endblock %}

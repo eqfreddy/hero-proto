@@ -1,0 +1,56 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'about' %}
+{% block title %}About · hero-proto{% endblock %}
+{% block content %}
+<div class="site-content">
+  <h1>About hero-proto</h1>
+  <p class="lead">A satirical mobile gacha RPG about the people who keep the servers running. Built by someone who's worked the on-call rotation.</p>
+
+  <h2>The pitch</h2>
+  <p>Most gacha games are fantasy — knights, mages, dragons. <strong>hero-proto</strong> is set in the modern corporate IT department: helpdesk veterans, predatory consultants, retired mainframe gurus, the occasional rogue DBA. The combat is turn-based. The economy is honest. The monetization is cosmetics + QoL — we explicitly don't sell power.</p>
+
+  <h2>What's in the game today</h2>
+  <ul>
+    <li><strong>36 heroes</strong> across 5 factions (Helpdesk, DevOps, Legacy, Executive, Rogue IT) and a Myth tier for special events</li>
+    <li><strong>Turn-based combat</strong> with status effects, gear sets, and signature specials per hero</li>
+    <li><strong>Gacha</strong> with 50-pull pity (no whale-bait predatory rates) — and free pulls from the tutorial + daily login</li>
+    <li><strong>Guilds + raids</strong> — shared-HP boss fights with per-contributor leaderboards and three difficulty tiers</li>
+    <li><strong>Arena</strong> with rating-proximity matchmaking, defense teams, and full battle replays</li>
+    <li><strong>Crafting</strong> — six material types, recipes that exchange materials for shards, gems, free summons, even a starter hero</li>
+    <li><strong>Events</strong> with currency-gathering loops, milestone rewards, themed bundles (week-long Summer Slowdown is wired and waiting on July 4th)</li>
+    <li><strong>PWA</strong> — installable on Android + iOS home screens, offline shell ready</li>
+  </ul>
+
+  <h2>What we won't do</h2>
+  <div class="card">
+    <ul style="margin: 0;">
+      <li><strong>No pay-to-win.</strong> Path of Exile 2 model — money buys cosmetics and QoL (auto-battle unlock, extra preset slots, frames). Never raw stat power.</li>
+      <li><strong>No predatory gacha.</strong> Pity counters are visible. EPIC+ rates are honest. No hidden mechanics, no event-only super-rare power-creep.</li>
+      <li><strong>No FOMO timers</strong> on real progression. Events are flavor + cosmetic, never permanent power lockouts.</li>
+      <li><strong>No data hoarding.</strong> Account deletion is one click. We collect email + gameplay metrics. That's it.</li>
+      <li><strong>No NFTs, no crypto, no web3.</strong> The corporate-IT setting is satire of <em>that</em> kind of nonsense too.</li>
+    </ul>
+  </div>
+
+  <h2>Tech stack</h2>
+  <p>For the curious: FastAPI + SQLAlchemy + Alembic on Python 3.13. SQLite for dev, Postgres in prod (CI runs both). Redis-backed rate limiter for horizontal scale. Sentry for errors, Prometheus for metrics, JSON logs with request IDs. JWT auth with refresh-token rotation, TOTP 2FA, password reset, email verification — all the boring-but-essential stuff is done. Frontend is HTMX + Jinja with a Phaser battle replayer. PWA via service worker. Mobile via Capacitor (planned).</p>
+  <p>Source on <a href="https://github.com/eqfreddy/hero-proto" target="_blank" rel="noopener">GitHub</a>. PRs welcome from anyone who's been on a 3 AM page.</p>
+
+  <h2>Roadmap</h2>
+  <p>Phase 1 ("First 10 minutes feel good") shipped. Phase 2 is hero detail depth, PostHog analytics, IAP receipt verification, and a story campaign. Phase 3 is combat-control depth (player target selection, mana/focus resource, hail-mary at low HP) plus animated battle actors via Rive. Phase 4 is Capacitor wrap and store submission. See the <a href="/changelog">changelog</a> for what's already done.</p>
+
+  <h2>The world</h2>
+  <p>It's a near-future corporate dystopia running on legacy infrastructure, held together by exhausted IT workers, compliance officers who read policies aloud as incantations, and a C-suite that learned "AI" from a Gartner keynote. The Corp is abstract at first — an unseen owner who schedules pager rotations, signs access-policy updates, and measures performance in ticket-closure velocity. As the player progresses, fragments reveal a centralized, self-perpetuating machine. Every faction has its reasons for existing inside it.</p>
+  <p>At account level 50, players hit the alignment fork: <strong>Corporate Resistance</strong> (take down the Corp) or <strong>Board Ascendant</strong> (become the Corp). Until they choose they remain in <strong>Exile</strong> — neither side trusts them yet. Both alignments lead to dedicated epic chapters, cosmetic palettes, and one exclusive hero. Mechanically equal. Flavor different.</p>
+
+  <h2>Who's making it</h2>
+  <p>One developer, evenings and weekends. Not affiliated with any of the companies whose tools, processes, or pager rotations inspired the satire. If you recognize yourself in The Founder, that's between you and your therapist.</p>
+
+  <h2>How to help</h2>
+  <ul>
+    <li><strong>Play the alpha</strong> and tell us what's broken — <a href="/support">support page</a> has the contact</li>
+    <li><strong>Star the repo</strong> on <a href="https://github.com/eqfreddy/hero-proto" target="_blank" rel="noopener">GitHub</a></li>
+    <li><strong>Share with one IT person you know.</strong> They'll either love it or unfriend you</li>
+  </ul>
+</div>
+{% endblock %}

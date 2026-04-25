@@ -1,0 +1,114 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'privacy' %}
+{% block title %}Privacy Policy · hero-proto{% endblock %}
+{% block content %}
+<div class="site-content">
+  <div class="draft-banner">
+    <strong>⚠️ Template — needs lawyer review before production launch.</strong>
+    This page accurately describes what we currently collect and how we handle it,
+    but the legal language has not been reviewed by a qualified attorney. Do not
+    rely on this for compliance with GDPR, CCPA, COPPA, or any other regulation
+    until a real lawyer signs off.
+  </div>
+
+  <h1>Privacy Policy</h1>
+  <p class="lead">Last updated: 2026-04-24. Effective date: 2026-04-24.</p>
+
+  <h2>What we collect</h2>
+  <p>We try to collect as little as possible. The current set:</p>
+  <h3>Account data (required to play)</h3>
+  <ul>
+    <li><strong>Email address</strong> — used for login and password reset. Never sold or shared.</li>
+    <li><strong>Password hash</strong> — bcrypt-hashed, never stored in plaintext, never recoverable in clear by us.</li>
+    <li><strong>2FA secret + recovery codes</strong> (if you enable 2FA) — stored server-side, used for verifying TOTP codes.</li>
+  </ul>
+
+  <h3>Gameplay data</h3>
+  <ul>
+    <li>Heroes, gear, currencies, levels, stages cleared</li>
+    <li>Battle history (logs, outcomes, teams used) — used for replays + balance work</li>
+    <li>Guild membership + chat messages</li>
+    <li>Arena match history</li>
+    <li>Daily login + quest progress</li>
+    <li>Event participation, currency balances, redeemed milestones</li>
+    <li>Inventory cap usage and mailbox overflow</li>
+  </ul>
+
+  <h3>Operational data</h3>
+  <ul>
+    <li><strong>Server-side request logs</strong> — method, path, status, latency, request ID. IPs are stored short-term for rate-limiting + abuse detection.</li>
+    <li><strong>Error reports (Sentry)</strong> — stack traces of unhandled exceptions. We filter known-personal-data fields out of these.</li>
+    <li><strong>Aggregate metrics (Prometheus)</strong> — counters of API calls, battle outcomes, summon results. No per-user data.</li>
+  </ul>
+
+  <h3>Payment data (only if you make a purchase)</h3>
+  <p>Payments are processed by Stripe (web), Apple StoreKit (iOS), or Google Play Billing (Android). We never see your full card number. We do receive and store:</p>
+  <ul>
+    <li>Transaction ID + processor (Stripe / Apple / Google)</li>
+    <li>Amount + currency code + product SKU</li>
+    <li>Purchase timestamp + state (pending / completed / refunded)</li>
+    <li>Last 4 digits of your card and card brand (provided by Stripe; for refund support only)</li>
+  </ul>
+
+  <h2>What we don't collect</h2>
+  <ul>
+    <li>No cross-site tracking pixels</li>
+    <li>No advertising IDs</li>
+    <li>No third-party social login data (we don't have social login)</li>
+    <li>No biometric data</li>
+    <li>No location beyond the IP-derived country your requests come from</li>
+    <li>No microphone, camera, contacts, or any other device-level sensor data</li>
+  </ul>
+
+  <h2>How we use it</h2>
+  <ul>
+    <li><strong>Run the game</strong> — display your roster, save your progress, match you with arena opponents</li>
+    <li><strong>Honor your purchases</strong> — credit currencies and grant heroes when you buy something</li>
+    <li><strong>Detect abuse</strong> — rate-limiting, ban evasion, refund-fraud detection</li>
+    <li><strong>Fix bugs</strong> — when an error happens, the request ID + stack trace go to Sentry so we can debug</li>
+    <li><strong>Improve balance</strong> — we look at aggregate gameplay stats (no per-user identifiers) to tune drop rates</li>
+  </ul>
+  <p>We do <strong>not</strong> sell your data. We do not share your data with marketers. We do not use your data to train AI models.</p>
+
+  <h2>Where it lives</h2>
+  <p>Our database is hosted in [REGION TBD — production deployment pending Phase 4]. Backups are encrypted and stored in the same region. Sentry is hosted on Sentry's infrastructure (US-region). Stripe / Apple / Google handle payment data on their own infrastructure under their own privacy policies.</p>
+
+  <h2>How long we keep it</h2>
+  <ul>
+    <li><strong>Active account data:</strong> as long as the account exists.</li>
+    <li><strong>Deleted account data:</strong> hard-deleted within 24 hours of account deletion (DELETE /me). The audit log retains a record that the account was deleted (id + timestamp + reason if banned) for 90 days for fraud-prevention, then is purged.</li>
+    <li><strong>Server request logs:</strong> 30 days, then aggregated and purged.</li>
+    <li><strong>Sentry error reports:</strong> 30 days.</li>
+    <li><strong>Payment records:</strong> 7 years for tax + dispute purposes (regulatory requirement).</li>
+  </ul>
+
+  <h2>Your rights</h2>
+  <p>You can:</p>
+  <ul>
+    <li><strong>Access</strong> your data — most of it is visible in-game on the /me tab. For a full export, email <a href="mailto:support@hero-proto.local">support@hero-proto.local</a>.</li>
+    <li><strong>Correct</strong> your email — currently support-mediated; self-serve in Phase 2.</li>
+    <li><strong>Delete</strong> your account — POST /me from the dashboard or email support.</li>
+    <li><strong>Object</strong> to processing — email support; we'll work with you.</li>
+    <li><strong>Withdraw consent</strong> for optional features (2FA, marketing emails — though we don't send marketing emails) at any time.</li>
+  </ul>
+  <p>Under GDPR (if you're in the EU/UK) and CCPA (if you're in California), you have additional rights. Email support and we'll honor them.</p>
+
+  <h2>Children's privacy</h2>
+  <p>This game is not directed at children under 13. We do not knowingly collect data from anyone under 13. If we discover an account belongs to a child under 13, we delete it. If you're a parent who believes your child has registered, email support and we'll handle it.</p>
+
+  <h2>Cookies + local storage</h2>
+  <p>We use:</p>
+  <ul>
+    <li><strong>localStorage</strong> for your JWT (auth token), sound preferences, and which tab you last visited. These never leave your browser.</li>
+    <li><strong>No cookies</strong> for tracking or advertising.</li>
+    <li>The Service Worker caches our static assets for offline use. It does not track behavior.</li>
+  </ul>
+
+  <h2>Changes to this policy</h2>
+  <p>If we change what we collect, we'll update this page and bump the "last updated" date at the top. Significant changes will surface in the in-app announcement system. We won't materially weaken your privacy without your explicit consent.</p>
+
+  <h2>Contact</h2>
+  <p>Privacy questions: <a href="mailto:privacy@hero-proto.local">privacy@hero-proto.local</a><br>
+  General support: see <a href="/support">support page</a>.</p>
+</div>
+{% endblock %}

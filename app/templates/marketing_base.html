@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+  body {
+    background:
+      radial-gradient(ellipse at top, rgba(255,216,107,0.06), transparent 60%),
+      radial-gradient(ellipse at bottom right, rgba(78,161,255,0.05), transparent 50%),
+      var(--bg);
+  }
+  .site-nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(8px);
+    background: rgba(11, 13, 16, 0.85);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap;
+  }
+  .site-nav .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .site-nav .brand img { width: 32px; height: 32px; border-radius: 6px; }
+  .site-nav .brand .title { font-weight: 800; letter-spacing: 0.02em; }
+  .site-nav .brand .ver { color: var(--muted); font-size: 11px; margin-left: 8px; padding: 2px 6px; background: var(--panel); border-radius: 3px; }
+  .site-nav .links { display: flex; gap: 4px; flex-wrap: wrap; }
+  .site-nav .links a { color: var(--muted); padding: 6px 10px; text-decoration: none; font-size: 13px; border-radius: 4px; }
+  .site-nav .links a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+  .site-nav .links a.active { color: var(--accent); background: rgba(78,161,255,0.1); font-weight: 600; }
+  .site-nav .play-cta { padding: 8px 16px; border-radius: 6px; background: var(--accent); color: #0b0d10; font-weight: 700; cursor: pointer; border: none; font-size: 13px; text-decoration: none; }
+  .site-nav .play-cta:hover { filter: brightness(1.1); }
+
+  .site-content { max-width: 980px; margin: 0 auto; padding: 40px 24px 64px; }
+  .site-content h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; line-height: 1.1; margin: 0 0 12px; }
+  .site-content h2 { font-size: 22px; font-weight: 700; margin: 28px 0 8px; }
+  .site-content h3 { font-size: 16px; font-weight: 700; margin: 20px 0 6px; color: var(--text); }
+  .site-content p { line-height: 1.65; color: var(--text); margin: 8px 0; }
+  .site-content .lead { color: var(--muted); font-size: 16px; max-width: 640px; }
+  .site-content a { color: var(--accent); }
+  .site-content code { background: var(--panel); padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .site-content .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 14px 0; }
+  .site-content ul, .site-content ol { line-height: 1.7; color: var(--text); }
+
+  .site-footer { border-top: 1px solid var(--border); margin-top: 48px; padding: 24px; text-align: center; color: var(--muted); font-size: 12px; }
+  .site-footer .links { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .site-footer .links a { color: var(--muted); }
+  .site-footer .links a:hover { color: var(--text); }
+  .site-footer .small { font-size: 11px; opacity: 0.7; }
+
+  /* Banner used on legal pages to flag template-not-final-text. */
+  .draft-banner { background: rgba(255, 152, 0, 0.12); border: 1px solid rgba(255, 152, 0, 0.4); border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: var(--warn); }
+  .draft-banner strong { color: var(--warn); }
+
+  @media (max-width: 600px) {
+    .site-nav { padding: 10px 14px; }
+    .site-content { padding: 24px 14px 40px; }
+  }
+</style>
+{% block page_head %}{% endblock %}
+{% endblock %}
+
+{% block body %}
+<nav class="site-nav">
+  <a class="brand" href="/">
+    <img src="/app/static/icons/hero-proto-192.png" alt="" />
+    <span class="title">hero-proto</span>
+    <span class="ver">alpha</span>
+  </a>
+  <div class="links">
+    <a href="/" class="{% if active_page == 'home' %}active{% endif %}">Home</a>
+    <a href="/about" class="{% if active_page == 'about' %}active{% endif %}">About</a>
+    <a href="/faq" class="{% if active_page == 'faq' %}active{% endif %}">FAQ</a>
+    <a href="/changelog" class="{% if active_page == 'changelog' %}active{% endif %}">Changelog</a>
+    <a href="/press" class="{% if active_page == 'press' %}active{% endif %}">Press</a>
+    <a href="/support" class="{% if active_page == 'support' %}active{% endif %}">Support</a>
+  </div>
+  <a class="play-cta" href="/app/">Play →</a>
+</nav>
+
+{% block content %}{% endblock %}
+
+<footer class="site-footer">
+  <div class="links">
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="/support">Support</a>
+    <a href="https://github.com/eqfreddy/hero-proto" target="_blank" rel="noopener">GitHub</a>
+  </div>
+  <div>hero-proto · the corporate-IT gacha RPG no one asked for</div>
+  <div class="small">Satire of the IT industry. No real companies named. Probably.</div>
+</footer>
+{% endblock %}
+
+{% block scripts %}{% endblock %}

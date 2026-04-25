@@ -225,3 +225,77 @@ def root(request: _Request):
     the hero-showcase + pitch + register panel.
     """
     return _WELCOME_TEMPLATES.TemplateResponse(request, "welcome.html", {})
+
+
+# --- Marketing-site pages (about / FAQ / support / privacy / terms / press / changelog) ---
+
+
+def _site_page(name: str):
+    async def handler(request: _Request):
+        return _WELCOME_TEMPLATES.TemplateResponse(request, f"site/{name}.html", {})
+    handler.__name__ = f"_site_{name}"
+    return handler
+
+
+for _page in ("about", "faq", "support", "privacy", "terms", "press"):
+    app.add_api_route(f"/{_page}", _site_page(_page), methods=["GET"], include_in_schema=False)
+
+
+@app.get("/changelog", include_in_schema=False)
+def changelog_page(request: _Request):
+    """Render git history as patch notes. Cached at module-load — restart to refresh."""
+    from app.changelog import get_commits, grouped_by_month, short_summary
+    commits = get_commits(limit=80)
+    # Inject short_summary into each commit dict for the template.
+    for c in commits:
+        # CommitEntry is frozen — we can't add attrs. Use a dict view.
+        pass
+    months = grouped_by_month(commits)
+    months_view = [
+        (label, [
+            {
+                "sha": c.sha, "short_sha": c.short_sha, "date": c.date,
+                "title": c.title, "category": c.category,
+                "short_summary": short_summary(c.body),
+            } for c in cs
+        ])
+        for label, cs in months
+    ]
+    return _WELCOME_TEMPLATES.TemplateResponse(request, "site/changelog.html", {"months": months_view})
+
+
+# --- robots.txt + sitemap.xml -----------------------------------------------
+
+
+_PUBLIC_PAGES = ("/", "/about", "/faq", "/support", "/privacy", "/terms", "/press", "/changelog")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt():
+    from fastapi.responses import PlainTextResponse
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin\n"
+        "Disallow: /metrics\n"
+        "Disallow: /worker/\n"
+        "Disallow: /shop/webhooks/\n"
+        "Sitemap: /sitemap.xml\n"
+    )
+    return PlainTextResponse(body, media_type="text/plain")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap_xml():
+    from fastapi.responses import Response
+    urls = "".join(
+        f'<url><loc>{settings.public_base_url.rstrip("/")}{path}</loc></url>'
+        for path in _PUBLIC_PAGES
+    )
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        f'{urls}'
+        '</urlset>'
+    )
+    return Response(content=body, media_type="application/xml")

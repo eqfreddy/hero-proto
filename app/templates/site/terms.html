@@ -1,0 +1,99 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'terms' %}
+{% block title %}Terms of Service · hero-proto{% endblock %}
+{% block content %}
+<div class="site-content">
+  <div class="draft-banner">
+    <strong>⚠️ Template — needs lawyer review before production launch.</strong>
+    Standard ToS scaffold. The legal language has not been reviewed by a qualified
+    attorney. Do not rely on this for binding terms until a real lawyer signs off.
+  </div>
+
+  <h1>Terms of Service</h1>
+  <p class="lead">Last updated: 2026-04-24. Effective date: 2026-04-24. By using hero-proto, you agree to these terms.</p>
+
+  <h2>1. Plain English summary</h2>
+  <div class="card">
+    <ul style="margin: 0;">
+      <li>Don't cheat, abuse, or harass other players. We can ban accounts that do.</li>
+      <li>You own your purchased items, but you don't own the game itself.</li>
+      <li>Refund window: 14 days for accidental purchases that haven't been consumed.</li>
+      <li>We may change features. Major nerfs to paid items get advance warning.</li>
+      <li>If anything in here conflicts with our <a href="/privacy">privacy policy</a>, the privacy policy wins.</li>
+      <li>If you're under 13, please don't use this game.</li>
+    </ul>
+  </div>
+
+  <h2>2. Eligibility</h2>
+  <p>You must be at least 13 years old to register an account. Some jurisdictions set the minimum higher; you're responsible for knowing your local rules. If you register an account on behalf of a minor in your care, you accept responsibility for their use.</p>
+
+  <h2>3. Your account</h2>
+  <ul>
+    <li>One account per person. Multi-accounting to abuse welcome bonuses or arena matchmaking will result in bans.</li>
+    <li>You're responsible for your password. Use 2FA. Don't share credentials.</li>
+    <li>If your account is compromised, contact <a href="/support">support</a> immediately.</li>
+    <li>You can delete your account at any time. Deletion is irreversible — see the <a href="/privacy">privacy policy</a> for what gets purged.</li>
+  </ul>
+
+  <h2>4. Acceptable use</h2>
+  <p>You may not:</p>
+  <ul>
+    <li>Use bots, scripts, modified clients, or automation tools to play the game</li>
+    <li>Exploit bugs to gain currency, items, or rating you didn't legitimately earn</li>
+    <li>Sell, trade, or transfer your account or in-game items for real-world value (RMT)</li>
+    <li>Harass, threaten, or harm other players via guild chat or any other channel</li>
+    <li>Reverse-engineer, decompile, or attempt to extract source from compiled clients</li>
+    <li>Abuse the rate-limit, attempt DoS, or otherwise interfere with our infrastructure</li>
+    <li>Use the game in any way that violates applicable law</li>
+  </ul>
+  <p>Violations may result in temporary suspension or permanent ban. Repeated or severe violations forfeit any unspent currency or unused purchase value.</p>
+
+  <h2>5. Virtual currencies + items</h2>
+  <ul>
+    <li>Gems, shards, access cards, event currencies, and other in-game items have no real-world monetary value and are not redeemable for cash outside the game's intended uses.</li>
+    <li>Items are licensed to you for use in the game; ownership of the underlying content stays with us.</li>
+    <li>If your account is closed (by you or by us), unspent currency and items are forfeit, except where required otherwise by consumer protection law.</li>
+  </ul>
+
+  <h2>6. Purchases + refunds</h2>
+  <ul>
+    <li>All sales are final once the items are consumed (e.g. summon credits used, gems spent on energy refills).</li>
+    <li><strong>Unconsumed purchases</strong> made within the past 14 days can be refunded by emailing <a href="/support">support</a> with the transaction ID. We'll claw back the granted items and reverse the charge.</li>
+    <li>Refunds for in-app purchases on iOS / Android may also be processed through Apple / Google directly per their own policies.</li>
+    <li>Chargebacks initiated without first contacting support may result in account suspension while the dispute is investigated.</li>
+    <li>We reserve the right to refuse refunds in cases of suspected fraud or repeated dispute abuse.</li>
+  </ul>
+
+  <h2>7. Service availability + changes</h2>
+  <ul>
+    <li>This is an alpha. Things break. We try our best.</li>
+    <li>We may modify, suspend, or discontinue features at any time. We'll surface significant changes in the in-app announcement system.</li>
+    <li>If we materially nerf a paid item (e.g. a hero you bought becomes significantly weaker), we'll give advance notice and a refund window.</li>
+    <li>If we shut down the service entirely, we'll provide at least 30 days' notice and where reasonable, refund recent purchases.</li>
+  </ul>
+
+  <h2>8. Content ownership</h2>
+  <p>The game (code, art, audio, text, hero designs, world lore, balance numbers) is the intellectual property of the developer. You're granted a personal, non-exclusive, non-transferable license to access and play it. You don't acquire ownership of any game content by playing or by purchasing virtual items.</p>
+  <p>Source code (where open) is published under the license stated in the <a href="https://github.com/eqfreddy/hero-proto" target="_blank" rel="noopener">GitHub repository</a>.</p>
+
+  <h2>9. User-generated content</h2>
+  <p>Currently the only UGC is guild chat messages and bug reports. By submitting either, you grant us a license to display them in-game and to retain them for moderation + audit purposes. Don't post anything you wouldn't want a stranger reading.</p>
+
+  <h2>10. Disclaimers + limitation of liability</h2>
+  <p>The game is provided "as is" without warranty. To the maximum extent permitted by law, we disclaim all warranties (merchantability, fitness for a particular purpose, non-infringement, etc.). Our aggregate liability for any claim arising from your use of the game is limited to the amount you've paid us in the previous 12 months, or USD $50, whichever is lower.</p>
+  <p>This doesn't limit our liability for fraud, gross negligence, or anything else that can't be excluded by law in your jurisdiction.</p>
+
+  <h2>11. Termination</h2>
+  <p>We can suspend or terminate your account if you violate these terms. You can terminate by deleting your account. On termination: your access ends, your data is deleted per the <a href="/privacy">privacy policy</a>, unspent currency is forfeit (subject to refund-window rules above).</p>
+
+  <h2>12. Governing law</h2>
+  <p>These terms are governed by the laws of [JURISDICTION TBD — Canada or wherever the dev incorporates production]. Disputes will be resolved in the courts of that jurisdiction. If you're a consumer in the EU or UK, this clause does not deprive you of mandatory protections under your local law.</p>
+
+  <h2>13. Changes to these terms</h2>
+  <p>If we change these terms, we'll update the "last updated" date and surface significant changes in the in-app announcement system + an email to your registered address. Continued use after a change constitutes acceptance.</p>
+
+  <h2>14. Contact</h2>
+  <p>Questions about these terms: <a href="mailto:legal@hero-proto.local">legal@hero-proto.local</a><br>
+  General support: <a href="/support">support page</a>.</p>
+</div>
+{% endblock %}

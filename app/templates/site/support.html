@@ -1,0 +1,53 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'support' %}
+{% block title %}Support · hero-proto{% endblock %}
+{% block content %}
+<div class="site-content">
+  <h1>Support</h1>
+  <p class="lead">Three ways to get help. Pick the one that matches your problem.</p>
+
+  <h2>1. Bug report (recommended)</h2>
+  <p>Open an issue on GitHub. Faster than email — gets seen by everyone working on the project.</p>
+  <div class="card">
+    <p style="margin-top: 0;"><strong>👉 <a href="https://github.com/eqfreddy/hero-proto/issues/new" target="_blank" rel="noopener">Open a GitHub issue →</a></strong></p>
+    <p>Helpful things to include:</p>
+    <ul>
+      <li>What were you trying to do?</li>
+      <li>What did you expect to happen?</li>
+      <li>What actually happened?</li>
+      <li>The <strong>X-Request-ID</strong> header from the failing response (DevTools → Network → click the failed request → response headers). Lets us trace what your request did server-side.</li>
+      <li>Browser + OS (especially for mobile bugs)</li>
+      <li>Screenshot if it's visual</li>
+    </ul>
+  </div>
+
+  <h2>2. Account / billing issue</h2>
+  <p>For anything involving your account (lost access, payment dispute, account deletion question, refund), email <a href="mailto:support@hero-proto.local">support@hero-proto.local</a> with:</p>
+  <ul>
+    <li>Your account email</li>
+    <li>Account ID if you can find it (visible on the <code>/me</code> tab)</li>
+    <li>What's going on</li>
+  </ul>
+  <p>We do not ask for your password. Ever. If anyone claiming to be hero-proto support asks for your password, they're not us.</p>
+
+  <h2>3. Feature request / design feedback</h2>
+  <p>Open a <a href="https://github.com/eqfreddy/hero-proto/discussions" target="_blank" rel="noopener">GitHub discussion</a>. We read everything. We can't promise to build everything.</p>
+
+  <h2>Self-serve actions you can take right now</h2>
+  <ul>
+    <li><strong>Forgot password:</strong> Login screen → "forgot password" → check your inbox.</li>
+    <li><strong>2FA enrollment / disable:</strong> in-app, on /me settings (Phase 2 surfaces this; for now use the API).</li>
+    <li><strong>Delete your account:</strong> POST /me with your email as confirm_email. Hard delete. No coming back.</li>
+    <li><strong>Refund a purchase:</strong> currently admin-side only. Email us.</li>
+    <li><strong>Claim a Stripe-purchased pack that didn't grant:</strong> rare, but it happens during webhook outages. Email us with the transaction ID.</li>
+  </ul>
+
+  <h2>Response times</h2>
+  <ul>
+    <li><strong>GitHub issues:</strong> usually within 48 hours</li>
+    <li><strong>Account email:</strong> 1-3 business days</li>
+    <li><strong>Refunds:</strong> 5-7 business days (we have to verify with the payment processor)</li>
+  </ul>
+  <p class="lead">This is an alpha. We're a small team. Please be patient and we'll be helpful.</p>
+</div>
+{% endblock %}

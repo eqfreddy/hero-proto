@@ -1,0 +1,71 @@
+{% extends "marketing_base.html" %}
+{% set active_page = 'press' %}
+{% block title %}Press kit · hero-proto{% endblock %}
+{% block content %}
+<div class="site-content">
+  <h1>Press kit</h1>
+  <p class="lead">For journalists, podcasters, content creators, and anyone writing about hero-proto.</p>
+
+  <h2>Fact sheet</h2>
+  <div class="card">
+    <p style="margin: 0;"><strong>Title:</strong> hero-proto</p>
+    <p><strong>Tagline:</strong> The corporate IT gacha RPG no one asked for.</p>
+    <p><strong>Genre:</strong> Turn-based gacha RPG with guild raids and arena PvP.</p>
+    <p><strong>Status:</strong> Alpha (web). Mobile native (iOS / Android) planned via Capacitor.</p>
+    <p><strong>Platforms:</strong> Web (PWA, installable). Native apps in development.</p>
+    <p><strong>Price:</strong> Free to play. Optional cosmetic + QoL purchases. Explicitly not pay-to-win.</p>
+    <p><strong>Languages:</strong> English (alpha). Localization slated for post-launch.</p>
+    <p><strong>Developer:</strong> Independent.</p>
+    <p style="margin-bottom: 0;"><strong>Source:</strong> <a href="https://github.com/eqfreddy/hero-proto" target="_blank" rel="noopener">github.com/eqfreddy/hero-proto</a></p>
+  </div>
+
+  <h2>One-liner</h2>
+  <p style="font-size: 18px; color: var(--text); border-left: 3px solid var(--accent); padding-left: 14px; font-style: italic;">
+    "If AFK Arena were written by people who'd opened a JIRA ticket."
+  </p>
+
+  <h2>Description (paragraph)</h2>
+  <p>hero-proto is a satirical mobile gacha RPG set in a near-future corporate IT department. Players collect overworked sysadmins, predatory consultants, retired mainframe gurus, and feral helpdesk gremlins; battle tickets, audits, and pager storms; join guilds for shared-HP boss raids; and progress through an alignment-fork story where they ultimately decide whether to take down the Corp or become it. Monetization follows the Path of Exile 2 model — cosmetics and quality-of-life upgrades only, never raw stat power. The game runs as a Progressive Web App today and is heading to the Apple App Store and Google Play.</p>
+
+  <h2>Description (short)</h2>
+  <p>A free-to-play gacha RPG that satirizes corporate IT life. Collect helpdesk veterans, fight ticket gremlins, raid the boss in your guild, and either take down the Corp or become it. No pay-to-win, no predatory mechanics, lots of jokes about pager rotations.</p>
+
+  <h2>Selling points</h2>
+  <ul>
+    <li><strong>An unmistakable identity.</strong> No fantasy / sci-fi / anime tropes — it's the office where you actually work, weaponized.</li>
+    <li><strong>Honest gacha.</strong> Visible pity counter, fixed pull rates, no hidden mechanics. 50-pull pity guarantees an EPIC+.</li>
+    <li><strong>Cosmetic-only monetization.</strong> Money buys frames, presets, auto-battle unlock — never raw power.</li>
+    <li><strong>Real guild content.</strong> Shared-HP raids with per-contributor leaderboards and three difficulty tiers, not just a chat channel.</li>
+    <li><strong>Built right.</strong> 320+ tests, Postgres CI, 2FA from day one, GDPR-compliant account deletion, observability stack wired before launch.</li>
+  </ul>
+
+  <h2>Assets</h2>
+  <p>All assets here are CC-BY licensed for editorial use. Please credit "hero-proto" with a link to <a href="/">{{ request.url.scheme }}://{{ request.url.netloc }}/</a> when used.</p>
+  <ul>
+    <li><strong>App icon (1024×1024):</strong> <a href="/app/static/icons/hero-proto-1024.png" download>download</a> — keyboard-as-sword, gold/dark</li>
+    <li><strong>App icon (512×512):</strong> <a href="/app/static/icons/hero-proto-512.png" download>download</a></li>
+    <li><strong>App icon (192×192):</strong> <a href="/app/static/icons/hero-proto-192.png" download>download</a></li>
+    <li><strong>Maskable icon (Android adaptive):</strong> <a href="/app/static/icons/hero-proto-maskable-512.png" download>download</a></li>
+  </ul>
+  <h3>Hero card art (sample)</h3>
+  <p>Five-card pilot batch. Full 1050×1498 trading-card format.</p>
+  <ul>
+    <li><strong>The Founder</strong> (LEGENDARY): <a href="/app/static/heroes/cards/the_founder.png" download>download</a></li>
+    <li><strong>The Consultant</strong> (EPIC): <a href="/app/static/heroes/cards/the_consultant.png" download>download</a></li>
+    <li><strong>The Sysadmin</strong> (RARE): <a href="/app/static/heroes/cards/the_sysadmin.png" download>download</a></li>
+    <li><strong>Jaded Intern</strong> (UNCOMMON): <a href="/app/static/heroes/cards/jaded_intern.png" download>download</a></li>
+    <li><strong>Ticket Gremlin</strong> (COMMON): <a href="/app/static/heroes/cards/ticket_gremlin.png" download>download</a></li>
+  </ul>
+
+  <h2>Quotes the developer is happy to be quoted on</h2>
+  <ul>
+    <li>"Most gacha games make you feel like the publisher's mark. We made one for the people who've been called into a bridge call at 3 AM."</li>
+    <li>"Path of Exile 2 nailed the trick: monetize convenience, never power. We just stole their playbook."</li>
+    <li>"There's no boss fight more satisfying than 'The Consultant' showing up to your raid with a deck labeled DELIVERABLES."</li>
+  </ul>
+
+  <h2>Contact</h2>
+  <p>Press inquiries: <a href="mailto:press@hero-proto.local">press@hero-proto.local</a><br>
+  General: <a href="/support">support page</a>.</p>
+</div>
+{% endblock %}
