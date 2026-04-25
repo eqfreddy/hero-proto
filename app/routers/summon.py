@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.daily import on_summon
+from app.event_state import QUEST_KINDS_SUMMON, on_activity as event_on_activity
 from app.db import get_db
 from app.deps import get_current_account
 from app.gacha import roll
@@ -77,6 +78,7 @@ def summon_one(
     rng = random.Random()
     out = _do_one_pull(db, account, rng)
     on_summon(db, account, 1)
+    event_on_activity(db, account, "summon_pull", quest_kinds=QUEST_KINDS_SUMMON)
     db.commit()
     return out
 
@@ -93,5 +95,6 @@ def summon_ten(
     # the reward semantics clean (one credit = one pull).
     out = [_do_one_pull(db, account, rng, allow_free=False) for _ in range(10)]
     on_summon(db, account, 10)
+    event_on_activity(db, account, "summon_pull", amount=10, quest_kinds=QUEST_KINDS_SUMMON)
     db.commit()
     return out

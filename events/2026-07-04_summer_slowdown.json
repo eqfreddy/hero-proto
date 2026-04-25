@@ -1,0 +1,115 @@
+{
+  "id": "summer_slowdown_2026",
+  "display_name": "Summer Slowdown — Week-Long Event",
+  "starts_at": "2026-07-04T04:00:00Z",
+  "ends_at":   "2026-07-11T04:00:00Z",
+
+  "announcement": {
+    "title": "⚡ Summer Slowdown — gather Sparks all week",
+    "body": "Seven days of laid-back loot. Earn ⚡ Sparks from battles, summons, arena, and raids. Spend them on the new Event Exchange for tiered rewards. Five quests unlock the bigger payouts. Even the pager is on PTO.",
+    "priority": 60
+  },
+
+  "liveops": [
+    {
+      "kind": "DOUBLE_REWARDS",
+      "name": "Summer Slowdown 2x",
+      "payload": {"multiplier": 2.0}
+    },
+    {
+      "kind": "BONUS_GEAR_DROPS",
+      "name": "Summer Drops",
+      "payload": {"chance_add": 0.20}
+    }
+  ],
+
+  "shop": [
+    {
+      "sku": "summer_slowdown_2026_pack",
+      "title": "Beach Day Bundle",
+      "description": "1500 💎 gems, 200 ✦ shards, 10 🎫 access cards, and a 100 ⚡ Sparks head start. One-time per account.",
+      "price_cents": 1499,
+      "kind": "GEM_PACK",
+      "per_account_limit": 1,
+      "contents": {"gems": 1500, "shards": 200, "access_cards": 10}
+    }
+  ],
+
+  "currency_name": "Sparks",
+  "currency_emoji": "⚡",
+
+  "drops": {
+    "battle_win": 5,
+    "summon_pull": 2,
+    "arena_attack": 8,
+    "raid_attack": 12
+  },
+
+  "quests": [
+    {
+      "code": "win_10_battles",
+      "title": "Win 10 battles",
+      "kind": "WIN_BATTLES",
+      "goal": 10,
+      "currency_reward": 50
+    },
+    {
+      "code": "summon_x10_once",
+      "title": "Do an x10 summon",
+      "kind": "SUMMON_PULLS",
+      "goal": 10,
+      "currency_reward": 30
+    },
+    {
+      "code": "arena_attack_5",
+      "title": "Land 5 arena attacks",
+      "kind": "ARENA_ATTACKS",
+      "goal": 5,
+      "currency_reward": 60
+    },
+    {
+      "code": "raid_attack_3",
+      "title": "Hit a raid boss 3 times",
+      "kind": "RAID_ATTACKS",
+      "goal": 3,
+      "currency_reward": 75
+    },
+    {
+      "code": "win_25_battles",
+      "title": "Win 25 battles (the marathon)",
+      "kind": "WIN_BATTLES",
+      "goal": 25,
+      "currency_reward": 150
+    }
+  ],
+
+  "milestones": [
+    {
+      "title": "Warm-up Pack",
+      "cost": 100,
+      "contents": {"gems": 200, "shards": 20}
+    },
+    {
+      "title": "Mid-Week Cache",
+      "cost": 300,
+      "contents": {"gems": 500, "shards": 60, "access_cards": 3}
+    },
+    {
+      "title": "Free Summon Trio",
+      "cost": 600,
+      "contents": {"free_summon_credits": 3}
+    },
+    {
+      "title": "Endgame Stockpile",
+      "cost": 1000,
+      "contents": {"gems": 1500, "shards": 150, "access_cards": 8}
+    },
+    {
+      "title": "Grand Prize",
+      "cost": 2000,
+      "contents": {"gems": 3000, "shards": 300, "access_cards": 20, "free_summon_credits": 5}
+    }
+  ],
+
+  "event_hero_code": null
+}

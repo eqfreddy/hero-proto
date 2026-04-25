@@ -24,6 +24,7 @@
     <button data-tab="summon" hx-get="/app/partials/summon" hx-target="#content">Summon</button>
     <button data-tab="stages" hx-get="/app/partials/stages" hx-target="#content">Stages</button>
     <button data-tab="daily" hx-get="/app/partials/daily" hx-target="#content">Daily</button>
+    <button data-tab="event" id="tab-event" hx-get="/app/partials/event" hx-target="#content" style="display: none;">⚡ Event</button>
     <button data-tab="arena" hx-get="/app/partials/arena" hx-target="#content">Arena</button>
     <button data-tab="guild" hx-get="/app/partials/guild" hx-target="#content">Guild</button>
     <button data-tab="shop" hx-get="/app/partials/shop" hx-target="#content">Shop</button>
@@ -69,6 +70,32 @@
   }
   document.body.addEventListener('htmx:afterRequest', refreshWho);
   refreshWho();
+
+  // Auto-show the Event tab during a live event window. Probes /events/active
+  // once on load and shows the button if anything's live. Re-probes after every
+  // navigation so the tab disappears the moment an event ends.
+  async function probeEvent() {
+    const token = localStorage.getItem('heroproto_jwt');
+    if (!token) return;
+    const tab = document.getElementById('tab-event');
+    if (!tab) return;
+    try {
+      const r = await fetch('/events/active', { headers: { authorization: 'Bearer ' + token } });
+      tab.style.display = r.ok ? '' : 'none';
+      if (r.ok) {
+        // Sparkle the tab if there's something to claim or redeem.
+        const body = await r.json();
+        const has_claimable = (body.quests || []).some(q => q.completed && !q.claimed);
+        const has_affordable = (body.milestones || []).some(m => m.affordable && !m.redeemed);
+        if (has_claimable || has_affordable) {
+          tab.style.color = 'var(--r-legendary)';
+          tab.style.fontWeight = '700';
+        }
+      }
+    } catch {}
+  }
+  document.body.addEventListener('htmx:afterRequest', probeEvent);
+  probeEvent();
   // Auto-load last-used tab (or login if none).
   const startTab = localStorage.getItem('heroproto_tab') || (localStorage.getItem('heroproto_jwt') ? 'me' : 'login');
   const startBtn = document.querySelector(`[data-tab="${startTab}"]`) || document.querySelector('[data-tab="login"]');

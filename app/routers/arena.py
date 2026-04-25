@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.combat import power_rating, scale_stat, simulate, trim_combat_log
 from app.daily import on_arena_attack
+from app.event_state import QUEST_KINDS_ARENA, on_activity as event_on_activity
 from app.db import get_db
 from app.deps import enforce_arena_rate_limit, get_current_account
 from app.gear_logic import gear_bonus_for
@@ -290,6 +291,7 @@ def attack(
     defender.arena_rating = max(MIN_RATING, defender.arena_rating - delta)
 
     on_arena_attack(db, account)
+    event_on_activity(db, account, "arena_attack", quest_kinds=QUEST_KINDS_ARENA)
 
     match = ArenaMatch(
         attacker_id=account.id,

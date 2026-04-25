@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.combat import CombatUnit, build_unit, simulate, trim_combat_log
 from app.daily import on_battle_won, on_hard_stage_clear
+from app.event_state import QUEST_KINDS_BATTLE_WIN, on_activity as event_on_activity
 from app.db import get_db
 from app.deps import enforce_battle_rate_limit, get_current_account
 from app.economy import award_rewards, consume_energy, load_cleared, mark_cleared
@@ -185,11 +186,18 @@ def fight(
 
     # Daily quest progression on wins (per-battle + stage-specific + hard-tier).
     completed_dailies: list[int] = []
+    event_progress: dict | None = None
     if outcome == BattleOutcome.WIN:
         completed_dailies = [q.id for q in on_battle_won(db, account, stage.code)]
         from app.models import StageDifficulty as _SD
         if stage.difficulty_tier == _SD.HARD:
             completed_dailies += [q.id for q in on_hard_stage_clear(db, account)]
+        # Event currency drop + quest advance, if a live event is configured
+        # to reward this activity.
+        event_progress = event_on_activity(
+            db, account, "battle_win",
+            quest_kinds=QUEST_KINDS_BATTLE_WIN,
+        )
 
     # Gear drop: 35% chance on win, 70% on first clear.
     rewards_extra = rewards.as_json()
@@ -197,6 +205,8 @@ def fight(
     rewards_extra["completed_daily_quest_ids"] = completed_dailies
     if tutorial_reward_payload is not None:
         rewards_extra["tutorial_reward"] = tutorial_reward_payload
+    if event_progress is not None:
+        rewards_extra["event_progress"] = event_progress
     if outcome == BattleOutcome.WIN:
         drop_chance = 0.70 if first_clear else 0.35
         drop_chance += gear_drop_bonus(db)

@@ -214,6 +214,73 @@ def _hero_row(h: HeroInstance) -> dict:
     }
 
 
+@router.get("/partials/event", response_class=HTMLResponse)
+def partial_event(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    """Active-event tab. Renders empty when no event is live so the link
+    in the nav can be hidden via {% if event %} in the shell.
+    """
+    from app.event_state import (
+        active_event_spec,
+        currency_balance,
+        is_claimed,
+        quest_progress,
+        redeemed_milestones,
+    )
+    spec = active_event_spec()
+    if spec is None:
+        return templates.TemplateResponse(
+            request, "partials/event.html", {"event": None},
+        )
+
+    balance = currency_balance(account, spec.id)
+    quests = []
+    for q in spec.quests:
+        prog = quest_progress(account, spec.id, q["code"])
+        goal = int(q.get("goal", 1))
+        quests.append({
+            "code": q["code"],
+            "title": q.get("title", q["code"]),
+            "goal": goal,
+            "progress": min(prog, goal),
+            "currency_reward": int(q.get("currency_reward", 0)),
+            "completed": prog >= goal,
+            "claimed": is_claimed(account, spec.id, q["code"]),
+        })
+    redeemed = set(redeemed_milestones(account, spec.id))
+    milestones = []
+    for idx, m in enumerate(spec.milestones):
+        cost = int(m.get("cost", 0))
+        milestones.append({
+            "idx": idx,
+            "title": m.get("title", f"Milestone {idx + 1}"),
+            "cost": cost,
+            "contents": m.get("contents", {}),
+            "redeemed": idx in redeemed,
+            "affordable": balance >= cost,
+        })
+
+    return templates.TemplateResponse(
+        request, "partials/event.html",
+        {
+            "event": {
+                "id": spec.id,
+                "display_name": spec.display_name,
+                "currency_name": spec.currency_name or "currency",
+                "currency_emoji": spec.currency_emoji or "★",
+                "currency_balance": balance,
+                "ends_at": spec.ends_at.isoformat() + "Z",
+                "drops": spec.drops,
+                "quests": quests,
+                "milestones": milestones,
+            },
+        },
+    )
+
+
 @router.get("/partials/summon", response_class=HTMLResponse)
 def partial_summon(
     request: Request,

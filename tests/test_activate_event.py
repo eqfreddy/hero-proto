@@ -91,7 +91,7 @@ def test_activate_rejects_inverted_timestamps(tmp_path: Path) -> None:
 
 def test_activate_is_idempotent(client) -> None:
     """Re-running activation updates in place — no duplicate rows."""
-    spec = _load_spec(EVENTS_DIR / "2026-07-04_independence_day.json")
+    spec = _load_spec(EVENTS_DIR / "2026-07-04_summer_slowdown.json")
     _activate(spec)
     _activate(spec)  # second pass
 
@@ -103,7 +103,7 @@ def test_activate_is_idempotent(client) -> None:
         assert len(anns) == 1, f"expected single announcement, got {len(anns)}"
         # Exactly one shop SKU.
         skus = list(db.scalars(
-            select(ShopProduct).where(ShopProduct.sku == "independence_day_2026_pack")
+            select(ShopProduct).where(ShopProduct.sku == "summer_slowdown_2026_pack")
         ))
         assert len(skus) == 1
     _deactivate(spec)

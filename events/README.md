@@ -11,7 +11,7 @@ Add to your ops calendar. Activate ~24h before the start time so the daily worke
 | Date | Event | File | Notes |
 |---|---|---|---|
 | **2026-07-01** | Canada Day | `2026-07-01_canada_day.json` | DOUBLE_REWARDS + cosmetic pack |
-| **2026-07-04** | Independence Day | `2026-07-04_independence_day.json` | DOUBLE_REWARDS + cosmetic pack |
+| **2026-07-04** | Summer Slowdown (week-long) | `2026-07-04_summer_slowdown.json` | ⚡ Sparks currency, 5 quests, 5 milestones — subsumes Independence Day |
 | 2026-10-31 | Halloween | `2026-10-31_halloween.json` | BONUS_GEAR_DROPS + spooky cosmetic pack |
 | 2026-11-27 | Black Friday | `2026-11-27_black_friday.json` | Discount weekend on gem packs (skip for alpha) |
 | 2026-12-25 | Christmas | `2026-12-25_christmas.json` | Week-long DOUBLE_REWARDS + advent calendar |
@@ -60,6 +60,43 @@ Field semantics:
 - `liveops` — list of LiveOpsEvent rows (DOUBLE_REWARDS, BONUS_GEAR_DROPS, BANNER, etc.).
 - `shop` — limited-time ShopProducts. Use `per_account_limit: 1` for one-time bundles. Auto-disabled at `ends_at`.
 - `event_hero_code` — optional pointer to a Myth-tier hero seeded for the event (set up separately in `seed.py`).
+
+### Optional: gather-and-spend mechanics
+
+If the event includes a currency-gathering loop (week-long events, summer/winter campaigns, etc.) add these fields:
+
+```json
+"currency_name": "Sparks",
+"currency_emoji": "⚡",
+"drops": {
+  "battle_win":   5,
+  "summon_pull":  2,
+  "arena_attack": 8,
+  "raid_attack": 12
+},
+"quests": [
+  {
+    "code": "win_10_battles",
+    "title": "Win 10 battles",
+    "kind": "WIN_BATTLES",
+    "goal": 10,
+    "currency_reward": 50
+  }
+],
+"milestones": [
+  {
+    "title": "Warm-up Pack",
+    "cost": 100,
+    "contents": {"gems": 200, "shards": 20}
+  }
+]
+```
+
+- `drops` — activity → currency-per-activity. Recognized activities: `battle_win`, `summon_pull`, `arena_attack`, `raid_attack`. Each fires once per matching event.
+- `quests` — list of objectives. `kind` must be one of: `WIN_BATTLES`, `SUMMON_PULLS`, `ARENA_ATTACKS`, `RAID_ATTACKS`. `currency_reward` is paid out on POST `/events/quests/{code}/claim` once the player hits `goal`.
+- `milestones` — ordered list of currency exchanges. Spent via POST `/events/milestones/{idx}/redeem`. `contents` accepts the same kinds as `ShopProduct.contents_json`: `gems`, `shards`, `coins`, `access_cards`, `free_summon_credits`, `hero_template_code`.
+
+Per-account state lives on `Account.event_state_json` (currency balance + quest progress + claimed quests + redeemed milestone indices). Reset implicitly when the event ends — the spec stops being "active" so progress stops accumulating, but the leftover state stays in the column for refund / audit.
 
 ---
 

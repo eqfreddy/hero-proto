@@ -327,6 +327,9 @@ def attack_raid(
     # Daily-quest hook: RAID_DAMAGE advances by the raw damage dealt this attack.
     from app.daily import on_raid_damage
     on_raid_damage(db, account, damage)
+    # Event hook: count one raid attack regardless of damage value.
+    from app.event_state import QUEST_KINDS_RAID, on_activity as _event_on_activity
+    _event_on_activity(db, account, "raid_attack", quest_kinds=QUEST_KINDS_RAID)
 
     rewards_payload: dict | None = None
     defeated = False
