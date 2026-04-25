@@ -37,10 +37,17 @@ def test_request_id_is_echoed_when_provided(client) -> None:
     assert r.headers.get("X-Request-ID") == "test-rid-abc123"
 
 
-def test_root_redirects_to_static_app(client) -> None:
+def test_root_serves_marketing_landing(client) -> None:
+    """Root used to redirect to /app/. Now serves the welcome / marketing
+    landing page, with client-side bounce to /app/ for signed-in users.
+    """
     r = client.get("/", follow_redirects=False)
-    assert r.status_code in (302, 307)
-    assert r.headers["location"].startswith("/app")
+    assert r.status_code == 200
+    # Hero copy + showcase + auth panel must be present.
+    assert "hero-proto" in r.text
+    assert "Create your account" in r.text or "Sign in" in r.text
+    # Bounce script for signed-in users.
+    assert "heroproto_jwt" in r.text and "/app/" in r.text
 
 
 def test_static_html_client_is_served(client) -> None:

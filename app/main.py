@@ -210,7 +210,15 @@ def metrics():
     return metrics_response()
 
 
+from fastapi import Request as _Request
+from fastapi.templating import Jinja2Templates as _Jinja2Templates
+_WELCOME_TEMPLATES = _Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+
+
 @app.get("/", include_in_schema=False)
-def root():
-    # Minimal HTML client is served from /app/ — send browsers there.
-    return RedirectResponse(url="/app/")
+def root(request: _Request):
+    """Marketing landing page. Logged-in users are client-side-bounced to
+    /app/ via a small JS check in the template; unauthenticated visitors see
+    the hero-showcase + pitch + register panel.
+    """
+    return _WELCOME_TEMPLATES.TemplateResponse(request, "welcome.html", {})
