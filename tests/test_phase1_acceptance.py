@@ -67,13 +67,15 @@ def test_phase1_end_to_end(client) -> None:
     # Starter-pack card surfaces (new account, within 7-day window).
     assert "Jump-Ahead Bundle" in r.text
 
-    # Use the free summon — shards don't drop since credit is consumed first.
+    # Use the free summon — credit is consumed first, so shards aren't charged.
+    # Achievements (e.g. first_rare = +5) may grant shards on the pull, so the
+    # post-shard count can go UP — what we verify is that it didn't go DOWN.
     shards_before = me["shards"]
     r = client.post("/summon/x1", headers=hdr)
     assert r.status_code == 201
     me = client.get("/me", headers=hdr).json()
     assert me["free_summon_credits"] == 0, "credit should be consumed"
-    assert me["shards"] == shards_before, "shards unchanged when credit used"
+    assert me["shards"] >= shards_before, "shards should not decrease when credit consumed"
 
     # Step 5: Roster tab — detail modal data for the just-pulled hero.
     r = client.get("/app/partials/roster", headers=hdr)

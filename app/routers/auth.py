@@ -168,7 +168,10 @@ def forgot_password(
         # return the URL directly so clients can skip the mailbox step.
         from app.email_render import render_password_reset
         from app.email_sender import get_sender as _get_sender
-        full_url = f"{settings.public_base_url.rstrip('/')}/auth/reset-password?token={raw}"
+        # The reset link points at the HTML page (which then POSTs the token
+        # to /auth/reset-password). Keep the API endpoint and the user-facing
+        # page on different URLs so the latter can stay GET-friendly.
+        full_url = f"{settings.public_base_url.rstrip('/')}/reset-password?token={raw}"
         try:
             subject, text_body, html_body = render_password_reset(
                 reset_url=full_url, ttl_hours=PASSWORD_RESET_TTL_HOURS,
@@ -183,7 +186,7 @@ def forgot_password(
             # Failures are non-fatal for the request (attacker enumeration resistance).
             _log.exception("password reset email delivery failed for %s", account.email)
         if settings.environment.lower() != "prod":
-            dev_url = f"/auth/reset-password?token={raw}"
+            dev_url = f"/reset-password?token={raw}"
             _log.info("password reset requested for %s — dev url: %s", account.email, dev_url)
     return PasswordResetStartedOut(dev_reset_url=dev_url)
 

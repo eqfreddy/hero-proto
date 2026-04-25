@@ -39,7 +39,10 @@ def test_forgot_password_for_known_email_creates_token_and_returns_dev_url(clien
     body = r.json()
     # In test env (HEROPROTO_ENVIRONMENT=test, != prod), the dev URL is exposed.
     assert body["dev_reset_url"] is not None
-    assert body["dev_reset_url"].startswith("/auth/reset-password?token=")
+    # The link points at the user-facing /reset-password page (not the JSON
+    # POST endpoint at /auth/reset-password). Page extracts token from URL
+    # and POSTs it to /auth/reset-password to actually flip the credential.
+    assert body["dev_reset_url"].startswith("/reset-password?token=")
 
     # A hashed token row landed in the DB.
     with SessionLocal() as db:

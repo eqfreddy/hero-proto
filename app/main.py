@@ -247,6 +247,15 @@ for _page in ("about", "faq", "support", "privacy", "terms", "press", "roadmap")
     app.add_api_route(f"/{_page}", _site_page(_page), methods=["GET"], include_in_schema=False)
 
 
+@app.get("/reset-password", include_in_schema=False)
+def reset_password_page(request: _Request):
+    """User-facing reset page. The link in the password-reset email points
+    here. JS reads ?token=... and POSTs to /auth/reset-password with the
+    new password to actually flip the credential.
+    """
+    return _WELCOME_TEMPLATES.TemplateResponse(request, "site/reset_password.html", {})
+
+
 _STARTED_AT = _datetime_module_for_uptime = None
 
 

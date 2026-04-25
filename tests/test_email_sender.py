@@ -98,7 +98,9 @@ def test_forgot_password_calls_sender_with_reset_url(client) -> None:
     to_email, subject, body = spy.calls[0]
     assert to_email == email
     assert "password reset" in subject.lower()
-    assert "/auth/reset-password?token=" in body
+    # Email links to the user-facing /reset-password page (not the JSON
+    # POST endpoint at /auth/reset-password).
+    assert "/reset-password?token=" in body
 
 
 def test_forgot_password_doesnt_call_sender_for_unknown_email(client) -> None:

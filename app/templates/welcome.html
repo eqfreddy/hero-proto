@@ -126,8 +126,25 @@
       <button id="auth-submit" type="submit" class="submit">Create account →</button>
       <div id="auth-status" class="auth-status"></div>
     </form>
+    <div id="forgot-link" style="text-align: center; margin-top: 14px; font-size: 12px; display: none;">
+      <a href="#" onclick="event.preventDefault(); openForgotPassword();" style="color: var(--muted); text-decoration: underline;">Forgot password?</a>
+    </div>
   </div>
 </section>
+
+<!-- Forgot-password modal -->
+<div id="forgot-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1500; align-items: center; justify-content: center; padding: 20px;">
+  <div style="background: var(--panel-2); border: 1px solid var(--border); border-radius: 14px; padding: 28px; max-width: 420px; width: 100%; box-shadow: 0 12px 32px rgba(0,0,0,0.4); position: relative;">
+    <button onclick="closeForgotPassword()" style="position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; background: rgba(255,255,255,0.1); border: 0; border-radius: 50%; color: var(--text); font-size: 18px; cursor: pointer;">×</button>
+    <h3 style="margin: 0 0 8px; font-size: 20px; font-weight: 800;">Reset password</h3>
+    <p style="color: var(--muted); font-size: 13px; margin-bottom: 16px;">Enter your account email. If it's registered, we'll send you a one-time link to pick a new password.</p>
+    <form class="auth-form" onsubmit="event.preventDefault(); submitForgotPassword();">
+      <input id="forgot-email" type="email" placeholder="email" autocomplete="email" required />
+      <button id="forgot-submit" type="submit" class="submit">Send reset link →</button>
+      <div id="forgot-status" class="auth-status"></div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -145,6 +162,61 @@
     document.getElementById('auth-password').autocomplete = mode === 'register' ? 'new-password' : 'current-password';
     document.getElementById('auth-status').textContent = '';
     document.getElementById('auth-status').className = 'auth-status';
+    // "Forgot password?" only makes sense in sign-in mode.
+    document.getElementById('forgot-link').style.display = mode === 'login' ? '' : 'none';
+  }
+
+  function openForgotPassword() {
+    // Prefill email from the main form so users don't retype.
+    document.getElementById('forgot-email').value = document.getElementById('auth-email').value;
+    document.getElementById('forgot-status').textContent = '';
+    document.getElementById('forgot-status').className = 'auth-status';
+    document.getElementById('forgot-overlay').style.display = 'flex';
+    document.getElementById('forgot-email').focus();
+  }
+  function closeForgotPassword() {
+    document.getElementById('forgot-overlay').style.display = 'none';
+  }
+  document.getElementById('forgot-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'forgot-overlay') closeForgotPassword();
+  });
+
+  async function submitForgotPassword() {
+    const btn = document.getElementById('forgot-submit');
+    const status = document.getElementById('forgot-status');
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email) {
+      status.textContent = 'Email required.';
+      status.className = 'auth-status error';
+      return;
+    }
+    btn.disabled = true;
+    status.textContent = 'Sending…';
+    status.className = 'auth-status';
+    try {
+      const r = await fetch('/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const body = await r.json();
+      // The endpoint always 200s for enumeration-resistance — message is
+      // identical whether the address exists or not.
+      status.textContent = '✓ If that email is registered, a reset link is on its way. Check your inbox.';
+      status.className = 'auth-status ok';
+      // In dev, the reset URL is returned in-band — surface it for testing.
+      if (body && body.dev_reset_url) {
+        const dev = document.createElement('div');
+        dev.style.cssText = 'margin-top: 10px; padding: 8px; background: var(--bg); border-radius: 4px; font-size: 11px; word-break: break-all;';
+        dev.innerHTML = `<strong style="color: var(--warn);">DEV link:</strong> <a href="${body.dev_reset_url}" style="color: var(--accent);">${body.dev_reset_url}</a>`;
+        status.appendChild(dev);
+      }
+    } catch (e) {
+      status.textContent = e.message;
+      status.className = 'auth-status error';
+    } finally {
+      btn.disabled = false;
+    }
   }
   async function doAuth() {
     const btn = document.getElementById('auth-submit');
