@@ -1,0 +1,34 @@
+{
+  "id": "new_year_2027",
+  "display_name": "New Year 2026 → 2027",
+  "starts_at": "2026-12-31T00:00:00Z",
+  "ends_at":   "2027-01-02T00:00:00Z",
+
+  "announcement": {
+    "title": "🎉 New year, same backlog",
+    "body": "48 hours of 2x rewards. Use them before the planning offsite reorganizes your team. Look-back bundle on the Shop tab — celebrate making it through another fiscal year.",
+    "priority": 65
+  },
+
+  "liveops": [
+    {
+      "kind": "DOUBLE_REWARDS",
+      "name": "New Year 2x",
+      "payload": {"multiplier": 2.0}
+    }
+  ],
+
+  "shop": [
+    {
+      "sku": "new_year_2027_pack",
+      "title": "Resolutions Bundle",
+      "description": "Start the year with 1500 💎 gems, 150 ✦ shards, 7 🎫 access cards. One-time per account.",
+      "price_cents": 999,
+      "kind": "GEM_PACK",
+      "per_account_limit": 1,
+      "contents": {"gems": 1500, "shards": 150, "access_cards": 7}
+    }
+  ],
+
+  "event_hero_code": null
+}

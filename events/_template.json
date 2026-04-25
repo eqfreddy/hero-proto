@@ -1,0 +1,34 @@
+{
+  "id": "TEMPLATE_event_2026",
+  "display_name": "Template Event",
+  "starts_at": "2026-01-01T00:00:00Z",
+  "ends_at":   "2026-01-02T00:00:00Z",
+
+  "announcement": {
+    "title": "Event title with optional emoji",
+    "body": "Short paragraph explaining what's live and how long. Keep tone consistent with the corporate-IT satire — players tune out generic 'special offer' copy.",
+    "priority": 50
+  },
+
+  "liveops": [
+    {
+      "kind": "DOUBLE_REWARDS",
+      "name": "Event 2x",
+      "payload": {"multiplier": 2.0}
+    }
+  ],
+
+  "shop": [
+    {
+      "sku": "event_pack",
+      "title": "Event Pack",
+      "description": "What's in the bundle. Make it sound worth it without lying.",
+      "price_cents": 499,
+      "kind": "GEM_PACK",
+      "per_account_limit": 1,
+      "contents": {"gems": 500, "shards": 50}
+    }
+  ],
+
+  "event_hero_code": null
+}

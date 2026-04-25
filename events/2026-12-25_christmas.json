@@ -1,0 +1,48 @@
+{
+  "id": "christmas_2026",
+  "display_name": "Christmas / Year-End Freeze 2026",
+  "starts_at": "2026-12-22T00:00:00Z",
+  "ends_at":   "2026-12-29T00:00:00Z",
+
+  "announcement": {
+    "title": "🎄 Year-end change freeze in effect — celebrate by deploying nothing",
+    "body": "Seven full days of 2x rewards. Every team is technically on-call but nothing is allowed to break per executive order. Holiday gem bundle on the Shop tab. Happy holidays from the burnout warriors.",
+    "priority": 70
+  },
+
+  "liveops": [
+    {
+      "kind": "DOUBLE_REWARDS",
+      "name": "Holiday Freeze 2x",
+      "payload": {"multiplier": 2.0}
+    },
+    {
+      "kind": "BONUS_GEAR_DROPS",
+      "name": "Holiday Drops",
+      "payload": {"chance_add": 0.20}
+    }
+  ],
+
+  "shop": [
+    {
+      "sku": "christmas_2026_starter",
+      "title": "Stocking Stuffer",
+      "description": "800 💎 gems, 80 ✦ shards. Cheap and cheerful.",
+      "price_cents": 499,
+      "kind": "GEM_PACK",
+      "per_account_limit": 1,
+      "contents": {"gems": 800, "shards": 80}
+    },
+    {
+      "sku": "christmas_2026_premium",
+      "title": "Big Red Box",
+      "description": "Year-end blowout: 3000 💎 gems, 300 ✦ shards, 15 🎫 access cards. One-time per account.",
+      "price_cents": 2999,
+      "kind": "GEM_PACK",
+      "per_account_limit": 1,
+      "contents": {"gems": 3000, "shards": 300, "access_cards": 15}
+    }
+  ],
+
+  "event_hero_code": null
+}

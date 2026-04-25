@@ -1,0 +1,39 @@
+{
+  "id": "independence_day_2026",
+  "display_name": "Independence Day 2026",
+  "starts_at": "2026-07-04T04:00:00Z",
+  "ends_at":   "2026-07-06T04:00:00Z",
+
+  "announcement": {
+    "title": "🎆 Independence Day — declaring independence from on-call",
+    "body": "All weekend, 2x rewards plus bonus gear drops. Even the pager system is taking PTO. Snag the Star-Spangled Bundle on the Shop tab — fireworks not included (your team would just escalate them anyway).",
+    "priority": 60
+  },
+
+  "liveops": [
+    {
+      "kind": "DOUBLE_REWARDS",
+      "name": "Independence Day 2x",
+      "payload": {"multiplier": 2.0}
+    },
+    {
+      "kind": "BONUS_GEAR_DROPS",
+      "name": "Independence Day +25% gear",
+      "payload": {"chance_add": 0.25}
+    }
+  ],
+
+  "shop": [
+    {
+      "sku": "independence_day_2026_pack",
+      "title": "Star-Spangled Bundle",
+      "description": "1500 💎 gems, 150 ✦ shards, 7 🎫 access cards. Long weekend prices, one-time per account.",
+      "price_cents": 999,
+      "kind": "GEM_PACK",
+      "per_account_limit": 1,
+      "contents": {"gems": 1500, "shards": 150, "access_cards": 7}
+    }
+  ],
+
+  "event_hero_code": null
+}

@@ -1,0 +1,34 @@
+{
+  "id": "halloween_2026",
+  "display_name": "Halloween 2026",
+  "starts_at": "2026-10-29T00:00:00Z",
+  "ends_at":   "2026-11-01T00:00:00Z",
+
+  "announcement": {
+    "title": "🎃 The legacy server room is haunted again",
+    "body": "Three days of bonus gear drops — the Tape Library Ghost is restless and his cassettes are leaking loot. Costume-themed bundle on the Shop tab. Try not to summon anything you can't kill -9.",
+    "priority": 55
+  },
+
+  "liveops": [
+    {
+      "kind": "BONUS_GEAR_DROPS",
+      "name": "Haunted Drops 2x",
+      "payload": {"chance_add": 0.40}
+    }
+  ],
+
+  "shop": [
+    {
+      "sku": "halloween_2026_pack",
+      "title": "Cursed Cache",
+      "description": "1200 💎 gems, 120 ✦ shards, 6 🎫 access cards. Stained, slightly sticky, but the contents are real.",
+      "price_cents": 999,
+      "kind": "GEM_PACK",
+      "per_account_limit": 1,
+      "contents": {"gems": 1200, "shards": 120, "access_cards": 6}
+    }
+  ],
+
+  "event_hero_code": null
+}
