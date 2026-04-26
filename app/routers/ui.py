@@ -526,9 +526,16 @@ def partial_roster(
     for g in grouped:
         g["has_bust"] = g["code"] in has_bust
         g["has_card"] = g["code"] in has_card
+    # Phase 2.4 — equipped cosmetic frame, if any. Empty string means
+    # vanilla rarity-colored borders. Frame codes map 1:1 to CSS classes
+    # in the partial: `frame-frame_neon_cubicle` etc.
+    active_frame = (account.active_cosmetic_frame or "").strip()
     return templates.TemplateResponse(
         request, "partials/roster.html",
-        {"heroes": grouped, "total": len(rows)},
+        {
+            "heroes": grouped, "total": len(rows),
+            "active_frame": active_frame,
+        },
     )
 
 

@@ -247,6 +247,10 @@ class Account(Base):
     # are pure visual flair on hero cards, no power. PoE2-style: cosmetics
     # are the recurring spend, never stat-boosting items.
     cosmetic_frames_json: Mapped[str] = mapped_column(String(2048), default="[]")
+    # Currently-equipped cosmetic frame code. Must be in cosmetic_frames_json
+    # or empty. Empty string means "no frame" — fallback to the rarity-
+    # colored border on hero cards.
+    active_cosmetic_frame: Mapped[str] = mapped_column(String(64), default="")
 
     # Per-event progression state. Keyed by event id (matches LiveOpsEvent.name's
     # slugified form), value is a dict containing:
@@ -327,6 +331,15 @@ class HeroTemplate(Base):
     basic_mult: Mapped[float] = mapped_column(Float, default=1.0)
     special_json: Mapped[str] = mapped_column(String(1024), default="null")
     special_cooldown: Mapped[int] = mapped_column(Integer, default=0)
+    # Phase 3.1 — melee / ranged attack split. Heroes have one of two
+    # basic-attack channels:
+    #   "melee"  — close-range, no targeting cost, default for ATK/DEF.
+    #   "ranged" — line-of-sight, can ignore frontline, default for
+    #              ranged-flavored ATK/SUP heroes (mages, snipers).
+    # Phase 3.2 will add a player-controlled targeting layer that
+    # consumes this; for now the resolver routes basic damage through
+    # one channel or the other so balance work can start.
+    attack_kind: Mapped[str] = mapped_column(String(8), default="melee")
 
 
 class HeroInstance(Base):

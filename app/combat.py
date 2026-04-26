@@ -109,6 +109,13 @@ class CombatUnit:
     base_atk: int = 0
     base_def: int = 0
 
+    # Phase 3.1 — attack channel. "melee" or "ranged". Phase 3.2 (active
+    # combat UI) will use this to gate which units a player can target;
+    # for now the resolver echoes it on every basic-attack log entry so
+    # the replay viewer can render melee-lunge vs ranged-projectile
+    # animations differently.
+    attack_kind: str = "melee"
+
 
 def _special_scale(level: int) -> float:
     # +10% per level beyond 1 (level 5 = 1.4x).
@@ -508,6 +515,10 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
         log.append({
             "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
             "amount": dealt, "crit": crit, "via": "BASIC",
+            # Phase 3.1 — replay viewer renders melee-lunge vs ranged-
+            # projectile differently. Defaults to melee for backwards
+            # compat with pre-Phase-3 combat logs.
+            "channel": getattr(actor, "attack_kind", "melee"),
         })
         if tgt.dead:
             log.append({"type": "DEATH", "unit": tgt.uid})
@@ -757,6 +768,7 @@ def build_unit(
     stars: int = 1,
     faction: Faction | None = None,
     variance_pct: dict[str, float] | None = None,
+    attack_kind: str = "melee",
 ) -> CombatUnit:
     hp = scale_stat(base_hp, level, stars)
     atk = scale_stat(base_atk, level, stars)
@@ -805,6 +817,7 @@ def build_unit(
         has_violent=bool(active.get("violent")),
         has_lifesteal=bool(active.get("lifesteal")),
         faction=faction,
+        attack_kind=attack_kind if attack_kind in ("melee", "ranged") else "melee",
     )
 
 

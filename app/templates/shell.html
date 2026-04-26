@@ -143,6 +143,35 @@
     </div>
   </div>
 </header>
+
+<!-- Currency banner — always-visible totals so players don't have to hop
+     to /me to check shards/gems/energy mid-flow (bug #7 partial). Click
+     any currency to jump to the Shop tab; energy click deep-links to
+     the energy refill flow. Hidden when no JWT — bare login pages
+     shouldn't show empty currency boxes. -->
+<div id="currency-bar" style="display: none; gap: 6px; padding: 6px 16px; border-bottom: 1px solid var(--border); background: var(--panel); font-size: 12px; flex-wrap: wrap; align-items: center;">
+  <span class="muted" style="margin-right: 4px;">Wallet</span>
+  <span id="cb-gems" class="cb-pill" data-buy="gems_small" title="💎 Gems — premium currency. Click to shop.">💎 0</span>
+  <span id="cb-shards" class="cb-pill" data-buy="shards_pack" title="✦ Shards — summoning currency. Click to shop.">✦ 0</span>
+  <span id="cb-coins" class="cb-pill" title="🪙 Coins — basic currency.">🪙 0</span>
+  <span id="cb-access" class="cb-pill" data-buy="access_cards_pack" title="🎫 Access cards — featured banners.">🎫 0</span>
+  <span id="cb-energy" class="cb-pill" data-action="energy" title="⚡ Energy — battle stamina. Click to refill (gems).">⚡ 0/0</span>
+  <span id="cb-credits" class="cb-pill" title="🎟️ Free summon credits — consumed before shards.">🎟️ 0</span>
+  <span id="cb-level" class="cb-pill" style="margin-left: auto;" title="Account level — separate from per-hero levels.">Lv 1</span>
+</div>
+<style>
+  #currency-bar .cb-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 3px 8px; border-radius: 12px; background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    cursor: default; user-select: none;
+  }
+  #currency-bar .cb-pill[data-buy], #currency-bar .cb-pill[data-action] { cursor: pointer; }
+  #currency-bar .cb-pill[data-buy]:hover, #currency-bar .cb-pill[data-action]:hover {
+    background: rgba(78, 161, 255, 0.12); border-color: var(--accent);
+  }
+</style>
+
 <main>
   <div id="content">
     <!-- Skeleton placeholder while the initial partial loads. HTMX swaps
@@ -169,6 +198,7 @@
 {% block scripts %}
 <script src="/app/static/sound.js"></script>
 <script src="/app/static/toast.js"></script>
+<script src="/app/static/team-picker.js"></script>
 <script>
   // --- Sound settings popover wiring -------------------------------------
   function toggleSoundPopover() {
@@ -240,15 +270,16 @@
       window.sound.play('click');
     }
   }, true);
-  // Signed-in indicator. Pull the display name from /me once on load so the
-  // header matches the Me tab's "signed in as X" pill instead of just
-  // showing a generic "signed in".
+  // Signed-in indicator + currency banner. Both pulled from a single /me
+  // fetch so we don't double-hit the endpoint on every navigation.
   async function refreshWho() {
     const el = document.getElementById('who');
+    const bar = document.getElementById('currency-bar');
     const token = localStorage.getItem('heroproto_jwt');
     if (!token) {
       el.textContent = 'not signed in';
       el.classList.remove('signed-in');
+      if (bar) bar.style.display = 'none';
       return;
     }
     el.classList.add('signed-in');
@@ -258,11 +289,45 @@
         const me = await r.json();
         const name = (me.email || '').split('@')[0] || 'signed in';
         el.textContent = `✓ ${name}`;
+        if (bar) {
+          bar.style.display = 'flex';
+          // Currency totals — read once, update text in place. Click handlers
+          // on `.cb-pill[data-buy]` / `[data-action]` are wired in attachCurrencyBarHandlers.
+          const set = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
+          set('cb-gems', `💎 ${me.gems ?? 0}`);
+          set('cb-shards', `✦ ${me.shards ?? 0}`);
+          set('cb-coins', `🪙 ${me.coins ?? 0}`);
+          set('cb-access', `🎫 ${me.access_cards ?? 0}`);
+          set('cb-energy', `⚡ ${me.energy ?? 0}/${me.energy_cap ?? 0}`);
+          set('cb-credits', `🎟️ ${me.free_summon_credits ?? 0}`);
+          set('cb-level', `Lv ${me.account_level ?? 1}`);
+        }
         return;
       }
     } catch {}
     el.textContent = '✓ signed in';
   }
+
+  // Hook clicks on currency pills — `data-buy` jumps to Shop, `data-action="energy"`
+  // jumps to /me where the energy refill lives. One-shot wiring.
+  function attachCurrencyBarHandlers() {
+    const bar = document.getElementById('currency-bar');
+    if (!bar || bar.dataset.handlersWired === '1') return;
+    bar.dataset.handlersWired = '1';
+    bar.addEventListener('click', (e) => {
+      const pill = e.target.closest('.cb-pill');
+      if (!pill) return;
+      if (pill.dataset.buy) {
+        const tab = document.querySelector('[data-tab="shop"]');
+        if (tab) tab.click();
+      } else if (pill.dataset.action === 'energy') {
+        const tab = document.querySelector('[data-tab="me"]');
+        if (tab) tab.click();
+      }
+    });
+  }
+  attachCurrencyBarHandlers();
+
   document.body.addEventListener('htmx:afterRequest', refreshWho);
   refreshWho();
 

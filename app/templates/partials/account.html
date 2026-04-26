@@ -39,6 +39,15 @@
 <div id="account-panel">
   <h2 style="margin: 0 0 4px;">Account &amp; security</h2>
 
+  <!-- Phase 2.4 — cosmetic frames. Owned via /shop or IAP; equipping
+       changes the roster card border palette. Hidden when the player
+       owns no frames yet. -->
+  <section id="cosmetic-frames-section" style="display: none;">
+    <h3>Cosmetic frame</h3>
+    <p class="desc">Pick a frame for your roster cards. Pure cosmetic — never affects power. Buy more in the Shop.</p>
+    <div id="cosmetic-frames-list" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+  </section>
+
   <section>
     <h3>Active sessions</h3>
     <p class="desc">Each row is a live refresh-token chain — somewhere you're logged in. Revoke individual sessions you don't recognize, or kill them all at once.</p>
@@ -136,6 +145,62 @@
       if (os) parts.push(os[1].replace(/_/g, '.').replace('Windows NT', 'Windows'));
       return parts.join(' · ') || ua.slice(0, 80);
     }
+
+    // Phase 2.4 cosmetic frame picker — owned frames render as click-
+    // chips; equipped one is highlighted; clicking re-equips. "None"
+    // pseudo-chip clears the selection back to vanilla rarity borders.
+    async function loadCosmeticFrames() {
+      try {
+        const me = await fetch('/me', { headers: HDR }).then(r => r.json());
+        const owned = Array.isArray(me.cosmetic_frames) ? me.cosmetic_frames : [];
+        const section = document.getElementById('cosmetic-frames-section');
+        const list = document.getElementById('cosmetic-frames-list');
+        if (!owned.length) {
+          if (section) section.style.display = 'none';
+          return;
+        }
+        if (section) section.style.display = '';
+        const active = me.active_cosmetic_frame || '';
+        const labelFor = code => ({
+          frame_neon_cubicle: 'Neon Cubicle',
+          frame_terminal_green: 'Terminal Green',
+          frame_legacy_brass: 'Legacy Brass',
+          frame_corp_platinum: 'Corp Platinum',
+        }[code] || code);
+        const swatchFor = code => ({
+          frame_neon_cubicle: '#00ffd5',
+          frame_terminal_green: '#4dff7a',
+          frame_legacy_brass: '#c79854',
+          frame_corp_platinum: '#e3e3e8',
+        }[code] || 'var(--border)');
+        const chip = (code, label, color) => {
+          const isActive = active === code;
+          const btn = document.createElement('button');
+          btn.className = 'neutral-btn';
+          btn.style.cssText = `border-color: ${color}; ${isActive ? `background: ${color}; color: var(--bg);` : ''} display: inline-flex; align-items: center; gap: 6px; font-size: 12px;`;
+          btn.innerHTML = `<span style="width:10px; height:10px; border-radius:50%; background:${color};"></span> ${label}${isActive ? ' ✓' : ''}`;
+          btn.onclick = async () => {
+            const r = await fetch('/me/cosmetic-frame', {
+              method: 'POST',
+              headers: { ...HDR, 'content-type': 'application/json' },
+              body: JSON.stringify({ code }),
+            });
+            const body = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              if (window.toast) toast.error(body.detail || `HTTP ${r.status}`);
+              return;
+            }
+            if (window.toast) toast.success(code ? `Equipped ${label}` : 'Frame removed');
+            loadCosmeticFrames();
+          };
+          return btn;
+        };
+        list.innerHTML = '';
+        list.appendChild(chip('', 'None (rarity)', 'var(--border)'));
+        for (const code of owned) list.appendChild(chip(code, labelFor(code), swatchFor(code)));
+      } catch (e) { /* picker is best-effort; don't block the rest of the panel */ }
+    }
+    loadCosmeticFrames();
 
     async function loadSessions() {
       const wrap = document.getElementById('sessions-list');

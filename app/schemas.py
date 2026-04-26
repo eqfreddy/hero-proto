@@ -85,6 +85,8 @@ class MeOut(BaseModel):
     # render the right card frame. List/dict shapes match what /shop grants.
     qol_unlocks: list[str] = []
     cosmetic_frames: list[str] = []
+    # Currently-equipped frame code from cosmetic_frames; empty = no frame.
+    active_cosmetic_frame: str = ""
     hero_slot_cap: int = 50
     gear_slot_cap: int = 200
 
@@ -385,6 +387,12 @@ class LastTeamOut(BaseModel):
 class BattleIn(BaseModel):
     stage_id: int
     team: list[int] = Field(min_length=1, max_length=3)
+    # Phase 2.4 QoL unlock — when the player owns `auto_battle` they can
+    # short-circuit the watch step. Backend still runs the full sim;
+    # this flag is echoed in BattleOut.auto_resolved so the UI knows to
+    # skip the replay viewer and jump straight to the post-mortem.
+    # Setting True without owning the unlock is a no-op (server ignores).
+    auto: bool = False
 
 
 
@@ -402,6 +410,9 @@ class BattleOut(BaseModel):
     participants: list[BattleParticipant] = []
     rewards: dict[str, Any]
     created_at: datetime
+    # Phase 2.4 — true when the player asked for auto-resolve AND owned
+    # the QoL unlock. UI uses this to skip the watch step.
+    auto_resolved: bool = False
 
 
 class SummonOut(BaseModel):

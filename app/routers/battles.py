@@ -62,6 +62,7 @@ def _unit_from_instance(hero: HeroInstance, side: str, idx: int) -> CombatUnit:
         stars=hero.stars,
         faction=_template_faction(t),
         variance_pct=parse_variance(hero.variance_pct_json),
+        attack_kind=getattr(t, "attack_kind", "melee") or "melee",
     )
 
 
@@ -82,6 +83,7 @@ def _unit_from_template(t: HeroTemplate, level: int, side: str, idx: int) -> Com
         special=special,
         special_cooldown=t.special_cooldown,
         faction=_template_faction(t),
+        attack_kind=getattr(t, "attack_kind", "melee") or "melee",
     )
 
 
@@ -347,6 +349,17 @@ def fight(
             "stage_order": stage.order,
         })
 
+    # Phase 2.4 — auto-battle QoL unlock. Only honor the `auto` flag when
+    # the player owns it; otherwise the standard watch flow stays.
+    auto_resolved = False
+    if body.auto:
+        try:
+            owned = json.loads(account.qol_unlocks_json or "{}")
+            if isinstance(owned, dict) and "auto_battle" in owned:
+                auto_resolved = True
+        except json.JSONDecodeError:
+            pass
+
     return BattleOut(
         id=battle.id,
         stage_id=stage.id,
@@ -357,6 +370,7 @@ def fight(
         participants=[BattleParticipant(**p) for p in participants],
         rewards=rewards_extra,
         created_at=battle.created_at,
+        auto_resolved=auto_resolved,
     )
 
 

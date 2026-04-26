@@ -36,16 +36,21 @@
           🔒 clear <code style="color: var(--r-rare);">{{ s.requires_code }}</code> on NORMAL first
         </div>
       {% else %}
-        <div class="row" style="margin-top: 10px; gap: 6px; flex-wrap: wrap;">
-          <select class="team-preset-select" data-stage="{{ s.id }}" style="flex: 0 0 auto;">
-            <option value="">— pick team —</option>
-            <option value="__last__">🕘 Use last team</option>
-            <option value="__preset_divider__" disabled>——— presets ———</option>
-            <!-- filled client-side from /me/team-presets -->
-          </select>
-          <input type="text" id="team-{{ s.id }}" placeholder="hero ids (comma-sep)" style="flex: 1; min-width: 0;" />
-          <button class="primary" onclick="battleStage({{ s.id }})">Battle</button>
-          {% if s.cleared %}<button class="secondary" onclick="sweepStage({{ s.id }})" title="sweep cleared stage">Sweep</button>{% endif %}
+        <div class="row" style="margin-top: 10px; gap: 6px; flex-wrap: wrap; align-items: center;">
+          <button class="primary" onclick="openPickerThenBattle({{ s.id }}, '{{ s.name | replace("'", "&#39;") | safe }}')" title="Pick team with portraits">🎨 Pick team & fight</button>
+          {% if s.cleared %}<button class="secondary" onclick="sweepStage({{ s.id }})" title="sweep cleared stage with last winning team">Sweep</button>{% endif %}
+          <details style="margin-left: auto; font-size: 11px;">
+            <summary class="muted" style="cursor: pointer;">Advanced</summary>
+            <div class="row" style="margin-top: 6px; gap: 4px;">
+              <select class="team-preset-select" data-stage="{{ s.id }}" style="flex: 0 0 auto; font-size: 11px;">
+                <option value="">— preset —</option>
+                <option value="__last__">🕘 Last team</option>
+                <option value="__preset_divider__" disabled>—————</option>
+              </select>
+              <input type="text" id="team-{{ s.id }}" placeholder="ids (comma-sep)" style="flex: 1; min-width: 0; font-size: 11px;" />
+              <button class="secondary" onclick="battleStage({{ s.id }})" style="font-size: 11px;">Battle</button>
+            </div>
+          </details>
         </div>
         <div id="stage-result-{{ s.id }}" style="margin-top: 8px; font-size: 12px;"></div>
       {% endif %}
@@ -135,6 +140,32 @@
 
   // Populate dropdowns once on first render.
   _populatePresetSelects();
+
+  // Bug #6 — portrait-based team picker. Opens the shared modal,
+  // pre-selects last team if any, and on confirm fills the input +
+  // immediately runs the battle.
+  async function openPickerThenBattle(stageId, stageName) {
+    let initial = [];
+    try {
+      const last = await fetch('/me/last-team', { headers: { authorization: 'Bearer ' + (localStorage.getItem('heroproto_jwt') || '') } });
+      if (last.ok) initial = (await last.json()).team || [];
+    } catch {}
+    if (!window.teamPicker) {
+      // Picker JS didn't load — fall back to legacy text input.
+      if (window.toast) toast.error('Picker unavailable. Use Advanced.');
+      return;
+    }
+    teamPicker.open({
+      teamSize: 3,
+      initial,
+      title: 'Pick team — ' + (stageName || 'stage'),
+      onConfirm: (team) => {
+        const inp = document.getElementById('team-' + stageId);
+        if (inp) inp.value = team.join(',');
+        battleStage(stageId);
+      },
+    });
+  }
 
   async function battleStage(stageId) {
     const raw = document.getElementById('team-' + stageId).value;

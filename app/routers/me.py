@@ -63,6 +63,7 @@ def get_me(
         faction=Faction(account.faction) if not isinstance(account.faction, Faction) else account.faction,
         qol_unlocks=qol_codes,
         cosmetic_frames=frame_codes,
+        active_cosmetic_frame=account.active_cosmetic_frame or "",
         hero_slot_cap=account.hero_slot_cap or 50,
         gear_slot_cap=account.gear_slot_cap or 200,
     )
@@ -272,6 +273,21 @@ from app.schemas import LastTeamOut, TeamPresetIn, TeamPresetOut
 
 
 MAX_TEAM_PRESETS = 5
+# Phase 2.4 QoL unlock — owning `extra_team_presets` doubles the cap.
+# Wired here (not in the schema) so it stays a soft toggle: revoking the
+# unlock during a refund clamps new preset creation but doesn't delete
+# existing rows.
+MAX_TEAM_PRESETS_WITH_UNLOCK = 10
+
+
+def _preset_cap_for(account: Account) -> int:
+    try:
+        owned = _json.loads(account.qol_unlocks_json or "{}")
+    except _json.JSONDecodeError:
+        return MAX_TEAM_PRESETS
+    if isinstance(owned, dict) and "extra_team_presets" in owned:
+        return MAX_TEAM_PRESETS_WITH_UNLOCK
+    return MAX_TEAM_PRESETS
 
 
 def _preset_out(p: _TeamPreset) -> TeamPresetOut:
@@ -347,10 +363,13 @@ def upsert_team_preset(
         _select(_TeamPreset).where(_TeamPreset.account_id == account.id)
     )  # at-least-one check via scalar (quick)
     current = db.query(_TeamPreset).filter_by(account_id=account.id).count()
-    if current >= MAX_TEAM_PRESETS:
+    cap = _preset_cap_for(account)
+    if current >= cap:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"max {MAX_TEAM_PRESETS} presets per account — delete one first",
+            f"max {cap} presets per account — delete one first" + (
+                " (own `extra_team_presets` for 10 slots)" if cap == MAX_TEAM_PRESETS else ""
+            ),
         )
 
     preset = _TeamPreset(
@@ -380,6 +399,38 @@ def delete_team_preset(
     db.delete(p)
     db.commit()
     return {"deleted_preset_id": preset_id}
+
+
+# --- Cosmetic frame selection (Phase 2.4) ----------------------------------
+
+
+class CosmeticFrameIn(BaseModel):
+    code: str  # empty string == "remove frame, fall back to rarity border"
+
+
+@router.post("/cosmetic-frame", response_model=dict)
+def set_cosmetic_frame(
+    body: CosmeticFrameIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """Equip a cosmetic frame code the player owns. Empty `code` clears
+    back to the rarity-colored border. 409 if the player doesn't own
+    the requested frame."""
+    code = (body.code or "").strip()
+    if code:
+        try:
+            owned = _json.loads(account.cosmetic_frames_json or "[]")
+        except _json.JSONDecodeError:
+            owned = []
+        if not isinstance(owned, list) or code not in owned:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"frame {code!r} not owned",
+            )
+    account.active_cosmetic_frame = code
+    db.commit()
+    return {"active_cosmetic_frame": account.active_cosmetic_frame}
 
 
 @router.get("/last-team", response_model=LastTeamOut)
