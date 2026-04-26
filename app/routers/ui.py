@@ -282,6 +282,18 @@ def partial_friends(
     return templates.TemplateResponse(request, "partials/friends.html", {})
 
 
+@router.get("/partials/account", response_class=HTMLResponse)
+def partial_account(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    """Account / security panel: active sessions, GDPR data export, 2FA
+    status, password change. All data fetched client-side from /me/sessions
+    + /me + /me/export so the partial itself is just shell + JS."""
+    return templates.TemplateResponse(request, "partials/account.html", {})
+
+
 @router.get("/partials/story", response_class=HTMLResponse)
 def partial_story(
     request: Request,

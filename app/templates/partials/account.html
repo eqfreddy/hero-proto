@@ -1,0 +1,220 @@
+{# Account / security panel.
+   Backed by /me, /me/sessions, /me/sessions/{id}/revoke, /me/sessions/revoke-all,
+   /me/export. All data fetched client-side after this template renders so the
+   partial itself stays cheap and the client can re-fetch on revoke without a
+   full HTMX swap. #}
+
+<style>
+  #account-panel { display: flex; flex-direction: column; gap: 18px; max-width: 760px; }
+  #account-panel section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  #account-panel h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  #account-panel .desc { font-size: 12px; color: var(--muted); margin: 0 0 12px; line-height: 1.5; }
+  .session-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-2, var(--bg));
+    margin-bottom: 8px;
+  }
+  .session-row.is-current { border-color: var(--accent, #4ea1ff); }
+  .session-row .meta { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .session-row .meta span.current { color: var(--accent, #4ea1ff); font-weight: 600; }
+  .session-row .ua { font-size: 11px; color: var(--muted); word-break: break-word; opacity: 0.85; }
+  .session-row button { background: transparent; border: 1px solid var(--bad, #ff6b4a); color: var(--bad, #ff6b4a); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+  .session-row button:hover { background: var(--bad, #ff6b4a); color: var(--bg); }
+  .session-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #account-panel .danger-btn { background: transparent; border: 1px solid var(--bad, #ff6b4a); color: var(--bad, #ff6b4a); padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  #account-panel .danger-btn:hover { background: var(--bad, #ff6b4a); color: var(--bg); }
+  #account-panel .neutral-btn { background: var(--panel-2, var(--bg)); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  #account-panel .neutral-btn:hover { border-color: var(--accent, #4ea1ff); }
+  #account-panel .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .twofa-status { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+  .twofa-status.on  { background: rgba(45,208,106,0.15); color: var(--good, #2ad06a); }
+  .twofa-status.off { background: rgba(255,107,74,0.15); color: var(--bad, #ff6b4a); }
+</style>
+
+<div id="account-panel">
+  <h2 style="margin: 0 0 4px;">Account &amp; security</h2>
+
+  <section>
+    <h3>Active sessions</h3>
+    <p class="desc">Each row is a live refresh-token chain — somewhere you're logged in. Revoke individual sessions you don't recognize, or kill them all at once.</p>
+    <div id="sessions-list">
+      <span class="skeleton skeleton-line tall"></span>
+      <span class="skeleton skeleton-line"></span>
+      <span class="skeleton skeleton-line medium"></span>
+    </div>
+    <div class="row" style="margin-top: 10px;">
+      <button class="danger-btn" id="revoke-all-btn">Revoke all sessions</button>
+    </div>
+  </section>
+
+  <section>
+    <h3>Two-factor authentication</h3>
+    <p class="desc">Adds a TOTP code to login and high-risk actions. Recovery codes generated at setup — keep them somewhere safe.</p>
+    <div id="twofa-status">
+      <span class="skeleton skeleton-line short"></span>
+    </div>
+  </section>
+
+  <section>
+    <h3>Data export</h3>
+    <p class="desc">GDPR Article 20 — full dump of everything we hold about your account. Downloads as JSON. Rate-limited to 1 / minute / account.</p>
+    <button class="neutral-btn" id="export-btn">Download my data (JSON)</button>
+  </section>
+</div>
+
+<script>
+  (function () {
+    const TOKEN = localStorage.getItem('heroproto_jwt');
+    if (!TOKEN) {
+      document.getElementById('account-panel').innerHTML =
+        '<div class="loading">Sign in to view your account.</div>';
+      return;
+    }
+    const HDR = { 'authorization': 'Bearer ' + TOKEN };
+
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      return d.toLocaleString();
+    }
+
+    function shortUA(ua) {
+      if (!ua) return 'unknown';
+      // Trim noise: just keep the main browser/os signal.
+      const m = ua.match(/(Chrome|Firefox|Safari|Edge|Opera)\/[\d.]+/);
+      const os = ua.match(/(Windows NT [\d.]+|Mac OS X [\d_.]+|Linux|Android [\d.]+|iPhone OS [\d_]+|iPad)/);
+      const parts = [];
+      if (m) parts.push(m[1]);
+      if (os) parts.push(os[1].replace(/_/g, '.').replace('Windows NT', 'Windows'));
+      return parts.join(' · ') || ua.slice(0, 80);
+    }
+
+    async function loadSessions() {
+      const wrap = document.getElementById('sessions-list');
+      try {
+        const r = await fetch('/me/sessions', { headers: HDR });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const sessions = await r.json();
+        if (!sessions.length) {
+          wrap.innerHTML = '<div class="desc">No active sessions found.</div>';
+          return;
+        }
+        wrap.innerHTML = sessions.map(s => `
+          <div class="session-row${s.is_current ? ' is-current' : ''}">
+            <div>
+              <div class="meta">
+                ${s.is_current ? '<span class="current">● this device</span>' : ''}
+                <span>IP: ${s.ip || '—'}</span>
+                <span>Issued: ${fmtDate(s.issued_at)}</span>
+                <span>Last used: ${fmtDate(s.last_used_at)}</span>
+                <span>Expires: ${fmtDate(s.expires_at)}</span>
+              </div>
+              <div class="ua">${shortUA(s.user_agent)}</div>
+            </div>
+            <div>
+              <button data-revoke="${s.id}"${s.is_current ? ' disabled title="Sign out instead — revoking your current session leaves you stuck"' : ''}>
+                Revoke
+              </button>
+            </div>
+          </div>
+        `).join('');
+        wrap.querySelectorAll('button[data-revoke]').forEach(b => {
+          b.addEventListener('click', () => revokeSession(Number(b.dataset.revoke)));
+        });
+      } catch (e) {
+        wrap.innerHTML = `<div class="desc" style="color: var(--bad);">Failed to load sessions: ${e.message}</div>`;
+      }
+    }
+
+    async function revokeSession(id) {
+      try {
+        const r = await fetch(`/me/sessions/${id}/revoke`, { method: 'POST', headers: HDR });
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          if (window.toast) toast.error(body.detail || `HTTP ${r.status}`);
+          return;
+        }
+        if (window.toast) toast.success('Session revoked.');
+        loadSessions();
+      } catch (e) {
+        if (window.toast) toast.error('Network error: ' + e.message);
+      }
+    }
+
+    async function revokeAll() {
+      if (!confirm('Sign out of every device? You\'ll need to log in again here, too.')) return;
+      try {
+        const r = await fetch('/me/sessions/revoke-all', { method: 'POST', headers: HDR });
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          if (window.toast) toast.error(body.detail || `HTTP ${r.status}`);
+          return;
+        }
+        const body = await r.json();
+        if (window.toast) toast.success(`Revoked ${body.revoked} session${body.revoked === 1 ? '' : 's'}. Redirecting to login…`);
+        // The current access token died with the rest. Drop the JWT and bounce.
+        localStorage.removeItem('heroproto_jwt');
+        setTimeout(() => location.reload(), 1200);
+      } catch (e) {
+        if (window.toast) toast.error('Network error: ' + e.message);
+      }
+    }
+
+    async function loadTwoFA() {
+      const wrap = document.getElementById('twofa-status');
+      try {
+        const r = await fetch('/me', { headers: HDR });
+        const me = await r.json();
+        const on = !!me.totp_enabled;
+        wrap.innerHTML = on
+          ? '<span class="twofa-status on">ENABLED</span>  <span class="desc" style="margin: 0;">Disable from /auth/2fa/disable.</span>'
+          : '<span class="twofa-status off">DISABLED</span>  <span class="desc" style="margin: 0;">Set up via /auth/2fa/setup.</span>';
+      } catch (e) {
+        wrap.innerHTML = `<div class="desc" style="color: var(--bad);">Failed to load 2FA status.</div>`;
+      }
+    }
+
+    async function downloadExport() {
+      const btn = document.getElementById('export-btn');
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = 'Preparing…';
+      try {
+        const r = await fetch('/me/export', { headers: HDR });
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          if (window.toast) toast.error(body.detail || `HTTP ${r.status}`);
+          return;
+        }
+        const data = await r.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const ts = new Date().toISOString().slice(0, 10);
+        a.download = `hero-proto-export-${ts}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (window.toast) toast.success('Export downloaded.');
+      } catch (e) {
+        if (window.toast) toast.error('Network error: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    }
+
+    document.getElementById('revoke-all-btn').addEventListener('click', revokeAll);
+    document.getElementById('export-btn').addEventListener('click', downloadExport);
+    loadSessions();
+    loadTwoFA();
+  })();
+</script>

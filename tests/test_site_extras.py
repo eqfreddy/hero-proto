@@ -138,3 +138,43 @@ def test_sitemap_includes_new_pages(client) -> None:
     body = r.text
     for path in ("/devblog", "/roadmap", "/status"):
         assert path in body, f"sitemap missing {path}"
+
+
+# --- Account / security partial ---------------------------------------------
+
+
+def test_account_partial_requires_auth(client) -> None:
+    r = client.get("/app/partials/account")
+    assert r.status_code == 401
+
+
+def test_account_partial_renders_for_authed_user(client) -> None:
+    """The partial is mostly client-side fetches; just verify it includes the
+    expected wiring so a future refactor doesn't silently break the panel."""
+    import random
+    email = f"acct+{random.randint(100000, 999999)}@example.com"
+    r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
+    token = r.json()["access_token"]
+    r = client.get("/app/partials/account", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    body = r.text
+    # Three sections, three endpoints, plus the JWT key the JS reads.
+    for marker in (
+        "Active sessions",
+        "Two-factor authentication",
+        "Data export",
+        "/me/sessions",
+        "/me/sessions/revoke-all",
+        "/me/export",
+        "heroproto_jwt",
+    ):
+        assert marker in body, f"account partial missing marker: {marker!r}"
+
+
+def test_account_tab_in_shell_nav(client) -> None:
+    """The shell's tab bar should include the Account button so users can
+    actually reach the panel."""
+    r = client.get("/app/")
+    body = r.text
+    assert 'data-tab="account"' in body
+    assert "/app/partials/account" in body
