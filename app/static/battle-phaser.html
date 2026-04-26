@@ -334,7 +334,14 @@
             break;
           case "SPECIAL":
             this.setActing(e.unit);
-            this.floatText(e.unit, e.name || "special", 0xffd86b);
+            if (e.kind === "BOSS_PHASE") {
+              // Boss phase change — full cinematic. Rest of the log is fine
+              // to fire over the top once the banner has bloomed; the bg
+              // flash + camera shake just sit on top for ~700ms.
+              this.bossPhaseCinematic(e.unit, e.name || "Boss Phase");
+            } else {
+              this.floatText(e.unit, e.name || "special", 0xffd86b);
+            }
             break;
           case "LIFESTEAL":
             this.floatText(e.unit, "+" + (e.amount || 0), 0x6dd39a);
@@ -587,6 +594,55 @@
         });
         this.floatText(defenderUid, "reflect!", 0xc080ff);
         if (amount > 0) this.floatText(attackerUid, "-" + amount, 0xc080ff, 18);
+      }
+
+      // Boss phase change — drama dial up. Red flash washes the canvas, the
+      // camera shakes, and a name banner blooms in the middle. Used only by
+      // raid-boss BOSS_PHASE specials; hero specials still use the modest
+      // yellow floatText. The flash + shake stack on top of regular events
+      // (the AOE damage hits firing immediately after) so timing stays tight.
+      bossPhaseCinematic(uid, name) {
+        // Full-screen red flash.
+        const flash = this.add.rectangle(
+          CANVAS_W / 2, CANVAS_H / 2, CANVAS_W, CANVAS_H, 0xff3300, 0.55
+        ).setDepth(200);
+        this.tweens.add({
+          targets: flash, alpha: 0, duration: 500, ease: "Quad.in",
+          onComplete: () => flash.destroy(),
+        });
+        // Camera shake — meaty.
+        this.cameras.main.shake(380, 0.012);
+        // Name banner — slams in from above, lingers, fades.
+        const banner = this.add.text(CANVAS_W / 2, CANVAS_H / 2 - 40, name, {
+          fontSize: "44px", color: "#ffffff",
+          fontFamily: "system-ui, sans-serif", fontStyle: "bold",
+          stroke: "#7a0000", strokeThickness: 8,
+          backgroundColor: "rgba(0,0,0,0.75)",
+          padding: { x: 24, y: 10 },
+        }).setOrigin(0.5).setAlpha(0).setScale(1.6).setDepth(210);
+        this.tweens.add({
+          targets: banner,
+          alpha: { from: 0, to: 1 },
+          scale: { from: 1.6, to: 1.0 },
+          duration: 250, ease: "Back.out",
+          onComplete: () => {
+            this.time.delayedCall(900, () => {
+              this.tweens.add({
+                targets: banner, alpha: 0, y: CANVAS_H / 2 - 70,
+                duration: 350, ease: "Quad.in",
+                onComplete: () => banner.destroy(),
+              });
+            });
+          },
+        });
+        // Pulse the boss's selection ring brighter so the eye lands on them.
+        const s = this.state[uid];
+        if (s) {
+          this.tweens.add({
+            targets: s.ring, alpha: { from: 1, to: 0.4 },
+            duration: 300, yoyo: true, repeat: 1,
+          });
+        }
       }
 
       // Top banner shown once per side when their faction synergy kicks in.

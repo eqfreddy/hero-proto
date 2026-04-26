@@ -327,7 +327,17 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
         stype = spec.get("type", "DAMAGE")
         selector = spec.get("target", "enemy_lowest_hp")
         scale = _special_scale(actor.special_level)
-        log.append({"type": "SPECIAL", "unit": actor.uid, "name": spec.get("name", "special"), "sl": actor.special_level})
+        # `kind` carries the special's type (DAMAGE / AOE_DAMAGE / HEAL / etc.)
+        # so the replay viewer can pick a presentation per kind — boss specials
+        # in particular get a phase-change cinematic instead of the standard
+        # yellow caption used for hero specials.
+        log.append({
+            "type": "SPECIAL",
+            "unit": actor.uid,
+            "name": spec.get("name", "special"),
+            "sl": actor.special_level,
+            "kind": stype,
+        })
 
         def _scaled_effect(eff: dict) -> dict:
             """Return a copy of an effect with `value` bumped by special_level."""
