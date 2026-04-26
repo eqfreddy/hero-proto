@@ -221,8 +221,9 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] Device fingerprinting for refresh-token anomaly detection
 
 ### Guilds
-- [ ] Promote / transfer endpoints (Sprint B)
-- [ ] Application / invite flow (Sprint B)
+- [x] Promote / transfer endpoints — `/guilds/{id}/{promote,demote,transfer,kick}/{account_id}` already shipped
+- [x] Application flow — `/guilds/{id}/apply` + `/guilds/applications/{id}/{accept,reject}` already shipped
+- [x] Invite flow — `GuildInvite` model + 6 endpoints (invite/accept/reject/cancel/list outgoing/list mine), 10 lifecycle tests. See "Guild invite flow (2026-04-25)" below.
 - [ ] Soft-delete / archive for messages
 - [ ] Per-guild achievements / milestones
 
@@ -233,9 +234,9 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] Boss-only unique specials (`BOSS_PHASE` type — see Combat depth log)
 
 ### LiveOps
-- [ ] Scheduled future events (`starts_at` in the future — admin endpoint always uses `now`)
-- [ ] Preview endpoint for upcoming / not-yet-started events
-- [ ] Seed event for `BONUS_GEAR_DROPS` kind
+- [x] Scheduled future events — admin POST /admin/liveops accepts `starts_at` (defaults to now), bounded ±5min/+90d
+- [x] Preview endpoint for upcoming / not-yet-started events — `GET /liveops/scheduled?horizon_days=N`
+- [x] Seed event for `BONUS_GEAR_DROPS` kind — `events/2026-07-04_summer_slowdown.json` ships one
 
 ### Content
 - [ ] See Sprint D
@@ -391,6 +392,28 @@ Output format for everything on this list: **paste the final file(s) back here i
 - Active sessions: `GET /me/sessions`, single + bulk revoke; refresh tokens carry IP/UA/last_used_at (migration `3aa50c822bb6`)
 - GDPR art. 20 export: `GET /me/export` — full account dump w/ secrets redacted + per-table caps
 - Per-IP guild-chat rate limit layered alongside per-account bucket
+
+**Guild invite flow (2026-04-25)**
+The inverse of /guilds/.../apply: leader/officer asks a specific player; the
+player decides. Lifecycle and statuses match GuildApplication — same
+PENDING/ACCEPTED/REJECTED/WITHDRAWN states.
+- New `GuildInvite` model (`app/models.py`) + alembic migration
+  `50b27201679e_add_guild_invites`. Fields: account_id (target), guild_id,
+  inviter_id (NULL on inviter delete), status, message, created_at, decided_at.
+- Six endpoints in `app/routers/guilds.py`:
+  - `POST /guilds/{id}/invite/{account_id}` — officer-only, validates target
+    isn't banned / already in a guild / already pending invited
+  - `GET  /guilds/{id}/invites?include_decided=` — officer view
+  - `GET  /guilds/invites/mine` — invitee view
+  - `POST /guilds/invites/{id}/accept` — joins, auto-rejects all other
+    pending invites for the player
+  - `POST /guilds/invites/{id}/reject`
+  - `DELETE /guilds/invites/{id}` — officer cancels (WITHDRAWN)
+- 10 new tests in `tests/test_guild_invites.py` covering pending→accepted,
+  reject, officer cancel, member-cannot-invite, duplicate guard, can't
+  invite a player already in a guild, first-accept-wins auto-reject of
+  competing invites, outgoing-list authz, accept-wrong-recipient 404,
+  banned-target 409.
 
 **Sprint D close — Raid depth (2026-04-25)**
 Three of four items in Sprint D were already in the codebase (`_auto_rotate_raids`,

@@ -639,6 +639,40 @@ class GuildApplication(Base):
     )
 
 
+class GuildInvite(Base):
+    """Guild-initiated counterpart to GuildApplication: leader/officer asks a
+    specific player to join. The invitee accepts (joins) or rejects. Same
+    PENDING/ACCEPTED/REJECTED/WITHDRAWN lifecycle as applications, just
+    inverted: `inviter_id` is the officer who issued it, `account_id` is the
+    target player.
+
+    A player can have multiple PENDING invites from different guilds — first
+    accept wins, the rest auto-reject when the player gains a guild membership.
+    """
+
+    __tablename__ = "guild_invites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Target player (the one who decides).
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    guild_id: Mapped[int] = mapped_column(
+        ForeignKey("guilds.id", ondelete="CASCADE"), index=True
+    )
+    # Officer/leader who issued the invite. SET NULL on delete so the audit
+    # trail outlives the inviter's account.
+    inviter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[GuildApplicationStatus] = mapped_column(
+        String(16), default=GuildApplicationStatus.PENDING, index=True
+    )
+    message: Mapped[str] = mapped_column(String(256), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+
 class GuildMessage(Base):
     __tablename__ = "guild_messages"
 

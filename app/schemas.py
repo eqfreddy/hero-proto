@@ -257,6 +257,25 @@ class GuildApplicationOut(BaseModel):
     reviewed_by: int | None
 
 
+class GuildInviteIn(BaseModel):
+    message: str = Field(default="", max_length=256)
+
+
+class GuildInviteOut(BaseModel):
+    id: int
+    guild_id: int
+    guild_name: str
+    guild_tag: str
+    account_id: int
+    invitee_name: str
+    inviter_id: int | None
+    inviter_name: str
+    status: str
+    message: str
+    created_at: datetime
+    decided_at: datetime | None
+
+
 class GuildMessageIn(BaseModel):
     body: str = Field(min_length=1, max_length=512)
 

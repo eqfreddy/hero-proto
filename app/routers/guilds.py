@@ -16,6 +16,7 @@ from app.models import (
     Guild,
     GuildApplication,
     GuildApplicationStatus,
+    GuildInvite,
     GuildMember,
     GuildMessage,
     GuildRole,
@@ -26,6 +27,8 @@ from app.schemas import (
     GuildApplicationOut,
     GuildCreateIn,
     GuildDetailOut,
+    GuildInviteIn,
+    GuildInviteOut,
     GuildMemberOut,
     GuildMessageIn,
     GuildMessageOut,
@@ -522,3 +525,206 @@ def withdraw_application(
     db.commit()
     db.refresh(a)
     return _app_out(db, a)
+
+
+# --- Guild-initiated invites (the inverse of applications) -------------------
+#
+# Application = player asks to join, leader/officer reviews.
+# Invite      = leader/officer asks a player to join, player reviews.
+#
+# Same PENDING/ACCEPTED/REJECTED/WITHDRAWN lifecycle. A player may have many
+# pending invites at once; first accept wins and the rest auto-reject because
+# they suddenly already have a guild membership.
+
+
+def _name_or_gone(account: Account | None) -> str:
+    if account is None:
+        return "[gone]"
+    return account.email.split("@")[0]
+
+
+def _invite_out(db: Session, inv: GuildInvite) -> GuildInviteOut:
+    g = db.get(Guild, inv.guild_id)
+    invitee = db.get(Account, inv.account_id)
+    inviter = db.get(Account, inv.inviter_id) if inv.inviter_id else None
+    return GuildInviteOut(
+        id=inv.id,
+        guild_id=inv.guild_id,
+        guild_name=g.name if g else "[deleted]",
+        guild_tag=g.tag if g else "",
+        account_id=inv.account_id,
+        invitee_name=_name_or_gone(invitee),
+        inviter_id=inv.inviter_id,
+        inviter_name=_name_or_gone(inviter),
+        status=str(inv.status),
+        message=inv.message,
+        created_at=inv.created_at,
+        decided_at=inv.decided_at,
+    )
+
+
+def _require_officer(m: GuildMember) -> None:
+    if m.role not in (GuildRole.LEADER, GuildRole.OFFICER):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "leaders/officers only")
+
+
+@router.post(
+    "/{guild_id}/invite/{account_id}",
+    response_model=GuildInviteOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def invite_player(
+    guild_id: int,
+    account_id: int,
+    body: GuildInviteIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildInviteOut:
+    """Leader/officer extends an invite to a specific player."""
+    membership = _require_membership(db, account, guild_id)
+    _require_officer(membership)
+    target = db.get(Account, account_id)
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "player not found")
+    if target.is_banned:
+        raise HTTPException(status.HTTP_409_CONFLICT, "cannot invite a banned account")
+    if target.id == account.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "you're already in this guild")
+    # Reject if target is already in any guild — they need to /leave first.
+    if db.get(GuildMember, target.id) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "player already belongs to a guild")
+    if _member_count(db, guild_id) >= MAX_GUILD_SIZE:
+        raise HTTPException(status.HTTP_409_CONFLICT, "guild is full")
+    # Avoid duplicate pending invites from the same guild.
+    existing = db.scalar(
+        select(GuildInvite).where(
+            GuildInvite.account_id == target.id,
+            GuildInvite.guild_id == guild_id,
+            GuildInvite.status == GuildApplicationStatus.PENDING,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "an invite is already pending for this player")
+    inv = GuildInvite(
+        account_id=target.id,
+        guild_id=guild_id,
+        inviter_id=account.id,
+        message=body.message.strip(),
+    )
+    db.add(inv)
+    db.commit()
+    db.refresh(inv)
+    return _invite_out(db, inv)
+
+
+@router.get("/{guild_id}/invites", response_model=list[GuildInviteOut])
+def list_outgoing_invites(
+    guild_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+    include_decided: bool = False,
+) -> list[GuildInviteOut]:
+    """Officers/leader see invites their guild has sent. Pending only by default."""
+    membership = _require_membership(db, account, guild_id)
+    _require_officer(membership)
+    stmt = select(GuildInvite).where(GuildInvite.guild_id == guild_id)
+    if not include_decided:
+        stmt = stmt.where(GuildInvite.status == GuildApplicationStatus.PENDING)
+    stmt = stmt.order_by(GuildInvite.created_at.desc()).limit(200)
+    return [_invite_out(db, inv) for inv in db.scalars(stmt)]
+
+
+@router.get("/invites/mine", response_model=list[GuildInviteOut])
+def list_my_invites(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 50,
+) -> list[GuildInviteOut]:
+    """All invites addressed to the caller, newest first, capped per call."""
+    limit = max(1, min(200, limit))
+    rows = db.scalars(
+        select(GuildInvite)
+        .where(GuildInvite.account_id == account.id)
+        .order_by(GuildInvite.created_at.desc())
+        .limit(limit)
+    )
+    return [_invite_out(db, inv) for inv in rows]
+
+
+def _load_invite_for_invitee(db: Session, account: Account, invite_id: int) -> GuildInvite:
+    inv = db.get(GuildInvite, invite_id)
+    if inv is None or inv.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "invite not found")
+    if inv.status != GuildApplicationStatus.PENDING:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"invite already {inv.status}")
+    return inv
+
+
+@router.post("/invites/{invite_id}/accept", response_model=GuildDetailOut)
+def accept_invite(
+    invite_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildDetailOut:
+    inv = _load_invite_for_invitee(db, account, invite_id)
+    if db.get(GuildMember, account.id) is not None:
+        # Player joined another guild between the invite and accept — auto-reject.
+        inv.status = GuildApplicationStatus.REJECTED
+        inv.decided_at = utcnow()
+        db.commit()
+        raise HTTPException(status.HTTP_409_CONFLICT, "you're already in a guild")
+    if _member_count(db, inv.guild_id) >= MAX_GUILD_SIZE:
+        raise HTTPException(status.HTTP_409_CONFLICT, "guild is full")
+    db.add(GuildMember(account_id=account.id, guild_id=inv.guild_id, role=GuildRole.MEMBER))
+    inv.status = GuildApplicationStatus.ACCEPTED
+    inv.decided_at = utcnow()
+    # Auto-reject all other pending invites this player has — they now have a guild.
+    for other in db.scalars(
+        select(GuildInvite).where(
+            GuildInvite.account_id == account.id,
+            GuildInvite.id != inv.id,
+            GuildInvite.status == GuildApplicationStatus.PENDING,
+        )
+    ):
+        other.status = GuildApplicationStatus.REJECTED
+        other.decided_at = utcnow()
+    db.commit()
+    return _detail(db, inv.guild_id)  # type: ignore[return-value]
+
+
+@router.post("/invites/{invite_id}/reject", response_model=GuildInviteOut)
+def reject_invite(
+    invite_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildInviteOut:
+    inv = _load_invite_for_invitee(db, account, invite_id)
+    inv.status = GuildApplicationStatus.REJECTED
+    inv.decided_at = utcnow()
+    db.commit()
+    db.refresh(inv)
+    return _invite_out(db, inv)
+
+
+@router.delete("/invites/{invite_id}", response_model=GuildInviteOut)
+def cancel_invite(
+    invite_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildInviteOut:
+    """Leader/officer cancels a still-pending invite they (or another officer) sent.
+    Rejected/accepted invites can't be 'cancelled' — they're already terminal."""
+    inv = db.get(GuildInvite, invite_id)
+    if inv is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "invite not found")
+    membership = db.get(GuildMember, account.id)
+    if membership is None or membership.guild_id != inv.guild_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "not a member of this guild")
+    _require_officer(membership)
+    if inv.status != GuildApplicationStatus.PENDING:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"invite already {inv.status}")
+    inv.status = GuildApplicationStatus.WITHDRAWN
+    inv.decided_at = utcnow()
+    db.commit()
+    db.refresh(inv)
+    return _invite_out(db, inv)
