@@ -1,0 +1,136 @@
+{
+  "name": "hero-proto — Phase 2 launch dashboard",
+  "description": "Acceptance-criteria insights for hero-proto Phase 2 analytics. Import via PostHog Settings → Project → Apps → Import dashboard, or copy individual insights manually. All filters scope to env=prod by default — change to env=staging or remove the filter for full visibility.",
+  "tags": ["hero-proto", "phase-2", "launch"],
+  "filters": {
+    "properties": [
+      {"key": "env", "value": "prod", "operator": "exact", "type": "event"}
+    ],
+    "date_from": "-30d"
+  },
+  "insights": [
+    {
+      "name": "Daily active users",
+      "description": "Unique distinct_id per day on any event. Phase 2 acceptance: dashboard shows live events from staging walkthrough.",
+      "filters": {
+        "insight": "TRENDS",
+        "events": [{"id": "$pageview", "type": "events", "math": "dau"}],
+        "interval": "day",
+        "date_from": "-30d"
+      }
+    },
+    {
+      "name": "First-purchase funnel — register → first stage clear → first purchase",
+      "description": "Phase 2 acceptance funnel #1. Conversion windows: 24h / 7d / 30d.",
+      "filters": {
+        "insight": "FUNNELS",
+        "events": [
+          {"id": "register", "order": 0, "type": "events"},
+          {"id": "stage_clear", "order": 1, "type": "events", "properties": [{"key": "won", "value": true, "type": "event"}]},
+          {"id": "purchase_complete", "order": 2, "type": "events"}
+        ],
+        "funnel_window_days": 30,
+        "funnel_viz_type": "steps"
+      }
+    },
+    {
+      "name": "First-fight funnel — register → first stage start → first stage clear",
+      "description": "Tutorial / onboarding drop-off detector.",
+      "filters": {
+        "insight": "FUNNELS",
+        "events": [
+          {"id": "register", "order": 0, "type": "events"},
+          {"id": "stage_start", "order": 1, "type": "events"},
+          {"id": "stage_clear", "order": 2, "type": "events"}
+        ],
+        "funnel_window_days": 1,
+        "funnel_viz_type": "steps"
+      }
+    },
+    {
+      "name": "Pull-to-battle funnel — register → first summon → first stage start",
+      "description": "Catches players who pull but never fight.",
+      "filters": {
+        "insight": "FUNNELS",
+        "events": [
+          {"id": "register", "order": 0, "type": "events"},
+          {"id": "summon_x1", "order": 1, "type": "events"},
+          {"id": "stage_start", "order": 2, "type": "events"}
+        ],
+        "funnel_window_days": 7,
+        "funnel_viz_type": "steps"
+      }
+    },
+    {
+      "name": "Daily bonus claim — total per day",
+      "description": "Retention loop signal. Watch for streak_after distribution and was_reset rate as separate insights.",
+      "filters": {
+        "insight": "TRENDS",
+        "events": [{"id": "daily_bonus_claim", "type": "events", "math": "total"}],
+        "interval": "day",
+        "date_from": "-30d"
+      }
+    },
+    {
+      "name": "Pull rarity distribution — summon_x10 best_rarity",
+      "description": "Stacked bar by best_rarity property. Sanity-check pity + rarity weights match seed config.",
+      "filters": {
+        "insight": "TRENDS",
+        "events": [{"id": "summon_x10", "type": "events", "math": "total"}],
+        "breakdown": "best_rarity",
+        "breakdown_type": "event",
+        "interval": "day",
+        "display": "ActionsBar"
+      }
+    },
+    {
+      "name": "Stage progression — first_clear by stage_order",
+      "description": "Where players plateau. Bar chart, X = stage_order, Y = first_clear count. Look for cliffs.",
+      "filters": {
+        "insight": "TRENDS",
+        "events": [{"id": "first_clear", "type": "events", "math": "total"}],
+        "breakdown": "stage_order",
+        "breakdown_type": "event",
+        "display": "ActionsBar",
+        "date_from": "-30d"
+      }
+    },
+    {
+      "name": "Arena win rate",
+      "description": "Daily count of arena_attack with won=true vs total. Should hover near 50% in a balanced bracket.",
+      "filters": {
+        "insight": "TRENDS",
+        "events": [
+          {"id": "arena_attack", "order": 0, "type": "events", "math": "total", "name": "all attacks"},
+          {"id": "arena_attack", "order": 1, "type": "events", "math": "total", "name": "wins", "properties": [{"key": "won", "value": true, "type": "event"}]}
+        ],
+        "interval": "day",
+        "date_from": "-30d"
+      }
+    },
+    {
+      "name": "Raid activity",
+      "description": "raid_attack per day, broken down by tier. Boss-defeat rate is a separate insight.",
+      "filters": {
+        "insight": "TRENDS",
+        "events": [{"id": "raid_attack", "type": "events", "math": "total"}],
+        "breakdown": "tier",
+        "breakdown_type": "event",
+        "interval": "day",
+        "display": "ActionsLineGraph"
+      }
+    },
+    {
+      "name": "Revenue — purchase_complete count by processor",
+      "description": "Stacked area by processor (mock / apple / google). Sum of price_cents is a separate insight using the SUM math + price_cents property.",
+      "filters": {
+        "insight": "TRENDS",
+        "events": [{"id": "purchase_complete", "type": "events", "math": "total"}],
+        "breakdown": "processor",
+        "breakdown_type": "event",
+        "interval": "day",
+        "display": "ActionsAreaGraph"
+      }
+    }
+  ]
+}

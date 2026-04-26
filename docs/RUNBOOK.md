@@ -474,6 +474,61 @@ Recommended PostHog dashboard rows:
 6. **Raid activity**: `raid_attack` per day, average `damage_dealt`, `boss_defeated` rate.
 7. **Revenue**: `purchase_complete` count by `processor`, sum of `price_cents` per day.
 
+### Bring-up — recommended order
+
+For alpha, **PostHog Cloud is the fast path** (~10 minutes to working dashboard). Self-host later if you need the data on your own infra.
+
+**1. Get a project key.**
+
+PostHog Cloud:
+- Sign up at https://app.posthog.com.
+- Create a project named `hero-proto` (or whatever).
+- Copy the *Project API Key* (starts with `phc_`) from Settings → Project → Project API key.
+
+Self-hosted: `posthog setup` from a fresh `posthog/posthog` Docker image; the API key is shown in the UI after admin signup. PostHog's `docker-compose.yml` is reasonable but pulls Postgres + Redis + ClickHouse + Kafka — plan for a 4 CPU / 8 GB box at minimum.
+
+**2. Set the env vars + install the runtime dep.**
+
+```sh
+# In your prod .env / Fly secrets / Railway vars / wherever:
+HEROPROTO_POSTHOG_API_KEY=phc_<your project key>
+HEROPROTO_POSTHOG_HOST=https://app.posthog.com   # or your self-hosted URL
+
+# In your deploy image / one-shot:
+uv sync --extra analytics-runtime
+```
+
+If the dep isn't installed, the wrapper logs one warning and stays no-op — no crashes. But events also don't ship.
+
+**3. Verify the wiring.**
+
+Run the smoke test from your deployed environment (where the env vars are set):
+
+```sh
+uv run python -m scripts.verify_analytics
+```
+
+It fires one of each of the 12 events with a synthetic distinct_id and prints what to look for in the PostHog UI. Open Activity → Live events and filter by the printed `distinct_id`; you should see all 12 events within ~30s.
+
+```sh
+# Alternate: pin the distinct_id so you can re-find it later
+uv run python -m scripts.verify_analytics --distinct-id smoke-2026-04-26
+```
+
+**4. Import the starter dashboard.**
+
+`scripts/posthog_dashboard.json` carries 10 starter insights covering the four Phase 2 acceptance funnels + DAU + retention + monetization signals. Import via PostHog → Dashboard → Add → Import (or copy individual insights manually if your PostHog version doesn't support full-dashboard import).
+
+**5. Run a real walkthrough against staging.**
+
+```sh
+uv run python -m scripts.client_walkthrough
+```
+
+This is the existing 13-section feature tour (registration → battle → arena → raid → shop). Watch the live events feed during the run — every section should produce 1+ events, all stamped `env=staging` if you set `HEROPROTO_ENVIRONMENT=staging`.
+
+This satisfies the Phase 2 acceptance criteria *"PostHog dashboard shows live events from a staging walkthrough run."*
+
 ### Self-hosted deploy notes
 
 - PostHog ships an official `docker-compose.yml`. Run it on its own host (Postgres + Redis + ClickHouse — heavier than hero-proto itself).
