@@ -101,7 +101,15 @@
       max-height: 240px; overflow-y: auto;
       margin: 0 20px 20px; max-width: calc(1280px - 40px);
       box-sizing: border-box;
+      display: none;  /* hidden by default; toggle with the button */
     }
+    #debug-toggle {
+      margin: 0 20px 14px; max-width: calc(1280px - 40px);
+      background: var(--panel); border: 1px solid var(--border);
+      color: var(--muted); padding: 4px 10px; border-radius: 4px;
+      font-size: 11px; cursor: pointer;
+    }
+    #debug-toggle:hover { color: var(--text); border-color: var(--accent); }
     #debug-log .ok  { color: #2ad06a; }
     #debug-log .err { color: #ff6b4a; }
     #debug-log .hl  { color: var(--accent); }
@@ -192,6 +200,7 @@
   <p style="margin-top: 14px;"><strong>Verdict prompt:</strong> if this looks acceptable to you, the path forward is: 1 author-week to build 3 base rigs (ATK / DEF / SUP) with a head-skin slot, then drop hero card portraits into that slot. ~7-10 days to MVP per <code>docs/BATTLE_VISUALS_STACK.md</code>.</p>
 </div>
 
+<button id="debug-toggle" onclick="(function(){var d=document.getElementById('debug-log'); d.style.display = d.style.display === 'none' ? 'block' : 'none';})()">🔧 Toggle debug log</button>
 <div id="debug-log">booting…</div>
 
 <script src="libs/pixi.js"></script>
@@ -273,16 +282,7 @@
     return;
   }
 
-  // Visible diagnostic shape — proves Pixi is drawing at all.
-  // If you see a red square but no character later, the issue is
-  // strictly in DragonBones; if you see neither, Pixi itself isn't
-  // rendering.
-  const diag = new PIXI.Graphics();
-  diag.beginFill(0xff4a4a);
-  diag.drawRect(10, 10, 24, 24);
-  diag.endFill();
-  app.stage.addChild(diag);
-  log('Pixi diagnostic rect drawn at (10,10) — should be a red square top-left of canvas', 'hl');
+  // (Diagnostic red square removed — confirmed Pixi rendering works.)
 
   // DragonBones uses its own ticker; wire Pixi's ticker to drive it.
   // Pixi 4 ticker delivers a deltaTime in 60fps frames (~1.0 per tick at 60fps).
