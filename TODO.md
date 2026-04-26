@@ -152,7 +152,7 @@ Medium-sized but the highest-leverage UX work right now. See Product Direction s
 Design-first sprint — probably 2-3 iterations before it's good. Reference games listed in Product Direction.
 - [ ] Melee / ranged attack split (extend `basic_mult` model → `melee_mult` + `ranged_mult`)
 - [ ] Mana or spell-point resource for ranged/magic heroes
-- [ ] Hail-mary ability at ≤5% HP (role/faction-flavored one-shot)
+- [x] Hail-mary ability at ≤5% HP — `_maybe_hail_mary` end-of-turn check, role-flavored (ATK 'Last Stand' 3× burst / DEF 'Hold The Line' AOE+stun / SUP "You're Welcome" AOE_HEAL+ATK_UP). One-shot per battle. New `HAIL_MARY` event type rendered with gold flash + camera shake + named banner. Per-faction overrides hookable via template `hail_mary` field later.
 - [ ] Player control during battle (target selection / turn pause)
 - [ ] Animated actor layer for battle viewer (stick figures → real art)
 - [ ] Auto-battle as a paid QoL unlock, not the default

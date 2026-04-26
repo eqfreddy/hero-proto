@@ -100,6 +100,10 @@ class CombatUnit:
     has_violent: bool = False
     has_lifesteal: bool = False
     faction: Faction | None = None
+    # Hail-mary fires at end of own turn the first time HP drops to ≤5%.
+    # One-shot per battle — flag flips when the desperation effect resolves
+    # (whether it dealt damage, healed, or did nothing for lack of targets).
+    has_used_hail_mary: bool = False
 
     # True base for buff/debuff computation.
     base_atk: int = 0
@@ -565,6 +569,93 @@ def _apply_team_synergy(team: list[CombatUnit], log: list[dict]) -> dict | None:
     return syn
 
 
+# Hail-mary HP threshold. Below this fraction of max_hp, the desperation
+# move triggers on the unit's next end-of-turn — once per battle. Tuned at
+# 5% so it lands near death but not so low that random crit kills outpace it.
+HAIL_MARY_THRESHOLD = 0.05
+
+
+def _maybe_hail_mary(
+    actor: CombatUnit,
+    *,
+    allies: list[CombatUnit],
+    enemies: list[CombatUnit],
+    rng: random.Random,
+    log: list[dict],
+) -> None:
+    """End-of-turn check for desperation. Fires once per battle per unit when
+    HP dips to ≤5% (the threshold above). Per-role flavor:
+      ATK → 'Last Stand': 3.0× basic single-target nuke vs. lowest-HP enemy.
+            Fits the channel's "I'm out of patience" rage moment.
+      DEF → 'Hold The Line': AOE strike at 0.8× basic_mult applying STUN
+            for 1 turn to every survivor — bought time for the team to act.
+      SUP → 'You're Welcome': AOE_HEAL the team for 25% of each ally's
+            max HP and apply ATK_UP +20% for 3 turns. The clutch revive of
+            tempo without the corpse-rez problem.
+
+    Side-specific flavor (per faction or per template) can override these
+    later by storing a `hail_mary` dict on the template alongside `special`.
+    For now the role default is in. The whole thing is a one-shot — flag
+    flips even if no targets are alive (no infinite-fire on stalemate).
+    """
+    if actor.dead or actor.has_used_hail_mary:
+        return
+    if actor.max_hp <= 0:
+        return
+    if actor.hp / actor.max_hp > HAIL_MARY_THRESHOLD:
+        return
+    actor.has_used_hail_mary = True
+    name_by_role = {
+        Role.ATK: "Last Stand",
+        Role.DEF: "Hold The Line",
+        Role.SUP: "You're Welcome",
+    }
+    role = actor.role if isinstance(actor.role, Role) else Role(actor.role)
+    log.append({
+        "type": "HAIL_MARY",
+        "unit": actor.uid,
+        "role": str(role),
+        "name": name_by_role.get(role, "Hail Mary"),
+        "hp_pct": round(actor.hp / actor.max_hp, 3),
+    })
+
+    if role == Role.ATK:
+        # Single-target burst at the lowest-HP live enemy.
+        live = [u for u in enemies if not u.dead]
+        if not live:
+            return
+        tgt = min(live, key=lambda u: (u.hp, u.uid))
+        dmg, crit = _damage(actor, tgt, actor.basic_mult * 3.0, rng)
+        dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
+        log.append({
+            "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
+            "amount": dealt, "crit": crit, "via": "HAIL_MARY",
+        })
+        if tgt.dead:
+            log.append({"type": "DEATH", "unit": tgt.uid})
+
+    elif role == Role.DEF:
+        # AOE strike + STUN to every surviving enemy.
+        for tgt in [u for u in enemies if not u.dead]:
+            dmg, crit = _damage(actor, tgt, actor.basic_mult * 0.8, rng)
+            dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
+            log.append({
+                "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
+                "amount": dealt, "crit": crit, "via": "HAIL_MARY",
+            })
+            if tgt.dead:
+                log.append({"type": "DEATH", "unit": tgt.uid})
+            else:
+                _apply_effect(tgt, {"kind": "STUN", "turns": 1, "value": 1.0}, log)
+
+    else:  # SUP
+        # AOE_HEAL + ATK_UP for the team. _heal respects HEAL_BLOCK natively.
+        for tgt in [u for u in allies if not u.dead]:
+            amount = max(1, int(tgt.max_hp * 0.25))
+            _heal(actor, tgt, amount, log, source="HAIL_MARY")
+            _apply_effect(tgt, {"kind": "ATK_UP", "turns": 3, "value": 0.20}, log)
+
+
 def simulate(team_a: list[CombatUnit], team_b: list[CombatUnit], rng: random.Random) -> CombatResult:
     log: list[dict] = []
     max_ticks = 400
@@ -610,6 +701,17 @@ def simulate(team_a: list[CombatUnit], team_b: list[CombatUnit], rng: random.Ran
             # Cooldowns on the actor only.
             if actor.special_cooldown_left > 0:
                 actor.special_cooldown_left -= 1
+            # Hail-mary check: if the actor's HP just crossed the 5% threshold
+            # (or a DoT tick took them there), fire the desperation move once.
+            # Order matters — runs after _tick_statuses so a POISON tick that
+            # pushes the unit into the threshold still triggers the hail-mary.
+            _maybe_hail_mary(
+                actor,
+                allies=team_a if actor.side == "A" else team_b,
+                enemies=team_b if actor.side == "A" else team_a,
+                rng=rng,
+                log=log,
+            )
             # VIOLENT: 20% chance of an extra turn — grant 100 meter, re-sort next pass.
             if actor.has_violent and not actor.dead and rng.random() < 0.20:
                 actor.turn_meter += 100

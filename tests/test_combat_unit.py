@@ -350,6 +350,108 @@ def test_boss_phase_doesnt_apply_status_to_corpses() -> None:
     assert not any(s.kind.value == "BURN" for s in enemy.statuses)
 
 
+# --- Hail-mary at ≤5% HP -----------------------------------------------------
+
+
+def _hero(uid: str, side: str, role: Role, *, hp: int = 800, atk: int = 90):
+    return build_unit(
+        uid=uid, side=side,
+        name=f"H_{uid}", role=role, level=1,
+        base_hp=hp, base_atk=atk, base_def=60, base_spd=95,
+        basic_mult=1.0, special=None, special_cooldown=0,
+    )
+
+
+def test_hail_mary_does_not_fire_above_threshold() -> None:
+    """At >5% HP, end-of-turn doesn't trigger the desperation move."""
+    from app.combat import _maybe_hail_mary
+    actor = _hero("a0", "A", Role.ATK)
+    actor.hp = int(actor.max_hp * 0.10)  # 10% — above 5% threshold
+    actor.base_atk = actor.atk; actor.base_def = actor.def_
+    enemies = [_hero("b0", "B", Role.DEF)]
+    enemies[0].base_atk = enemies[0].atk; enemies[0].base_def = enemies[0].def_
+    log: list[dict] = []
+    _maybe_hail_mary(actor, allies=[actor], enemies=enemies, rng=random.Random(0), log=log)
+    assert not any(e.get("type") == "HAIL_MARY" for e in log)
+    assert actor.has_used_hail_mary is False
+
+
+def test_hail_mary_atk_role_burst_damages_lowest_hp_enemy() -> None:
+    from app.combat import _maybe_hail_mary
+    actor = _hero("a0", "A", Role.ATK, atk=200)
+    actor.hp = int(actor.max_hp * 0.04)  # under threshold
+    actor.base_atk = actor.atk; actor.base_def = actor.def_
+    full = _hero("b0", "B", Role.DEF, hp=2000)
+    weak = _hero("b1", "B", Role.ATK, hp=2000); weak.hp = 100
+    for u in (full, weak):
+        u.base_atk = u.atk; u.base_def = u.def_
+    log: list[dict] = []
+    _maybe_hail_mary(actor, allies=[actor], enemies=[full, weak], rng=random.Random(0), log=log)
+    hm = next((e for e in log if e.get("type") == "HAIL_MARY"), None)
+    assert hm is not None and hm["role"] == "ATK"
+    # Damage went to the lowest-HP target (weak), not to full.
+    dmg_events = [e for e in log if e.get("type") == "DAMAGE" and e.get("via") == "HAIL_MARY"]
+    assert len(dmg_events) == 1
+    assert dmg_events[0]["target"] == "b1"
+    assert weak.hp < 100 or weak.dead
+
+
+def test_hail_mary_def_role_aoe_stuns_all_enemies() -> None:
+    from app.combat import _maybe_hail_mary
+    actor = _hero("a0", "A", Role.DEF, atk=120)
+    actor.hp = int(actor.max_hp * 0.03)
+    actor.base_atk = actor.atk; actor.base_def = actor.def_
+    enemies = [_hero(f"b{i}", "B", Role.ATK, hp=2000) for i in range(3)]
+    for u in enemies:
+        u.base_atk = u.atk; u.base_def = u.def_
+    log: list[dict] = []
+    _maybe_hail_mary(actor, allies=[actor], enemies=enemies, rng=random.Random(0), log=log)
+    # Each surviving enemy got STUN.
+    from app.models import StatusEffectKind as K
+    for e in enemies:
+        if not e.dead:
+            assert any(s.kind == K.STUN for s in e.statuses)
+
+
+def test_hail_mary_sup_role_heals_team_and_buffs() -> None:
+    from app.combat import _maybe_hail_mary
+    actor = _hero("a0", "A", Role.SUP)
+    actor.hp = int(actor.max_hp * 0.04)
+    actor.base_atk = actor.atk; actor.base_def = actor.def_
+    ally = _hero("a1", "A", Role.ATK); ally.hp = 200
+    actor.hp_before = actor.hp
+    for u in (ally,):
+        u.base_atk = u.atk; u.base_def = u.def_
+    log: list[dict] = []
+    _maybe_hail_mary(actor, allies=[actor, ally], enemies=[_hero("b0", "B", Role.DEF)],
+                     rng=random.Random(0), log=log)
+    assert ally.hp > 200, "ally should have been healed"
+    from app.models import StatusEffectKind as K
+    assert any(s.kind == K.ATK_UP for s in ally.statuses)
+    assert any(s.kind == K.ATK_UP for s in actor.statuses), "actor self-buffs too"
+
+
+def test_hail_mary_only_fires_once_per_battle() -> None:
+    """Even if the unit drops to ≤5% twice (heal then dropped again), the
+    desperation move is one-shot."""
+    from app.combat import _maybe_hail_mary
+    actor = _hero("a0", "A", Role.ATK)
+    actor.hp = int(actor.max_hp * 0.04)
+    actor.base_atk = actor.atk; actor.base_def = actor.def_
+    enemy = _hero("b0", "B", Role.DEF)
+    enemy.base_atk = enemy.atk; enemy.base_def = enemy.def_
+    log: list[dict] = []
+    _maybe_hail_mary(actor, allies=[actor], enemies=[enemy], rng=random.Random(0), log=log)
+    first_count = sum(1 for e in log if e.get("type") == "HAIL_MARY")
+    assert first_count == 1
+    # Heal back up + drop again — should NOT re-fire.
+    actor.hp = actor.max_hp
+    actor.hp = int(actor.max_hp * 0.02)
+    _maybe_hail_mary(actor, allies=[actor], enemies=[enemy], rng=random.Random(0), log=log)
+    second_count = sum(1 for e in log if e.get("type") == "HAIL_MARY")
+    assert second_count == 1, "hail-mary must not re-fire"
+
+
 # --- Unchanged regressions --------------------------------------------------
 
 

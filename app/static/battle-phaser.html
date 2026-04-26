@@ -415,6 +415,14 @@
             // enough to read so newcomers understand the +ATK/+DEF mod.
             this.factionSynergyBanner(e);
             break;
+          case "HAIL_MARY":
+            // Once-per-battle desperation move at ≤5% HP. Drama dial up:
+            // gold flash + screen shake + named banner over the unit. The
+            // DAMAGE/HEAL events that follow are picked up by their normal
+            // handlers (and the multi-hit lookahead — DEF's AOE strike
+            // qualifies for a single lunge).
+            this.hailMaryCinematic(e.unit, e.name || "Hail Mary", e.role);
+            break;
           case "WAVE_START":
             this.showCaption(`Wave ${e.wave}`, 1100);
             break;
@@ -702,6 +710,45 @@
         });
         this.floatText(defenderUid, "reflect!", 0xc080ff);
         if (amount > 0) this.floatText(attackerUid, "-" + amount, 0xc080ff, 18);
+      }
+
+      // Hail-mary cinematic — gold flash (lighter than boss-phase red),
+      // mid-camera shake, role-flavored name banner over the dying unit.
+      // Distinct color from BOSS_PHASE so they don't read the same.
+      hailMaryCinematic(uid, name, role) {
+        const flash = this.add.rectangle(
+          CANVAS_W / 2, CANVAS_H / 2, CANVAS_W, CANVAS_H, 0xffd86b, 0.40
+        ).setDepth(200);
+        this.tweens.add({
+          targets: flash, alpha: 0, duration: 450, ease: "Quad.in",
+          onComplete: () => flash.destroy(),
+        });
+        this.cameras.main.shake(280, 0.008);
+        const s = this.state[uid];
+        const bx = s ? s.container.x : CANVAS_W / 2;
+        const by = s ? s.container.y : CANVAS_H / 2;
+        const banner = this.add.text(bx, by - 80, name.toUpperCase(), {
+          fontSize: "28px", color: "#ffd86b",
+          fontFamily: "system-ui, sans-serif", fontStyle: "bold",
+          stroke: "#000", strokeThickness: 5,
+          backgroundColor: "rgba(0,0,0,0.65)",
+          padding: { x: 14, y: 6 },
+        }).setOrigin(0.5).setAlpha(0).setScale(1.4).setDepth(210);
+        this.tweens.add({
+          targets: banner,
+          alpha: { from: 0, to: 1 },
+          scale: { from: 1.4, to: 1.0 },
+          duration: 220, ease: "Back.out",
+          onComplete: () => {
+            this.time.delayedCall(750, () => {
+              this.tweens.add({
+                targets: banner, alpha: 0, y: by - 110,
+                duration: 320, ease: "Quad.in",
+                onComplete: () => banner.destroy(),
+              });
+            });
+          },
+        });
       }
 
       // Boss phase change — drama dial up. Red flash washes the canvas, the
