@@ -31,3 +31,21 @@ uv run jupyter lab analytics/
   changes are reviewable in PRs without re-running.
 - **Tune balance via `app/seed.py`, `app/gacha.py`, `app/combat.py` —
   not the notebooks.** Notebooks observe; they don't drive.
+- **Imports are smoke-tested.** `tests/test_balance_notebooks.py` mirrors the
+  symbols each notebook imports so a rename in `app/` breaks a fast unit
+  test instead of a notebook nobody opens until balance day.
+
+## Re-running
+
+```bash
+uv run jupyter nbconvert --to notebook --execute --inplace analytics/gacha_ev.ipynb
+uv run jupyter nbconvert --to notebook --execute --inplace analytics/combat_dps.ipynb
+uv run jupyter nbconvert --to notebook --execute --inplace analytics/arena_convergence.ipynb
+```
+
+Outputs (committed):
+
+- `output/gacha_ev_by_rarity.png` — per-pull probability bar chart from `app.gacha.RATES`
+- `output/gacha_first_epic.png` — pulls-to-first-EPIC histogram across 5,000 simulated players
+- `output/combat_dps_proxy_lv30.png` — DPS proxy by hero at level 30
+- `output/arena_convergence.png` — rating trajectories at 4 true-skill bands
