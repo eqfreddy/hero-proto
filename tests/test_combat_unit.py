@@ -252,6 +252,40 @@ def test_simulate_logs_faction_synergy_and_buffs_atk() -> None:
     assert syn_team[0].base_atk == syn_team[0].atk
 
 
+def test_aoe_heal_tops_up_all_allies_and_can_apply_buff() -> None:
+    """AOE_HEAL heals every live ally and (with an `effect` field) applies
+    a status to each. Dead allies are not healed; HEAL_BLOCK still suppresses
+    the heal but the buff still goes through."""
+    from app.combat import _act
+    rng = random.Random(0)
+    a0 = _gremlin("a0", "A"); a0.hp = 100
+    a1 = _gremlin("a1", "A"); a1.hp = 200
+    dead = _gremlin("a2", "A"); dead.hp = 0; dead.dead = True
+    healer = _gremlin("a3", "A")
+    healer.special = {
+        "type": "AOE_HEAL",
+        "frac": 0.30,
+        "effect": {"kind": "ATK_UP", "turns": 3, "value": 0.20},
+    }
+    healer.special_cooldown_max = 4
+    healer.special_cooldown_left = 0
+    for u in (a0, a1, dead, healer):
+        u.base_atk = u.atk; u.base_def = u.def_
+    log: list[dict] = []
+    _act(healer, allies=[a0, a1, dead, healer], enemies=[_gremlin("b0", "B")], rng=rng, log=log)
+
+    # a0 and a1 healed (a0 from 100 closer to max, a1 from 200 closer to max).
+    assert a0.hp > 100
+    assert a1.hp > 200
+    # The dead ally stays dead — AOE_HEAL doesn't revive.
+    assert dead.dead is True and dead.hp == 0
+    # Each live ally got the ATK_UP buff (including the healer themselves).
+    from app.models import StatusEffectKind as K
+    assert any(s.kind == K.ATK_UP for s in a0.statuses)
+    assert any(s.kind == K.ATK_UP for s in a1.statuses)
+    assert any(s.kind == K.ATK_UP for s in healer.statuses)
+
+
 # --- BOSS_PHASE special type (raid bosses only) -----------------------------
 
 

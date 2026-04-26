@@ -1,0 +1,34 @@
+{
+  "id": "mothers_day_2026",
+  "display_name": "Mother's Day 2026 — Applecrumb's Office Hours",
+  "starts_at": "2026-05-09T13:00:00Z",
+  "ends_at":   "2026-05-11T13:00:00Z",
+
+  "announcement": {
+    "title": "🌸 Mother's Day — Applecrumb signs off your timesheet",
+    "body": "48 hours of 2x rewards because somebody around here had to remember the birthdays. New MYTH-tier support hero — Applecrumb, wife of TBFAM, the only person in C-suite who actually answers her email. Limited Mother's Day Bouquet bundle in the Shop tab. Don't forget to call.",
+    "priority": 70
+  },
+
+  "liveops": [
+    {
+      "kind": "DOUBLE_REWARDS",
+      "name": "Mother's Day 2x",
+      "payload": {"multiplier": 2.0}
+    }
+  ],
+
+  "shop": [
+    {
+      "sku": "mothers_day_2026_bouquet",
+      "title": "Mother's Day Bouquet",
+      "description": "Floral PowerPoint deck included. 1200 💎 gems, 150 ✦ shards, 8 🎫 access cards, and 2 free summon credits for the Mother's Day banner. One-time per account.",
+      "price_cents": 1199,
+      "kind": "GEM_PACK",
+      "per_account_limit": 1,
+      "contents": {"gems": 1200, "shards": 150, "access_cards": 8, "free_summon_credits": 2}
+    }
+  ],
+
+  "event_hero_code": "applecrumb"
+}

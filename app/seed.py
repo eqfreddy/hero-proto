@@ -514,6 +514,27 @@ HERO_SEEDS: list[dict] = [
         },
         "special_cooldown": 4,
     },
+    {
+        # MYTH support pair to TBFAM. Mother's Day 2026 event hero.
+        # Card art is intentionally inverted — that's a stylistic choice for the
+        # event, not an upload bug. See docs/hero_art_prompts.md.
+        "code": "applecrumb",
+        "name": "Applecrumb",
+        "rarity": Rarity.MYTH, "faction": Faction.EXECUTIVE, "role": Role.SUP,
+        # Tanky support stats — high HP/DEF, modest ATK, decent SPD so the heal
+        # lands before allies fall.
+        "base_hp": 2400, "base_atk": 180, "base_def": 200, "base_spd": 145,
+        "basic_mult": 0.9,
+        "special": {
+            # Family Office Meeting: AOE heal for the team + ATK_UP buff for
+            # each ally on the same cast. The defining "mom fixes everything"
+            # support move — pairs naturally with TBFAM's burst rage comp.
+            "name": "Family Office Meeting", "type": "AOE_HEAL",
+            "frac": 0.35,
+            "effect": {"kind": "ATK_UP", "turns": 3, "value": 0.25},
+        },
+        "special_cooldown": 5,
+    },
 ]
 
 

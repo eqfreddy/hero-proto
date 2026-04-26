@@ -378,6 +378,16 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
                 amount = max(1, int(tgt.max_hp * float(spec.get("frac", 0.25))))
                 _heal(actor, tgt, amount, log)
 
+        elif stype == "AOE_HEAL":
+            # Heal every live ally for `frac` of their max_hp. Optional `effect`
+            # is applied to each ally as well (e.g. ATK_UP), letting one cast
+            # both top up the team AND buff them — a fitting support signature.
+            for tgt in _pick_aoe_targets(actor, allies, enemies, "all_allies"):
+                amount = max(1, int(tgt.max_hp * float(spec.get("frac", 0.20))))
+                _heal(actor, tgt, amount, log)
+                if "effect" in spec:
+                    _apply_effect(tgt, _scaled_effect(spec["effect"]), log)
+
         elif stype == "BUFF":
             tgt = _pick_target(actor, allies, enemies, selector)
             if tgt is not None:

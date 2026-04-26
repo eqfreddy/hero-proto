@@ -10,6 +10,7 @@ Add to your ops calendar. Activate ~24h before the start time so the daily worke
 
 | Date | Event | File | Notes |
 |---|---|---|---|
+| **2026-05-10** | Mother's Day | `2026-05-10_mothers_day.json` | 48h DOUBLE_REWARDS + bouquet bundle + Applecrumb (MYTH SUP) debut |
 | **2026-07-01** | Canada Day | `2026-07-01_canada_day.json` | DOUBLE_REWARDS + cosmetic pack |
 | **2026-07-04** | Summer Slowdown (week-long) | `2026-07-04_summer_slowdown.json` | ⚡ Sparks currency, 5 quests, 5 milestones — subsumes Independence Day |
 | 2026-10-31 | Halloween | `2026-10-31_halloween.json` | BONUS_GEAR_DROPS + spooky cosmetic pack |
