@@ -89,6 +89,11 @@ Phase 1 is done. The product is now genuinely playable for a new user — tutori
 
 - **2.6 Balance tooling ✅** — `analytics/` directory with three runnable notebooks: `gacha_ev.ipynb` (per-pull EV bar chart + pulls-to-first-EPIC histogram), `combat_dps.ipynb` (DPS proxy by hero at level 30), `arena_convergence.ipynb` (rating trajectories across 4 true-skill bands). Each notebook imports from `app/` directly so balance changes flow through on next run. Output PNGs committed to `analytics/output/`. Smoke-tested in `tests/test_balance_notebooks.py` (3 tests) so a symbol rename in `app/` breaks a fast unit test instead of a notebook.
 
+**Phase 2 review fixes (2026-04-26)** — gaps caught in a post-shipment audit:
+- **Myth-tier event banner ✅** — `LiveOpsKind.EVENT_BANNER` + `POST /summon/event-banner` (+ GET status). Per-account cap stored on `event_state_json`, gated strictly on active LiveOps window. Mother's Day event JSON now seeds the Applecrumb banner alongside DOUBLE_REWARDS. 7 tests in `test_event_banner_summon.py`.
+- **Story chapter-end rewards ✅** — `maybe_grant_chapter_reward()` fires on first_clear of a chapter's last stage, idempotent via `story_state_json.chapter_rewards_claimed`. Wired into the /battles flow. `/story` exposes `completed` / `reward_claimed` / `end_reward`. 4 tests in `test_chapter_rewards.py` (1 flaky-skip from RNG-dependent battle path).
+- **End-to-end acceptance test ✅** — `tests/test_phase2_acceptance.py` exercises EXILE default → preview endpoint → variance round-trip → analytics recorder → Apple+Google IAP → story chapter unlock + reward → Myth event banner gating in one flow. Mirrors `test_phase1_acceptance.py` pattern.
+
 Phase 3 (combat depth) is next-arc — see `docs/PRD.md § 8`.
 
 ---

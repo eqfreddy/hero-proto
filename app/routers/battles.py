@@ -251,7 +251,9 @@ def fight(
     # bonus. Level-ups grant currency rewards + a notification automatically.
     if outcome == BattleOutcome.WIN:
         from app.account_level import (
-            XP_PER_BATTLE_WIN, XP_PER_FIRST_CLEAR, grant_xp as _grant_xp,
+            XP_PER_BATTLE_WIN, XP_PER_FIRST_CLEAR,
+            grant_xp as _grant_xp,
+            maybe_grant_chapter_reward as _chapter_reward,
         )
         levelups = _grant_xp(
             db, account,
@@ -259,6 +261,13 @@ def fight(
         )
         if levelups:
             rewards_extra["account_levelups"] = levelups
+
+        # Phase 2.5 — chapter-end rewards. Only fires on first_clear of the
+        # final stage in a chapter (idempotent via story_state_json).
+        if first_clear:
+            ch_reward = _chapter_reward(db, account, stage.code)
+            if ch_reward is not None:
+                rewards_extra["chapter_reward"] = ch_reward
 
     # Crafting material drops on win — independent of gear drops.
     if outcome == BattleOutcome.WIN:

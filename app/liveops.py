@@ -52,6 +52,43 @@ def gear_drop_bonus(db: Session, now: datetime | None = None) -> float:
     return min(0.9, max(0.0, bonus))  # cap so battles don't always drop
 
 
+def active_event_banner(db: Session, now: datetime | None = None) -> LiveOpsEvent | None:
+    """Returns the currently-active EVENT_BANNER event, or None.
+
+    Phase 2.2 — gates Myth-tier event-hero summons to the active window only.
+    If multiple EVENT_BANNER events overlap (rare but legal — anniversary
+    event running through a holiday), returns the one that started most
+    recently so the most current banner wins.
+    """
+    candidates = [
+        e for e in active_events(db, now)
+        if (LiveOpsKind(e.kind) if not isinstance(e.kind, LiveOpsKind) else e.kind)
+        == LiveOpsKind.EVENT_BANNER
+    ]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda e: e.starts_at, reverse=True)
+    return candidates[0]
+
+
+def event_banner_payload(event: LiveOpsEvent) -> dict:
+    """Parsed payload for an EVENT_BANNER event. Required keys:
+    `hero_template_code` (str). Optional: `shard_cost` (int, default 5),
+    `per_account_cap` (int, default 3). Caller is responsible for
+    handling missing required keys."""
+    try:
+        data = json.loads(event.payload_json or "{}")
+    except json.JSONDecodeError:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    return {
+        "hero_template_code": str(data.get("hero_template_code", "")),
+        "shard_cost": int(data.get("shard_cost", 5) or 5),
+        "per_account_cap": int(data.get("per_account_cap", 3) or 3),
+    }
+
+
 def liveops_summary(db: Session) -> list[dict]:
     out = []
     for e in active_events(db):

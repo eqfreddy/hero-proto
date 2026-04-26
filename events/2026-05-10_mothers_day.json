@@ -15,6 +15,15 @@
       "kind": "DOUBLE_REWARDS",
       "name": "Mother's Day 2x",
       "payload": {"multiplier": 2.0}
+    },
+    {
+      "kind": "EVENT_BANNER",
+      "name": "Mother's Day — Applecrumb Banner",
+      "payload": {
+        "hero_template_code": "applecrumb",
+        "shard_cost": 8,
+        "per_account_cap": 5
+      }
     }
   ],
 

@@ -401,6 +401,102 @@ def mark_seen(account: Account, key: str) -> None:
 # --- Chapter availability helper -------------------------------------------
 
 
+# --- Chapter-end rewards ---------------------------------------------------
+#
+# When a player clears the last stage of a chapter, grant a one-time bundle.
+# Idempotency: tracked on story_state_json under a `chapter_rewards_claimed`
+# key. Caller (battles router) calls maybe_grant_chapter_reward(...) on every
+# win — it no-ops unless the just-cleared stage was the last in its chapter.
+
+CHAPTER_END_REWARDS: dict[str, dict] = {
+    "onboarding_arc": {
+        "gems": 200, "shards": 50, "free_summon_credits": 2,
+    },
+    "middle_management_arc": {
+        "gems": 400, "shards": 100, "access_cards": 3, "free_summon_credits": 3,
+    },
+    "exec_floor_arc": {
+        "gems": 800, "shards": 200, "access_cards": 5, "free_summon_credits": 5,
+    },
+}
+
+
+def _chapter_rewards_claimed(account: Account) -> set[str]:
+    """Returns the set of chapter codes the player has already claimed
+    end-rewards for. Stored as a list under story_state_json's
+    'chapter_rewards_claimed' key."""
+    s = _state(account)
+    raw = s.get("chapter_rewards_claimed") or []
+    if not isinstance(raw, list):
+        return set()
+    return {str(c) for c in raw}
+
+
+def maybe_grant_chapter_reward(
+    db: Session, account: Account, just_cleared_stage_code: str,
+) -> dict | None:
+    """If `just_cleared_stage_code` was the LAST stage in some chapter and
+    every stage in that chapter is now cleared, grant the chapter-end
+    reward bundle. Idempotent: returns None on a re-trigger.
+
+    Returns: {chapter_code, chapter_title, granted: {gems, shards, ...}}
+    or None when nothing was granted.
+    """
+    chapter = stage_belongs_to_chapter(just_cleared_stage_code)
+    if chapter is None:
+        return None
+    # Last-stage gate: only fire when the just-cleared stage is the chapter's
+    # final stage. Cheap fast-path to avoid recomputing on every win.
+    if chapter.stages[-1].code != just_cleared_stage_code:
+        return None
+
+    claimed = _chapter_rewards_claimed(account)
+    if chapter.code in claimed:
+        return None
+
+    # Every stage cleared? (Players might clear a chapter out-of-order in
+    # principle, though sequential gating in chapter_status_for_account
+    # discourages it. Belt-and-suspenders check.)
+    try:
+        cleared_arr = json.loads(account.stages_cleared_json or "[]")
+        cleared = {str(c) for c in cleared_arr} if isinstance(cleared_arr, list) else set()
+    except json.JSONDecodeError:
+        cleared = set()
+    if not all(s.code in cleared for s in chapter.stages):
+        return None
+
+    reward = CHAPTER_END_REWARDS.get(chapter.code, {})
+    granted = _apply_reward(account, reward)
+
+    # Persist the claim flag.
+    s = _state(account)
+    arr = s.get("chapter_rewards_claimed") or []
+    if not isinstance(arr, list):
+        arr = []
+    arr.append(chapter.code)
+    s["chapter_rewards_claimed"] = arr
+    _save(account, s)
+
+    # Bell notification — chapter completion is a moment players should
+    # see in the UI.
+    from app.notifications import notify as _notify
+    bits = [f"+{v} {k.replace('_', ' ')}" for k, v in granted.items() if isinstance(v, int) and v > 0]
+    _notify(
+        db, account,
+        kind="chapter_complete",
+        title=f"{chapter.title} — complete",
+        body=("Reward: " + ", ".join(bits)) if bits else "Story chapter complete.",
+        link="/app/partials/story",
+        icon=chapter.icon or "📖",
+    )
+
+    return {
+        "chapter_code": chapter.code,
+        "chapter_title": chapter.title,
+        "granted": granted,
+    }
+
+
 def chapter_status_for_account(account: Account) -> list[dict]:
     """Returns a list of chapters with locked/unlocked + per-stage cleared
     flags computed from account.account_level + stages_cleared_json. Used by
@@ -429,6 +525,7 @@ def chapter_status_for_account(account: Account) -> list[dict]:
                 } if s.cutscene_outro else None,
             })
             prev_cleared = s.code in cleared
+        completed = all(s["cleared"] for s in stages)
         out.append({
             "code": ch.code,
             "title": ch.title,
@@ -438,5 +535,8 @@ def chapter_status_for_account(account: Account) -> list[dict]:
             "unlocked": unlocked,
             "stages": stages,
             "completion_pct": int(round(100 * sum(1 for s in stages if s["cleared"]) / max(1, len(stages)))),
+            "completed": completed,
+            "reward_claimed": ch.code in _chapter_rewards_claimed(account),
+            "end_reward": CHAPTER_END_REWARDS.get(ch.code, {}),
         })
     return out

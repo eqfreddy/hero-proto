@@ -142,3 +142,179 @@ def summon_ten(
         "epic_pity_triggered": any(s.pulled_epic_pity for s in out),
     })
     return out
+
+
+# --- Event-banner summon (Phase 2.2) ----------------------------------------
+#
+# Limited-time path that lets players pull a single specified hero (typically
+# Myth-tier) outside the standard pool. Gated strictly on an active
+# LiveOpsEvent of kind EVENT_BANNER. Per-account pull cap stored on
+# Account.event_state_json so the cap survives across sessions.
+#
+# Cost is paid in shards (default 5 per pull). No pity, no rarity roll —
+# every pull lands the configured hero. This is intentional: event banners
+# are guaranteed-grant, not probabilistic, so the LiveOps tone stays
+# generous rather than gacha-y.
+
+
+import json as _json
+
+
+def _event_banner_pulls(account: Account, banner_id: int) -> int:
+    try:
+        state = _json.loads(account.event_state_json or "{}")
+    except _json.JSONDecodeError:
+        return 0
+    if not isinstance(state, dict):
+        return 0
+    return int((state.get("event_banner_pulls") or {}).get(str(banner_id), 0) or 0)
+
+
+def _bump_event_banner_pulls(account: Account, banner_id: int) -> int:
+    try:
+        state = _json.loads(account.event_state_json or "{}")
+    except _json.JSONDecodeError:
+        state = {}
+    if not isinstance(state, dict):
+        state = {}
+    pulls = state.setdefault("event_banner_pulls", {})
+    if not isinstance(pulls, dict):
+        pulls = {}
+        state["event_banner_pulls"] = pulls
+    new_count = int(pulls.get(str(banner_id), 0) or 0) + 1
+    pulls[str(banner_id)] = new_count
+    account.event_state_json = _json.dumps(state, separators=(",", ":"))
+    return new_count
+
+
+@router.get("/event-banner")
+def event_banner_status(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """Returns the active event-banner config + this account's pull
+    count + remaining caps. Empty dict when no banner is active so
+    the UI can hide the panel cleanly."""
+    from app.liveops import active_event_banner, event_banner_payload
+
+    banner = active_event_banner(db)
+    if banner is None:
+        return {"active": False}
+    payload = event_banner_payload(banner)
+    template = db.scalar(
+        select(HeroTemplate).where(HeroTemplate.code == payload["hero_template_code"])
+    )
+    pulls = _event_banner_pulls(account, banner.id)
+    return {
+        "active": True,
+        "banner_id": banner.id,
+        "banner_name": banner.name,
+        "ends_at": banner.ends_at.isoformat() + "Z" if banner.ends_at else None,
+        "hero_template_code": payload["hero_template_code"],
+        "hero_template_name": template.name if template is not None else None,
+        "hero_rarity": str(template.rarity) if template is not None else None,
+        "shard_cost": payload["shard_cost"],
+        "per_account_cap": payload["per_account_cap"],
+        "pulls_used": pulls,
+        "pulls_remaining": max(0, payload["per_account_cap"] - pulls),
+    }
+
+
+@router.post("/event-banner", response_model=SummonOut, status_code=status.HTTP_201_CREATED)
+def summon_event_banner(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SummonOut:
+    """Single pull on the active event banner. 409 if no banner is active,
+    if the per-account cap is reached, or if shard balance is insufficient.
+
+    Guarantees the hero — no rarity roll. Returns a SummonOut with
+    pulled_epic_pity=False (event banners don't interact with pity)."""
+    from app.liveops import active_event_banner, event_banner_payload
+    from app.routers.heroes import instance_out as _instance_out
+
+    banner = active_event_banner(db)
+    if banner is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "no event banner is active")
+    payload = event_banner_payload(banner)
+    if not payload["hero_template_code"]:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "event banner is misconfigured (missing hero_template_code)",
+        )
+
+    pulls_used = _event_banner_pulls(account, banner.id)
+    if pulls_used >= payload["per_account_cap"]:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"event banner cap reached ({payload['per_account_cap']} pulls)",
+        )
+
+    if account.shards < payload["shard_cost"]:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"not enough shards (need {payload['shard_cost']})",
+        )
+
+    template = db.scalar(
+        select(HeroTemplate).where(HeroTemplate.code == payload["hero_template_code"])
+    )
+    if template is None:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"event hero template {payload['hero_template_code']!r} not seeded",
+        )
+
+    account.shards -= payload["shard_cost"]
+
+    # Variance applies if this is a duplicate (player already owns Applecrumb).
+    rng = random.Random()
+    already_owned = db.scalar(
+        select(HeroInstance.id)
+        .where(
+            HeroInstance.account_id == account.id,
+            HeroInstance.template_id == template.id,
+        )
+        .limit(1)
+    )
+    variance_blob = "{}"
+    if already_owned is not None:
+        variance_blob = serialize_variance(roll_variance(rng))
+
+    hero = HeroInstance(
+        account_id=account.id, template_id=template.id, level=1, xp=0,
+        variance_pct_json=variance_blob,
+    )
+    db.add(hero)
+    db.add(GachaRecord(
+        account_id=account.id,
+        template_id=template.id,
+        rarity=template.rarity,
+        pity_before=account.pulls_since_epic,
+    ))
+    _bump_event_banner_pulls(account, banner.id)
+
+    db.flush()
+    _ = hero.template
+
+    on_summon(db, account, 1)
+    event_on_activity(db, account, "summon_pull", quest_kinds=QUEST_KINDS_SUMMON)
+    from app.account_level import XP_PER_SUMMON_PULL, grant_xp as _gxp
+    _gxp(db, account, XP_PER_SUMMON_PULL)
+    db.commit()
+
+    from app.analytics import track as _track
+    _track("summon_event_banner", account.id, {
+        "banner_id": banner.id,
+        "banner_name": banner.name,
+        "hero_template_code": payload["hero_template_code"],
+        "rarity": str(template.rarity),
+    })
+
+    out = SummonOut(
+        hero=_instance_out(hero),
+        rarity=Rarity(template.rarity) if not isinstance(template.rarity, Rarity) else template.rarity,
+        pulled_epic_pity=False,
+        pulls_since_epic_after=account.pulls_since_epic,
+    )
+    return out

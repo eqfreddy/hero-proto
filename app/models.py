@@ -130,6 +130,11 @@ class GuildApplicationStatus(StrEnum):
 class LiveOpsKind(StrEnum):
     DOUBLE_REWARDS = "DOUBLE_REWARDS"      # multiplies coins/gems/shards/xp on wins
     BONUS_GEAR_DROPS = "BONUS_GEAR_DROPS"  # raises drop chance
+    # Phase 2.2 — limited-time summon banner that lets players pull a single
+    # specified hero (MYTH-tier event hero — Applecrumb, etc.) outside the
+    # standard pool. Payload: {"hero_template_code": str, "shard_cost": int,
+    # "per_account_cap": int}. Active window is the event's starts_at/ends_at.
+    EVENT_BANNER = "EVENT_BANNER"
 
 
 class ShopProductKind(StrEnum):
