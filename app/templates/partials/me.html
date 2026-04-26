@@ -199,7 +199,12 @@
           headers: { authorization: 'Bearer ' + token },
         }).then(r => r.json());
         if (!Array.isArray(items) || items.length === 0) {
-          list.innerHTML = '<div class="muted" style="font-size: 12px;">Mailbox is empty.</div>';
+          list.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📭</div>
+              <div class="empty-state-msg">Mailbox is empty</div>
+              <div class="empty-state-hint">Overflow rewards (gear drops past your slot cap, raid loot when offline, expired event prizes) land here. Nothing to claim right now.</div>
+            </div>`;
           return;
         }
         list.innerHTML = items.map(it => `

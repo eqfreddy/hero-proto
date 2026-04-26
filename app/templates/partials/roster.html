@@ -5,7 +5,11 @@
   </div>
 
   {% if not heroes %}
-    <div class="card muted">No heroes yet. Go to <strong>Summon</strong> to pull your first hero.</div>
+    <div class="empty-state">
+      <div class="empty-state-icon">🪪</div>
+      <div class="empty-state-msg">No heroes yet</div>
+      <div class="empty-state-hint">Head to the <strong>Summon</strong> tab and pull your first hero — your starter shards cover an x10. First pull also unlocks the "First Pull" achievement.</div>
+    </div>
   {% else %}
 
   <!-- Rarity tabs -->

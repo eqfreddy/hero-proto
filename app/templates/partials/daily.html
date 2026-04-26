@@ -4,7 +4,11 @@
     <button class="secondary" hx-get="/app/partials/daily" hx-target="#content">↻ refresh</button>
   </div>
   {% if not quests %}
-    <div class="card muted">No active daily quests.</div>
+    <div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      <div class="empty-state-msg">No active daily quests right now</div>
+      <div class="empty-state-hint">Quests refresh at midnight UTC. If today's roster looks empty, the worker tick is generating it — try ↻ refresh in a minute.</div>
+    </div>
   {% endif %}
   {% for q in quests %}
   <div class="card">

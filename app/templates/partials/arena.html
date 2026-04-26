@@ -6,7 +6,13 @@
 
   <div class="card">
     <h3 style="margin: 0 0 8px; font-size: 13px; color: var(--muted);">Opponents</h3>
-    {% if not opponents %}<div class="muted">No opponents available.</div>{% endif %}
+    {% if not opponents %}
+      <div class="empty-state">
+        <div class="empty-state-icon">⚔️</div>
+        <div class="empty-state-msg">No opponents in your rating bracket</div>
+        <div class="empty-state-hint">Players you've recently attacked are on a 30-min cooldown. Try again in a few minutes — the matchmaker widens the search when your bracket runs dry.</div>
+      </div>
+    {% endif %}
     <table>
       <thead><tr><th>rating</th><th>name</th><th>power</th><th></th></tr></thead>
       <tbody>
