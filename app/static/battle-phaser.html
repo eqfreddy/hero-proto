@@ -36,10 +36,10 @@
   <div id="loading">loading…</div>
   <div id="game"></div>
   <div id="controls" style="display:none;">
-    <button id="btn-play">▶ Play</button>
-    <button class="secondary" id="btn-step">Step</button>
-    <button class="secondary" id="btn-restart">↻ Restart</button>
-    <label style="font-size: 13px;">speed
+    <button id="btn-play" title="Play / pause (Space or K)">▶ Play</button>
+    <button class="secondary" id="btn-step" title="Step one event (N or →)">Step</button>
+    <button class="secondary" id="btn-restart" title="Restart from event 0 (R)">↻ Restart</button>
+    <label style="font-size: 13px;" title="Speed (1=slowest, 5=fastest)">speed
       <select id="speed">
         <option value="900">0.33×</option>
         <option value="600">0.5×</option>
@@ -985,16 +985,68 @@
         const scene = game.scene.getScene("battle");
         scene.scene.events.on("create", () => scene.restart());
 
-        document.getElementById("btn-play").addEventListener("click", () => {
-          scene.playing ? scene.pause() : scene.play();
-        });
-        document.getElementById("btn-step").addEventListener("click", () => {
+        const togglePlay = () => { scene.playing ? scene.pause() : scene.play(); };
+        const stepOne = () => {
           scene.pause();
           if (!scene.stepOnce()) scene.showResult();
-        });
+        };
+        const setSpeed = (ms) => {
+          scene.speedMs = ms;
+          const sel = document.getElementById("speed");
+          // Sync the dropdown so the visible state matches the keyboard action.
+          for (const opt of sel.options) {
+            if (Number(opt.value) === ms) { sel.value = opt.value; break; }
+          }
+        };
+
+        document.getElementById("btn-play").addEventListener("click", togglePlay);
+        document.getElementById("btn-step").addEventListener("click", stepOne);
         document.getElementById("btn-restart").addEventListener("click", () => scene.restart());
         document.getElementById("speed").addEventListener("change", (e) => {
           scene.speedMs = Number(e.target.value);
+        });
+
+        // Keyboard shortcuts for desktop replay scrubbing. Only fire when no
+        // text input has focus, so typing in a /me search box (if/when one
+        // gets added) doesn't accidentally pause the battle.
+        //
+        //   Space / K  toggle play-pause       (Space matches video players,
+        //                                       K matches YouTube convention)
+        //   N / →      step forward one event  (N for "next", → for desktop)
+        //   R          restart from event 0
+        //   1 / 2 / 3 / 4 / 5   speed presets matching the dropdown rows
+        //                       (0.33× / 0.5× / 1× / 2× / 5×)
+        const SPEED_KEYS = { "1": 900, "2": 600, "3": 300, "4": 150, "5": 60 };
+        document.addEventListener("keydown", (e) => {
+          // Don't hijack typing.
+          const t = e.target;
+          const tag = t && t.tagName;
+          if (tag === "INPUT" || tag === "TEXTAREA" || (t && t.isContentEditable)) return;
+          if (e.metaKey || e.ctrlKey || e.altKey) return;
+          switch (e.key) {
+            case " ":
+            case "k":
+            case "K":
+              e.preventDefault();
+              togglePlay();
+              break;
+            case "n":
+            case "N":
+            case "ArrowRight":
+              e.preventDefault();
+              stepOne();
+              break;
+            case "r":
+            case "R":
+              e.preventDefault();
+              scene.restart();
+              break;
+            default:
+              if (SPEED_KEYS[e.key] != null) {
+                e.preventDefault();
+                setSpeed(SPEED_KEYS[e.key]);
+              }
+          }
         });
       } catch (e) {
         document.getElementById("loading").innerHTML =
