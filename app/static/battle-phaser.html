@@ -415,14 +415,20 @@
             // enough to read so newcomers understand the +ATK/+DEF mod.
             this.factionSynergyBanner(e);
             break;
-          case "HAIL_MARY":
+          case "HAIL_MARY": {
             // Once-per-battle desperation move at ≤5% HP. Drama dial up:
-            // gold flash + screen shake + named banner over the unit. The
-            // DAMAGE/HEAL events that follow are picked up by their normal
-            // handlers (and the multi-hit lookahead — DEF's AOE strike
-            // qualifies for a single lunge).
+            // gold flash + screen shake + named banner over the unit.
             this.hailMaryCinematic(e.unit, e.name || "Hail Mary", e.role);
+            // DEF role emits N DAMAGE events (one per enemy). Without a peek-
+            // ahead the attacker would lunge once per hit. ATK emits 1 DAMAGE
+            // (single _animatedAttack covers it), SUP emits HEAL events (no
+            // lunge needed). The 2+ guard naturally selects DEF only.
+            const hits = this._countUpcomingHits(e.unit);
+            if (hits >= 2 && this.state[e.unit] && !this.state[e.unit].dead) {
+              this._beginMultiHit(e.unit, hits);
+            }
             break;
+          }
           case "WAVE_START":
             this.showCaption(`Wave ${e.wave}`, 1100);
             break;
