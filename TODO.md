@@ -241,10 +241,10 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] See Sprint D
 
 ### Combat
-- [ ] More status effects (FREEZE, BURN, HEAL_BLOCK, REFLECT)
-- [ ] Faction affinity / synergy bonuses ("3 DEVOPS on team = +10% ATK")
-- [ ] AoE revive
-- [ ] Combat log pruning (Sprint A)
+- [x] More status effects (FREEZE / BURN / HEAL_BLOCK / REFLECT) — see "Combat depth (2026-04-25)" below
+- [x] Faction affinity / synergy bonuses — 3/4/5-of-faction tiers, baked into base_atk/base_def before sim
+- [x] AoE revive — new `AOE_REVIVE` special type, respects HEAL_BLOCK on corpses
+- [x] Combat log pruning — `trim_combat_log()` already in place at 200-entry cap
 
 ### Infrastructure
 - [ ] Postgres end-to-end smoke (Sprint C)
@@ -391,6 +391,24 @@ Output format for everything on this list: **paste the final file(s) back here i
 - Active sessions: `GET /me/sessions`, single + bulk revoke; refresh tokens carry IP/UA/last_used_at (migration `3aa50c822bb6`)
 - GDPR art. 20 export: `GET /me/export` — full account dump w/ secrets redacted + per-table caps
 - Per-IP guild-chat rate limit layered alongside per-account bucket
+
+**Combat depth (2026-04-25)**
+Pure-resolver expansion in `app/combat.py` — no DB or schema changes:
+- 4 new statuses on `StatusEffectKind`: FREEZE (skip-turn, breaks on damage),
+  BURN (max-HP-fraction DoT alongside POISON), HEAL_BLOCK (suppresses heal /
+  lifesteal / revive), REFLECT (returns N% damage to attacker, no recursion).
+- Faction synergy: 3/4/5 same-faction units on a team grant tiered ATK + DEF
+  bonuses, baked into base_atk/base_def before sim and logged once for the
+  replay viewer. Mixed teams stay vanilla.
+- New `AOE_REVIVE` special type — resurrects every dead ally at frac HP;
+  HEAL_BLOCK on a corpse blocks the rez (counter-comp lever).
+- All damage paths now thread `attacker`/`log` through `_apply_damage` so
+  REFLECT can bounce. `_heal()` and `_revive()` helpers centralise heal-
+  routing through HEAL_BLOCK and free callers from inline HP arithmetic.
+- 10 new unit tests in `tests/test_combat_unit.py` covering each status,
+  AOE_REVIVE, HEAL_BLOCK-blocks-rez, and synergy tier ladder.
+- `CLEANSE` extended to strip BURN, FREEZE, HEAL_BLOCK alongside the old
+  POISON/DEF_DOWN/STUN set.
 
 **Post-review hardening (2026-04-25)**
 Code-review pass against e2d2ff5; landed fixes:

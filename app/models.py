@@ -47,6 +47,18 @@ class StatusEffectKind(StrEnum):
     POISON = "POISON"
     STUN = "STUN"
     SHIELD = "SHIELD"  # absorbs next hit
+    # Skip turn like STUN, but breaks the moment the unit takes damage. Lighter
+    # CC than STUN — useful as a follow-up enabler that punishes pile-on play.
+    FREEZE = "FREEZE"
+    # Stat-independent damage tick at end of actor's turn. Same cadence as
+    # POISON; semantics only differ by source flavor + cleanse rules.
+    BURN = "BURN"
+    # Suppresses inbound healing while active (HEAL specials, lifesteal,
+    # CLEANSE-attached heal, REVIVE). Cracks DEF/SUP comp's sustain.
+    HEAL_BLOCK = "HEAL_BLOCK"
+    # Bounce a fraction of basic/special damage back to the attacker. Reflected
+    # damage cannot itself trigger reflect (no recursive ping-pong).
+    REFLECT = "REFLECT"
 
 
 class BattleOutcome(StrEnum):

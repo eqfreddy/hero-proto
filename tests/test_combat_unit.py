@@ -4,17 +4,26 @@ from __future__ import annotations
 
 import random
 
-from app.combat import build_unit, level_cap_for_stars, power_rating, scale_stat, simulate
-from app.models import BattleOutcome, Role
+from app.combat import (
+    StatusEffect,
+    build_unit,
+    level_cap_for_stars,
+    power_rating,
+    scale_stat,
+    simulate,
+    team_faction_synergy,
+)
+from app.models import BattleOutcome, Faction, Role, StatusEffectKind
 
 
-def _gremlin(uid: str, side: str, level: int = 1, stars: int = 1):
+def _gremlin(uid: str, side: str, level: int = 1, stars: int = 1, faction: Faction | None = None):
     return build_unit(
         uid=uid, side=side,
         name="Gremlin", role=Role.ATK, level=level,
         base_hp=800, base_atk=90, base_def=60, base_spd=95,
         basic_mult=1.0, special=None, special_cooldown=0,
         stars=stars,
+        faction=faction,
     )
 
 
@@ -59,6 +68,191 @@ def test_stronger_team_wins_consistently() -> None:
         if simulate(strong, weak, rng).outcome == BattleOutcome.WIN:
             wins += 1
     assert wins == 20, f"strong team lost {20 - wins}/20 times"
+
+
+# --- New status effects: FREEZE, BURN, HEAL_BLOCK, REFLECT -----------------
+
+
+def test_freeze_skips_turn_then_breaks_when_damaged() -> None:
+    """FREEZE makes the unit skip its turn (like STUN) but the moment it takes
+    damage the freeze breaks. STUN, by contrast, persists through hits."""
+    rng = random.Random(0)
+    target = _gremlin("a0", "A")
+    target.statuses.append(StatusEffect(kind=StatusEffectKind.FREEZE, turns_left=3))
+    attacker = _gremlin("b0", "B")
+    log: list[dict] = []
+    target.base_atk = target.atk; target.base_def = target.def_
+    attacker.base_atk = attacker.atk; attacker.base_def = attacker.def_
+
+    # Drive one action from each side.
+    from app.combat import _act
+    _act(target, allies=[target], enemies=[attacker], rng=rng, log=log)
+    assert any(e.get("type") == "FROZEN" and e["unit"] == "a0" for e in log)
+    # Attacker now hits target — FREEZE should break.
+    _act(attacker, allies=[attacker], enemies=[target], rng=rng, log=log)
+    assert not any(s.kind == StatusEffectKind.FREEZE for s in target.statuses)
+    assert any(e.get("type") == "STATUS_BROKEN" and e["kind"] == "FREEZE" for e in log)
+
+
+def test_burn_ticks_max_hp_fraction_per_actor_turn() -> None:
+    """BURN ticks for max_hp * value at end of the unit's turn. Verifies the
+    DoT machinery runs for BURN, not just POISON."""
+    from app.combat import _tick_statuses
+    u = _gremlin("a0", "A")
+    u.statuses.append(StatusEffect(kind=StatusEffectKind.BURN, turns_left=2, value=0.10))
+    log: list[dict] = []
+    hp_before = u.hp
+    _tick_statuses(u, log)
+    expected = max(1, int(u.max_hp * 0.10))
+    assert u.hp == hp_before - expected
+    assert any(e.get("source") == "BURN" for e in log if e.get("type") == "DAMAGE")
+
+
+def test_heal_block_suppresses_inbound_heal_and_lifesteal() -> None:
+    from app.combat import _heal, _lifesteal
+    target = _gremlin("a0", "A")
+    target.hp = 100
+    target.statuses.append(StatusEffect(kind=StatusEffectKind.HEAL_BLOCK, turns_left=2))
+    log: list[dict] = []
+
+    healed = _heal(None, target, 200, log)
+    assert healed == 0
+    assert target.hp == 100
+    assert any(e.get("type") == "HEAL_BLOCKED" for e in log)
+
+    # Lifesteal also routes through _heal so it must respect HEAL_BLOCK.
+    target.has_lifesteal = True
+    _lifesteal(target, 500, log)
+    assert target.hp == 100  # still no progress
+
+
+def test_reflect_returns_fraction_of_damage_to_attacker_no_recursion() -> None:
+    """REFLECT bounces some incoming damage to the attacker. The bounced damage
+    itself MUST NOT trigger reflect again — otherwise two REFLECT-buffed units
+    would ping-pong forever."""
+    from app.combat import _apply_damage
+    attacker = _gremlin("b0", "B")
+    defender = _gremlin("a0", "A")
+    # Both sides have REFLECT — verify no infinite recursion / no stack overflow.
+    attacker.statuses.append(StatusEffect(kind=StatusEffectKind.REFLECT, turns_left=3, value=0.5))
+    defender.statuses.append(StatusEffect(kind=StatusEffectKind.REFLECT, turns_left=3, value=0.5))
+    log: list[dict] = []
+
+    attacker_hp_before = attacker.hp
+    defender_hp_before = defender.hp
+    _apply_damage(defender, 100, attacker=attacker, log=log)
+
+    # Defender took 100. Attacker took ~50 reflected (no second-bounce).
+    assert defender.hp == defender_hp_before - 100
+    assert attacker.hp == attacker_hp_before - 50
+    reflects = [e for e in log if e.get("type") == "REFLECT"]
+    assert len(reflects) == 1
+
+
+def test_cleanse_clears_new_statuses() -> None:
+    """CLEANSE used to drop only POISON/DEF_DOWN/STUN; with the new statuses it
+    must also strip BURN, FREEZE, HEAL_BLOCK so the cleanser actually counters them."""
+    from app.combat import _act
+    rng = random.Random(0)
+    target = _gremlin("a0", "A")
+    target.statuses.extend([
+        StatusEffect(kind=StatusEffectKind.BURN, turns_left=2, value=0.05),
+        StatusEffect(kind=StatusEffectKind.FREEZE, turns_left=2),
+        StatusEffect(kind=StatusEffectKind.HEAL_BLOCK, turns_left=2),
+    ])
+    cleanser = _gremlin("a1", "A")
+    cleanser.special = {"type": "CLEANSE", "target": "ally_lowest_hp"}
+    cleanser.special_cooldown_max = 0
+    cleanser.special_cooldown_left = 0
+    target.base_atk = target.atk; target.base_def = target.def_
+    cleanser.base_atk = cleanser.atk; cleanser.base_def = cleanser.def_
+    log: list[dict] = []
+    _act(cleanser, allies=[cleanser, target], enemies=[_gremlin("b0", "B")], rng=rng, log=log)
+    assert target.statuses == []
+
+
+# --- AOE_REVIVE -------------------------------------------------------------
+
+
+def test_aoe_revive_brings_back_all_dead_allies() -> None:
+    from app.combat import _act
+    rng = random.Random(0)
+    a0 = _gremlin("a0", "A"); a0.dead = True; a0.hp = 0
+    a1 = _gremlin("a1", "A"); a1.dead = True; a1.hp = 0
+    rezzer = _gremlin("a2", "A")
+    rezzer.special = {"type": "AOE_REVIVE", "frac": 0.3}
+    rezzer.special_cooldown_max = 5
+    rezzer.special_cooldown_left = 0
+    for u in (a0, a1, rezzer):
+        u.base_atk = u.atk; u.base_def = u.def_
+    log: list[dict] = []
+    _act(rezzer, allies=[a0, a1, rezzer], enemies=[_gremlin("b0", "B")], rng=rng, log=log)
+
+    assert not a0.dead and a0.hp > 0
+    assert not a1.dead and a1.hp > 0
+    rez_events = [e for e in log if e.get("type") == "REVIVE"]
+    assert len(rez_events) == 2
+
+
+def test_heal_block_blocks_revive() -> None:
+    """HEAL_BLOCK on a corpse stops the rez. Lets a heal-blocker template
+    counter a rez-stalling comp."""
+    from app.combat import _revive
+    target = _gremlin("a0", "A")
+    target.dead = True; target.hp = 0
+    target.statuses.append(StatusEffect(kind=StatusEffectKind.HEAL_BLOCK, turns_left=3))
+    log: list[dict] = []
+    revived = _revive(None, target, 0.5, log)
+    assert revived is False
+    assert target.dead is True
+    assert any(e.get("type") == "REVIVE_BLOCKED" for e in log)
+
+
+# --- Faction synergy --------------------------------------------------------
+
+
+def test_no_synergy_with_fewer_than_three_same_faction() -> None:
+    team = [
+        _gremlin("a0", "A", faction=Faction.HELPDESK),
+        _gremlin("a1", "A", faction=Faction.HELPDESK),
+        _gremlin("a2", "A", faction=Faction.DEVOPS),
+    ]
+    assert team_faction_synergy(team) is None
+
+
+def test_synergy_tiers_by_count() -> None:
+    base = [_gremlin(f"a{i}", "A", faction=Faction.HELPDESK) for i in range(3)]
+    syn3 = team_faction_synergy(base)
+    assert syn3 == {"faction": Faction.HELPDESK, "count": 3, "atk_pct": 0.10, "def_pct": 0.0}
+
+    base.append(_gremlin("a3", "A", faction=Faction.HELPDESK))
+    syn4 = team_faction_synergy(base)
+    assert syn4["count"] == 4 and syn4["atk_pct"] == 0.15 and syn4["def_pct"] == 0.05
+
+    base.append(_gremlin("a4", "A", faction=Faction.HELPDESK))
+    syn5 = team_faction_synergy(base)
+    assert syn5["count"] == 5 and syn5["atk_pct"] == 0.20 and syn5["def_pct"] == 0.10
+
+
+def test_simulate_logs_faction_synergy_and_buffs_atk() -> None:
+    """End-to-end: a 3-faction team gets the +10% ATK bake into base_atk and
+    the synergy event is logged so the replay viewer can show it."""
+    rng = random.Random(0)
+    syn_team = [_gremlin(f"a{i}", "A", faction=Faction.HELPDESK) for i in range(3)]
+    base_atk_before = syn_team[0].atk
+    plain_team = [_gremlin(f"b{i}", "B", faction=Faction.DEVOPS) for i in range(2)] + [
+        _gremlin("b2", "B", faction=Faction.LEGACY)
+    ]
+    res = simulate(syn_team, plain_team, rng)
+    # Synergy event present for side A only.
+    syn_events = [e for e in res.log if e.get("type") == "FACTION_SYNERGY"]
+    assert len(syn_events) == 1 and syn_events[0]["side"] == "A"
+    # Each helpdesk hero now has buffed atk and base_atk reflects the bonus.
+    assert syn_team[0].atk == max(1, int(round(base_atk_before * 1.10)))
+    assert syn_team[0].base_atk == syn_team[0].atk
+
+
+# --- Unchanged regressions --------------------------------------------------
 
 
 def test_trim_combat_log_short_unchanged() -> None:

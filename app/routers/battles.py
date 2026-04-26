@@ -20,6 +20,7 @@ from app.models import (
     Account,
     Battle,
     BattleOutcome,
+    Faction,
     Gear,
     HeroInstance,
     HeroTemplate,
@@ -29,6 +30,13 @@ from app.models import (
 from app.schemas import BattleIn, BattleOut, BattleParticipant, SweepIn, SweepOut
 
 router = APIRouter(prefix="/battles", tags=["battles"])
+
+
+def _template_faction(t: HeroTemplate) -> Faction | None:
+    f = t.faction
+    if f is None:
+        return None
+    return f if isinstance(f, Faction) else Faction(f)
 
 
 def _unit_from_instance(hero: HeroInstance, side: str, idx: int) -> CombatUnit:
@@ -51,6 +59,7 @@ def _unit_from_instance(hero: HeroInstance, side: str, idx: int) -> CombatUnit:
         gear_bonus=gear_bonus_for(hero),
         special_level=hero.special_level,
         stars=hero.stars,
+        faction=_template_faction(t),
     )
 
 
@@ -70,6 +79,7 @@ def _unit_from_template(t: HeroTemplate, level: int, side: str, idx: int) -> Com
         basic_mult=t.basic_mult,
         special=special,
         special_cooldown=t.special_cooldown,
+        faction=_template_faction(t),
     )
 
 

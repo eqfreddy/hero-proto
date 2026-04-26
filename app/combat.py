@@ -26,7 +26,9 @@ import random
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.models import BattleOutcome, Role, StatusEffectKind
+from collections import Counter
+
+from app.models import BattleOutcome, Faction, Role, StatusEffectKind
 
 
 # Stat scaling: stats at level L are base * (1 + 0.1 * (L - 1)). Linear & predictable.
@@ -97,6 +99,7 @@ class CombatUnit:
     special_level: int = 1  # 1-5; scales special damage/effect values
     has_violent: bool = False
     has_lifesteal: bool = False
+    faction: Faction | None = None
 
     # True base for buff/debuff computation.
     base_atk: int = 0
@@ -134,13 +137,44 @@ def _damage(attacker: CombatUnit, defender: CombatUnit, multiplier: float, rng: 
     return max(1, int(round(dmg))), crit
 
 
-def _apply_damage(defender: CombatUnit, amount: int) -> int:
+def _apply_damage(
+    defender: CombatUnit,
+    amount: int,
+    *,
+    attacker: CombatUnit | None = None,
+    log: list[dict] | None = None,
+    can_reflect: bool = True,
+) -> int:
+    """Apply `amount` to defender; return amount actually dealt (0 if shielded).
+
+    On a hit:
+      - SHIELD absorbs the entire blow (lost on use).
+      - FREEZE on the defender breaks immediately — fire/melee thaw the target.
+      - REFLECT on the defender bounces a fraction of dealt damage back to
+        the attacker. Reflected damage cannot itself reflect (`can_reflect=False`)
+        so a REFLECT mirror never recurses into a ping-pong.
+    """
     if defender.shielded:
         defender.shielded = False
         return 0
     defender.hp = max(0, defender.hp - amount)
     if defender.hp == 0:
         defender.dead = True
+    if amount > 0 and any(s.kind == StatusEffectKind.FREEZE for s in defender.statuses):
+        defender.statuses = [s for s in defender.statuses if s.kind != StatusEffectKind.FREEZE]
+        if log is not None:
+            log.append({"type": "STATUS_BROKEN", "unit": defender.uid, "kind": "FREEZE", "reason": "damaged"})
+    if can_reflect and amount > 0 and attacker is not None and not attacker.dead and log is not None:
+        reflect_value = max(
+            (s.value for s in defender.statuses if s.kind == StatusEffectKind.REFLECT),
+            default=0.0,
+        )
+        if reflect_value > 0:
+            reflected = max(1, int(round(amount * reflect_value)))
+            actual = _apply_damage(attacker, reflected, attacker=None, log=log, can_reflect=False)
+            log.append({"type": "REFLECT", "source": defender.uid, "target": attacker.uid, "amount": actual})
+            if attacker.dead:
+                log.append({"type": "DEATH", "unit": attacker.uid})
     return amount
 
 
@@ -169,15 +203,20 @@ def _pick_aoe_targets(actor: CombatUnit, allies: list[CombatUnit], enemies: list
 
 
 def _tick_statuses(unit: CombatUnit, log: list[dict]) -> None:
-    # End-of-turn status tick: poisons apply, durations decrement.
+    """End-of-actor-turn status tick: damage-over-time fires, durations decrement.
+
+    POISON and BURN both deal max_hp * value as a tick. They differ in source/
+    cleanse semantics — CLEANSE removes POISON but not BURN by default — so the
+    same DoT machinery handles both.
+    """
     new_statuses: list[StatusEffect] = []
     for s in unit.statuses:
-        if s.kind == StatusEffectKind.POISON and not unit.dead:
+        if s.kind in (StatusEffectKind.POISON, StatusEffectKind.BURN) and not unit.dead:
             tick_dmg = max(1, int(unit.max_hp * s.value))
             unit.hp = max(0, unit.hp - tick_dmg)
             if unit.hp == 0:
                 unit.dead = True
-            log.append({"type": "DAMAGE", "target": unit.uid, "amount": tick_dmg, "source": "POISON"})
+            log.append({"type": "DAMAGE", "target": unit.uid, "amount": tick_dmg, "source": str(s.kind)})
             if unit.dead:
                 log.append({"type": "DEATH", "unit": unit.uid})
         s.turns_left -= 1
@@ -204,6 +243,49 @@ def _is_stunned(u: CombatUnit) -> bool:
     return any(s.kind == StatusEffectKind.STUN for s in u.statuses)
 
 
+def _is_frozen(u: CombatUnit) -> bool:
+    return any(s.kind == StatusEffectKind.FREEZE for s in u.statuses)
+
+
+def _is_heal_blocked(u: CombatUnit) -> bool:
+    return any(s.kind == StatusEffectKind.HEAL_BLOCK for s in u.statuses)
+
+
+def _revive(actor: CombatUnit | None, target: CombatUnit, frac: float, log: list[dict]) -> bool:
+    """Bring `target` back at `frac` of max HP. HEAL_BLOCK suppresses the rez —
+    a heal-block on a corpse means it stays down. Returns True if revived."""
+    if not target.dead:
+        return False
+    if _is_heal_blocked(target):
+        log.append({"type": "REVIVE_BLOCKED", "target": target.uid})
+        return False
+    target.dead = False
+    target.hp = max(1, int(target.max_hp * frac))
+    entry = {"type": "REVIVE", "target": target.uid, "hp": target.hp}
+    if actor is not None:
+        entry["source"] = actor.uid
+    log.append(entry)
+    return True
+
+
+def _heal(actor: CombatUnit | None, target: CombatUnit, amount: int, log: list[dict], source: str = "HEAL") -> int:
+    """Heal `target` for `amount` HP, respecting HEAL_BLOCK. Returns amount healed (0 if blocked)."""
+    if amount <= 0 or target.dead:
+        return 0
+    if _is_heal_blocked(target):
+        log.append({"type": "HEAL_BLOCKED", "target": target.uid, "would_have": amount, "source": source})
+        return 0
+    new_hp = min(target.max_hp, target.hp + amount)
+    healed = new_hp - target.hp
+    target.hp = new_hp
+    if healed > 0:
+        entry = {"type": "HEAL", "target": target.uid, "amount": healed, "source": source}
+        if actor is not None:
+            entry["source_unit"] = actor.uid
+        log.append(entry)
+    return healed
+
+
 @dataclass
 class CombatResult:
     outcome: BattleOutcome
@@ -222,10 +304,9 @@ def _lifesteal(actor: CombatUnit, damage_dealt: int, log: list[dict]) -> None:
     if not actor.has_lifesteal or damage_dealt <= 0 or actor.dead:
         return
     heal = max(1, int(round(damage_dealt * 0.30)))
-    new_hp = min(actor.max_hp, actor.hp + heal)
-    if new_hp != actor.hp:
-        actor.hp = new_hp
-        log.append({"type": "LIFESTEAL", "unit": actor.uid, "amount": heal, "hp": actor.hp})
+    healed = _heal(actor, actor, heal, log, source="LIFESTEAL")
+    if healed > 0:
+        log.append({"type": "LIFESTEAL", "unit": actor.uid, "amount": healed, "hp": actor.hp})
 
 
 def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit], rng: random.Random, log: list[dict]) -> int:
@@ -234,6 +315,9 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
 
     if _is_stunned(actor):
         log.append({"type": "STUNNED", "unit": actor.uid})
+        return damage_dealt
+    if _is_frozen(actor):
+        log.append({"type": "FROZEN", "unit": actor.uid})
         return damage_dealt
 
     # Prefer special if ready, else basic.
@@ -255,10 +339,10 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
                 hits = int(spec.get("hits", 1))
                 mult = float(spec.get("mult", actor.basic_mult * 1.5)) * scale
                 for _ in range(hits):
-                    if tgt.dead:
+                    if tgt.dead or actor.dead:
                         break
                     dmg, crit = _damage(actor, tgt, mult / max(1, hits), rng)
-                    dealt = _apply_damage(tgt, dmg)
+                    dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
                     damage_dealt += dealt
                     log.append({
                         "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
@@ -274,8 +358,10 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
             targets = _pick_aoe_targets(actor, allies, enemies, "all_enemies")
             mult = float(spec.get("mult", actor.basic_mult * 0.6)) * scale
             for tgt in targets:
+                if actor.dead:
+                    break
                 dmg, crit = _damage(actor, tgt, mult, rng)
-                dealt = _apply_damage(tgt, dmg)
+                dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
                 damage_dealt += dealt
                 log.append({
                     "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
@@ -290,8 +376,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
             tgt = _pick_target(actor, allies, enemies, selector)
             if tgt is not None:
                 amount = max(1, int(tgt.max_hp * float(spec.get("frac", 0.25))))
-                tgt.hp = min(tgt.max_hp, tgt.hp + amount)
-                log.append({"type": "HEAL", "source": actor.uid, "target": tgt.uid, "amount": amount})
+                _heal(actor, tgt, amount, log)
 
         elif stype == "BUFF":
             tgt = _pick_target(actor, allies, enemies, selector)
@@ -320,25 +405,35 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
         elif stype == "CLEANSE":
             tgt = _pick_target(actor, allies, enemies, selector)
             if tgt is not None:
+                _CLEANSABLE = (
+                    StatusEffectKind.POISON,
+                    StatusEffectKind.BURN,
+                    StatusEffectKind.DEF_DOWN,
+                    StatusEffectKind.STUN,
+                    StatusEffectKind.FREEZE,
+                    StatusEffectKind.HEAL_BLOCK,
+                )
                 before = len(tgt.statuses)
-                tgt.statuses = [
-                    s for s in tgt.statuses
-                    if s.kind not in (StatusEffectKind.POISON, StatusEffectKind.DEF_DOWN, StatusEffectKind.STUN)
-                ]
+                tgt.statuses = [s for s in tgt.statuses if s.kind not in _CLEANSABLE]
                 log.append({"type": "CLEANSE", "unit": tgt.uid, "removed": before - len(tgt.statuses)})
                 if "heal_frac" in spec:
                     amount = max(1, int(tgt.max_hp * float(spec["heal_frac"])))
-                    tgt.hp = min(tgt.max_hp, tgt.hp + amount)
-                    log.append({"type": "HEAL", "source": actor.uid, "target": tgt.uid, "amount": amount})
+                    _heal(actor, tgt, amount, log, source="CLEANSE")
 
         elif stype == "REVIVE":
-            # Pick first dead ally; resurrect at frac HP.
+            # Pick first dead ally; resurrect at frac HP. HEAL_BLOCK on the
+            # corpse blocks the rez (lifelock specials counter rez comp).
             target = next((a for a in allies if a.dead), None)
             if target is not None:
-                frac = float(spec.get("frac", 0.3))
-                target.dead = False
-                target.hp = max(1, int(target.max_hp * frac))
-                log.append({"type": "REVIVE", "source": actor.uid, "target": target.uid, "hp": target.hp})
+                _revive(actor, target, float(spec.get("frac", 0.3)), log)
+
+        elif stype == "AOE_REVIVE":
+            # Resurrect every dead ally at frac HP. Strong but expensive — meant
+            # to be paired with high cooldowns (4-6) on the template's special.
+            frac = float(spec.get("frac", 0.25))
+            for ally in allies:
+                if ally.dead:
+                    _revive(actor, ally, frac, log)
 
         # Side effect on self.
         if "self_effect" in spec:
@@ -351,7 +446,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
         if tgt is None:
             return damage_dealt
         dmg, crit = _damage(actor, tgt, actor.basic_mult, rng)
-        dealt = _apply_damage(tgt, dmg)
+        dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
         damage_dealt += dealt
         log.append({
             "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
@@ -363,10 +458,67 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
     return damage_dealt
 
 
+def team_faction_synergy(team: list[CombatUnit]) -> dict | None:
+    """Compute the faction synergy bonus a team earns from running 3+ heroes
+    of the same faction. Returns None if no synergy applies.
+
+    Tiers (per dominant faction count):
+      3 → +10% ATK
+      4 → +15% ATK, +5% DEF
+      5 → +20% ATK, +10% DEF
+
+    Heroes of the *non-dominant* factions on the team don't get the bonus —
+    the synergy rewards faction-pure builds, not the team as a whole. With
+    a 3-3 split (impossible at 5 slots, possible if team size ever grows)
+    the larger group wins; ties resolve to whichever faction enum-orders first.
+    """
+    counts = Counter(u.faction for u in team if u.faction is not None)
+    if not counts:
+        return None
+    # most_common uses insertion order on ties; sort explicitly for determinism.
+    dominant, count = max(counts.items(), key=lambda kv: (kv[1], -list(Faction).index(kv[0])))
+    if count < 3:
+        return None
+    if count == 3:
+        atk_pct, def_pct = 0.10, 0.0
+    elif count == 4:
+        atk_pct, def_pct = 0.15, 0.05
+    else:
+        atk_pct, def_pct = 0.20, 0.10
+    return {"faction": dominant, "count": count, "atk_pct": atk_pct, "def_pct": def_pct}
+
+
+def _apply_team_synergy(team: list[CombatUnit], log: list[dict]) -> dict | None:
+    """Mutate `team` in-place to bake in the faction synergy bonus, then log
+    the bonus once so the replay viewer can label it."""
+    syn = team_faction_synergy(team)
+    if syn is None:
+        return None
+    for u in team:
+        if u.faction != syn["faction"]:
+            continue
+        if syn["atk_pct"] > 0:
+            u.atk = max(1, int(round(u.atk * (1.0 + syn["atk_pct"]))))
+        if syn["def_pct"] > 0:
+            u.def_ = max(1, int(round(u.def_ * (1.0 + syn["def_pct"]))))
+    log.append({
+        "type": "FACTION_SYNERGY",
+        "side": team[0].side if team else None,
+        "faction": str(syn["faction"]),
+        "count": syn["count"],
+        "atk_pct": syn["atk_pct"],
+        "def_pct": syn["def_pct"],
+    })
+    return syn
+
+
 def simulate(team_a: list[CombatUnit], team_b: list[CombatUnit], rng: random.Random) -> CombatResult:
     log: list[dict] = []
     max_ticks = 400
     ticks = 0
+
+    _apply_team_synergy(team_a, log)
+    _apply_team_synergy(team_b, log)
 
     for u in team_a + team_b:
         u.base_atk = u.atk
@@ -448,6 +600,7 @@ def build_unit(
     gear_bonus: dict | None = None,
     special_level: int = 1,
     stars: int = 1,
+    faction: Faction | None = None,
 ) -> CombatUnit:
     hp = scale_stat(base_hp, level, stars)
     atk = scale_stat(base_atk, level, stars)
@@ -487,6 +640,7 @@ def build_unit(
         special_level=special_level,
         has_violent=bool(active.get("violent")),
         has_lifesteal=bool(active.get("lifesteal")),
+        faction=faction,
     )
 
 

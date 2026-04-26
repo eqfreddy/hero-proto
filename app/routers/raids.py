@@ -20,6 +20,7 @@ from app.gear_logic import gear_bonus_for
 from app.models import (
     Account,
     BattleOutcome,
+    Faction,
     Guild,
     GuildMember,
     HeroInstance,
@@ -276,6 +277,12 @@ def attack_raid(
     except json.JSONDecodeError:
         special = None
 
+    def _faction(t: HeroTemplate) -> Faction | None:
+        f = t.faction
+        if f is None:
+            return None
+        return f if isinstance(f, Faction) else Faction(f)
+
     team_a = [
         build_unit(
             uid=f"A{i}",
@@ -293,6 +300,7 @@ def attack_raid(
             gear_bonus=gear_bonus_for(h),
             special_level=h.special_level,
             stars=h.stars,
+            faction=_faction(h.template),
         )
         for i, h in enumerate(heroes)
     ]
@@ -311,6 +319,7 @@ def attack_raid(
         basic_mult=boss_template.basic_mult,
         special=special,
         special_cooldown=boss_template.special_cooldown,
+        faction=_faction(boss_template),
     )
     boss_start_hp = boss_unit.hp
     rng = random.Random()
