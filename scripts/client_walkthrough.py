@@ -138,11 +138,20 @@ async def tour_me_currencies(s: Session) -> None:
     _section("2. /me — balances + daily login bonus")
     me = await s.get("/me")
     required = {"coins", "gems", "shards", "access_cards", "energy", "energy_cap",
-                "pulls_since_epic", "stages_cleared"}
+                "pulls_since_epic", "stages_cleared",
+                # Phase 2 surfaces.
+                "faction", "qol_unlocks", "cosmetic_frames",
+                "hero_slot_cap", "gear_slot_cap",
+                "account_level", "account_xp", "account_xp_to_next"}
     missing = required - set(me.keys())
     if missing:
         _fail(f"/me missing fields: {missing}")
-    _ok(f"/me shape ok — gems={me['gems']} shards={me['shards']} energy={me['energy']}")
+    if me["faction"] != "EXILE":
+        _fail(f"new account should default to EXILE faction, got {me['faction']!r}")
+    if me["qol_unlocks"] or me["cosmetic_frames"]:
+        _fail(f"new account should own no QoL/cosmetics yet: {me}")
+    _ok(f"/me shape ok — gems={me['gems']} shards={me['shards']} energy={me['energy']} "
+        f"faction={me['faction']} acct_lvl={me['account_level']}")
 
     # Claim today's login bonus.
     bonus = await s.post("/me/daily-bonus/claim", expect=201)
@@ -341,6 +350,114 @@ async def tour_shop(s: Session) -> None:
     _ok(f"bought {purchase['sku']} for ${purchase['price_cents_paid']/100:.2f} -> granted {purchase['granted']}")
 
 
+# --- Phase 2 surfaces -------------------------------------------------------
+
+
+async def tour_hero_preview(s: Session) -> None:
+    """Phase 2.1 — /heroes/{id}/preview must return current vs after-stats
+    for level/star/special upgrade paths."""
+    _section("11a. Hero detail / next-upgrade preview (Phase 2.1)")
+    roster = await s.get("/heroes/mine")
+    if not roster:
+        _warn("no heroes — skipping preview check")
+        return
+    hero = roster[0]
+    preview = await s.get(f"/heroes/{hero['id']}/preview")
+    for k in ("current", "level_up", "star_up", "special_up"):
+        if k not in preview:
+            _fail(f"preview missing key {k!r}: {preview}")
+    if preview["current"]["power"] != hero["power"]:
+        _fail(f"preview.current.power {preview['current']['power']} != roster {hero['power']}")
+    if not preview["level_up"]["available"]:
+        _fail("level-up should be available at level 1")
+    delta = preview["level_up"]["after"]["power"] - preview["current"]["power"]
+    _ok(f"preview round-trip ok — level_up delta = +{delta} power, current={preview['current']['power']}")
+
+
+async def tour_iap_qol(s: Session) -> None:
+    """Phase 2.4 — Apple + Google IAP via the sandbox 'fake-' receipt
+    shortcut. Verifies the QoL unlock + cosmetic frame surface on /me."""
+    _section("11b. IAP — Apple StoreKit + Google Play Billing (Phase 2.4)")
+    import json as _json
+    apple_tx = f"walkthrough-apple-{random.randint(10**9, 10**10)}"
+    apple_receipt = "fake-apple:" + _json.dumps({
+        "productId": "qol_auto_battle", "transactionId": apple_tx,
+    })
+    r = await s.post(
+        "/shop/iap/apple",
+        body={"sku": "qol_auto_battle", "receipt": apple_receipt},
+        expect=201,
+    )
+    if r.get("processor") != "apple" or r.get("state") != "COMPLETED":
+        _fail(f"apple IAP unexpected: {r}")
+    _ok(f"apple IAP COMPLETED — sku={r['sku']} ref={apple_tx[:24]}...")
+
+    google_order = f"GPA.{random.randint(10**12, 10**13 - 1)}"
+    google_receipt = "fake-google:" + _json.dumps({
+        "productId": "cosmetic_frame_neon", "orderId": google_order,
+    })
+    r = await s.post(
+        "/shop/iap/google",
+        body={"sku": "cosmetic_frame_neon", "receipt": google_receipt},
+        expect=201,
+    )
+    if r.get("processor") != "google":
+        _fail(f"google IAP unexpected: {r}")
+    _ok(f"google IAP COMPLETED — sku={r['sku']}")
+
+    me = await s.get("/me")
+    if "auto_battle" not in me.get("qol_unlocks", []):
+        _fail(f"auto_battle not visible on /me after IAP: {me['qol_unlocks']}")
+    if "frame_neon_cubicle" not in me.get("cosmetic_frames", []):
+        _fail(f"frame_neon_cubicle not visible on /me: {me['cosmetic_frames']}")
+    _ok("/me reflects QoL unlock + cosmetic frame from IAP grants")
+
+
+async def tour_story(s: Session) -> None:
+    """Phase 2.5 — story chapter catalog + cutscene-seen flag."""
+    _section("11c. Story chapters + cutscene state (Phase 2.5)")
+    body = await s.get("/story")
+    if not body.get("chapters"):
+        _fail("/story returned no chapters")
+    ch1 = body["chapters"][0]
+    for k in ("code", "title", "unlocked", "stages", "completed", "reward_claimed", "end_reward"):
+        if k not in ch1:
+            _fail(f"chapter missing key {k!r}: {ch1.keys()}")
+    if not ch1["unlocked"]:
+        _fail("first chapter should be unlocked at account level 1")
+    locked_later = [c for c in body["chapters"] if c["unlock_level"] > 1]
+    if any(c["unlocked"] for c in locked_later):
+        _fail("higher-tier chapters should be locked")
+
+    # Mark intro cutscene seen.
+    r = await s.client.post(
+        "/story/cutscene-seen",
+        json={"chapter_code": ch1["code"], "stage_code": ch1["stages"][0]["code"], "beat": "intro"},
+        headers=s.auth,
+    )
+    if r.status_code != 204:
+        _fail(f"cutscene-seen HTTP {r.status_code}")
+    _ok(f"chapters returned ({len(body['chapters'])}) — first unlocked, cutscene-seen 204")
+
+
+async def tour_event_banner(s: Session) -> None:
+    """Phase 2.2 — Myth-tier event banner. The walkthrough doesn't
+    activate a banner (that needs DB write privileges); just verifies
+    the status endpoint + the no-banner 409 path."""
+    _section("11d. Myth event banner gating (Phase 2.2)")
+    status = await s.get("/summon/event-banner")
+    if "active" not in status:
+        _fail(f"event-banner status missing 'active' key: {status}")
+    if status["active"] is False:
+        # Expected on a clean run — ensure the POST 409s correctly.
+        r = await s.client.post("/summon/event-banner", headers=s.auth)
+        if r.status_code != 409:
+            _fail(f"no-active-banner POST should 409, got {r.status_code}")
+        _ok("no active banner — POST returns 409 as expected")
+    else:
+        _ok(f"event banner ACTIVE: {status.get('hero_template_code')} (cap={status.get('per_account_cap')})")
+
+
 async def tour_password_reset(s: Session) -> None:
     _section("11. Password reset — forgot + reset round-trip")
     r = await s.client.post("/auth/forgot-password", json={"email": s.email})
@@ -440,6 +557,10 @@ async def main() -> int:
             await tour_guilds(s)
             await tour_raids(s)
             await tour_shop(s)
+            await tour_hero_preview(s)
+            await tour_iap_qol(s)
+            await tour_story(s)
+            await tour_event_banner(s)
             await tour_password_reset(s)
             await tour_email_verification(s)
             await tour_totp_2fa(s)
@@ -447,7 +568,7 @@ async def main() -> int:
             return 1
     print()
     print(f"{GREEN}CLIENT WALKTHROUGH PASSED{RESET}")
-    print(f"Exercised 13 feature sections against {BASE} without failure.")
+    print(f"Exercised 17 feature sections against {BASE} without failure.")
     return 0
 
 

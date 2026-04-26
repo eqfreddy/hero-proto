@@ -230,6 +230,62 @@ def apply_refund(db: Session, account: Account, purchase: Purchase, reason: str 
                 direction=LedgerDirection.REFUND,
                 note="not clawed — manual CS decision",
             ))
+        elif g.kind.startswith("qol:") and g.amount > 0:
+            # Phase 2.4 — IAP refund must reverse the QoL unlock so a
+            # chargeback doesn't leak the auto-battle / preset-slots flag.
+            # `amount=0` ledger rows are the restore-purchases path; skip.
+            unlock = g.kind.split(":", 1)[1]
+            try:
+                owned = json.loads(account.qol_unlocks_json or "{}")
+                if isinstance(owned, dict) and unlock in owned:
+                    del owned[unlock]
+                    account.qol_unlocks_json = json.dumps(owned, separators=(",", ":"))
+                    reversed_[g.kind] = 1
+                    db.add(PurchaseLedger(
+                        purchase_id=purchase.id, kind=g.kind, amount=1,
+                        direction=LedgerDirection.REFUND,
+                        note=f"unlock {unlock!r} revoked",
+                    ))
+            except json.JSONDecodeError:
+                pass
+        elif g.kind.startswith("frame:") and g.amount > 0:
+            frame = g.kind.split(":", 1)[1]
+            try:
+                owned_frames = json.loads(account.cosmetic_frames_json or "[]")
+                if isinstance(owned_frames, list) and frame in owned_frames:
+                    owned_frames = [f for f in owned_frames if f != frame]
+                    account.cosmetic_frames_json = json.dumps(owned_frames, separators=(",", ":"))
+                    reversed_[g.kind] = 1
+                    db.add(PurchaseLedger(
+                        purchase_id=purchase.id, kind=g.kind, amount=1,
+                        direction=LedgerDirection.REFUND,
+                        note=f"frame {frame!r} revoked",
+                    ))
+            except json.JSONDecodeError:
+                pass
+        elif g.kind == "extra_hero_slots":
+            # Slot-cap refunds are clamped: never push the cap below 50
+            # (the seeded default) so the clawback can't wedge a player
+            # whose roster grew past the original ceiling.
+            new_cap = max(50, (account.hero_slot_cap or 50) - g.amount)
+            clawed = (account.hero_slot_cap or 50) - new_cap
+            account.hero_slot_cap = new_cap
+            reversed_[g.kind] = clawed
+            db.add(PurchaseLedger(
+                purchase_id=purchase.id, kind=g.kind, amount=clawed,
+                direction=LedgerDirection.REFUND,
+                note=f"slots clawed {clawed} (floor 50)",
+            ))
+        elif g.kind == "extra_gear_slots":
+            new_cap = max(200, (account.gear_slot_cap or 200) - g.amount)
+            clawed = (account.gear_slot_cap or 200) - new_cap
+            account.gear_slot_cap = new_cap
+            reversed_[g.kind] = clawed
+            db.add(PurchaseLedger(
+                purchase_id=purchase.id, kind=g.kind, amount=clawed,
+                direction=LedgerDirection.REFUND,
+                note=f"gear slots clawed {clawed} (floor 200)",
+            ))
 
     purchase.state = PurchaseState.REFUNDED
     purchase.refunded_at = utcnow()

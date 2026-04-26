@@ -137,9 +137,12 @@
     overlay.style.display = 'flex';
 
     try {
-      const [heroes, sellPreview] = await Promise.all([
+      const [heroes, sellPreview, upgradePreview] = await Promise.all([
         fetch('/heroes/mine', { headers: { authorization: 'Bearer ' + token } }).then(r => r.json()),
         fetch(`/heroes/${Number(instanceId)}/sell-preview`, { headers: { authorization: 'Bearer ' + token } }).then(r => r.ok ? r.json() : null),
+        // Phase 2.1 — real next-upgrade preview from the backend. Falls back
+        // to null if the request fails so the sheet still renders.
+        fetch(`/heroes/${Number(instanceId)}/preview`, { headers: { authorization: 'Bearer ' + token } }).then(r => r.ok ? r.json() : null),
       ]);
       const hero = heroes.find(h => h.id === Number(instanceId));
       if (!hero) {
@@ -167,8 +170,28 @@
       // Skill-up needs at least 1 dupe; consumes up to 4 per skill_up call.
       const canSkillUp = (hero.special_level || 1) < 5 && dupes.length >= 1 && t.special;
 
-      // Power preview if ascended (rough: +15% per star).
-      const previewedPower = Math.round(hero.power * 1.15);
+      // Phase 2.1 — real star-up preview from /heroes/{id}/preview. The
+      // endpoint returns absolute after-stats + delta; fall back to the
+      // old +15% heuristic only if the request failed.
+      const starPreview = upgradePreview && upgradePreview.star_up
+        ? upgradePreview.star_up : null;
+      const previewedPower = starPreview
+        ? starPreview.after.power
+        : Math.round(hero.power * 1.15);
+      const previewedDeltaPower = starPreview
+        ? Math.max(0, starPreview.delta.power || 0)
+        : (previewedPower - hero.power);
+      const starUpAvailable = starPreview ? starPreview.available : false;
+      const fodderHave = starPreview && starPreview.cost ? (starPreview.cost.fodder_available || 0) : null;
+      const fodderNeed = starPreview && starPreview.cost ? (starPreview.cost.fodder_needed || 0) : null;
+      // Variance badges — show the player which dupes rolled hot/cold.
+      const variance = hero.variance_pct || {};
+      const varianceTxt = Object.keys(variance).length
+        ? Object.entries(variance)
+            .filter(([, v]) => Math.abs(Number(v)) >= 0.005)
+            .map(([k, v]) => `${k.toUpperCase()} ${Number(v) > 0 ? '+' : ''}${(Number(v) * 100).toFixed(0)}%`)
+            .join(' · ')
+        : '';
 
       sheet.innerHTML = `
         <div style="display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 16px;">
@@ -195,7 +218,8 @@
             <div style="margin-top: 14px;">
               <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Power</div>
               <div style="font-size: 24px; font-weight: 800; color: var(--r-legendary);">${hero.power}</div>
-              ${hero.stars < 5 ? `<div class="muted" style="font-size: 11px; margin-top: 2px;">+15% to ~${previewedPower} after star-up</div>` : ''}
+              ${hero.stars < 5 ? `<div class="muted" style="font-size: 11px; margin-top: 2px;">+${previewedDeltaPower} to ${previewedPower} after star-up${fodderHave !== null ? ` <span style="opacity: 0.7;">(${fodderHave}/${fodderNeed} dupes${starUpAvailable ? ' ✓' : ''})</span>` : ''}</div>` : ''}
+              ${varianceTxt ? `<div class="muted" style="font-size: 11px; margin-top: 4px; color: ${Object.values(variance).reduce((a, b) => a + Number(b), 0) >= 0 ? 'var(--good)' : 'var(--bad)'};">Roll variance: ${varianceTxt}</div>` : ''}
             </div>
             ${t.special ? `
               <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);">

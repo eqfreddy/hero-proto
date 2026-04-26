@@ -178,6 +178,101 @@ def test_qol_unlock_restore_purchases_idempotent(client) -> None:
         db.close()
 
 
+# --- Refund coverage --------------------------------------------------------
+
+
+def _promote_to_admin(account_id: int) -> None:
+    from app.db import SessionLocal
+    from app.models import Account
+    db = SessionLocal()
+    try:
+        a = db.get(Account, account_id)
+        a.is_admin = True
+        db.commit()
+    finally:
+        db.close()
+
+
+def _register_admin(client) -> dict:
+    email = f"iap-adm+{random.randint(100000, 999999)}@example.com"
+    r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
+    hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    aid = client.get("/me", headers=hdr).json()["id"]
+    _promote_to_admin(aid)
+    return hdr
+
+
+def test_iap_refund_revokes_qol_unlock(client) -> None:
+    """Chargeback on an Apple QoL purchase must claw back the unlock —
+    leaving auto-battle owned would be a free-money bug."""
+    admin_hdr = _register_admin(client)
+    buyer_hdr, _ = _register(client)
+
+    receipt = _apple_receipt("qol_auto_battle", f"apple-tx-{random.randint(10**9, 10**10)}")
+    buy = client.post(
+        "/shop/iap/apple",
+        json={"sku": "qol_auto_battle", "receipt": receipt},
+        headers=buyer_hdr,
+    ).json()
+
+    me_pre = client.get("/me", headers=buyer_hdr).json()
+    assert "auto_battle" in me_pre["qol_unlocks"]
+
+    r = client.post(
+        f"/admin/purchases/{buy['id']}/refund",
+        headers=admin_hdr, json={"reason": "chargeback"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["state"] == "REFUNDED"
+
+    me_post = client.get("/me", headers=buyer_hdr).json()
+    assert "auto_battle" not in me_post["qol_unlocks"], me_post
+
+
+def test_iap_refund_revokes_cosmetic_frame(client) -> None:
+    admin_hdr = _register_admin(client)
+    buyer_hdr, _ = _register(client)
+
+    receipt = _google_receipt(
+        "cosmetic_frame_neon",
+        f"GPA.{random.randint(10**12, 10**13 - 1)}",
+    )
+    buy = client.post(
+        "/shop/iap/google",
+        json={"sku": "cosmetic_frame_neon", "receipt": receipt},
+        headers=buyer_hdr,
+    ).json()
+    assert "frame_neon_cubicle" in client.get("/me", headers=buyer_hdr).json()["cosmetic_frames"]
+
+    client.post(f"/admin/purchases/{buy['id']}/refund", headers=admin_hdr, json={})
+    me_post = client.get("/me", headers=buyer_hdr).json()
+    assert "frame_neon_cubicle" not in me_post["cosmetic_frames"]
+
+
+def test_iap_refund_clawback_slot_cap_floors_at_seeded_default(client) -> None:
+    """Refund slots_hero_pack must not push the cap below the 50-slot
+    seeded default. A player whose roster grew past 50 isn't punished
+    by a chargeback."""
+    admin_hdr = _register_admin(client)
+    buyer_hdr, _ = _register(client)
+
+    receipt = _google_receipt(
+        "slots_hero_pack",
+        f"GPA.{random.randint(10**12, 10**13 - 1)}",
+    )
+    buy = client.post(
+        "/shop/iap/google",
+        json={"sku": "slots_hero_pack", "receipt": receipt},
+        headers=buyer_hdr,
+    ).json()
+    cap_after = client.get("/me", headers=buyer_hdr).json()["hero_slot_cap"]
+    assert cap_after == 75  # 50 default + 25 from pack
+
+    client.post(f"/admin/purchases/{buy['id']}/refund", headers=admin_hdr, json={})
+    cap_post = client.get("/me", headers=buyer_hdr).json()["hero_slot_cap"]
+    assert cap_post == 50  # back to seeded default, not lower
+
+
 def test_unknown_qol_code_in_product_raises_value_error() -> None:
     """If a product is misconfigured to grant a code we don't know
     about, apply_grant raises ValueError so the typo blows up loudly
