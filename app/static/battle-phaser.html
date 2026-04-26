@@ -85,6 +85,12 @@
         this.speedMs = 300;
         this.state = {};      // uid -> {hp, maxHp, sprite, hpBar, hpText, statusRow, dead}
         this.timer = null;
+        // True while a multi-step animation chain (lunge → hit-frame → return)
+        // is in flight. The play() loop checks this before advancing — keeps
+        // the next event from cutting an attack animation short. Borrowed
+        // from CodeMonkey's CharacterBattle.cs callback-chain pattern, adapted
+        // for our event-log replay model.
+        this.attackInFlight = false;
       }
 
       preload() {
@@ -213,6 +219,8 @@
           hp: p.max_hp, maxHp: p.max_hp,
           container, portrait, frame, barFill, hpText, statusRow, ring,
           dead: false, statuses: [],
+          // Origin x/y so restart() can snap back if a lunge tween was killed.
+          originX: x, originY: y,
         };
       }
 
@@ -227,7 +235,15 @@
             }
             break;
           case "DAMAGE":
-            this.doDamage(e.target, e.amount || 0);
+            // When the log carries a known source, run the lunge → hit-frame →
+            // return chain so damage visuals land on contact, not on event-start.
+            // Status-tick damage (POISON/BURN) and reflected damage have no
+            // attacker to animate, so we fall through to immediate.
+            if (e.source && this.state[e.source] && !this.state[e.source].dead) {
+              this._animatedAttack(e.source, e.target, e.amount || 0, !!e.crit);
+            } else {
+              this.doDamage(e.target, e.amount || 0, !!e.crit);
+            }
             break;
           case "HEAL":
             this.doHeal(e.target, e.amount || 0);
@@ -286,7 +302,7 @@
         });
       }
 
-      doDamage(uid, amount) {
+      doDamage(uid, amount, crit = false) {
         const s = this.state[uid]; if (!s) return;
         s.hp = Math.max(0, s.hp - amount);
         this.updateHp(uid);
@@ -302,7 +318,73 @@
           const tint = this.participantRoleTint(uid);
           s.frame.setStrokeStyle(2, tint);
         });
-        this.floatText(uid, "-" + amount, 0xff6b4a, 22);
+        this.damageNumber(uid, amount, crit);
+      }
+
+      // Lunge → hit-frame → slide back. Returns nothing; sets attackInFlight
+      // for the duration so play() waits before advancing the event cursor.
+      // Animation durations scale with speedMs so 5× playback compresses
+      // gracefully instead of dragging behind the timer.
+      _animatedAttack(sourceUid, targetUid, amount, crit) {
+        const a = this.state[sourceUid], t = this.state[targetUid];
+        if (!a || !t) { this.doDamage(targetUid, amount, crit); return; }
+        this.attackInFlight = true;
+        const baseX = a.container.x;
+        // 22% of the way toward the target — visible lunge, doesn't overlap.
+        const lungeX = baseX + (t.container.x - baseX) * 0.22;
+        // Fast at high speed, more weight at slow speed. Floor at 50ms so
+        // tweens always feel like a step, never a snap.
+        const lungeMs = Math.max(50, this.speedMs * 0.25);
+        const returnMs = Math.max(60, this.speedMs * 0.30);
+        this.tweens.add({
+          targets: a.container, x: lungeX,
+          duration: lungeMs, ease: "Quad.out",
+          onComplete: () => {
+            // HIT-FRAME: damage visual lands now, on contact.
+            this.doDamage(targetUid, amount, crit);
+            this.tweens.add({
+              targets: a.container, x: baseX,
+              duration: returnMs, ease: "Quad.in",
+              onComplete: () => { this.attackInFlight = false; },
+            });
+          },
+        });
+      }
+
+      // DamagePopup-style: scale up to 130%, scale back to 100%, fade out.
+      // Crit variant ramps the font size + color (red instead of orange).
+      // Lifecycle pattern lifted from CodeMonkey TurnBattleSystem DamagePopup.cs.
+      damageNumber(uid, amount, crit) {
+        const s = this.state[uid]; if (!s) return;
+        const baseSize = crit ? 32 : 24;
+        const color = crit ? "#ff2b00" : "#ffc500";
+        const t = this.add.text(s.container.x, s.container.y - 30,
+          (crit ? "✦" : "") + amount, {
+            fontSize: `${baseSize}px`, color: color,
+            fontStyle: "bold", stroke: "#000", strokeThickness: 4,
+          }).setOrigin(0.5).setDepth(100).setScale(0.4);
+        this.tweens.add({
+          targets: t,
+          scale: { from: 0.4, to: 1.3 },
+          y: s.container.y - 50,
+          duration: 200, ease: "Back.out",
+          onComplete: () => {
+            this.tweens.add({
+              targets: t,
+              scale: 1.0,
+              y: s.container.y - 65,
+              duration: 200, ease: "Quad.in",
+              onComplete: () => {
+                this.tweens.add({
+                  targets: t,
+                  alpha: 0, y: s.container.y - 85,
+                  duration: 350, ease: "Quad.in",
+                  onComplete: () => t.destroy(),
+                });
+              },
+            });
+          },
+        });
       }
 
       doHeal(uid, amount) {
@@ -384,6 +466,13 @@
         });
       }
 
+      repositionUnits() {
+        for (const s of Object.values(this.state)) {
+          s.container.x = s.originX;
+          s.container.y = s.originY;
+        }
+      }
+
       participantRoleTint(uid) {
         const p = this.battle.participants.find(x => x.uid === uid);
         if (!p) return 0x7d8a9c;
@@ -411,6 +500,12 @@
         document.getElementById("btn-play").textContent = "⏸ Pause";
         const tick = () => {
           if (!this.playing) return;
+          // If an attack chain is mid-lunge, poll back in shortly instead of
+          // firing the next event over the top of it.
+          if (this.attackInFlight) {
+            this.timer = this.time.delayedCall(30, tick);
+            return;
+          }
           if (!this.stepOnce()) { this.pause(); this.showResult(); return; }
           this.timer = this.time.delayedCall(this.speedMs, tick);
         };
@@ -425,6 +520,9 @@
 
       restart() {
         this.pause();
+        // Cancel any in-flight attack chain so containers snap back to base.
+        this.tweens.killAll();
+        this.attackInFlight = false;
         // Reset state in place.
         for (const p of this.battle.participants) {
           const s = this.state[p.uid];
@@ -435,6 +533,10 @@
           s.ring.setAlpha(0);
           s.frame.setStrokeStyle(2, this.participantRoleTint(p.uid));
         }
+        // Snap units back to their original positions in case a lunge tween
+        // was killed mid-flight. buildUnits placed them at fixed x; recompute
+        // the same layout to restore.
+        this.repositionUnits();
         this.cursor = 0;
         this.resultText.setAlpha(0);
         document.getElementById("result").innerHTML = "";
