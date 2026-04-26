@@ -52,6 +52,27 @@
   </div>
   <div id="result"></div>
 
+  <!-- Keyboard shortcuts overlay — toggled with ? or H. Hidden by default;
+       readable cheat-sheet for desktop users who haven't discovered the
+       title= tooltips on the buttons. -->
+  <div id="kbd-help" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: #14181e; border: 1px solid #2d3847; border-radius: 8px; padding: 22px 28px; max-width: 420px; color: #ddd; box-shadow: 0 10px 40px rgba(0,0,0,0.6);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <h2 style="margin: 0; font-size: 16px;">Replay shortcuts</h2>
+        <button id="kbd-close" style="background: transparent; border: 1px solid #2d3847; color: #ddd; padding: 3px 9px; border-radius: 3px; cursor: pointer; font-size: 14px;">×</button>
+      </div>
+      <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+        <tr><td style="padding: 4px 8px; color: #4ea1ff;"><kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">Space</kbd> · <kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">K</kbd></td><td style="padding: 4px 8px;">Play / pause</td></tr>
+        <tr><td style="padding: 4px 8px; color: #4ea1ff;"><kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">N</kbd> · <kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">→</kbd></td><td style="padding: 4px 8px;">Step one event</td></tr>
+        <tr><td style="padding: 4px 8px; color: #4ea1ff;"><kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">R</kbd></td><td style="padding: 4px 8px;">Restart</td></tr>
+        <tr><td style="padding: 4px 8px; color: #4ea1ff;"><kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">1</kbd>–<kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">5</kbd></td><td style="padding: 4px 8px;">Speed: 0.33× / 0.5× / 1× / 2× / 5×</td></tr>
+        <tr><td style="padding: 4px 8px; color: #4ea1ff;"><kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">?</kbd> · <kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">H</kbd></td><td style="padding: 4px 8px;">Show / hide this help</td></tr>
+        <tr><td style="padding: 4px 8px; color: #4ea1ff;"><kbd style="background:#2a3442;padding:2px 6px;border-radius:3px;">Esc</kbd></td><td style="padding: 4px 8px;">Close this help</td></tr>
+      </table>
+      <div style="margin-top: 12px; font-size: 11px; color: #7d8a9c;">Inputs ignore typing in text fields, modifier keys, and contenteditable.</div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
   <script>
     // --------------- data fetch ------------------------------------------------
@@ -1034,6 +1055,22 @@
         //   R          restart from event 0
         //   1 / 2 / 3 / 4 / 5   speed presets matching the dropdown rows
         //                       (0.33× / 0.5× / 1× / 2× / 5×)
+        //   ? / H               toggle the keyboard-shortcuts overlay
+        //   Esc                 close the overlay
+        const kbdHelp = document.getElementById("kbd-help");
+        const showHelp = () => { kbdHelp.style.display = "flex"; };
+        const hideHelp = () => { kbdHelp.style.display = "none"; };
+        const toggleHelp = () => {
+          if (kbdHelp.style.display === "flex") hideHelp();
+          else showHelp();
+        };
+        document.getElementById("kbd-close").addEventListener("click", hideHelp);
+        // Click the dim backdrop to dismiss too — the modal body stops propagation
+        // so its inner clicks don't close. Listener attached to the overlay root.
+        kbdHelp.addEventListener("click", (e) => {
+          if (e.target === kbdHelp) hideHelp();
+        });
+
         const SPEED_KEYS = { "1": 900, "2": 600, "3": 300, "4": 150, "5": 60 };
         document.addEventListener("keydown", (e) => {
           // Don't hijack typing.
@@ -1058,6 +1095,18 @@
             case "R":
               e.preventDefault();
               scene.restart();
+              break;
+            case "?":
+            case "h":
+            case "H":
+              e.preventDefault();
+              toggleHelp();
+              break;
+            case "Escape":
+              if (kbdHelp.style.display === "flex") {
+                e.preventDefault();
+                hideHelp();
+              }
               break;
             default:
               if (SPEED_KEYS[e.key] != null) {
