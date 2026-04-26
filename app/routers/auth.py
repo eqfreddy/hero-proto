@@ -353,6 +353,9 @@ def get_current_account_verified_only(
 # --- Refresh tokens ----------------------------------------------------------
 
 from app.models import RefreshToken
+from app.observability import REFRESH_TOKEN_ANOMALY_TOTAL
+
+_refresh_log = logging.getLogger("auth.refresh")
 
 
 def _client_ip(req: Request | None) -> str | None:
@@ -375,6 +378,21 @@ def _client_ua(req: Request | None) -> str | None:
     return ua[:256] if ua else None
 
 
+def _client_fingerprint(req: Request | None) -> str | None:
+    """SHA-256 of (ua | "|" | ip) for refresh-token anomaly detection. Returns
+    None when neither component is available — equivalent to "unknown" and the
+    comparison on rotation will skip rather than alert. The hash is one-way so
+    we never persist raw UA/IP twice; the fingerprint sits next to the existing
+    user_agent + created_ip columns which are the user-facing copy."""
+    if req is None:
+        return None
+    ua = _client_ua(req) or ""
+    ip = _client_ip(req) or ""
+    if not ua and not ip:
+        return None
+    return hashlib.sha256(f"{ua}|{ip}".encode("utf-8")).hexdigest()
+
+
 def _issue_refresh_token(
     db: Session,
     account: Account,
@@ -382,8 +400,9 @@ def _issue_refresh_token(
 ) -> tuple[RefreshToken, str]:
     """Persist a new RefreshToken row and return (row, raw_token).
 
-    Captures IP + user-agent at issue time when a Request is available, so
-    the active-sessions list can show the user where each session came from.
+    Captures IP + user-agent at issue time so the active-sessions list can show
+    the user where each session came from, plus a fingerprint hash that the
+    refresh handler compares against on rotation to detect token-theft signals.
     """
     raw = secrets.token_urlsafe(40)
     row = RefreshToken(
@@ -392,6 +411,7 @@ def _issue_refresh_token(
         expires_at=utcnow() + timedelta(days=settings.refresh_token_ttl_days),
         created_ip=_client_ip(request),
         user_agent=_client_ua(request),
+        fingerprint_hash=_client_fingerprint(request),
     )
     db.add(row)
     return row, raw
@@ -463,6 +483,26 @@ def refresh(
             status.HTTP_403_FORBIDDEN,
             f"account is banned: {account.banned_reason or 'no reason given'}",
         )
+
+    # Fingerprint anomaly check. Compares the caller's UA+IP hash against the
+    # one stored at issue time. Mismatch = the token is being used from a
+    # different device/network than where it was minted — could be roaming
+    # (laptop wifi → tether), could be theft. We log + count but don't auto-
+    # revoke since legit UAs change with browser updates and IPs flip across
+    # mobile/wifi. The session list still surfaces the new IP/UA so users can
+    # spot suspicious sessions and revoke them manually.
+    expected_fp = row.fingerprint_hash
+    if expected_fp is not None:
+        actual_fp = _client_fingerprint(request)
+        if actual_fp is not None and actual_fp != expected_fp:
+            REFRESH_TOKEN_ANOMALY_TOTAL.inc()
+            _refresh_log.warning(
+                "refresh_token_fingerprint_mismatch account_id=%s token_id=%s "
+                "issued_ip=%s current_ip=%s issued_ua=%s current_ua=%s",
+                account.id, row.id,
+                row.created_ip, _client_ip(request),
+                (row.user_agent or "")[:80], (_client_ua(request) or "")[:80],
+            )
 
     # Rotate: issue a new token, mark old replaced.
     row.last_used_at = now

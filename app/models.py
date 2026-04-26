@@ -795,6 +795,12 @@ class RefreshToken(Base):
     created_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(256), nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # SHA-256 of (user_agent | "|" | ip) at issue time. Compared against the
+    # caller's fingerprint on every refresh; mismatches are logged + counted
+    # but NOT auto-revoked (UAs change with browser updates, IPs flip across
+    # mobile→wifi). Detection signal, not an enforcement gate. NULL on rows
+    # issued before this column was added.
+    fingerprint_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class EmailVerificationToken(Base):

@@ -116,7 +116,7 @@ Dockerfile + compose exist; nothing's been pushed or deployed.
 - [ ] Run `scripts/postgres_stack_validate.sh` once green (trust-but-verify the Postgres path)
 - [ ] Build + push Docker image to a registry (Fly / GHCR / ECR)
 - [ ] Pick a hosted target (Fly / Railway / Render / plain VM) and do a first deploy
-- [ ] Automated daily DB backup (volume → dated tarball on a schedule)
+- [x] Automated daily DB backup — `scripts/backup_db.sh` handles SQLite (sqlite3 .backup + gzip) and Postgres (pg_dump custom format), date-stamped names, RETAIN-based pruning, run from cron/systemd-timer
 - [x] Graceful shutdown — worker cancels + in-flight battles finish (lifespan handles it; documented in RUNBOOK with uvicorn flag recommendations)
 
 ### D. Raid depth ✅ done (2026-04-25)
@@ -218,7 +218,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 ### Auth / account
 - [x] Account data export (GDPR art. 20) — `GET /me/export`, e2d2ff5
 - [x] Login history / active sessions list — `GET /me/sessions` + revoke endpoints, e2d2ff5
-- [ ] Device fingerprinting for refresh-token anomaly detection
+- [x] Device fingerprinting for refresh-token anomaly detection — `fingerprint_hash` (sha256 of UA|IP) on RefreshToken, compared on rotation. Mismatch logs `auth.refresh` warning + bumps `refresh_token_anomaly_total` Prometheus counter; never auto-revokes (legit users roam, browsers update). 4 new tests cover persist + match + mismatch + null-legacy paths.
 
 ### Guilds
 - [x] Promote / transfer endpoints — `/guilds/{id}/{promote,demote,transfer,kick}/{account_id}` already shipped
@@ -250,7 +250,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 ### Infrastructure
 - [ ] Postgres end-to-end smoke (Sprint C)
 - [ ] Docker image build + push to a registry (Dockerfile exists, never built)
-- [ ] Automated daily DB backup (SQLite volume → dated tarball on a schedule)
+- [x] Automated daily DB backup — `scripts/backup_db.sh` (see Sprint C above)
 - [x] Graceful shutdown — worker cancels + in-flight battles finish (lifespan handles it; documented in RUNBOOK with uvicorn flag recommendations)
 - [ ] Deploy target picked (Fly / Railway / Render / plain VM)
 

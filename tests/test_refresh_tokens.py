@@ -48,6 +48,62 @@ def test_login_emits_refresh_token(client) -> None:
     assert body["refresh_token"]
 
 
+def test_register_persists_fingerprint_hash(client) -> None:
+    """A fingerprint_hash should be set at issue time so the refresh handler
+    has something to compare against on rotation."""
+    hdr, account_id, access, refresh = _register(client, "rtfp")
+    with SessionLocal() as db:
+        row = db.scalar(
+            select(RefreshToken).where(RefreshToken.account_id == account_id)
+        )
+        assert row is not None
+        assert row.fingerprint_hash is not None
+        # Hex sha256 — always 64 chars.
+        assert len(row.fingerprint_hash) == 64
+
+
+def test_refresh_with_matching_fingerprint_does_not_tick_anomaly(client) -> None:
+    """Same client → same UA → same IP → fingerprints match → counter unchanged."""
+    from app.observability import REFRESH_TOKEN_ANOMALY_TOTAL
+    _hdr, _aid, _access, refresh = _register(client, "rtfpmatch")
+    before = REFRESH_TOKEN_ANOMALY_TOTAL._value.get()
+    r = client.post("/auth/refresh", json={"refresh_token": refresh})
+    assert r.status_code == 200
+    after = REFRESH_TOKEN_ANOMALY_TOTAL._value.get()
+    assert after == before, "matching fingerprint must not tick the counter"
+
+
+def test_refresh_with_different_user_agent_ticks_anomaly_counter(client) -> None:
+    """Different UA on rotation → fingerprint mismatch → counter ticks. Token
+    still rotates successfully — anomaly is detection-only, never enforcement."""
+    from app.observability import REFRESH_TOKEN_ANOMALY_TOTAL
+    _hdr, _aid, _access, refresh = _register(client, "rtfpmm")
+    before = REFRESH_TOKEN_ANOMALY_TOTAL._value.get()
+    r = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh},
+        headers={"User-Agent": "AttackerClient/1.0"},
+    )
+    assert r.status_code == 200
+    after = REFRESH_TOKEN_ANOMALY_TOTAL._value.get()
+    assert after == before + 1, "fingerprint mismatch must tick the counter exactly once"
+
+
+def test_refresh_legacy_token_with_null_fingerprint_skips_check(client) -> None:
+    """Pre-migration rows have NULL fingerprint_hash; refresh must still work
+    without logging an anomaly (we only compare when both sides are present)."""
+    _hdr, account_id, _access, refresh = _register(client, "rtfplegacy")
+    # Wipe the fingerprint to simulate a pre-migration row.
+    with SessionLocal() as db:
+        row = db.scalar(
+            select(RefreshToken).where(RefreshToken.account_id == account_id)
+        )
+        row.fingerprint_hash = None
+        db.commit()
+    r = client.post("/auth/refresh", json={"refresh_token": refresh})
+    assert r.status_code == 200
+
+
 def test_refresh_rotates_and_returns_new_access(client) -> None:
     hdr, account_id, access_1, refresh_1 = _register(client)
     r = client.post("/auth/refresh", json={"refresh_token": refresh_1})

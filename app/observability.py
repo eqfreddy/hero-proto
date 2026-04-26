@@ -28,6 +28,13 @@ REQUESTS_TOTAL = Counter(
 )
 BATTLES_TOTAL = Counter("battles_total", "Total battle resolutions.")
 SUMMONS_TOTAL = Counter("summons_total", "Total gacha pulls (x1 or x10 — counts pulls, not calls).")
+REFRESH_TOKEN_ANOMALY_TOTAL = Counter(
+    "refresh_token_anomaly_total",
+    "Refresh-token rotations where the caller's UA+IP fingerprint did not "
+    "match the fingerprint stored at issue time. Detection signal only — "
+    "the token still rotates successfully (legit users roam between networks "
+    "and update browsers). A sustained spike means real token theft.",
+)
 REQUEST_DURATION = Histogram(
     "request_duration_seconds",
     "HTTP request duration in seconds.",
