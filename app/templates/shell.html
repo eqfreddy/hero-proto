@@ -421,9 +421,34 @@
     }
   });
 
-  // Refresh badge on any htmx request, on a 30s timer, and on first load.
+  // Refresh badge on any htmx request, on a visibility-aware timer, on tab
+  // focus (covers 'I came back from another window'), and on first load.
+  // The 30s interval is paused while the tab is hidden — saves API hits and
+  // mobile battery — and an immediate refresh fires the moment the tab is
+  // visible again so the badge is current before the user sees it.
   document.body.addEventListener('htmx:afterRequest', refreshBellBadge);
-  setInterval(refreshBellBadge, 30000);
+  let _bellTimer = null;
+  function _startBellPoll() {
+    if (_bellTimer != null) return;
+    _bellTimer = setInterval(refreshBellBadge, 30000);
+  }
+  function _stopBellPoll() {
+    if (_bellTimer == null) return;
+    clearInterval(_bellTimer);
+    _bellTimer = null;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      refreshBellBadge();
+      _startBellPoll();
+    } else {
+      _stopBellPoll();
+    }
+  });
+  // window 'focus' covers some odd browser cases (BFCache restore on iOS
+  // Safari) where visibilitychange doesn't fire reliably.
+  window.addEventListener('focus', refreshBellBadge);
+  if (document.visibilityState === 'visible') _startBellPoll();
   refreshBellBadge();
 
   // Auto-load last-used tab (or login if none).
