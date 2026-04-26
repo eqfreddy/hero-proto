@@ -458,6 +458,9 @@ class DirectMessage(Base):
     body: Mapped[str] = mapped_column(String(1000))
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True, index=True)
+    # Soft-delete by the sender. Row stays so reports/audit still resolve, but
+    # /dm/threads + /dm/with/* surface the body as "[deleted]" once set.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class DirectMessageReport(Base):

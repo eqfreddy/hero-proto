@@ -74,6 +74,9 @@ class DirectMessageOut(BaseModel):
     created_at: str
     read_at: str | None
     is_mine: bool
+    # True when the sender soft-deleted; the body field is replaced with a
+    # stub ('[deleted]') so the recipient sees the gap but not the content.
+    deleted: bool = False
 
 
 class ThreadPreviewOut(BaseModel):
@@ -467,10 +470,13 @@ def list_dm_threads(
             )
         ) or 0
         other = db.get(Account, other_id)
+        # Soft-deleted messages show their stub in the preview too — same
+        # contract as /dm/with/* responses.
+        preview_body = "[deleted]" if last.deleted_at is not None else last.body[:140]
         out.append(ThreadPreviewOut(
             other_account_id=other_id,
             other_name=_name_for(other) if other else "[gone]",
-            last_body=last.body[:140],
+            last_body=preview_body,
             last_created_at=last.created_at.isoformat(),
             unread_count=int(unread),
         ))
@@ -496,16 +502,23 @@ def get_thread(
     if before is not None:
         stmt = stmt.where(DirectMessage.id < before)
     rows = list(db.scalars(stmt.order_by(desc(DirectMessage.id)).limit(limit)))
-    return [
-        DirectMessageOut(
-            id=r.id, sender_id=r.sender_id, recipient_id=r.recipient_id,
-            body=r.body,
-            created_at=r.created_at.isoformat(),
-            read_at=r.read_at.isoformat() if r.read_at else None,
-            is_mine=r.sender_id == account.id,
-        )
-        for r in rows
-    ]
+    return [_dm_out(r, account.id) for r in rows]
+
+
+def _dm_out(r: DirectMessage, viewer_id: int) -> DirectMessageOut:
+    """Shared formatter that respects soft-delete: a deleted message returns
+    `body='[deleted]'` and `deleted=True` so the recipient sees the gap but
+    not the original content. The original body still lives in the DB for
+    audit/abuse-report purposes."""
+    deleted = r.deleted_at is not None
+    return DirectMessageOut(
+        id=r.id, sender_id=r.sender_id, recipient_id=r.recipient_id,
+        body="[deleted]" if deleted else r.body,
+        created_at=r.created_at.isoformat(),
+        read_at=r.read_at.isoformat() if r.read_at else None,
+        is_mine=r.sender_id == viewer_id,
+        deleted=deleted,
+    )
 
 
 @router.post("/dm/with/{other_account_id}", response_model=DirectMessageOut, status_code=status.HTTP_201_CREATED)
@@ -547,13 +560,7 @@ def send_dm(
     )
     db.commit()
     db.refresh(msg)
-    return DirectMessageOut(
-        id=msg.id, sender_id=msg.sender_id, recipient_id=msg.recipient_id,
-        body=msg.body,
-        created_at=msg.created_at.isoformat(),
-        read_at=None,
-        is_mine=True,
-    )
+    return _dm_out(msg, account.id)
 
 
 @router.post("/dm/{message_id}/read", status_code=status.HTTP_204_NO_CONTENT)
@@ -587,6 +594,28 @@ def mark_thread_read(
         .values(read_at=utcnow())
     )
     db.commit()
+    return None
+
+
+@router.delete("/dm/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dm(
+    message_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    """Soft-delete a DM. Sender-only — recipients can't redact someone
+    else's writing. The row stays in the DB so abuse reports / audit still
+    resolve to the original content; the body is replaced with '[deleted]'
+    in /dm/* responses via _dm_out. Idempotent on already-deleted rows."""
+    msg = db.get(DirectMessage, message_id)
+    if msg is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "message not found")
+    if msg.sender_id != account.id:
+        # Don't leak existence to non-senders.
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "message not found")
+    if msg.deleted_at is None:
+        msg.deleted_at = utcnow()
+        db.commit()
     return None
 
 

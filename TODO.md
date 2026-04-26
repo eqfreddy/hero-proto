@@ -224,7 +224,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] Promote / transfer endpoints — `/guilds/{id}/{promote,demote,transfer,kick}/{account_id}` already shipped
 - [x] Application flow — `/guilds/{id}/apply` + `/guilds/applications/{id}/{accept,reject}` already shipped
 - [x] Invite flow — `GuildInvite` model + 6 endpoints (invite/accept/reject/cancel/list outgoing/list mine), 10 lifecycle tests. See "Guild invite flow (2026-04-25)" below.
-- [ ] Soft-delete / archive for messages
+- [x] Soft-delete for direct messages — sender-only `DELETE /dm/{id}`, body redacted to `[deleted]` in /dm/with/* + /dm/threads, row stays so reports/audit resolve. Migration `177a30b78d4a`.
 - [ ] Per-guild achievements / milestones
 
 ### Raids
