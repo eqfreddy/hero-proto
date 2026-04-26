@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_account
-from app.models import Account, EmailVerificationToken, HeroInstance, HeroTemplate, Rarity, utcnow
+from app.models import Account, EmailVerificationToken, Faction, HeroInstance, HeroTemplate, Rarity, utcnow
 from app.schemas import LoginIn, RegisterIn, TokenOut
 from app.security import hash_password, issue_token, verify_password
 
@@ -66,6 +66,10 @@ def register(
         energy_stored=settings.starter_energy,
         energy_last_tick_at=utcnow(),
         coins=settings.starter_coins,
+        # Phase 2.5: every new account starts EXILE — narrative state for the
+        # level-50 alignment fork. Set explicitly (vs leaning on the column
+        # default) so test fixtures + admin grants stay deterministic.
+        faction=Faction.EXILE,
     )
     _maybe_promote_admin(account)
     db.add(account)

@@ -33,6 +33,12 @@ class Faction(StrEnum):
     EXECUTIVE = "EXECUTIVE"
     ROGUE_IT = "ROGUE_IT"
     LEGACY = "LEGACY"
+    # Default narrative faction for new players — "haven't picked a side yet" in
+    # the bigger Corp story. Phase 3's level-50 alignment fork transitions a
+    # player out of EXILE into either RESISTANCE or CORP_GREED. Until then it's
+    # purely cosmetic; combat synergy treats EXILE like any other faction (so a
+    # team of 5 EXILE heroes gets the 5-of-faction synergy bonus).
+    EXILE = "EXILE"
 
 
 class Role(StrEnum):
@@ -247,6 +253,13 @@ class Account(Base):
     # (Phase 3) the alignment fork at level 50.
     account_level: Mapped[int] = mapped_column(Integer, default=1)
     account_xp: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Player's narrative faction. Defaults to EXILE for all new accounts —
+    # "not yet aligned" in the bigger Corp-vs-Resistance story. Phase 3's
+    # level-50 fork flips this to RESISTANCE / CORP_GREED. No mechanical
+    # weight pre-fork; surfaced on the profile + roster header so it reads
+    # like an identity choice the player will make later.
+    faction: Mapped[Faction] = mapped_column(String(16), default=Faction.EXILE)
 
     # Story state — JSON dict tracking which chapter cutscenes the player has
     # already seen. Keyed by "chapter_code:beat_index" with timestamp values.

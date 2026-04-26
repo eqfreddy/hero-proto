@@ -77,6 +77,9 @@ class MeOut(BaseModel):
     account_level: int = 1
     account_xp: int = 0
     account_xp_to_next: int = 100
+    # Narrative faction. EXILE for new players ("not yet aligned"); flips to
+    # RESISTANCE / CORP_GREED at the level-50 alignment fork (Phase 3).
+    faction: Faction = Faction.EXILE
 
 
 class HeroTemplateOut(BaseModel):

@@ -16,7 +16,7 @@ from app.daily_bonus import (
 from app.db import get_db
 from app.deps import enforce_data_export_rate_limit, get_current_account
 from app.economy import compute_energy, load_cleared
-from app.models import Account, Battle, Guild, GuildMember, GuildRole, HeroInstance
+from app.models import Account, Battle, Faction, Guild, GuildMember, GuildRole, HeroInstance
 from app.schemas import MeOut
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -49,6 +49,7 @@ def get_me(
         account_level=account.account_level or 1,
         account_xp=account.account_xp or 0,
         account_xp_to_next=_xp_to_next(account.account_level or 1),
+        faction=Faction(account.faction) if not isinstance(account.faction, Faction) else account.faction,
     )
 
 
