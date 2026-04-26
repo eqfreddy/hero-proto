@@ -27,10 +27,21 @@ def get_me(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
 ) -> MeOut:
+    import json as _json
     cleared = load_cleared(account)
     has_summoned = db.query(HeroInstance).filter_by(account_id=account.id).limit(1).first() is not None
     has_battled = db.query(Battle).filter_by(account_id=account.id).limit(1).first() is not None
     from app.account_level import xp_to_next as _xp_to_next
+    try:
+        qol_owned = _json.loads(account.qol_unlocks_json or "{}")
+        qol_codes = sorted(qol_owned.keys()) if isinstance(qol_owned, dict) else []
+    except _json.JSONDecodeError:
+        qol_codes = []
+    try:
+        frames = _json.loads(account.cosmetic_frames_json or "[]")
+        frame_codes = [str(f) for f in frames] if isinstance(frames, list) else []
+    except _json.JSONDecodeError:
+        frame_codes = []
     return MeOut(
         id=account.id,
         email=account.email,
@@ -50,6 +61,10 @@ def get_me(
         account_xp=account.account_xp or 0,
         account_xp_to_next=_xp_to_next(account.account_level or 1),
         faction=Faction(account.faction) if not isinstance(account.faction, Faction) else account.faction,
+        qol_unlocks=qol_codes,
+        cosmetic_frames=frame_codes,
+        hero_slot_cap=account.hero_slot_cap or 50,
+        gear_slot_cap=account.gear_slot_cap or 200,
     )
 
 

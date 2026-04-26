@@ -862,6 +862,80 @@ SHOP_SEEDS: list[dict] = [
         "per_account_limit": 0,  # intended to recur weekly in later sprints
         "contents": {"gems": 700, "shards": 40, "access_cards": 3},
     },
+    # --- PoE2-style QoL catalog (Phase 2.4) ---------------------------------
+    # Tone lock: cosmetic / QoL only, never raw power. F2P viability is
+    # non-negotiable — every gameplay path stays reachable without spending.
+    # Catalog codes must match KNOWN_QOL_UNLOCKS / KNOWN_COSMETIC_FRAMES in
+    # app/store.py or apply_grant raises.
+    {
+        "sku": "qol_auto_battle", "title": "QoL: Auto-Battle",
+        "description": "Skip the watch — collapses /battles into one POST. One-time unlock. Pure QoL, never sold for power.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 499, "sort_order": 500,
+        "per_account_limit": 1,
+        "contents": {"qol_unlocks": ["auto_battle"]},
+    },
+    {
+        "sku": "qol_extra_presets", "title": "QoL: Extra Preset Slots",
+        "description": "Bumps the team-preset cap from 5 to 10. One-time unlock.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 299, "sort_order": 510,
+        "per_account_limit": 1,
+        "contents": {"qol_unlocks": ["extra_team_presets"]},
+    },
+    {
+        "sku": "qol_quick_summon", "title": "QoL: Quick Summon",
+        "description": "Skip the per-pull animation on x10. Cosmetic. One-time unlock.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 199, "sort_order": 520,
+        "per_account_limit": 1,
+        "contents": {"qol_unlocks": ["quick_summon"]},
+    },
+    {
+        "sku": "qol_roster_sort", "title": "QoL: Advanced Roster Sort",
+        "description": "Roster filter / sort options beyond the default rarity+power view.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 199, "sort_order": 530,
+        "per_account_limit": 1,
+        "contents": {"qol_unlocks": ["roster_sort_advanced"]},
+    },
+    # Inventory expansions — additive caps. Stackable, no per-account limit.
+    {
+        "sku": "slots_hero_pack", "title": "Roster Expansion (+25 hero slots)",
+        "description": "Bumps hero_slot_cap by 25. Stackable.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 299, "sort_order": 600,
+        "per_account_limit": 0,
+        "contents": {"extra_hero_slots": 25},
+    },
+    {
+        "sku": "slots_gear_pack", "title": "Stash Expansion (+100 gear slots)",
+        "description": "Bumps gear_slot_cap by 100. Stackable.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 299, "sort_order": 610,
+        "per_account_limit": 0,
+        "contents": {"extra_gear_slots": 100},
+    },
+    # Cosmetic frames — pure visual flair, no power. Single-frame SKUs +
+    # one bundle for the recurring-spend path.
+    {
+        "sku": "cosmetic_frame_neon", "title": "Cosmetic: Neon Cubicle Frame",
+        "description": "Hero card frame in neon-cubicle palette. Cosmetic.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 199, "sort_order": 700,
+        "per_account_limit": 1,
+        "contents": {"cosmetic_frames": ["frame_neon_cubicle"]},
+    },
+    {
+        "sku": "cosmetic_frame_terminal", "title": "Cosmetic: Terminal Green Frame",
+        "description": "Hero card frame in monochrome green. Cosmetic.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 199, "sort_order": 710,
+        "per_account_limit": 1,
+        "contents": {"cosmetic_frames": ["frame_terminal_green"]},
+    },
+    {
+        "sku": "cosmetic_frame_bundle", "title": "Cosmetic: Frame Bundle",
+        "description": "All four cosmetic frames at once. Cosmetic only.",
+        "kind": ShopProductKind.SEASONAL_BUNDLE, "price_cents": 599, "sort_order": 750,
+        "per_account_limit": 1,
+        "contents": {"cosmetic_frames": [
+            "frame_neon_cubicle", "frame_terminal_green",
+            "frame_legacy_brass", "frame_corp_platinum",
+        ]},
+    },
 ]
 
 

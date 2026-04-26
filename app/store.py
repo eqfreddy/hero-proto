@@ -27,13 +27,42 @@ from app.models import (
 
 # Kinds understood in a product's contents_json. Keep the list explicit so a malformed
 # product (typo in kind) doesn't silently grant nothing — we fail loudly instead.
-GRANTABLE_CURRENCIES = ("gems", "shards", "coins", "access_cards")
+GRANTABLE_CURRENCIES = ("gems", "shards", "coins", "access_cards", "free_summon_credits")
+
+
+# Phase 2.4 — known QoL unlocks. Catalog as data so a typo in a product's
+# contents_json fails loudly. Each entry: code → human-readable label +
+# optional side-effect (e.g. extra_team_presets bumps a soft cap).
+KNOWN_QOL_UNLOCKS: dict[str, dict] = {
+    # Skip-to-result button on /battles. Free accounts get the standard
+    # simulate-and-watch path; this unlock collapses that into a single
+    # POST that also auto-submits the team. Pure QoL, no power impact.
+    "auto_battle": {"label": "Auto-Battle", "kind": "flag"},
+    # Bumps the team-preset cap from 5 to 10. Cap is enforced in the
+    # team-presets router; the unlock just toggles a different ceiling.
+    "extra_team_presets": {"label": "Extra Preset Slots (5→10)", "kind": "flag"},
+    # Roster sort/filter options beyond the default rarity/power sort.
+    "roster_sort_advanced": {"label": "Advanced Roster Sort", "kind": "flag"},
+    # Quick-summon — skip the per-pull animation on x10. Cosmetic.
+    "quick_summon": {"label": "Quick Summon", "kind": "flag"},
+}
+
+
+# Cosmetic frame catalog. Codes only; rendering happens client-side.
+KNOWN_COSMETIC_FRAMES: set[str] = {
+    "frame_neon_cubicle", "frame_terminal_green",
+    "frame_legacy_brass", "frame_corp_platinum",
+}
 
 
 @dataclass
 class GrantSummary:
     currencies: dict[str, int]
     hero_instance_id: int | None
+    qol_unlocks: list[str]
+    cosmetic_frames: list[str]
+    extra_hero_slots: int
+    extra_gear_slots: int
 
 
 def product_contents(product: ShopProduct) -> dict:
@@ -74,7 +103,96 @@ def apply_grant(db: Session, account: Account, purchase: Purchase, contents: dic
             purchase_id=purchase.id, kind="hero", amount=hero.id,
             direction=LedgerDirection.GRANT, note=f"template={code}",
         ))
-    return GrantSummary(currencies=granted, hero_instance_id=hero_instance_id)
+
+    # Phase 2.4 — QoL unlocks. Stored as JSON dict {code: granted_at_iso}.
+    # Idempotent: re-granting an already-owned unlock is a no-op (mobile
+    # restore-purchases hits this all the time).
+    qol_granted: list[str] = []
+    qol_codes = contents.get("qol_unlocks") or []
+    if isinstance(qol_codes, str):
+        qol_codes = [qol_codes]
+    if qol_codes:
+        try:
+            owned = json.loads(account.qol_unlocks_json or "{}")
+            if not isinstance(owned, dict):
+                owned = {}
+        except json.JSONDecodeError:
+            owned = {}
+        for unlock in qol_codes:
+            unlock = str(unlock)
+            if unlock not in KNOWN_QOL_UNLOCKS:
+                raise ValueError(f"product references unknown QoL unlock {unlock!r}")
+            if unlock in owned:
+                # Already owned — restore-purchases path. Note in ledger so
+                # CS can audit, but don't double-log a fresh grant.
+                db.add(PurchaseLedger(
+                    purchase_id=purchase.id, kind=f"qol:{unlock}", amount=0,
+                    direction=LedgerDirection.GRANT, note="restore (already owned)",
+                ))
+                continue
+            owned[unlock] = utcnow().isoformat()
+            qol_granted.append(unlock)
+            db.add(PurchaseLedger(
+                purchase_id=purchase.id, kind=f"qol:{unlock}", amount=1,
+                direction=LedgerDirection.GRANT,
+            ))
+        account.qol_unlocks_json = json.dumps(owned, separators=(",", ":"))
+
+    # Cosmetic frames. JSON list of frame codes. Same idempotent shape.
+    cosm_granted: list[str] = []
+    cosm_codes = contents.get("cosmetic_frames") or []
+    if isinstance(cosm_codes, str):
+        cosm_codes = [cosm_codes]
+    if cosm_codes:
+        try:
+            owned_frames = json.loads(account.cosmetic_frames_json or "[]")
+            if not isinstance(owned_frames, list):
+                owned_frames = []
+        except json.JSONDecodeError:
+            owned_frames = []
+        owned_set = set(owned_frames)
+        for frame in cosm_codes:
+            frame = str(frame)
+            if frame not in KNOWN_COSMETIC_FRAMES:
+                raise ValueError(f"product references unknown cosmetic frame {frame!r}")
+            if frame in owned_set:
+                db.add(PurchaseLedger(
+                    purchase_id=purchase.id, kind=f"frame:{frame}", amount=0,
+                    direction=LedgerDirection.GRANT, note="restore (already owned)",
+                ))
+                continue
+            owned_frames.append(frame)
+            owned_set.add(frame)
+            cosm_granted.append(frame)
+            db.add(PurchaseLedger(
+                purchase_id=purchase.id, kind=f"frame:{frame}", amount=1,
+                direction=LedgerDirection.GRANT,
+            ))
+        account.cosmetic_frames_json = json.dumps(owned_frames, separators=(",", ":"))
+
+    # Extra hero / gear slot bumps — additive on the cap. Always granted
+    # cleanly (no idempotency: a player buying the slot-pack twice gets
+    # 2× the slots).
+    extra_hero = int(contents.get("extra_hero_slots", 0) or 0)
+    extra_gear = int(contents.get("extra_gear_slots", 0) or 0)
+    if extra_hero > 0:
+        account.hero_slot_cap = (account.hero_slot_cap or 0) + extra_hero
+        db.add(PurchaseLedger(
+            purchase_id=purchase.id, kind="extra_hero_slots", amount=extra_hero,
+            direction=LedgerDirection.GRANT,
+        ))
+    if extra_gear > 0:
+        account.gear_slot_cap = (account.gear_slot_cap or 0) + extra_gear
+        db.add(PurchaseLedger(
+            purchase_id=purchase.id, kind="extra_gear_slots", amount=extra_gear,
+            direction=LedgerDirection.GRANT,
+        ))
+
+    return GrantSummary(
+        currencies=granted, hero_instance_id=hero_instance_id,
+        qol_unlocks=qol_granted, cosmetic_frames=cosm_granted,
+        extra_hero_slots=extra_hero, extra_gear_slots=extra_gear,
+    )
 
 
 def apply_refund(db: Session, account: Account, purchase: Purchase, reason: str = "") -> dict[str, int]:

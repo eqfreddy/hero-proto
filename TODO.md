@@ -77,18 +77,20 @@ Feedback from the first UI walkthrough — long-term vision, not next-sprint wor
 
 ---
 
-## 🎯 Phase 2 preview — next big arc
+## 🎯 Phase 2 — shipped 2026-04-26 ✅
 
-Phase 1 is done. The product is now genuinely playable for a new user — tutorial flow, visual roster, team presets, dedicated Summon tab, starter pack. Next arc is Phase 2 ("Feels like a real game") per `docs/PRD.md § 7`:
+Phase 1 is done. The product is now genuinely playable for a new user — tutorial flow, visual roster, team presets, dedicated Summon tab, starter pack. Phase 2 ("Feels like a real game") per `docs/PRD.md § 7` is now mostly shipped:
 
-- Hero detail depth: weapon/armor/accessory slots, skill tree UI, star-up flow, next-upgrade previews
-- Event content: Myth-tier hero wired end-to-end, scheduled future LiveOps, stat variance on dupes
-- Analytics: PostHog self-hosted, 12 events instrumented, funnels — **shipped 2026-04-26 (Phase 2.3 ✅)**: graceful wrapper in `app/analytics.py`, 12 events instrumented (register/login/summon_x1/x10/stage_start/stage_clear/first_clear/arena_attack/raid_attack/purchase_start/purchase_complete/daily_bonus_claim), 11 mocked-client tests, RUNBOOK §Analytics with Cloud-first bring-up + funnel + dashboard recipes, `scripts/verify_analytics.py` smoke tester, `scripts/posthog_dashboard.json` 10-insight starter dashboard import. **Last step (ops):** set `HEROPROTO_POSTHOG_API_KEY` in prod env, run verify_analytics from staging, import dashboard, run client_walkthrough — covers the Phase 2 acceptance criteria.
-- Store expansion: PoE2-style QoL SKUs, Apple StoreKit 2 receipt verification, Google Play Billing
-- Balance tooling: Jupyter notebook with gacha EV / DPS curves / arena rating convergence
-- Story campaign + account-level XP + Exile as default faction (Phase 2.5)
+- **2.1 Hero detail depth ✅** — per-slot WEAPON/HELMET/ARMOR/BOOTS/RING/AMULET shipped pre-Phase-2; star-up via `/heroes/{id}/ascend`, special-up via `/heroes/{id}/skill_up`. Phase 2 closer: `GET /heroes/{id}/preview` returns level-up / star-up / special-up projections (current vs after stats + delta + cost). UI can render "+10% power with one more copy" teasers from this. 6 tests in `test_hero_upgrade_preview.py`.
+- **2.2 Event content + dupe variance ✅** — Myth-tier wired end-to-end (TBFAM, Mother's Day Applecrumb event); scheduled future LiveOps via admin POST `/admin/liveops` w/ `starts_at` + `GET /liveops/scheduled?horizon_days=N`. Stat variance on duplicate summons: `HeroInstance.variance_pct_json` rolled triangular ±10% per stat on dupes only (first copy stays vanilla); applied in combat + roster. 5 tests in `test_stat_variance.py`.
+- **2.3 Analytics ✅** — PostHog wrapper at `app/analytics.py`, 12 events instrumented, RUNBOOK §Analytics, `scripts/verify_analytics.py` smoke tester, `scripts/posthog_dashboard.json` 10-insight starter. **Last step (ops):** set `HEROPROTO_POSTHOG_API_KEY` in prod, run verify_analytics from staging, import dashboard, run client_walkthrough.
+- **2.4 Store expansion ✅** — Apple StoreKit + Google Play Billing adapters in `app/payment_adapters.py` (real-mode lazy-imports SDKs; sandbox-mode shortcut for `fake-apple:`/`fake-google:` receipts). Endpoints `POST /shop/iap/{apple,google}` already wired. Phase 2 closer: PoE2-style QoL/cosmetic catalog — auto_battle, extra_team_presets, quick_summon, roster_sort_advanced; +25 hero / +100 gear slot packs (stackable); 4 cosmetic frames + a frame bundle. New `KNOWN_QOL_UNLOCKS` / `KNOWN_COSMETIC_FRAMES` registries in `app/store.py`; restore-purchases idempotent; misconfigured codes raise loudly. 8 tests in `test_iap_and_qol.py`.
+- **2.5 Story + account XP + EXILE ✅** — `app/account_level.py` ships triangular XP curve, level-up rewards, 3 story chapters (Onboarding / Middle Management / Executive Floor) with cutscene beats. `app/routers/story.py` exposes `GET /story` + `POST /story/cutscene-seen`. Phase 2 closer: EXILE faction enum value + `Account.faction` column defaulting to EXILE for all new players (Phase 3 will flip this to RESISTANCE / CORP_GREED at the level-50 alignment fork). 3 tests in `test_exile_faction.py`.
 
-Duration: 3-4 weeks. New deps: PostHog, app-store-server-library, google-play-billing-validator, numpy/pandas/Jupyter.
+Still open within Phase 2:
+- **2.6 Balance tooling** — Jupyter notebook in `analytics/` with gacha EV / DPS / arena rating convergence. Optional. Hasn't blocked anything.
+
+Phase 3 (combat depth) is next-arc — see `docs/PRD.md § 8`.
 
 ---
 

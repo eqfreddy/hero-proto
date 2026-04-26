@@ -80,6 +80,13 @@ class MeOut(BaseModel):
     # Narrative faction. EXILE for new players ("not yet aligned"); flips to
     # RESISTANCE / CORP_GREED at the level-50 alignment fork (Phase 3).
     faction: Faction = Faction.EXILE
+    # Phase 2.4 — owned QoL unlocks (auto-battle, extra-presets, etc.) and
+    # cosmetic frame codes. UI uses these to gate the auto-battle button +
+    # render the right card frame. List/dict shapes match what /shop grants.
+    qol_unlocks: list[str] = []
+    cosmetic_frames: list[str] = []
+    hero_slot_cap: int = 50
+    gear_slot_cap: int = 200
 
 
 class HeroTemplateOut(BaseModel):

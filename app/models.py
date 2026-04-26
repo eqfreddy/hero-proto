@@ -232,6 +232,17 @@ class Account(Base):
     gear_slot_cap: Mapped[int] = mapped_column(Integer, default=200)
     mailbox_overflow_json: Mapped[str] = mapped_column(String(8192), default="[]")
 
+    # Phase 2.4 — QoL unlocks owned by the player. JSON dict keyed by
+    # unlock code (e.g. "auto_battle", "extra_team_presets") with value =
+    # ISO timestamp of grant. Catalog of valid codes lives in app.store
+    # alongside grant logic. Cosmetic frames are tracked separately below
+    # so they're cheap to render in roster lists without parsing this.
+    qol_unlocks_json: Mapped[str] = mapped_column(String(2048), default="{}")
+    # Cosmetic frame codes the player owns. JSON list of strings — frames
+    # are pure visual flair on hero cards, no power. PoE2-style: cosmetics
+    # are the recurring spend, never stat-boosting items.
+    cosmetic_frames_json: Mapped[str] = mapped_column(String(2048), default="[]")
+
     # Per-event progression state. Keyed by event id (matches LiveOpsEvent.name's
     # slugified form), value is a dict containing:
     #   currency: int             — accumulated event currency balance
