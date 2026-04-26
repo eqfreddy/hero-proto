@@ -415,6 +415,81 @@ Structured logs (`HEROPROTO_JSON_LOGS=1`) emit JSON with `request_id` + `account
 
 ---
 
+## Analytics (PostHog)
+
+Product-analytics events flow through `app/analytics.py` → posthog-python → a self-hosted (or PostHog Cloud) PostHog project. The wrapper is graceful — if no API key is set or the dep isn't installed, every `track()` call is a silent no-op.
+
+### Configuration
+
+```sh
+HEROPROTO_POSTHOG_API_KEY=phc_<your project key>
+HEROPROTO_POSTHOG_HOST=https://app.posthog.com   # or your self-hosted URL
+HEROPROTO_POSTHOG_DISABLED=0                      # set to 1 to kill-switch
+```
+
+The runtime client is an **optional dep** behind the `analytics-runtime` extra:
+
+```sh
+uv sync --extra analytics-runtime
+```
+
+If the key is set but the dep is missing, the wrapper logs a single warning at startup and stays no-op — no crashes, no per-request log spam.
+
+### The 12 instrumented events
+
+Each event uses `account_id` (stringified) as the PostHog `distinct_id`. All events carry baseline properties: `env`, `request_id`. Event-specific properties below.
+
+| Event | Where | Properties |
+|---|---|---|
+| `register` | `POST /auth/register` | `email_domain` |
+| `login` | `POST /auth/login` | `method` (`password` / `password+2fa`), `stage` (`challenge` for 2FA leg) |
+| `summon_x1` | `POST /summon/x1` | `rarity`, `epic_pity_triggered` |
+| `summon_x10` | `POST /summon/x10` | `best_rarity`, `rarity_counts` (per-rarity histogram), `epic_pity_triggered` |
+| `stage_start` | `POST /battles` after energy/auth checks | `stage_id`, `stage_code`, `stage_order`, `team_size` |
+| `stage_clear` | `POST /battles` after resolution | `stage_id`, `stage_code`, `outcome`, `won`, `ticks` |
+| `first_clear` | `POST /battles` when first-time stage clear | `stage_id`, `stage_code`, `stage_order` |
+| `arena_attack` | `POST /arena/attack` | `outcome`, `won`, `rating_delta`, `rating_after` |
+| `raid_attack` | `POST /raids/{id}/attack` | `raid_id`, `tier`, `damage_dealt`, `boss_defeated`, `boss_remaining_pct` |
+| `purchase_start` | Right before `purchase_complete` | `sku`, `processor` (`mock`/`apple`/`google`), `price_cents` |
+| `purchase_complete` | After `state=COMPLETED` | `sku`, `processor`, `price_cents`, `currency` |
+| `daily_bonus_claim` | `POST /me/daily-bonus/claim` | `streak_after`, `was_reset` |
+
+### Funnels worth building
+
+Set these up in PostHog (Insights → New funnel) — they're the Phase 2 acceptance-criteria funnels.
+
+1. **First-purchase funnel.** `register` → first `stage_clear` (won=true) → first `purchase_complete`. Conversion windows: 24h, 7d, 30d.
+2. **First-fight funnel.** `register` → first `stage_start` → first `stage_clear`. Catches drop-off in the tutorial flow.
+3. **Pull-to-battle funnel.** `register` → first `summon_x1` OR `summon_x10` → first `stage_start`. Surfaces players who pull but never fight.
+4. **Daily-engagement.** `daily_bonus_claim` count per account per day, plotted as a histogram. Targets the retention loop.
+
+### Dashboards
+
+Recommended PostHog dashboard rows:
+1. **DAU / WAU** (line): unique `distinct_id` per day on any event.
+2. **Conversion**: stacked bar, `register` count vs `purchase_complete` count per week.
+3. **Pull behavior**: `summon_x1` vs `summon_x10` rate, plus distribution of `summon_x10` `best_rarity` values.
+4. **Stage progression**: `first_clear` count grouped by `stage_order` — shows where players plateau.
+5. **Arena activity**: `arena_attack` count per day, `won` rate.
+6. **Raid activity**: `raid_attack` per day, average `damage_dealt`, `boss_defeated` rate.
+7. **Revenue**: `purchase_complete` count by `processor`, sum of `price_cents` per day.
+
+### Self-hosted deploy notes
+
+- PostHog ships an official `docker-compose.yml`. Run it on its own host (Postgres + Redis + ClickHouse — heavier than hero-proto itself).
+- Behind your own TLS terminator. The product is fine on a single 4-CPU box for alpha-scale traffic; scale ClickHouse first if you outgrow.
+- Set `HEROPROTO_POSTHOG_HOST` to that host's URL (https://posthog.your-domain.com); leave the default for PostHog Cloud.
+- The posthog-python client batches + flushes async (default 1Hz / 100-event batches). The hero-proto lifespan calls `analytics.shutdown()` on graceful stop so the last batch isn't lost — see `app/main.py`.
+
+### Operational notes
+
+- **Test environment is hard-disabled.** `settings.environment == "test"` short-circuits before client init, so no synthetic traffic from the test suite reaches the project. No PII filter to think about; nothing is sent.
+- **CI / load tests:** set `HEROPROTO_POSTHOG_DISABLED=1` even if the key happens to be set in the env. Belt-and-suspenders.
+- **Anomaly counter:** Prometheus metric `refresh_token_anomaly_total` already alerts on session-token mismatches; PostHog's `login` events can be cross-referenced on `account_id` if you want to spot the human side of those alerts.
+- **Failure mode:** all `track()` calls are wrapped — exceptions from posthog-python are logged at WARNING and swallowed. A broken PostHog never 500s the API.
+
+---
+
 ## Footguns
 
 Real issues we've hit; worth internalizing.

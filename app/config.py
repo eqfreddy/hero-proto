@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     sentry_environment: str = ""  # defaults to `environment` (dev/prod) if empty
     sentry_traces_sample_rate: float = 0.0  # 0.0 = no perf tracing; tune up later
 
+    # PostHog product analytics. Empty key disables analytics entirely (default).
+    # In prod, set HEROPROTO_POSTHOG_API_KEY + HEROPROTO_POSTHOG_HOST to ship
+    # the 12 instrumented events (see docs/RUNBOOK.md → Analytics for the list
+    # and funnel setup). Account ID is the distinct_id; events are flushed in a
+    # background thread by the posthog-python client.
+    posthog_api_key: str = ""
+    posthog_host: str = "https://app.posthog.com"
+    # Hard kill switch — disables analytics even when api_key is set. Useful in
+    # CI / load tests so synthetic traffic doesn't pollute the prod project.
+    posthog_disabled: bool = False
+
     # Auth
     jwt_secret: str = "dev-only-change-me-at-least-32-bytes-long!"
     jwt_alg: str = "HS256"

@@ -114,6 +114,16 @@ def fight(
             f"not enough energy (need {stage.energy_cost})",
         )
 
+    # stage_start fires after the energy / ownership checks pass — once the
+    # battle is committed to running, not on every 4xx attempt.
+    from app.analytics import track as _stage_start_track
+    _stage_start_track("stage_start", account.id, {
+        "stage_id": stage.id,
+        "stage_code": stage.code,
+        "stage_order": stage.order,
+        "team_size": len(heroes),
+    })
+
     waves = json.loads(stage.waves_json or "[]")
     # Build the persistent player team once; it rolls through all waves keeping HP damage.
     team_a = [_unit_from_instance(h, "A", i) for i, h in enumerate(heroes)]
@@ -307,6 +317,24 @@ def fight(
     db.add(battle)
     db.commit()
     db.refresh(battle)
+
+    # stage_clear / first_clear: fire on every battle that resolved (regardless
+    # of WIN/LOSS), with `won` so funnels can scope. Separate first_clear event
+    # only when this run was the actual first clear (not a re-run).
+    from app.analytics import track as _stage_clear_track
+    _stage_clear_track("stage_clear", account.id, {
+        "stage_id": stage.id,
+        "stage_code": stage.code,
+        "outcome": str(outcome),
+        "won": outcome == BattleOutcome.WIN,
+        "ticks": result.ticks if hasattr(result, "ticks") else None,
+    })
+    if rewards.first_clear:
+        _stage_clear_track("first_clear", account.id, {
+            "stage_id": stage.id,
+            "stage_code": stage.code,
+            "stage_order": stage.order,
+        })
 
     return BattleOut(
         id=battle.id,

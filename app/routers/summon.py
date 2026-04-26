@@ -84,6 +84,11 @@ def summon_one(
     from app.account_level import XP_PER_SUMMON_PULL, grant_xp as _gxp
     _gxp(db, account, XP_PER_SUMMON_PULL)
     db.commit()
+    from app.analytics import track as _track
+    _track("summon_x1", account.id, {
+        "rarity": str(out.rarity),
+        "epic_pity_triggered": out.pulled_epic_pity,
+    })
     return out
 
 
@@ -105,4 +110,14 @@ def summon_ten(
     from app.account_level import XP_PER_SUMMON_PULL, grant_xp as _gxp
     _gxp(db, account, XP_PER_SUMMON_PULL * 10)
     db.commit()
+    from app.analytics import track as _track
+    rarities = {r: 0 for r in ("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTH")}
+    for s in out:
+        rarities[str(s.rarity)] = rarities.get(str(s.rarity), 0) + 1
+    best = max(out, key=lambda s: ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTH"].index(str(s.rarity)))
+    _track("summon_x10", account.id, {
+        "best_rarity": str(best.rarity),
+        "rarity_counts": rarities,
+        "epic_pity_triggered": any(s.pulled_epic_pity for s in out),
+    })
     return out

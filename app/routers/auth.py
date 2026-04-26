@@ -74,6 +74,8 @@ def register(
     _row, refresh_raw = _issue_refresh_token(db, account, request)
     db.commit()
     db.refresh(account)
+    from app.analytics import track as _track
+    _track("register", account.id, {"email_domain": body.email.split("@")[-1]})
     return TokenOut(
         access_token=issue_token(account.id, account.token_version),
         refresh_token=refresh_raw,
@@ -102,10 +104,14 @@ def login(
     # TOTP-gated accounts get a challenge, not tokens.
     if account.totp_enabled:
         db.commit()
+        from app.analytics import track as _track
+        _track("login", account.id, {"method": "password+2fa", "stage": "challenge"})
         return LoginChallengeOut(challenge_token=_issue_totp_challenge(account)).model_dump()
 
     _row, refresh_raw = _issue_refresh_token(db, account, request)
     db.commit()
+    from app.analytics import track as _track
+    _track("login", account.id, {"method": "password"})
     return TokenOut(
         access_token=issue_token(account.id, account.token_version),
         refresh_token=refresh_raw,

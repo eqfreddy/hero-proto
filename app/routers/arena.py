@@ -307,6 +307,14 @@ def attack(
     db.commit()
     db.refresh(match)
 
+    from app.analytics import track as _track
+    _track("arena_attack", account.id, {
+        "outcome": str(result.outcome),
+        "won": result.outcome == BattleOutcome.WIN,
+        "rating_delta": delta,
+        "rating_after": account.arena_rating,
+    })
+
     return ArenaMatchOut(
         id=match.id,
         attacker_id=match.attacker_id,

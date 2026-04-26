@@ -158,6 +158,11 @@ def daily_bonus_claim(
     from app.account_level import XP_PER_DAILY_BONUS, grant_xp as _gxp
     _gxp(db, account, XP_PER_DAILY_BONUS)
     db.commit()
+    from app.analytics import track as _track
+    _track("daily_bonus_claim", account.id, {
+        "streak_after": result.streak_after,
+        "was_reset": result.was_reset,
+    })
     return DailyBonusClaimOut(
         granted=_reward_schema(result.granted),
         streak_after=result.streak_after,

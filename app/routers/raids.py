@@ -363,6 +363,17 @@ def attack_raid(
     # Suppress unused-var lint.
     _ = result.outcome
 
+    from app.analytics import track as _track
+    _track("raid_attack", account.id, {
+        "raid_id": raid.id,
+        "tier": str(raid.tier),
+        "damage_dealt": damage,
+        "boss_defeated": defeated,
+        "boss_remaining_pct": (
+            round(100 * raid.remaining_hp / raid.max_hp, 1) if raid.max_hp > 0 else 0
+        ),
+    })
+
     return RaidAttackOut(
         damage_dealt=damage,
         boss_remaining_hp=raid.remaining_hp,

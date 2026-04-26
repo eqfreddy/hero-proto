@@ -83,7 +83,7 @@ Phase 1 is done. The product is now genuinely playable for a new user — tutori
 
 - Hero detail depth: weapon/armor/accessory slots, skill tree UI, star-up flow, next-upgrade previews
 - Event content: Myth-tier hero wired end-to-end, scheduled future LiveOps, stat variance on dupes
-- Analytics: PostHog self-hosted, 12 events instrumented, funnels
+- Analytics: PostHog self-hosted, 12 events instrumented, funnels — **client-side shipped 2026-04-26**: graceful wrapper in `app/analytics.py`, 12 events instrumented (register/login/summon_x1/x10/stage_start/stage_clear/first_clear/arena_attack/raid_attack/purchase_start/purchase_complete/daily_bonus_claim), 11 mocked-client tests, RUNBOOK §Analytics with funnel + dashboard recipes. **Still open:** standing up the actual PostHog deploy + wiring `HEROPROTO_POSTHOG_API_KEY` in prod.
 - Store expansion: PoE2-style QoL SKUs, Apple StoreKit 2 receipt verification, Google Play Billing
 - Balance tooling: Jupyter notebook with gacha EV / DPS curves / arena rating convergence
 - Story campaign + account-level XP + Exile as default faction (Phase 2.5)

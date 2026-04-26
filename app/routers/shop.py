@@ -248,6 +248,18 @@ def create_purchase(
     purchase.completed_at = utcnow()
     db.commit()
     db.refresh(purchase)
+    from app.analytics import track as _track
+    _track("purchase_start", account.id, {
+        "sku": purchase.sku,
+        "processor": "mock",
+        "price_cents": purchase.price_cents_paid,
+    })
+    _track("purchase_complete", account.id, {
+        "sku": purchase.sku,
+        "processor": "mock",
+        "price_cents": purchase.price_cents_paid,
+        "currency": purchase.currency_code,
+    })
     return _purchase_out(purchase)
 
 
@@ -333,6 +345,18 @@ def _complete_iap(
     purchase.completed_at = utcnow()
     db.commit()
     db.refresh(purchase)
+    from app.analytics import track as _track
+    _track("purchase_start", account.id, {
+        "sku": purchase.sku,
+        "processor": processor,
+        "price_cents": purchase.price_cents_paid,
+    })
+    _track("purchase_complete", account.id, {
+        "sku": purchase.sku,
+        "processor": processor,
+        "price_cents": purchase.price_cents_paid,
+        "currency": purchase.currency_code,
+    })
     return purchase
 
 

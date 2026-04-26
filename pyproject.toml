@@ -32,6 +32,12 @@ analytics = [
     "numpy>=2.4.4",
     "pandas>=3.0.2",
 ]
+# PostHog product-analytics runtime client (separate from the offline
+# analytics extra above). Optional because dev setups + CI don't need it
+# and the wrapper degrades to no-op when it's missing.
+analytics-runtime = [
+    "posthog>=4.0.0",
+]
 
 [dependency-groups]
 dev = [

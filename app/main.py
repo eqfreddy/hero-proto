@@ -80,6 +80,13 @@ async def lifespan(_: FastAPI):
                 await worker_task
             except asyncio.CancelledError:
                 pass
+        # Flush queued PostHog events so the last batch isn't lost when
+        # uvicorn exits. No-op if analytics is unconfigured.
+        try:
+            from app.analytics import shutdown as _analytics_shutdown
+            _analytics_shutdown()
+        except Exception:
+            pass
 
 
 app = FastAPI(title="hero-proto backend", lifespan=lifespan)
