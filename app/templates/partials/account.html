@@ -200,8 +200,13 @@
         }
         const body = await r.json();
         if (window.toast) toast.success(`Revoked ${body.revoked} session${body.revoked === 1 ? '' : 's'}. Redirecting to login…`);
-        // The current access token died with the rest. Drop the JWT and bounce.
-        localStorage.removeItem('heroproto_jwt');
+        // The current access token died with the rest. Drop both auth
+        // tokens + clear cached partial HTML so nothing from this account
+        // bleeds into the next session.
+        (window.heroClearAuthSession || function () {
+          localStorage.removeItem('heroproto_jwt');
+          localStorage.removeItem('heroproto_refresh');
+        })();
         setTimeout(() => location.reload(), 1200);
       } catch (e) {
         if (window.toast) toast.error('Network error: ' + e.message);

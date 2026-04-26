@@ -26,15 +26,19 @@
       });
       const body = await r.json();
       if (!r.ok) { s.textContent = `error ${r.status}: ${body.detail || JSON.stringify(body)}`; return; }
-      localStorage.setItem('heroproto_jwt', body.access_token);
+      // Use the centralized helper — wipes any prior account's cached
+      // rendered HTML + per-account localStorage before setting the
+      // new token. Fixes bug #1/#4 (cross-account session leak).
+      (window.heroSetAuthSession || function (t) { localStorage.setItem('heroproto_jwt', t); })(
+        body.access_token, body.refresh_token,
+      );
       s.textContent = `signed in — ${email}`;
       document.querySelector('[data-tab="me"]').click();
     } catch (e) { s.textContent = 'error: ' + e.message; }
   }
   function heroLogout() {
-    localStorage.removeItem('heroproto_jwt');
+    (window.heroClearAuthSession || function () { localStorage.removeItem('heroproto_jwt'); })();
     document.getElementById('login-status').style.display = 'block';
     document.getElementById('login-status').textContent = 'logged out';
-    document.getElementById('who').textContent = 'not signed in';
   }
 </script>

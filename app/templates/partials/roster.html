@@ -238,10 +238,13 @@
             <!-- Ascend -->
             <div style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel);">
               <div style="font-weight: 700; font-size: 13px;">⭐ Ascend ${hero.stars}★ → ${hero.stars + 1}★</div>
-              <div class="muted" style="font-size: 11px; margin-top: 4px; min-height: 32px;">
+              <div style="margin-top: 4px; min-height: 32px;">
                 ${hero.stars >= 5
-                  ? 'Already at max stars.'
-                  : `Costs ${needForAscend} duplicate${needForAscend !== 1 ? 's' : ''} of ${t.name}. You have ${dupes.length}.`}
+                  ? '<span class="muted" style="font-size: 11px;">Already at max stars.</span>'
+                  : `<span class="muted" style="font-size: 11px;">Costs ${needForAscend} duplicate${needForAscend !== 1 ? 's' : ''} of ${t.name}.</span>
+                     <div style="margin-top: 4px; font-size: 13px; font-weight: 700; color: ${dupes.length === 0 ? 'var(--bad)' : 'var(--good)'};">
+                       You have ${dupes.length}${dupes.length < needForAscend ? ` <span class="muted" style="font-weight: 400;">(need ${needForAscend})</span>` : ''}
+                     </div>`}
               </div>
               <button class="${canAscend ? 'primary' : 'secondary'}" onclick="ascendHero(${hero.id}, ${needForAscend})" style="width: 100%; margin-top: 6px;" ${canAscend ? '' : 'disabled'}>
                 ${canAscend ? 'Ascend' : (hero.stars >= 5 ? 'Maxed' : 'Need more dupes')}
@@ -251,12 +254,15 @@
             <!-- Skill-up -->
             <div style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel);">
               <div style="font-weight: 700; font-size: 13px;">📈 Skill-up ${hero.special_level || 1} → ${(hero.special_level || 1) + 1}</div>
-              <div class="muted" style="font-size: 11px; margin-top: 4px; min-height: 32px;">
+              <div style="margin-top: 4px; min-height: 32px;">
                 ${!t.special
-                  ? 'No signature ability.'
+                  ? '<span class="muted" style="font-size: 11px;">No signature ability.</span>'
                   : (hero.special_level || 1) >= 5
-                    ? 'Skill is at max level (5).'
-                    : `Consumes 1-4 duplicates. You have ${dupes.length}.`}
+                    ? '<span class="muted" style="font-size: 11px;">Skill is at max level (5).</span>'
+                    : `<span class="muted" style="font-size: 11px;">Consumes 1-4 duplicates per skill-up.</span>
+                       <div style="margin-top: 4px; font-size: 13px; font-weight: 700; color: ${dupes.length === 0 ? 'var(--bad)' : 'var(--good)'};">
+                         You have ${dupes.length}${dupes.length === 0 ? ' <span class="muted" style="font-weight: 400;">(need ≥1)</span>' : ''}
+                       </div>`}
               </div>
               <button class="${canSkillUp ? 'primary' : 'secondary'}" onclick="skillUpHero(${hero.id})" style="width: 100%; margin-top: 6px;" ${canSkillUp ? '' : 'disabled'}>
                 ${canSkillUp ? 'Skill up (1 dupe)' : 'Need a dupe'}

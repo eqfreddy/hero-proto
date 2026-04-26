@@ -1,13 +1,19 @@
 // Minimal toast helper. Replaces the existing alert() calls throughout
 // the partials and static pages. Loads itself into a fixed container at
-// the bottom-center, stacks newest-on-top, auto-dismisses (errors linger
-// longer than success/info), tap-to-dismiss-early.
+// the top-center (bug #8: bottom-stacked toasts were missed by users
+// clicking near the top of the page), stacks newest-on-top,
+// auto-dismisses (errors linger longer than success/info),
+// tap-to-dismiss-early.
 //
 // Public API:
 //   window.toast.show(msg, kind = 'info', opts = {})
 //   window.toast.error(msg)         // shortcut for show(msg, 'error')
 //   window.toast.success(msg)       // shortcut for show(msg, 'success')
 //   window.toast.info(msg)          // shortcut for show(msg, 'info')
+//   window.toast.fromError(err, fallback)  // formats Pydantic 422 +
+//                                            HTTPException detail nicely
+//                                            so error toasts don't render
+//                                            "[object Object]" (bug #3).
 //
 // kind ∈ {'info' | 'success' | 'error'}.
 // opts: { ttlMs }  — override auto-dismiss in ms.
@@ -27,10 +33,10 @@
       #${ID} {
         position: fixed;
         left: 50%;
-        bottom: 28px;
+        top: 64px;
         transform: translateX(-50%);
         display: flex;
-        flex-direction: column-reverse;
+        flex-direction: column;
         gap: 8px;
         z-index: 10000;
         pointer-events: none;
@@ -94,10 +100,48 @@
     setTimeout(dismiss, ttl);
   }
 
+  // Pretty-print FastAPI / Pydantic error responses so a 422 doesn't
+  // render as `[object Object]` (bug #3). Accepts either:
+  //   - a plain Error instance
+  //   - a fetch Response body (already-parsed dict)
+  //   - a {detail: string} or {detail: [{loc, msg, type}, ...]} payload
+  function formatErrorBody(body) {
+    if (!body) return '';
+    if (typeof body === 'string') return body;
+    if (body.detail !== undefined) {
+      const d = body.detail;
+      if (typeof d === 'string') return d;
+      if (Array.isArray(d)) {
+        // Pydantic validation list: [{loc: [..], msg: '...', type: '...'}]
+        return d.map(item => {
+          if (item && typeof item === 'object') {
+            const loc = Array.isArray(item.loc) ? item.loc.filter(p => p !== 'body').join('.') : '';
+            const msg = item.msg || item.message || '';
+            return loc ? `${loc}: ${msg}` : msg;
+          }
+          return String(item);
+        }).filter(Boolean).join('; ');
+      }
+      try { return JSON.stringify(d); } catch (e) { return String(d); }
+    }
+    try { return JSON.stringify(body); } catch (e) { return String(body); }
+  }
+
+  function fromError(err, fallback) {
+    if (!err) return show(fallback || 'Unknown error', 'error');
+    if (err instanceof Error && err.message && err.message !== '[object Object]') {
+      return show(err.message, 'error');
+    }
+    const formatted = formatErrorBody(err);
+    return show(formatted || fallback || 'Request failed', 'error');
+  }
+
   window.toast = {
     show,
     error:   (msg, opts) => show(msg, 'error', opts),
     success: (msg, opts) => show(msg, 'success', opts),
     info:    (msg, opts) => show(msg, 'info', opts),
+    fromError,
+    formatErrorBody,
   };
 })();

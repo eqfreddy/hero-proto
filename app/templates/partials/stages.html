@@ -155,12 +155,67 @@
       // Outcome sound — victory / defeat sting.
       if (window.sound) window.sound.play(body.outcome === 'WIN' ? 'victory' : 'defeat');
       const teamCsv = team.join(',');
+
+      // Bug #5 — post-mortem now renders bust portraits + name + level
+      // for each hero that fought, plus reward currency tallies. Was
+      // a bare WIN/LOSS pill + replay link.
+      let portraitsHtml = '';
+      try {
+        const heroes = await fetch('/heroes/mine', { headers: { authorization: 'Bearer ' + token } }).then(r => r.json());
+        const fought = team.map(id => heroes.find(h => h.id === id)).filter(Boolean);
+        if (fought.length) {
+          portraitsHtml = `
+            <div style="display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap;">
+              ${fought.map(h => {
+                const code = h.template.code;
+                const bustSrc = `/app/static/heroes/busts/${code}.png`;
+                const cardSrc = `/app/static/heroes/cards/${code}.png`;
+                const r_color = `var(--r-${String(h.template.rarity).toLowerCase()})`;
+                return `
+                  <div style="text-align: center;">
+                    <img src="${bustSrc}" alt="${h.template.name}" style="width: 56px; height: 56px; border-radius: 50%; border: 2px solid ${r_color}; object-fit: cover;" onerror="this.src='${cardSrc}'; this.onerror=null;" />
+                    <div style="font-size: 11px; font-weight: 600; margin-top: 3px; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${h.template.name}</div>
+                    <div class="muted" style="font-size: 10px;">L${h.level} · ${h.power}p</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+        }
+      } catch (e) { /* portraits are nice-to-have; don't block the result */ }
+
+      // Reward summary — currency totals + first-clear bonus + chapter
+      // reward (Phase 2.5). Empty section if losing.
+      let rewardsHtml = '';
+      if (body.outcome === 'WIN' && body.rewards) {
+        const r = body.rewards;
+        const bits = [];
+        if (r.coins) bits.push(`<span style="color: var(--text);">+${r.coins} 🪙</span>`);
+        if (r.gems) bits.push(`<span style="color: var(--r-rare);">+${r.gems} 💎</span>`);
+        if (r.shards) bits.push(`<span style="color: var(--good);">+${r.shards} ✦</span>`);
+        if (r.xp_per_hero) bits.push(`<span class="muted">+${r.xp_per_hero} XP/hero</span>`);
+        rewardsHtml = bits.length ? `<div style="margin: 6px 0; font-size: 12px;">${bits.join(' · ')}</div>` : '';
+        if (r.chapter_reward) {
+          const ch = r.chapter_reward;
+          const grants = Object.entries(ch.granted || {}).map(([k, v]) => `+${v} ${k.replace('_', ' ')}`).join(', ');
+          rewardsHtml += `<div style="margin: 6px 0; font-size: 12px; padding: 6px 10px; background: rgba(255, 216, 107, 0.08); border-left: 3px solid var(--r-legendary); border-radius: 3px;"><strong>📖 ${ch.chapter_title} complete!</strong>${grants ? ` <span class="muted">${grants}</span>` : ''}</div>`;
+        }
+      } else if (body.outcome !== 'WIN') {
+        rewardsHtml = `<div class="muted" style="font-size: 12px; margin: 6px 0;">No rewards on a loss — try upgrading your team.</div>`;
+      }
+
       out.innerHTML = `
-        <span class="pill ${cls}">${body.outcome}</span>
-        ${body.first_clear ? ' <span class="pill good">first clear!</span>' : ''}
-        <a href="/app/battle-replay.html?id=${body.id}" target="_blank" style="margin-left: 6px;">▶ watch replay</a>
-        <a href="/app/battle-phaser.html?id=${body.id}" target="_blank" style="margin-left: 4px; font-size: 11px; color: var(--muted);">(animated)</a>
-        ${body.outcome === 'WIN' ? `<button class="secondary" onclick="saveAsPreset('${teamCsv}')" style="margin-left: 6px; font-size: 11px; padding: 2px 8px;">💾 save team</button>` : ''}
+        <div style="margin-top: 8px;">
+          <span class="pill ${cls}" style="font-size: 14px; padding: 4px 12px;">${body.outcome}</span>
+          ${body.first_clear ? ' <span class="pill good">first clear!</span>' : ''}
+        </div>
+        ${portraitsHtml}
+        ${rewardsHtml}
+        <div style="margin-top: 6px;">
+          <a href="/app/battle-replay.html?id=${body.id}" target="_blank">▶ watch replay</a>
+          <a href="/app/battle-phaser.html?id=${body.id}" target="_blank" style="margin-left: 8px; font-size: 11px; color: var(--muted);">(animated)</a>
+          ${body.outcome === 'WIN' ? `<button class="secondary" onclick="saveAsPreset('${teamCsv}')" style="margin-left: 8px; font-size: 11px; padding: 3px 10px;">💾 save team</button>` : ''}
+        </div>
       `;
     } catch (e) { out.innerHTML = '<span style="color: var(--bad);">' + e.message + '</span>'; }
   }
@@ -195,8 +250,21 @@
       headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
       body: JSON.stringify({ count: Number(count) }),
     });
-    const body = await r.json();
-    if (!r.ok) { out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${body.detail}</span>`; return; }
-    out.innerHTML = `<span class="pill good">swept ×${body.battles}</span> · ${body.total_coins} coins · ${body.total_shards} ✦`;
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = (window.toast && toast.formatErrorBody)
+        ? toast.formatErrorBody(body)
+        : (body.detail || `HTTP ${r.status}`);
+      out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${msg}</span>`;
+      if (window.toast) toast.error(msg);
+      return;
+    }
+    // Server returns SweepOut: { count, wins, losses, energy_spent,
+    // rewards_total, gear_ids, completed_daily_quest_ids }. Render the
+    // count + the most player-relevant currency totals.
+    const r_t = body.rewards_total || {};
+    const coins = r_t.coins || 0;
+    const shards = r_t.shards || 0;
+    out.innerHTML = `<span class="pill good">swept ×${body.count}</span> · ${body.wins}W ${body.losses}L · ${coins} coins · ${shards} ✦`;
   }
 </script>

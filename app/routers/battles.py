@@ -407,6 +407,34 @@ def sweep(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "stage not found")
     if stage.code not in load_cleared(account):
         raise HTTPException(status.HTTP_409_CONFLICT, "stage not yet cleared — win it the slow way first")
+
+    # Resolve the team: explicit body.team wins; otherwise pull the most
+    # recent winning team for this stage. Bug #3: previously the team was
+    # required, so the frontend's `{count: N}`-only call 422'd and the
+    # toast rendered the validation list as `[object Object]`.
+    team_ids: list[int] = list(body.team or [])
+    if not team_ids:
+        last_win = db.scalar(
+            select(Battle)
+            .where(
+                Battle.account_id == account.id,
+                Battle.stage_id == stage.id,
+                Battle.outcome == BattleOutcome.WIN,
+            )
+            .order_by(Battle.created_at.desc())
+            .limit(1)
+        )
+        if last_win is not None:
+            try:
+                team_ids = [int(x) for x in (json.loads(last_win.team_json or "[]") or [])]
+            except (json.JSONDecodeError, ValueError, TypeError):
+                team_ids = []
+    if not team_ids:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "no team specified and no previous winning team found for this stage — pass `team` explicitly",
+        )
+
     total_energy = stage.energy_cost * body.count
     if not consume_energy(account, total_energy):
         raise HTTPException(
@@ -415,7 +443,7 @@ def sweep(
         )
 
     heroes = []
-    for hid in body.team:
+    for hid in team_ids:
         h = db.get(HeroInstance, hid)
         if h is None or h.account_id != account.id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"hero {hid} not owned")

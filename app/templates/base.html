@@ -84,16 +84,61 @@
   {% block body %}{% endblock %}
   <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
   <script>
-    // Attach JWT from localStorage to every HTMX request.
+    // Centralized auth-session helpers. Used by every login/register/logout
+    // surface so cross-account session leaks (bug #1/#4) can't reappear:
+    // setting a fresh JWT clears the previous user's cached partial HTML +
+    // any per-account localStorage; clearing wipes both auth tokens.
     const TOKEN_KEY = "heroproto_jwt";
+    const REFRESH_KEY = "heroproto_refresh";
+    // Keys that are *not* per-account (UI state, device prefs) — keep
+    // these across login boundaries.
+    const SESSION_PRESERVE = new Set(["heroproto_tab", "heroproto_sound"]);
+
+    window.heroSetAuthSession = function (accessToken, refreshToken) {
+      // Wipe everything except UI/device prefs *before* storing the new
+      // token so any keys we add later that hold per-account data don't
+      // leak across logins by accident.
+      try {
+        const keep = {};
+        for (const k of SESSION_PRESERVE) {
+          const v = localStorage.getItem(k);
+          if (v != null) keep[k] = v;
+        }
+        localStorage.clear();
+        for (const [k, v] of Object.entries(keep)) localStorage.setItem(k, v);
+      } catch (e) { /* private mode / quota — ignore */ }
+      if (accessToken) localStorage.setItem(TOKEN_KEY, accessToken);
+      if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+      // Clear the dashboard's content pane so the previous account's
+      // rendered roster/shop/etc HTML doesn't linger until the next click.
+      const content = document.getElementById("content");
+      if (content) content.innerHTML = "";
+      // Notification bell + currency badges — let them re-fetch.
+      const bell = document.getElementById("notif-list");
+      if (bell) bell.innerHTML = "";
+      const who = document.getElementById("who");
+      if (who) who.textContent = "signed in";
+    };
+
+    window.heroClearAuthSession = function () {
+      try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+      try { localStorage.removeItem(REFRESH_KEY); } catch (e) {}
+      const content = document.getElementById("content");
+      if (content) content.innerHTML = "";
+      const who = document.getElementById("who");
+      if (who) who.textContent = "not signed in";
+    };
+
+    // Attach JWT from localStorage to every HTMX request.
     document.body.addEventListener("htmx:configRequest", (evt) => {
       const t = localStorage.getItem(TOKEN_KEY);
       if (t) evt.detail.headers["Authorization"] = "Bearer " + t;
     });
-    // On 401 from an htmx request, bounce to login.
+    // On 401 from an htmx request, bounce to login (and clear the now-
+    // useless token).
     document.body.addEventListener("htmx:responseError", (evt) => {
       if (evt.detail.xhr.status === 401) {
-        localStorage.removeItem(TOKEN_KEY);
+        window.heroClearAuthSession();
         const nav = document.querySelector('[data-tab="login"]');
         if (nav) nav.click();
       }

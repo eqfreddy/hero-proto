@@ -147,7 +147,10 @@ class AscendIn(BaseModel):
 
 
 class SweepIn(BaseModel):
-    team: list[int] = Field(min_length=1, max_length=3)
+    # Sweep uses the player's last winning team for this stage when `team`
+    # is omitted — the most common UX is "I cleared this; sweep with the
+    # same crew." Explicit team list overrides the auto-pick.
+    team: list[int] | None = Field(default=None, min_length=1, max_length=3)
     count: int = Field(ge=1, le=10)
 
 

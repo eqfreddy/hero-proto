@@ -71,11 +71,13 @@
     <div id="summon-tab-result" style="margin-top: 14px;"></div>
   </div>
 
-  <!-- Recent pulls feed -->
+  <!-- Recent pulls feed. ID hooked by summonFromTab() so a fresh pull
+       prepends instantly without waiting on the full tab re-fetch
+       (bug #2 fix). The htmx.ajax() in summonFromTab still fires on a
+       short delay to sync pity / shards / variance metadata. -->
   <div class="card" style="padding: 14px;">
     <h3 style="margin: 0 0 10px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Recent pulls</h3>
-    {% if recent %}
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px;">
+    <div id="summon-recent-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px;{% if not recent %} display: none;{% endif %}">
       {% for r in recent %}
       <div style="padding: 6px 8px; border-radius: 4px; background: var(--panel); border-left: 3px solid var(--r-{{ r.rarity | lower }});">
         <div style="font-size: 12px; font-weight: 600;">{{ r.name }}</div>
@@ -84,9 +86,7 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}
-    <div class="muted" style="font-size: 12px;">No pulls yet. Do your first summon above.</div>
-    {% endif %}
+    <div id="summon-recent-empty" class="muted" style="font-size: 12px;{% if recent %} display: none;{% endif %}">No pulls yet. Do your first summon above.</div>
   </div>
 </div>
 
@@ -154,8 +154,39 @@
         if (c) grid.appendChild(c);
       }
       out.appendChild(grid);
-      // Refresh the tab so pity/recent-pulls/shards all update.
-      setTimeout(() => htmx.ajax('GET', '/app/partials/summon', '#content'), 1200);
+
+      // Bug #2 fix — prepend new pulls into the Recent Pulls feed
+      // immediately so the player sees them land alongside the result
+      // panel above, instead of waiting on the full tab re-fetch.
+      const recentGrid = document.getElementById('summon-recent-grid');
+      const recentEmpty = document.getElementById('summon-recent-empty');
+      if (recentGrid) {
+        if (recentEmpty) recentEmpty.style.display = 'none';
+        recentGrid.style.display = '';
+        for (const it of items) {
+          const t = it && it.hero && it.hero.template;
+          if (!t) continue;
+          const rarity = String(it.rarity || 'COMMON');
+          const row = document.createElement('div');
+          row.style.cssText = `padding: 6px 8px; border-radius: 4px; background: var(--panel); border-left: 3px solid var(--r-${rarity.toLowerCase()});`;
+          row.innerHTML = `
+            <div style="font-size: 12px; font-weight: 600;">${t.name}</div>
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--r-${rarity.toLowerCase()}); font-weight: 700;">${rarity}</div>
+            <div class="muted" style="font-size: 10px;">${t.faction}</div>
+          `;
+          recentGrid.insertBefore(row, recentGrid.firstChild);
+        }
+        // Cap visible recent-pulls list at 30 — server returns the same
+        // window on next refresh; this keeps the prepend from growing
+        // unbounded between full-tab re-fetches.
+        while (recentGrid.children.length > 30) {
+          recentGrid.removeChild(recentGrid.lastChild);
+        }
+      }
+
+      // Full tab refresh on a shorter delay so pity/shards/variance
+      // metadata syncs fast (bug #2: was 1200ms, felt stuck).
+      setTimeout(() => htmx.ajax('GET', '/app/partials/summon', '#content'), 600);
     } catch (e) {
       out.innerHTML = `<div style="color: var(--bad); padding: 10px;">${e.message}</div>`;
     } finally {

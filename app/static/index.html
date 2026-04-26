@@ -402,7 +402,19 @@
       try {
         const path = register ? "/auth/register" : "/auth/login";
         const r = await api("POST", path, { email, password });
+        // Wipe any prior account's cached localStorage before storing the
+        // new token (bug #1/#4 fix). Only preserve UI/device prefs.
+        try {
+          const keep = {};
+          ["heroproto_tab", "heroproto_sound"].forEach(k => {
+            const v = localStorage.getItem(k);
+            if (v != null) keep[k] = v;
+          });
+          localStorage.clear();
+          Object.entries(keep).forEach(([k, v]) => localStorage.setItem(k, v));
+        } catch (e) {}
         localStorage.setItem(TOKEN_KEY, r.access_token);
+        if (r.refresh_token) localStorage.setItem("heroproto_refresh", r.refresh_token);
         show("login-out", r);
         toast("success", register ? "Registered" : "Signed in", email);
         setTab("me");

@@ -252,7 +252,12 @@
         location.href = '/app/';
         return;
       }
-      localStorage.setItem('heroproto_jwt', body.access_token);
+      // Centralized helper wipes prior account state before storing the
+      // new token (bug #1/#4 fix).
+      (window.heroSetAuthSession || function (t, r) {
+        localStorage.setItem('heroproto_jwt', t);
+        if (r) localStorage.setItem('heroproto_refresh', r);
+      })(body.access_token, body.refresh_token);
       status.textContent = '✓ ' + (_authMode === 'register' ? 'Account created!' : 'Signed in!') + ' Loading dashboard…';
       status.className = 'auth-status ok';
       setTimeout(() => location.href = '/app/', 600);
