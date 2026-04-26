@@ -99,7 +99,8 @@ Each sprint is sized to be shippable in one session. Pick one; don't interleave.
 ### A. Frontend polish
 The dashboard works; nobody wants to look at it. Biggest perceived-quality lift per hour.
 - [ ] CSS pass on `/app/*` (currently unstyled vanilla HTML)
-- [ ] Loading states + error toasts (right now failures are silent `alert()` boxes)
+- [x] Error toasts — `app/static/toast.js` provides `toast.error/success/info(msg)`; bottom-center stack, color-coded by kind, auto-dismiss (errors 5s, others 3.5s), tap-to-dismiss; replaced 9 `alert()` callsites in friends/stages/story partials + battle-setup/roster static pages
+- [ ] Loading states (skeleton placeholders for `/me`, roster, etc.)
 - [ ] Mobile-responsive layout
 - [ ] Or: rewrite as a real SPA (React / Svelte) — bigger bet; needs a build step
 
@@ -134,10 +135,10 @@ Raids work; they're shallow.
 
 ### F. Roster / summon UX overhaul (from play-testing)
 Medium-sized but the highest-leverage UX work right now. See Product Direction section above for full context.
-- [ ] Group duplicate heroes in the roster view (same template → single card with count)
-- [ ] Rarity-separated tabs in roster (Common / Uncommon / Rare / Epic / Legendary / Myth)
-- [ ] Pretty x10 summon result (grid of cards w/ rarity borders) — *partially landed 2026-04-24*
-- [ ] Per-hero detail page: stats, skill level, gear loadout, next-star preview
+- [x] Group duplicate heroes in roster — `/app/partials/roster` groups by `template_code`, exposes `dupe_count` + `instance_ids`; rendered as one card per template with count badge
+- [x] Rarity-separated tabs in roster — tab row with `data-rarity` filter, Common→Myth, sticky active-state in `partials/roster.html`
+- [x] Pretty x10 summon result — sorted by rarity desc, header summarises best pull, grid of rarity-bordered cards, plays the highest-rarity sfx cue
+- [x] Per-hero detail page — slide-up sheet via `#hero-detail-overlay` in roster partial; stats / skill level / gear / next-star preview all in there
 - [x] Saved team presets — `TeamPreset` model + full CRUD at `/me/team-presets` (`tests/test_team_presets.py`); paid unlock gating remains a future product call
 - [x] "Use last team" — `GET /me/last-team` derives from most recent winning battle, falls back to most recent any-result, then to empty
 

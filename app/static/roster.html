@@ -406,6 +406,7 @@
     </div>
   </div>
 
+  <script src="/app/static/toast.js"></script>
   <script>
     const characters = [
       // COMMON
@@ -513,7 +514,7 @@
         if (emptySlot !== -1) {
           team[emptySlot] = char.code;
         } else {
-          alert("Team is full!");
+          toast.info("Team is full!");
           return;
         }
       }

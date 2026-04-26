@@ -91,7 +91,7 @@
     if (stage.intro) beats.push({ beat: 'intro', ...stage.intro });
     if (stage.outro && stage.cleared) beats.push({ beat: 'outro', ...stage.outro });
     if (beats.length === 0) {
-      alert(`No cutscenes for ${stageName} yet${stage.outro ? ' — clear the stage to see the outro.' : '.'}`);
+      toast.info(`No cutscenes for ${stageName} yet${stage.outro ? ' — clear the stage to see the outro.' : '.'}`);
       return;
     }
     _showBeat(chapterCode, stageCode, beats, 0);

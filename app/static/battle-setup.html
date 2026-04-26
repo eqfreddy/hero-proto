@@ -500,6 +500,7 @@
     </div>
   </div>
 
+  <script src="/app/static/toast.js"></script>
   <script>
     // --- Live data -----------------------------------------------------------
     // Replaces the mock data in the handoff prototype. Stages/heroes load on page
@@ -726,7 +727,7 @@
         });
         const body = await r.json();
         if (!r.ok) {
-          alert("Battle failed: " + (body.detail || r.status));
+          toast.error("Battle failed: " + (body.detail || r.status));
           btn.disabled = false;
           btn.textContent = "Fight";
           return;
@@ -734,7 +735,7 @@
         // Hand off to the design replay viewer (fallback: Phaser page supports same id).
         location.href = `/app/battle-replay.html?id=${body.id}`;
       } catch (e) {
-        alert("Network error: " + e.message);
+        toast.error("Network error: " + e.message);
         btn.disabled = false;
         btn.textContent = "Fight";
       }

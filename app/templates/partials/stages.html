@@ -177,10 +177,10 @@
     });
     if (r.ok) {
       _presets_cache = null;  // bust cache; repopulate on next navigation
-      alert(`Saved preset "${name}".`);
+      toast.success(`Saved preset "${name}".`);
     } else {
       const body = await r.json();
-      alert(`Save failed: ${body.detail || r.status}`);
+      toast.error(`Save failed: ${body.detail || r.status}`);
     }
   }
 

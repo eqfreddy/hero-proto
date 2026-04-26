@@ -178,7 +178,7 @@
       });
       const json = await r.json();
       if (!r.ok) {
-        alert(json.detail || 'Send failed');
+        toast.error(json.detail || 'Send failed');
         inp.value = body;  // restore
       }
       // Re-fetch the thread to show the new message + any new incoming.
@@ -199,8 +199,8 @@
       headers: { ..._fheaders(), 'content-type': 'application/json' },
       body: JSON.stringify({ reason: reason.slice(0, 256) }),
     });
-    if (r.ok) alert('Reported. A moderator will review it.');
-    else alert('Report failed.');
+    if (r.ok) toast.success('Reported. A moderator will review it.');
+    else toast.error('Report failed.');
   }
 
   // --- Add friend ---
