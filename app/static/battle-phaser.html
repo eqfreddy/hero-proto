@@ -427,11 +427,11 @@
           targets: s.container, x: baseX - 6, yoyo: true, duration: 60, repeat: 1,
           onComplete: () => { s.container.x = baseX; },
         });
-        // Red flash on frame.
+        // Red flash on frame, then restore the status-aware tint (or role
+        // tint if nothing dramatic is active).
         s.frame.setStrokeStyle(3, 0xff6b4a);
         this.time.delayedCall(200, () => {
-          const tint = this.participantRoleTint(uid);
-          s.frame.setStrokeStyle(2, tint);
+          this._updateFrameTint(uid);
         });
         this.damageNumber(uid, amount, crit);
       }
@@ -571,6 +571,30 @@
           .map(x => BattleScene.STATUS_GLYPH[x.kind] || x.kind)
           .join(" ");
         s.statusRow.setText(glyphs);
+        this._updateFrameTint(uid);
+      }
+
+      // Frame stroke color picks the highest-priority active status so the
+      // viewer can see at a glance who's frozen / burning / heal-blocked
+      // without parsing the glyph row. Falls back to role tint when nothing
+      // dramatic is active. Skipped while a damage-flash is in progress
+      // (doDamage owns the frame for 200ms after each hit).
+      _updateFrameTint(uid) {
+        const s = this.state[uid]; if (!s || s.dead) return;
+        const kinds = new Set(s.statuses.map(x => x.kind));
+        // Priority order: hard-CC > damage-over-time > debilitator > buff.
+        let color = null;
+        if (kinds.has("FREEZE"))         color = 0x6ec8ff;     // cyan
+        else if (kinds.has("STUN"))      color = 0xffe066;     // pale yellow
+        else if (kinds.has("BURN"))      color = 0xff8a3c;     // orange
+        else if (kinds.has("POISON"))    color = 0x8fdc4a;     // venom green
+        else if (kinds.has("HEAL_BLOCK"))color = 0xc04a8a;     // magenta
+        else if (kinds.has("REFLECT"))   color = 0xc080ff;     // mirror purple
+        else if (kinds.has("SHIELD"))    color = 0xc0c8d0;     // silver
+        else if (kinds.has("DEF_DOWN"))  color = 0x4a90ff;     // ice blue
+        else if (kinds.has("ATK_UP"))    color = 0xffd86b;     // gold
+        if (color === null) color = this.participantRoleTint(uid);
+        s.frame.setStrokeStyle(2, color);
       }
 
       // Lightweight beam from defender to attacker showing a REFLECT bounce.
