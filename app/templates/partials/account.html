@@ -53,6 +53,20 @@
   </section>
 
   <section>
+    <h3>Change password</h3>
+    <p class="desc">Requires your current password. Changing the password kicks all your other devices — you stay signed in here on a fresh credential pair.</p>
+    <form id="change-password-form" style="display: flex; flex-direction: column; gap: 8px; max-width: 360px;">
+      <input type="password" id="cp-current" autocomplete="current-password" placeholder="Current password" required
+        style="padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel-2, var(--bg)); color: var(--text); font: inherit;">
+      <input type="password" id="cp-new" autocomplete="new-password" placeholder="New password (≥8 chars)" required minlength="8"
+        style="padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel-2, var(--bg)); color: var(--text); font: inherit;">
+      <input type="password" id="cp-confirm" autocomplete="new-password" placeholder="Confirm new password" required minlength="8"
+        style="padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel-2, var(--bg)); color: var(--text); font: inherit;">
+      <button type="submit" class="neutral-btn" id="cp-submit" style="align-self: flex-start;">Change password</button>
+    </form>
+  </section>
+
+  <section>
     <h3>Two-factor authentication</h3>
     <p class="desc">Adds a TOTP code to login and high-risk actions. Recovery codes generated at setup — keep them somewhere safe.</p>
     <div id="twofa-status">
@@ -212,8 +226,49 @@
       }
     }
 
+    async function changePassword(e) {
+      e.preventDefault();
+      const current = document.getElementById('cp-current').value;
+      const next = document.getElementById('cp-new').value;
+      const confirm = document.getElementById('cp-confirm').value;
+      if (next !== confirm) {
+        if (window.toast) toast.error('New passwords do not match.');
+        return;
+      }
+      const btn = document.getElementById('cp-submit');
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = 'Saving…';
+      try {
+        const r = await fetch('/me/password', {
+          method: 'POST',
+          headers: { ...HDR, 'content-type': 'application/json' },
+          body: JSON.stringify({ current_password: current, new_password: next }),
+        });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          if (window.toast) toast.error(body.detail || `HTTP ${r.status}`);
+          return;
+        }
+        // Server returned a fresh access + refresh; persist so we stay signed
+        // in here. Other devices were just kicked.
+        localStorage.setItem('heroproto_jwt', body.access_token);
+        if (body.refresh_token) localStorage.setItem('heroproto_refresh', body.refresh_token);
+        if (window.toast) toast.success('Password changed. Other devices were signed out.');
+        document.getElementById('change-password-form').reset();
+        // The current session row's id changed — refresh the sessions list.
+        loadSessions();
+      } catch (err) {
+        if (window.toast) toast.error('Network error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    }
+
     document.getElementById('revoke-all-btn').addEventListener('click', revokeAll);
     document.getElementById('export-btn').addEventListener('click', downloadExport);
+    document.getElementById('change-password-form').addEventListener('submit', changePassword);
     loadSessions();
     loadTwoFA();
   })();

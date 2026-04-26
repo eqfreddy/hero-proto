@@ -489,6 +489,70 @@ def revoke_all_sessions(
     return {"revoked": revoked}
 
 
+# --- Authenticated password change ------------------------------------------
+
+
+from pydantic import Field as _Field
+from app.security import hash_password as _hash_password, verify_password as _verify_password
+from app.security import issue_token as _issue_token
+from app.routers.auth import _issue_refresh_token as _issue_refresh
+from fastapi import Request as _Request
+from app.schemas import TokenOut as _TokenOut
+
+
+class ChangePasswordIn(BaseModel):
+    current_password: str = _Field(min_length=1, max_length=128)
+    new_password: str = _Field(min_length=8, max_length=72)
+
+
+@router.post("/password", response_model=_TokenOut)
+def change_password(
+    body: ChangePasswordIn,
+    request: _Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> _TokenOut:
+    """Change the caller's password. Requires the *current* password as proof
+    of intent — possessing a stolen JWT shouldn't be enough to take over the
+    account permanently. Mirrors the post-reset flow:
+
+      1. Verify current_password against the stored hash.
+      2. Replace with hash(new_password).
+      3. Bump token_version + revoke every live refresh row, then issue a
+         fresh access + refresh pair so the caller stays signed in HERE.
+         Other devices are kicked.
+
+    Returns 401 on wrong current password (no leak about whether the new
+    password is acceptable until the current one is right). Returns 400 if
+    the new password matches the current — saves a footgun where a fat-
+    finger paste leaves the password unchanged but logs them out elsewhere.
+    """
+    if not _verify_password(body.current_password, account.password_hash):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "current password is incorrect")
+    if body.new_password == body.current_password:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "new password matches current — pick something different")
+
+    account.password_hash = _hash_password(body.new_password)
+    # Same chain-revoke pattern as /auth/reset-password: kill every live
+    # refresh token + bump token_version so outstanding access tokens die,
+    # then mint a fresh pair so the caller's session keeps working here.
+    now = _utcnow()
+    for row in db.scalars(
+        _select(_RefreshToken).where(
+            _RefreshToken.account_id == account.id,
+            _RefreshToken.revoked_at.is_(None),
+        )
+    ):
+        row.revoked_at = now
+    account.token_version = (account.token_version or 0) + 1
+    _new_row, refresh_raw = _issue_refresh(db, account, request)
+    db.commit()
+    return _TokenOut(
+        access_token=_issue_token(account.id, account.token_version),
+        refresh_token=refresh_raw,
+    )
+
+
 # --- GDPR data export -------------------------------------------------------
 
 
