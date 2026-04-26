@@ -280,7 +280,17 @@ Output files are named `hero-proto-<UTC timestamp>.(db.gz|dump)` so `ls -1` sort
 
 Send SIGTERM to the uvicorn process. FastAPI waits for in-flight HTTP requests to finish, then the `lifespan` context cancels the worker task and awaits its `CancelledError`. No special action needed — `docker stop`, `systemctl stop`, and `kubectl delete` all send SIGTERM.
 
-Safe default timeout: 30s. Raise it if you're seeing shutdown logs that mention "active connections remaining" (heavy arena match in flight, etc.).
+**uvicorn flags worth setting in prod:**
+- `--timeout-graceful-shutdown 30` — wait up to 30s for in-flight requests to drain. Default is no timeout (waits forever, which orchestrators kill via SIGKILL anyway).
+- `--timeout-keep-alive 5` — drop idle keep-alive connections after 5s of silence. Speeds shutdown.
+
+What's actually in flight to worry about:
+- A `/battles` POST writing the Battle row — short, ~50–200ms.
+- A `/me/export` GDPR dump — multi-second on accounts with full history. The 1/min rate limit caps blast radius.
+- A `/raids/{id}/attack` resolving combat against a shared boss HP pool — short.
+- The worker's tick (raid auto-rotate, expired raids, daily prune) — handled by the `CancelledError` path; in-flight DB writes commit before the next `await`.
+
+If shutdown logs mention "active connections remaining," raise `--timeout-graceful-shutdown` to 60s. If it persists, check `/worker/status` for stuck ticks before restarting.
 
 ### Post a server-wide announcement
 
@@ -306,15 +316,88 @@ Appears on every player's `/me` tab + `/announcements/active`. Priority ≥ 50 g
 
 ### Alerts worth configuring
 
-1. **Worker tick stalled.** Alert if `worker.last_tick_at` is older than 5 minutes. The worker ticks every 60s; 5+ minutes without one means the supervisor couldn't revive it or the process is deadlocked.
+Each entry has a threshold tuned for the alpha workload — adjust as traffic grows. Severity tags map to: **page** = wake oncall, **ticket** = next-business-day investigation, **info** = dashboard signal only.
 
-2. **Tick failure rate.** Alert if `worker.ticks_failed / worker.ticks_total > 0.1` over a 15-minute window.
+1. **5xx error rate.** [page]
+   Threshold: `5xx_rate / total_rate > 0.02` sustained over 5 minutes. Anything above 2% is broken — rate-limit 429s and auth 401s don't count (they're 4xx).
+   PromQL:
+   ```
+   sum(rate(requests_total{status=~"5.."}[5m]))
+     /
+   sum(rate(requests_total[5m])) > 0.02
+   ```
 
-3. **Purchase failures.** Prometheus: `sum(rate(...))` for failed purchase states. You can also query the DB directly: `SELECT count(*) FROM purchases WHERE state='FAILED' AND created_at > now() - interval '1 hour'`.
+2. **p99 latency.** [ticket]
+   Threshold: `p99(request_duration_seconds) > 1.5s` sustained over 10 minutes for any path. /battles and /raids/<id>/attack should be < 500ms p99 on warm cache; /me/export can spike higher (capped by its 1/min rate limit).
+   PromQL:
+   ```
+   histogram_quantile(0.99,
+     sum by (le, path) (rate(request_duration_seconds_bucket[5m]))
+   ) > 1.5
+   ```
 
-4. **Stripe webhook signature failures.** The handler returns 400 for bad signatures. Stripe will retry; a sustained 400 rate on `/shop/webhooks/stripe` usually means the signing secret is stale.
+3. **Worker tick stalled.** [page]
+   Threshold: `worker.last_tick_at` older than 5 minutes. The worker ticks every 60s; 5+ minutes without one means the supervisor couldn't revive it or the process is deadlocked. Alert source: `/worker/status`, not Prometheus.
 
-5. **Access token revocation spikes.** Unusual spike in 401s from `/me` (token revoked message) may indicate a password-reset storm or token theft.
+4. **Worker tick failure rate.** [ticket]
+   Threshold: `worker.ticks_failed / worker.ticks_total > 0.10` over a 15-minute window. Source: `/worker/status` JSON. A handful of failures during a deploy is fine; sustained means the tick logic is throwing.
+
+5. **Rate-limit 429 burst.** [info → ticket if sustained]
+   Threshold: `rate_429 > 1/s` sustained over 10 minutes from a single IP/account is suspicious; spread across many keys is just a popular hour. Sustained means real abuse — investigate which bucket is firing (battle / arena / DM / friend-request / data-export / guild-chat-IP).
+   PromQL:
+   ```
+   sum by (path) (rate(requests_total{status="429"}[5m])) > 1
+   ```
+
+6. **Purchase failures.** [ticket]
+   Threshold: > 5 failed purchases per hour or > 10% of purchase attempts. Common cause: stale Stripe price ID, network hiccup with Stripe API, or webhook signing secret out of sync.
+   ```sql
+   SELECT count(*) FROM purchases
+   WHERE state='FAILED' AND created_at > now() - interval '1 hour';
+   ```
+
+7. **Stripe webhook signature failures.** [page if sustained]
+   Threshold: any sustained 400 rate on `/shop/webhooks/stripe`. Stripe retries with exponential backoff for ~3 days; a stale signing secret will burn through that quickly.
+   PromQL:
+   ```
+   sum(rate(requests_total{path="/shop/webhooks/stripe",status="400"}[15m])) > 0
+   ```
+
+8. **Access-token revocation spikes.** [info]
+   Threshold: 401-from-`/me` rate > 10× baseline for 15+ minutes. Unusual spike may indicate a password-reset storm, mass-ban event, or session-token theft.
+
+9. **Battle throughput drop.** [info]
+   Threshold: `battles_total` 5-minute rate falls > 80% off its weekly trailing average during peak hours. Useful for spotting silent regressions where battles still 200 but the route is broken further down.
+
+### PromQL cookbook
+
+Copy-paste-ready queries for common Grafana panels.
+
+| What you want to see | Query |
+|---|---|
+| Request rate (req/s) | `sum(rate(requests_total[1m]))` |
+| Error rate (%) | `100 * sum(rate(requests_total{status=~"5.."}[5m])) / sum(rate(requests_total[5m]))` |
+| Latency p50 / p95 / p99 (s) | `histogram_quantile(0.<N>, sum by (le) (rate(request_duration_seconds_bucket[5m])))` |
+| Latency by path (p99) | `histogram_quantile(0.99, sum by (le, path) (rate(request_duration_seconds_bucket[5m])))` |
+| Top 10 slowest paths | `topk(10, histogram_quantile(0.95, sum by (le, path) (rate(request_duration_seconds_bucket[5m]))))` |
+| Battles per minute | `60 * rate(battles_total[5m])` |
+| Summons per minute | `60 * rate(summons_total[5m])` |
+| Status mix over time | `sum by (status) (rate(requests_total[1m]))` |
+| 429s by path | `sum by (path) (rate(requests_total{status="429"}[5m]))` |
+| Auth failures (401 on auth paths) | `sum(rate(requests_total{path=~"/auth/.*",status="401"}[5m]))` |
+| Active in-flight (estimate) | `sum(rate(requests_total[1m])) * histogram_quantile(0.50, sum by (le) (rate(request_duration_seconds_bucket[5m])))` |
+
+### Dashboard layout
+
+Recommended Grafana dashboard rows (top → bottom). Screenshots TBD — capture once a real prod instance is running with non-trivial traffic.
+
+1. **Pulse** — request rate, error rate %, p99 latency (3 stat panels).
+2. **Latency** — p50/p95/p99 over time (line graph), top 10 slowest paths (bar).
+3. **Status mix** — `requests_total` rate by status code (stacked area).
+4. **Game activity** — battles/min, summons/min, arena attacks/min (3 line panels).
+5. **Worker** — last tick age, tick failure ratio, ticks total counter (3 stat panels reading from `/worker/status` via a JSON datasource).
+6. **Rate limits** — 429s by path stacked over time.
+7. **Payments** — purchase rate by state (stacked area), webhook 400s if any.
 
 ### Log lines worth tagging
 

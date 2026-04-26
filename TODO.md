@@ -117,7 +117,7 @@ Dockerfile + compose exist; nothing's been pushed or deployed.
 - [ ] Build + push Docker image to a registry (Fly / GHCR / ECR)
 - [ ] Pick a hosted target (Fly / Railway / Render / plain VM) and do a first deploy
 - [ ] Automated daily DB backup (volume → dated tarball on a schedule)
-- [ ] Graceful shutdown — worker cancels + in-flight battles finish
+- [x] Graceful shutdown — worker cancels + in-flight battles finish (lifespan handles it; documented in RUNBOOK with uvicorn flag recommendations)
 
 ### D. Raid depth ✅ done (2026-04-25)
 Raids work; they're shallow.
@@ -128,8 +128,8 @@ Raids work; they're shallow.
 
 ### E. Observability next steps
 - [ ] OpenTelemetry tracing (propagate request IDs into spans)
-- [ ] Alerting thresholds documented (5xx rate, p99 latency)
-- [ ] Dashboard screenshots / PromQL cookbook in `RUNBOOK.md`
+- [x] Alerting thresholds documented — 9 alerts in `docs/RUNBOOK.md` (5xx rate, p99 latency, worker stalls, 429 bursts, purchase failures, webhook signature failures, etc.) with severity tags + PromQL
+- [x] PromQL cookbook in `RUNBOOK.md` — 11 copy-paste queries for the standard Grafana panels + 7-row dashboard layout. Screenshots TBD (need real prod traffic to capture)
 
 **Recommendation:** ship **A** next — the backend is stable enough that the next real-user bottleneck is how the thing looks. **C** is the right choice if the goal is "put it in front of external testers" rather than "make it prettier."
 
@@ -251,13 +251,13 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] Postgres end-to-end smoke (Sprint C)
 - [ ] Docker image build + push to a registry (Dockerfile exists, never built)
 - [ ] Automated daily DB backup (SQLite volume → dated tarball on a schedule)
-- [ ] Graceful shutdown — worker cancels + in-flight battles finish
+- [x] Graceful shutdown — worker cancels + in-flight battles finish (lifespan handles it; documented in RUNBOOK with uvicorn flag recommendations)
 - [ ] Deploy target picked (Fly / Railway / Render / plain VM)
 
 ### Observability
 - [ ] OpenTelemetry tracing (propagate request IDs into spans)
-- [ ] Alerting thresholds documented (5xx rate, p99 latency)
-- [ ] Dashboard screenshots in `RUNBOOK.md`
+- [x] Alerting thresholds documented (5xx rate, p99 latency, worker, 429s, purchases, webhooks, token revocations, throughput drops) with PromQL — `docs/RUNBOOK.md`
+- [ ] Dashboard screenshots in `RUNBOOK.md` — layout drafted; capture once prod has real traffic
 
 ### Anti-cheat / validation
 - [x] Per-account rate limit on `/battles` (Sprint A)
