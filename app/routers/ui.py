@@ -331,12 +331,15 @@ def partial_achievements(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
 ) -> HTMLResponse:
-    from app.achievements import unlock_progress as _up
+    from app.achievements import HARDCORE_ACHIEVEMENTS, unlock_progress as _up
     items = _up(db, account)
     unlocked = sum(1 for i in items if i["unlocked"])
     return templates.TemplateResponse(
         request, "partials/achievements.html",
-        {"items": items, "unlocked": unlocked, "total": len(items)},
+        {
+            "items": items, "unlocked": unlocked, "total": len(items),
+            "hardcore": HARDCORE_ACHIEVEMENTS,
+        },
     )
 
 

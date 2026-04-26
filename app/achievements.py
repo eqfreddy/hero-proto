@@ -312,6 +312,73 @@ ACHIEVEMENTS: list[Achievement] = [
 ACHIEVEMENTS_BY_CODE = {a.code: a for a in ACHIEVEMENTS}
 
 
+# --- Hardcore tier (Phase 3 teaser) ----------------------------------------
+#
+# Locked-but-visible long-tail goals. No real predicates wired yet — these
+# render as `?` lock icons in the UI to give players something to chase.
+# Concrete predicates land alongside the level-50 alignment fork (Phase 3.5)
+# when Hardcore mode itself is shipped.
+
+HARDCORE_ACHIEVEMENTS: list[dict] = [
+    {
+        "code": "hc_no_deaths_chapter",
+        "title": "Untouched",
+        "description": "Clear an entire story chapter without losing a single hero in any battle.",
+        "icon": "💀",
+        "reward_preview": "+1000 gems · cosmetic frame",
+    },
+    {
+        "code": "hc_solo_tutorial",
+        "title": "Solo Run",
+        "description": "Beat the tutorial with only 1 hero alive at the end.",
+        "icon": "🎯",
+        "reward_preview": "+500 gems",
+    },
+    {
+        "code": "hc_arena_top_1pct",
+        "title": "Top 1%",
+        "description": "Reach the top 1% of arena ratings during a season window.",
+        "icon": "👑",
+        "reward_preview": "+5000 gems · alignment-exclusive frame",
+    },
+    {
+        "code": "hc_full_collection",
+        "title": "Completionist",
+        "description": "Own at least one copy of every non-event hero template.",
+        "icon": "📖",
+        "reward_preview": "+2000 gems · 5 access cards",
+    },
+    {
+        "code": "hc_max_synergy_win",
+        "title": "Faction Loyalist",
+        "description": "Win 50 battles with full 5-of-faction team synergy.",
+        "icon": "⚜️",
+        "reward_preview": "+1500 gems · faction title",
+    },
+    {
+        "code": "hc_5star_team",
+        "title": "All-Stars",
+        "description": "Field a full team of 5★ heroes in a winning campaign battle.",
+        "icon": "⭐",
+        "reward_preview": "+2500 gems · stash expansion",
+    },
+    {
+        "code": "hc_no_gear",
+        "title": "Naked & Afraid",
+        "description": "Win 10 HARD-tier stages with no gear equipped on any team member.",
+        "icon": "🩲",
+        "reward_preview": "+1000 gems · cosmetic taunt",
+    },
+    {
+        "code": "hc_speedrun_chapter",
+        "title": "Outage Response",
+        "description": "Clear all 5 stages of a chapter in under 60 minutes total.",
+        "icon": "⚡",
+        "reward_preview": "+1500 gems · time-attack frame",
+    },
+]
+
+
 # --- Per-account unlock state -----------------------------------------------
 
 

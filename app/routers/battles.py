@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.combat import CombatUnit, build_unit, simulate, trim_combat_log
+from app.combat import CombatUnit, build_unit, simulate, trim_combat_log, unit_power
 from app.crafting import grant_material, roll_battle_drops
 from app.daily import on_battle_won, on_hard_stage_clear
 from app.event_state import QUEST_KINDS_BATTLE_WIN, on_activity as event_on_activity
@@ -406,6 +406,137 @@ def get_battle(
         participants=[BattleParticipant(**p) for p in participants if isinstance(p, dict)],
         rewards=rewards,
         created_at=b.created_at,
+    )
+
+
+# --- Battle preview (Phase 3.2 starter) -------------------------------------
+#
+# Read-only "what would happen if I fought this?" — does NOT consume energy
+# and does NOT persist a Battle row. Runs a real combat simulation against
+# the same wave configuration the live /battles endpoint would use, then
+# returns the projected outcome + power gap so the UI can render an
+# informed-pick CTA before the player commits.
+#
+# Tradeoff: the resolver is non-deterministic (rng damage variance, crits,
+# turn meter). Calling preview twice returns slightly different damage
+# numbers. We document this — it's a *preview*, not a guaranteed contract.
+
+from pydantic import BaseModel as _BMP
+
+
+class BattlePreviewOut(_BMP):
+    expected_outcome: str          # "WIN" | "LOSS" | "DRAW"
+    win_probability: float         # 0.0..1.0 — naive: rerun N=5 sims, count wins
+    team_power: int
+    enemy_power: int
+    power_gap: int                 # team - enemy (negative = underpowered)
+    sample_ticks: int              # how many ticks the median sim took
+    energy_required: int
+    stage_locked: bool
+    notes: list[str] = []
+
+
+@router.post("/preview", response_model=BattlePreviewOut)
+def preview_battle(
+    body: BattleIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> BattlePreviewOut:
+    """Read-only outcome preview. No energy spent, no rate limit, no row
+    persisted. Runs 5 simulations against the stage's first wave and
+    reports outcome distribution + power gap.
+
+    Players use this to pick informed teams before spending energy.
+    """
+    stage = db.get(Stage, body.stage_id)
+    if stage is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "stage not found")
+
+    notes: list[str] = []
+    locked = bool(stage.requires_code) and stage.requires_code not in load_cleared(account)
+    if locked:
+        notes.append(f"locked — clear {stage.requires_code!r} on NORMAL first")
+
+    heroes: list[HeroInstance] = []
+    for hid in body.team:
+        h = db.get(HeroInstance, hid)
+        if h is None or h.account_id != account.id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"hero {hid} not owned")
+        heroes.append(h)
+
+    # First wave only — preview is a heuristic, not a multi-wave full sim.
+    waves = json.loads(stage.waves_json or "[]")
+    if not waves:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "stage has no waves")
+    enemies_spec = waves[0].get("enemies", [])
+    if not enemies_spec:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "stage wave has no enemies")
+
+    rng = random.Random()
+    SIM_RUNS = 5
+    outcomes: list[BattleOutcome] = []
+    sample_ticks: list[int] = []
+    for _ in range(SIM_RUNS):
+        team_a = [_unit_from_instance(h, "A", i) for i, h in enumerate(heroes)]
+        team_b: list[CombatUnit] = []
+        for j, e in enumerate(enemies_spec):
+            t_code = e.get("template_code")
+            level = int(e.get("level", 1))
+            tmpl = db.scalar(select(HeroTemplate).where(HeroTemplate.code == t_code))
+            if tmpl is None:
+                continue
+            team_b.append(_unit_from_template(tmpl, level, "B", j))
+        if not team_b:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "preview: no enemies could be built")
+        result = simulate(team_a, team_b, rng)
+        outcomes.append(result.outcome)
+        sample_ticks.append(getattr(result, "ticks", 0) or 0)
+
+    wins = sum(1 for o in outcomes if o == BattleOutcome.WIN)
+    win_p = wins / float(SIM_RUNS)
+    if win_p >= 0.7:
+        expected = BattleOutcome.WIN
+    elif win_p <= 0.3:
+        expected = BattleOutcome.LOSS
+    else:
+        expected = BattleOutcome.DRAW
+        notes.append("close fight — outcome varies; bring better gear or more levels for safety")
+
+    # Power numbers from a fresh build (separate from the simulator's
+    # consumed copies). Sum of unit_power over each side.
+    team_a = [_unit_from_instance(h, "A", i) for i, h in enumerate(heroes)]
+    team_b = []
+    for j, e in enumerate(enemies_spec):
+        t_code = e.get("template_code")
+        level = int(e.get("level", 1))
+        tmpl = db.scalar(select(HeroTemplate).where(HeroTemplate.code == t_code))
+        if tmpl is None:
+            continue
+        team_b.append(_unit_from_template(tmpl, level, "B", j))
+    team_power = sum(unit_power(u) for u in team_a)
+    enemy_power = sum(unit_power(u) for u in team_b) if team_b else 0
+    gap = team_power - enemy_power
+    if gap < 0:
+        notes.append(f"underpowered by {-gap} (~{int(100 * -gap / max(1, enemy_power))}%)")
+    elif gap >= enemy_power * 0.5:
+        notes.append("massively over-leveled — consider a harder stage")
+
+    if account.energy_stored < stage.energy_cost:
+        notes.append(f"not enough energy (have {account.energy_stored}, need {stage.energy_cost})")
+
+    sample_ticks.sort()
+    median_ticks = sample_ticks[len(sample_ticks) // 2] if sample_ticks else 0
+
+    return BattlePreviewOut(
+        expected_outcome=str(expected),
+        win_probability=round(win_p, 2),
+        team_power=team_power,
+        enemy_power=enemy_power,
+        power_gap=gap,
+        sample_ticks=median_ticks,
+        energy_required=stage.energy_cost,
+        stage_locked=locked,
+        notes=notes,
     )
 
 

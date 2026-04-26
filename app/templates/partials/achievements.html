@@ -43,4 +43,42 @@
     </div>
     {% endfor %}
   </div>
+
+  {% if hardcore %}
+  <div style="margin-top: 24px; padding-top: 16px; border-top: 2px solid var(--bad);">
+    <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <h2 style="margin: 0; font-size: 14px; color: var(--bad); display: flex; align-items: center; gap: 8px;">
+        💀 Hardcore <span class="muted" style="font-size: 11px; font-weight: 400;">— locked until Hardcore mode ships</span>
+      </h2>
+      <span class="pill" style="color: var(--bad); border-color: var(--bad); font-size: 10px;">PHASE 3 TEASER</span>
+    </div>
+    <p class="muted" style="font-size: 12px; line-height: 1.5; margin: 0 0 12px;">
+      Long-tail goals that arrive with the level-50 alignment fork. Predicates aren't wired yet — these render as a chase list so you know what's coming.
+    </p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">
+      {% for h in hardcore %}
+      <div style="
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px dashed var(--bad);
+        background: rgba(255, 107, 74, 0.05);
+        opacity: 0.85;
+        ">
+        <div class="row" style="gap: 10px; align-items: start;">
+          <div style="font-size: 32px; filter: grayscale(0.3);">{{ h.icon }}</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 13px; color: var(--bad);">
+              🔒 {{ h.title }}
+            </div>
+            <div class="muted" style="font-size: 11px; line-height: 1.5; margin-top: 3px;">{{ h.description }}</div>
+            <div style="font-size: 11px; margin-top: 8px; color: var(--r-legendary);">
+              Reward (preview): {{ h.reward_preview }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </div>

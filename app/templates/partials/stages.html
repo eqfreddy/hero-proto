@@ -235,16 +235,28 @@
         rewardsHtml = `<div class="muted" style="font-size: 12px; margin: 6px 0;">No rewards on a loss — try upgrading your team.</div>`;
       }
 
+      // Phase 2.4 — auto_resolved short-circuits the replay link. Players
+      // who own the auto_battle QoL unlock and pass `auto: true` get a
+      // "skipped watch" badge instead of "watch replay" — they paid for
+      // the QoL toggle, respect their choice.
+      const autoResolved = body.auto_resolved === true;
+      const replayHtml = autoResolved
+        ? `<span class="muted" style="font-size: 11px;">⚡ auto-resolved — replay available <a href="/app/battle-phaser.html?id=${body.id}" target="_blank">on demand</a></span>`
+        : `
+          <a href="/app/battle-replay.html?id=${body.id}" target="_blank">▶ watch replay</a>
+          <a href="/app/battle-phaser.html?id=${body.id}" target="_blank" style="margin-left: 8px; font-size: 11px; color: var(--muted);">(animated)</a>
+        `;
+
       out.innerHTML = `
         <div style="margin-top: 8px;">
           <span class="pill ${cls}" style="font-size: 14px; padding: 4px 12px;">${body.outcome}</span>
           ${body.first_clear ? ' <span class="pill good">first clear!</span>' : ''}
+          ${autoResolved ? ' <span class="pill" style="color: var(--accent);">⚡ auto</span>' : ''}
         </div>
         ${portraitsHtml}
         ${rewardsHtml}
         <div style="margin-top: 6px;">
-          <a href="/app/battle-replay.html?id=${body.id}" target="_blank">▶ watch replay</a>
-          <a href="/app/battle-phaser.html?id=${body.id}" target="_blank" style="margin-left: 8px; font-size: 11px; color: var(--muted);">(animated)</a>
+          ${replayHtml}
           ${body.outcome === 'WIN' ? `<button class="secondary" onclick="saveAsPreset('${teamCsv}')" style="margin-left: 8px; font-size: 11px; padding: 3px 10px;">💾 save team</button>` : ''}
         </div>
       `;
