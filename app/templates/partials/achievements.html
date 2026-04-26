@@ -37,6 +37,17 @@
           <div class="muted" style="font-size: 10px; margin-top: 4px;">
             ✓ unlocked {{ it.unlocked_at[:10] if it.unlocked_at else '' }}
           </div>
+          {% elif it.has_progress %}
+          {# Phase 2 polish — progress bar on locked, count-based
+             achievements. Static markup; no client-side math needed. #}
+          <div style="margin-top: 8px;">
+            <div class="hpbar" style="height: 4px;">
+              <div class="fill" style="width: {{ (100 * it.progress_current / it.progress_target) | round(1) if it.progress_target else 0 }}%; background: linear-gradient(90deg, var(--accent), var(--r-legendary));"></div>
+            </div>
+            <div class="muted" style="font-size: 10px; margin-top: 3px;">
+              {{ it.progress_current }} / {{ it.progress_target }}
+            </div>
+          </div>
           {% endif %}
         </div>
       </div>

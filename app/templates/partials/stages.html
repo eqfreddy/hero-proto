@@ -23,9 +23,24 @@
           {% if s.difficulty_tier != 'NORMAL' %}<span class="pill" style="color: {{ tier_tint }};">{{ s.difficulty_tier }}</span>{% endif %}
         </div>
       </div>
-      <div class="row" style="gap: 10px; margin-top: 6px; font-size: 12px;">
+      <div class="row" style="gap: 10px; margin-top: 6px; font-size: 12px; flex-wrap: wrap;">
         <span>⚡ {{ s.energy_cost }}</span>
         <span class="muted">rec power {{ s.recommended_power }}</span>
+        {# Phase 2 polish — show how your top-3 team compares to the
+           recommended power so the player sees the gap pre-fight.
+           Color-coded: green if comfortably over, yellow if close,
+           red if underpowered. #}
+        {% if your_team_power and s.recommended_power and not s.locked %}
+          {% set ratio = (your_team_power / s.recommended_power) %}
+          {% if ratio >= 1.20 %}
+            {% set gap_color = 'var(--good)' %}{% set gap_icon = '✓' %}
+          {% elif ratio >= 0.95 %}
+            {% set gap_color = 'var(--r-legendary)' %}{% set gap_icon = '~' %}
+          {% else %}
+            {% set gap_color = 'var(--bad)' %}{% set gap_icon = '!' %}
+          {% endif %}
+          <span title="Your top-3 team power" style="color: {{ gap_color }}; font-weight: 600;">{{ gap_icon }} you {{ your_team_power }}</span>
+        {% endif %}
         <span class="muted">{{ s.coin_reward }} coins</span>
         {% if not s.cleared and not s.locked %}
           <span style="color: var(--r-legendary);">+ {{ s.first_clear_gems }} 💎 + {{ s.first_clear_shards }} ✦ (first clear)</span>

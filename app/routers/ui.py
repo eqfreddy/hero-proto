@@ -600,9 +600,24 @@ def partial_stages(
     normal = [r for r in rows if r["difficulty_tier"] == "NORMAL"]
     hard = [r for r in rows if r["difficulty_tier"] == "HARD"]
     nightmare = [r for r in rows if r["difficulty_tier"] == "NIGHTMARE"]
+    # Phase 2 polish — pre-compute the player's top-3 power so each
+    # stage card can show a "your team / recommended" comparison
+    # without N HTTP round-trips. Uses the same _hero_row pipeline so
+    # variance + gear are reflected.
+    heroes = list(
+        db.scalars(
+            select(HeroInstance).where(HeroInstance.account_id == account.id)
+        )
+    )
+    top_powers = sorted((_hero_row(h)["power"] for h in heroes), reverse=True)[:3]
+    your_team_power = sum(top_powers)
     return templates.TemplateResponse(
         request, "partials/stages.html",
-        {"normal": normal, "hard": hard, "nightmare": nightmare, "me": _me_dict(account)},
+        {
+            "normal": normal, "hard": hard, "nightmare": nightmare,
+            "me": _me_dict(account),
+            "your_team_power": your_team_power,
+        },
     )
 
 

@@ -30,6 +30,12 @@ class AchievementOut(BaseModel):
     reward: dict
     unlocked: bool
     unlocked_at: str
+    # Phase 2 polish — progress numbers for "do X N times" achievements.
+    # has_progress=False means binary (existence-style) and the UI
+    # should hide the progress bar.
+    progress_current: int = 0
+    progress_target: int = 0
+    has_progress: bool = False
 
 
 class HardcoreTeaserOut(BaseModel):

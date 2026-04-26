@@ -109,6 +109,11 @@ class Achievement:
     icon: str
     condition: Callable[[Session, Account], bool]
     reward: dict  # {gems, shards, coins, access_cards, free_summon_credits}
+    # Phase 2 polish — optional progress getter for "do X N times" goals.
+    # Returns (current, target). When provided, the UI renders a
+    # progress bar instead of just a locked icon. Achievements without
+    # this stay binary (existence-style: "have at least one EPIC").
+    progress: Callable[[Session, Account], tuple[int, int]] | None = None
 
 
 ACHIEVEMENTS: list[Achievement] = [
@@ -156,6 +161,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="🧑‍🤝‍🧑",
         condition=lambda db, a: _hero_count(db, a) >= 10,
         reward={"shards": 10, "coins": 200},
+        progress=lambda db, a: (_hero_count(db, a), 10),
     ),
     Achievement(
         code="roster_50",
@@ -164,6 +170,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="🗂️",
         condition=lambda db, a: _hero_count(db, a) >= 50,
         reward={"gems": 100, "shards": 30},
+        progress=lambda db, a: (_hero_count(db, a), 50),
     ),
 
     # Rarity unlocks
@@ -226,6 +233,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="🛡️",
         condition=lambda db, a: _battle_win_count(db, a) >= 10,
         reward={"coins": 500, "shards": 5},
+        progress=lambda db, a: (_battle_win_count(db, a), 10),
     ),
     Achievement(
         code="wins_100",
@@ -234,6 +242,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="⚔️",
         condition=lambda db, a: _battle_win_count(db, a) >= 100,
         reward={"gems": 100, "shards": 30},
+        progress=lambda db, a: (_battle_win_count(db, a), 100),
     ),
     Achievement(
         code="wins_1000",
@@ -242,6 +251,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="🏆",
         condition=lambda db, a: _battle_win_count(db, a) >= 1000,
         reward={"gems": 500, "free_summon_credits": 5, "access_cards": 10},
+        progress=lambda db, a: (_battle_win_count(db, a), 1000),
     ),
 
     # Stage progression
@@ -252,6 +262,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="📈",
         condition=lambda db, a: _stages_cleared_count(a) >= 5,
         reward={"coins": 300},
+        progress=lambda db, a: (_stages_cleared_count(a), 5),
     ),
     Achievement(
         code="stages_15",
@@ -260,6 +271,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="📊",
         condition=lambda db, a: _stages_cleared_count(a) >= 15,
         reward={"gems": 75, "shards": 20},
+        progress=lambda db, a: (_stages_cleared_count(a), 15),
     ),
 
     # Raids
@@ -278,6 +290,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="🐲",
         condition=lambda db, a: _raid_attack_count(db, a) >= 25,
         reward={"gems": 100, "access_cards": 3},
+        progress=lambda db, a: (_raid_attack_count(db, a), 25),
     ),
 
     # Gear collection
@@ -288,6 +301,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="⚙️",
         condition=lambda db, a: _gear_count(db, a) >= 25,
         reward={"coins": 400},
+        progress=lambda db, a: (_gear_count(db, a), 25),
     ),
 
     # Summon volume
@@ -298,6 +312,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="🎲",
         condition=lambda db, a: _summon_count(db, a) >= 50,
         reward={"shards": 25},
+        progress=lambda db, a: (_summon_count(db, a), 50),
     ),
     Achievement(
         code="summons_500",
@@ -306,6 +321,7 @@ ACHIEVEMENTS: list[Achievement] = [
         icon="🐋",
         condition=lambda db, a: _summon_count(db, a) >= 500,
         reward={"gems": 250, "free_summon_credits": 5},
+        progress=lambda db, a: (_summon_count(db, a), 500),
     ),
 ]
 
@@ -399,18 +415,41 @@ def is_unlocked(account: Account, code: str) -> bool:
 
 
 def unlock_progress(db: Session, account: Account) -> list[dict]:
-    """Catalog joined with per-account unlocked state. Used by the UI."""
+    """Catalog joined with per-account unlocked state. Used by the UI.
+
+    Phase 2 polish — when the achievement carries a `progress` getter,
+    we surface (current, target) so the UI can render a "47 / 100"
+    label + progress bar on locked entries. Achievements without it
+    stay binary.
+    """
     unlocked = _unlocked(account)
     out = []
     for ach in ACHIEVEMENTS:
+        is_unlocked = ach.code in unlocked
+        cur, tgt = 0, 0
+        if ach.progress is not None and not is_unlocked:
+            try:
+                cur, tgt = ach.progress(db, account)
+                cur = int(cur or 0)
+                tgt = int(tgt or 0)
+                # Clamp display: a player at 47 with target 100 reads
+                # "47 / 100"; cap displayed cur at target so we never
+                # show "120 / 100" if a counter races past the gate
+                # before check_achievements caught up.
+                cur = min(cur, tgt) if tgt > 0 else cur
+            except Exception:
+                cur, tgt = 0, 0
         out.append({
             "code": ach.code,
             "title": ach.title,
             "description": ach.description,
             "icon": ach.icon,
             "reward": dict(ach.reward),
-            "unlocked": ach.code in unlocked,
+            "unlocked": is_unlocked,
             "unlocked_at": unlocked.get(ach.code, ""),
+            "progress_current": cur,
+            "progress_target": tgt,
+            "has_progress": tgt > 0,
         })
     return out
 
