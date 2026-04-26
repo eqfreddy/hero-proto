@@ -27,6 +27,30 @@ def test_register_creates_a_session_visible_to_owner(client) -> None:
     # IP + UA captured from the TestClient request.
     assert s["ip"] is not None
     assert s["user_agent"] is not None
+    # Single live session — must be flagged as current by the heuristic.
+    assert s["is_current"] is True
+
+
+def test_only_one_session_is_marked_current(client) -> None:
+    """`is_current` is heuristic — falls on the most-recently-active session.
+    With multiple live sessions, exactly one row is True."""
+    access1, _ = _register(client)
+    email = client.get("/me", headers={"Authorization": f"Bearer {access1}"}).json()["email"]
+    # Second login → second session.
+    r = client.post("/auth/login", json={"email": email, "password": "hunter22"})
+    second_access = r.json()["access_token"]
+
+    sessions = client.get(
+        "/me/sessions",
+        headers={"Authorization": f"Bearer {second_access}"},
+    ).json()
+    assert len(sessions) == 2
+    current_count = sum(1 for s in sessions if s["is_current"])
+    assert current_count == 1
+    # The newer session (higher id, freshly issued) wins the heuristic since
+    # neither has been used to refresh yet — fallback compares issued_at.
+    current = next(s for s in sessions if s["is_current"])
+    assert current["id"] == max(s["id"] for s in sessions)
 
 
 def test_login_adds_a_second_session(client) -> None:

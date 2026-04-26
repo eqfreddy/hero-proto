@@ -14,7 +14,7 @@ from app.daily_bonus import (
     reward_for_streak,
 )
 from app.db import get_db
-from app.deps import get_current_account
+from app.deps import enforce_data_export_rate_limit, get_current_account
 from app.economy import compute_energy, load_cleared
 from app.models import Account, Battle, Guild, GuildMember, GuildRole, HeroInstance
 from app.schemas import MeOut
@@ -405,7 +405,7 @@ class SessionOut(BaseModel):
     last_used_at: datetime | None = None
     ip: str | None = None
     user_agent: str | None = None
-    is_current: bool = False  # always False for now — we don't know caller's refresh-token id
+    is_current: bool = False
 
 
 @router.get("/sessions", response_model=list[SessionOut])
@@ -414,7 +414,13 @@ def list_sessions(
     db: Annotated[Session, Depends(get_db)],
 ) -> list[SessionOut]:
     """All live refresh tokens for the account, newest-first. Revoked, expired,
-    and rotated-out tokens are excluded — they're not real sessions anymore."""
+    and rotated-out tokens are excluded — they're not real sessions anymore.
+
+    `is_current` is heuristic: we don't know the caller's refresh-token id from
+    the access token alone, so we mark the session with the most recent
+    activity (`last_used_at`, falling back to `issued_at`). For the common
+    flow — caller just logged in or rotated, then asked for sessions — that's
+    their session. Wrong only if a *different* device authed more recently."""
     now = _utcnow()
     rows = list(db.scalars(
         _select(_RefreshToken)
@@ -426,6 +432,9 @@ def list_sessions(
         )
         .order_by(_desc(_RefreshToken.id))
     ))
+    current_id: int | None = None
+    if rows:
+        current_id = max(rows, key=lambda r: (r.last_used_at or r.issued_at, r.id)).id
     return [
         SessionOut(
             id=r.id,
@@ -434,6 +443,7 @@ def list_sessions(
             last_used_at=r.last_used_at,
             ip=r.created_ip,
             user_agent=r.user_agent,
+            is_current=(r.id == current_id),
         )
         for r in rows
     ]
@@ -484,12 +494,16 @@ def revoke_all_sessions(
 
 @router.get("/export")
 def export_account_data(
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(enforce_data_export_rate_limit)],
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     """GDPR art. 20 — return everything the system holds about this account
     as a single JSON blob. Sensitive material (password hash, TOTP secret,
     raw refresh tokens) is redacted; per-table caps prevent unbounded blobs.
-    """
+
+    Rate-limited to 1/min/account: legitimate users hit this maybe once a
+    year, never repeatedly, and the query is expensive (multi-table join,
+    multi-MB response). The cap protects DB time even from authenticated
+    callers with stolen access tokens."""
     from app.data_export import export_account as _export
     return _export(db, account)

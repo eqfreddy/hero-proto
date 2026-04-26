@@ -358,11 +358,13 @@ from app.models import RefreshToken
 def _client_ip(req: Request | None) -> str | None:
     if req is None:
         return None
-    # Trust X-Forwarded-For only if the deployment terminates TLS at a proxy;
-    # for the dev/test env, request.client.host is what we have.
-    fwd = req.headers.get("x-forwarded-for") if req else None
-    if fwd:
-        return fwd.split(",")[0].strip()[:64]
+    # X-Forwarded-For is only consulted when the deployment opts in via
+    # settings.trust_forwarded_for — otherwise a client could spoof both the
+    # per-IP rate-limit key AND the IP shown in their own session list.
+    if settings.trust_forwarded_for:
+        fwd = req.headers.get("x-forwarded-for")
+        if fwd:
+            return fwd.split(",")[0].strip()[:64] or None
     return req.client.host[:64] if req.client else None
 
 

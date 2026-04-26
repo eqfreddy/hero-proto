@@ -40,8 +40,14 @@ from app.models import (
     Notification,
     Purchase,
     RaidAttempt,
+    RefreshToken,
     TeamPreset,
+    utcnow,
 )
+
+
+def _iso_now() -> str:
+    return utcnow().isoformat()
 
 
 # Per-table row caps. Battles + gacha records dominate by volume on any
@@ -282,6 +288,33 @@ def _audit_dict(e: AdminAuditLog) -> dict:
     }
 
 
+def _audit_against_me_dict(e: AdminAuditLog) -> dict:
+    """Like _audit_dict but from the target's perspective: actor_id (the admin
+    who acted) is exposed; target_id is implied by the query (it's me) so we
+    omit it."""
+    return {
+        "id": e.id,
+        "action": e.action,
+        "actor_admin_id": e.actor_id,
+        "payload": _try_json(e.payload_json, {}),
+        "created_at": e.created_at,
+    }
+
+
+def _session_dict(r: RefreshToken) -> dict:
+    """Live refresh-token row, with the hash redacted. The hash itself can't be
+    reversed but exposing it leaks no value to the user — they can't replay it."""
+    return {
+        "id": r.id,
+        "token_hash": "<redacted>",
+        "issued_at": r.issued_at,
+        "expires_at": r.expires_at,
+        "last_used_at": r.last_used_at,
+        "ip": r.created_ip,
+        "user_agent": r.user_agent,
+    }
+
+
 def _bounded_query(db: Session, query, key: str, mapper) -> tuple[list[dict], int]:
     """Run query, cap at _MAX_ROWS[key], report how many were omitted."""
     cap = _MAX_ROWS.get(key, 1000)
@@ -449,9 +482,33 @@ def export_account(db: Session, account: Account) -> dict:
         )
     ] if account.is_admin else []
 
+    admin_actions_against_me = [
+        _audit_against_me_dict(e)
+        for e in db.scalars(
+            select(AdminAuditLog)
+            .where(AdminAuditLog.target_id == account.id)
+            .order_by(AdminAuditLog.id.desc())
+            .limit(500)
+        )
+    ]
+
+    sessions = [
+        _session_dict(r)
+        for r in db.scalars(
+            select(RefreshToken)
+            .where(
+                RefreshToken.account_id == account.id,
+                RefreshToken.revoked_at.is_(None),
+                RefreshToken.replaced_by_id.is_(None),
+                RefreshToken.expires_at > utcnow(),
+            )
+            .order_by(RefreshToken.id.desc())
+        )
+    ]
+
     return {
         "schema_version": 1,
-        "exported_at": _try_json(None) or _iso_now(),
+        "exported_at": _iso_now(),
         "rows_omitted_by_cap": omitted,
         "account": _account_dict(account),
         "heroes": heroes,
@@ -479,9 +536,6 @@ def export_account(db: Session, account: Account) -> dict:
             } if defense_team else None
         ),
         "admin_actions_taken": audit_log_admin_actions,
+        "admin_actions_against_me": admin_actions_against_me,
+        "sessions": sessions,
     }
-
-
-def _iso_now() -> str:
-    from app.models import utcnow as _u
-    return _u().isoformat()

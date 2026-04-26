@@ -134,16 +134,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         general_rate_per_minute: int,
         backend: str = "memory",
         redis_url: str = "",
+        trust_forwarded_for: bool = False,
     ) -> None:
         super().__init__(app)
+        self.trust_forwarded_for = trust_forwarded_for
         self.auth_bucket, self.general_bucket = build_buckets(
             auth_rate_per_minute, general_rate_per_minute, backend, redis_url,
         )
 
     def _client_key(self, request: Request) -> str:
-        xff = request.headers.get("x-forwarded-for")
-        if xff:
-            return xff.split(",")[0].strip()
+        # X-Forwarded-For is only consulted behind a proxy that strips it on
+        # ingress — otherwise clients spoof their per-IP rate-limit key.
+        if self.trust_forwarded_for:
+            xff = request.headers.get("x-forwarded-for")
+            if xff:
+                return xff.split(",")[0].strip() or "unknown"
         if request.client is None:
             return "unknown"
         return request.client.host

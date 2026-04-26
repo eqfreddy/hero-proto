@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     # frustrating real users.
     friend_request_per_minute_per_account: int = 10
     direct_message_per_minute_per_account: int = 30
+    # GDPR data export is expensive (multi-table query, ~10MB JSON). Cap hard:
+    # legitimate users want this once a year, never repeatedly.
+    data_export_per_minute_per_account: int = 1
+    # Trust X-Forwarded-For for client IP attribution. Only enable behind a
+    # proxy that strips/replaces this header on ingress — otherwise clients
+    # can spoof their source IP, defeating per-IP rate limits and planting
+    # misleading entries in their own session list.
+    trust_forwarded_for: bool = False
 
     # Shard store — in-game gems-to-shards exchange. Set the rate so a
     # mid-game gem balance buys a meaningful pull batch but real-money

@@ -71,3 +71,26 @@ def test_export_empty_collections_for_fresh_account(client) -> None:
 def test_export_requires_auth(client) -> None:
     r = client.get("/me/export")
     assert r.status_code == 401
+
+
+def test_export_includes_session_for_logged_in_account(client) -> None:
+    """The refresh token issued at register should show up in `sessions` with
+    the hash redacted. Issue + expiry are present so the user can audit when
+    each device authed and when it'll auto-rotate out."""
+    hdr, _ = _register(client)
+    data = client.get("/me/export", headers=hdr).json()
+    assert isinstance(data["sessions"], list)
+    assert len(data["sessions"]) >= 1
+    s0 = data["sessions"][0]
+    assert s0["token_hash"] == "<redacted>"
+    assert "issued_at" in s0
+    assert "expires_at" in s0
+
+
+def test_export_admin_actions_against_me_block_exists(client) -> None:
+    """Block must always be present (empty for normal accounts who've never
+    been touched by an admin)."""
+    hdr, _ = _register(client)
+    data = client.get("/me/export", headers=hdr).json()
+    assert isinstance(data["admin_actions_against_me"], list)
+    assert data["admin_actions_against_me"] == []

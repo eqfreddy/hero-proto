@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import random
 
+import pytest
+
 
 def _register(client) -> tuple[dict, int]:
     email = f"xacct+{random.randint(100000, 999999)}@example.com"
@@ -109,7 +111,7 @@ def test_gear_equip_rejects_other_accounts_hero(client) -> None:
             if gear_id:
                 break
     if gear_id is None:
-        return  # gear didn't drop in this RNG run; skip silently
+        pytest.skip("no gear dropped in 15 RNG-rolled battles; cannot exercise equip guard")
     r = client.post(
         f"/gear/{gear_id}/equip",
         headers=alice_hdr,

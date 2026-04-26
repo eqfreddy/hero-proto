@@ -216,8 +216,8 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] Admin UI over the existing `/admin/*` endpoints (currently curl-only)
 
 ### Auth / account
-- [ ] Account data export (GDPR art. 20)
-- [ ] Login history / active sessions list
+- [x] Account data export (GDPR art. 20) — `GET /me/export`, e2d2ff5
+- [x] Login history / active sessions list — `GET /me/sessions` + revoke endpoints, e2d2ff5
 - [ ] Device fingerprinting for refresh-token anomaly detection
 
 ### Guilds
@@ -259,9 +259,10 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] Dashboard screenshots in `RUNBOOK.md`
 
 ### Anti-cheat / validation
-- [ ] Per-account rate limit on `/battles` (Sprint A)
-- [ ] Cap arena attack attempts per hour
-- [ ] Audit all endpoints for `hero_instance_id` ownership check
+- [x] Per-account rate limit on `/battles` (Sprint A)
+- [x] Cap arena attack attempts per hour — `arena_attack_per_minute_per_account`
+- [x] Audit all endpoints for `hero_instance_id` ownership check — e2d2ff5, 7 guard tests
+- [x] Per-IP guild-message rate limit — e2d2ff5 (per-IP bucket, Redis-backed when configured)
 - [ ] Reject combat outcomes that couldn't happen (if client-authoritative layer ever gets added)
 
 ### Localization
@@ -384,6 +385,21 @@ Output format for everything on this list: **paste the final file(s) back here i
 - Sprint B: guild promote/demote/transfer/apply/accept/reject/withdraw — all shipped + unit + smoke coverage
 - Sprint C: `scripts/postgres_stack_validate.sh` — one-shot compose-Postgres smoke (runs on demand)
 - Sprint D: +10 heroes (7 roster + 3 raid-boss templates), +6 stages (tutorial stage 0 + orders 11–15), +1 BONUS_GEAR_DROPS liveops seed
+
+**Anti-cheat audit + account-depth sprint (2026-04-25, e2d2ff5)**
+- Cross-account ownership audit: 7 guard tests across hero/gear/battle/arena routes
+- Active sessions: `GET /me/sessions`, single + bulk revoke; refresh tokens carry IP/UA/last_used_at (migration `3aa50c822bb6`)
+- GDPR art. 20 export: `GET /me/export` — full account dump w/ secrets redacted + per-table caps
+- Per-IP guild-chat rate limit layered alongside per-account bucket
+
+**Post-review hardening (2026-04-25)**
+Code-review pass against e2d2ff5; landed fixes:
+- [x] Per-action rate buckets routed through `_make_bucket()` factory — Redis-backed when `rate_limit_backend=redis` (was: in-memory only, broke under horizontal scale)
+- [x] `trust_forwarded_for` config flag gates `X-Forwarded-For` parsing in middleware + auth IP capture (was: trusted unconditionally, spoofable without proxy)
+- [x] `/me/export` rate-limited (1/min per account) via `enforce_data_export_rate_limit` — factory + route both wired
+- [x] `SessionOut.is_current` from most-recent activity (`last_used_at` falling back to `issued_at`); single live session always flagged, ties broken by id
+- [x] `data_export.py`: dropped dead `_try_json(None) or` expr; `_iso_now` hoisted to module-top; new `sessions` block (live refresh tokens, hash redacted) + `admin_actions_against_me` block (audit-log entries where this account is the target)
+- [x] `tests/test_cross_account_ownership.py`: silent `return` → `pytest.skip()` so RNG-gated skips are visible in suite output
 
 **Sprint H (PWA) + art pipeline (2026-04-24)**
 - PWA manifest + service worker + keyboard-sword app icons — installable on Android / iOS
