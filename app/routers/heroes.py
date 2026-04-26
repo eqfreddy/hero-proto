@@ -264,6 +264,190 @@ class SellOut(_BM):
     shards: int
 
 
+# --- Next-upgrade preview ----------------------------------------------------
+#
+# Phase 2.1 — give the roster page numbers to chase. Returns the *current*
+# computed stats alongside the *projected* stats after each available
+# upgrade path: level-up (XP-driven, via /battles), star-up (via /ascend),
+# special-up (via /skill_up). Read-only.
+#
+# We keep the math here in step with instance_out (variance + gear + sets)
+# so a player sees the same numbers on the detail page that the battle
+# resolver will use.
+
+
+class UpgradePreview(_BM):
+    available: bool                 # is this upgrade legal right now
+    cost: dict                      # what would be spent / required
+    delta: dict[str, int]           # stat delta vs current (hp/atk/def/spd/power)
+    after: dict[str, int]           # absolute stats after the upgrade
+
+
+class HeroPreviewOut(_BM):
+    hero_instance_id: int
+    current: dict[str, int]         # hp/atk/def/spd/power right now
+    level_up: UpgradePreview
+    star_up: UpgradePreview
+    special_up: UpgradePreview
+
+
+def _project(
+    h: HeroInstance,
+    *,
+    level: int | None = None,
+    stars: int | None = None,
+) -> dict[str, int]:
+    """Recompute stats as if (level, stars) were applied. Pure — never
+    mutates the row."""
+    from app.gacha import parse_variance
+
+    t = h.template
+    use_level = level if level is not None else h.level
+    use_stars = stars if stars is not None else h.stars
+    hp = scale_stat(t.base_hp, use_level, use_stars)
+    atk = scale_stat(t.base_atk, use_level, use_stars)
+    df = scale_stat(t.base_def, use_level, use_stars)
+    spd = t.base_spd
+    variance = parse_variance(h.variance_pct_json)
+    if variance:
+        hp = int(round(hp * (1.0 + variance.get("hp", 0.0))))
+        atk = int(round(atk * (1.0 + variance.get("atk", 0.0))))
+        df = int(round(df * (1.0 + variance.get("def", 0.0))))
+        spd = int(round(spd * (1.0 + variance.get("spd", 0.0))))
+    bonus = gear_bonus_for(h)
+    hp += bonus["hp"]; atk += bonus["atk"]; df += bonus["def"]; spd += bonus["spd"]
+    pct = bonus.get("pct", {})
+    if pct:
+        hp = int(round(hp * (1.0 + pct.get("hp", 0.0))))
+        atk = int(round(atk * (1.0 + pct.get("atk", 0.0))))
+        df = int(round(df * (1.0 + pct.get("def", 0.0))))
+        spd = int(round(spd * (1.0 + pct.get("spd", 0.0))))
+    return {
+        "hp": hp, "atk": atk, "def": df, "spd": spd,
+        "power": power_rating(hp, atk, df, spd),
+    }
+
+
+def _delta(after: dict[str, int], before: dict[str, int]) -> dict[str, int]:
+    return {k: int(after.get(k, 0)) - int(before.get(k, 0)) for k in before}
+
+
+@router.get("/{hero_instance_id}/preview", response_model=HeroPreviewOut)
+def upgrade_preview(
+    hero_instance_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HeroPreviewOut:
+    """Show the player what each available upgrade would do — Phase 2.1
+    chase-the-numbers UX. Returns deltas + absolute after-stats for level,
+    star, and special. `available=False` means the upgrade path is capped
+    or otherwise impossible right now."""
+    hero = db.get(HeroInstance, hero_instance_id)
+    if hero is None or hero.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "hero not found")
+
+    current = _project(hero)
+
+    # Level up — earned via battle XP, capped by stars-derived ceiling.
+    # We show XP-to-next so the UI can render a progress bar.
+    from app.economy import xp_for_level
+    cap = level_cap_for_stars(hero.stars)
+    if hero.level < cap:
+        xp_need = xp_for_level(hero.level)
+        after = _project(hero, level=hero.level + 1)
+        level_up = UpgradePreview(
+            available=True,
+            cost={
+                "target_level": hero.level + 1,
+                "level_cap": cap,
+                "xp_current": hero.xp,
+                "xp_needed": xp_need,
+                "xp_remaining": max(0, xp_need - hero.xp),
+            },
+            delta=_delta(after, current),
+            after=after,
+        )
+    else:
+        level_up = UpgradePreview(
+            available=False,
+            cost={"target_level": hero.level, "level_cap": cap, "reason": "at level cap — ascend to raise"},
+            delta={k: 0 for k in current},
+            after=current,
+        )
+
+    # Star up — capped at MAX_STARS; needs `stars` fodder of same template.
+    if hero.stars < MAX_STARS:
+        from sqlalchemy import select as _sel
+        owned_dupes = list(db.scalars(
+            _sel(HeroInstance.id).where(
+                HeroInstance.account_id == account.id,
+                HeroInstance.template_id == hero.template_id,
+                HeroInstance.id != hero.id,
+            )
+        ))
+        needed = hero.stars
+        after = _project(hero, stars=hero.stars + 1)
+        star_up = UpgradePreview(
+            available=len(owned_dupes) >= needed,
+            cost={
+                "target_stars": hero.stars + 1,
+                "fodder_needed": needed,
+                "fodder_available": len(owned_dupes),
+            },
+            delta=_delta(after, current),
+            after=after,
+        )
+    else:
+        star_up = UpgradePreview(
+            available=False,
+            cost={"target_stars": hero.stars, "reason": "max stars"},
+            delta={k: 0 for k in current},
+            after=current,
+        )
+
+    # Special up — flat boost; doesn't change stat sheet, but we surface
+    # the next special-level number + scale multiplier so the UI can show
+    # "your special hits +10% harder next level".
+    if hero.special_level < MAX_SPECIAL_LEVEL:
+        from sqlalchemy import select as _sel
+        owned_dupes_count = db.scalar(
+            _sel(HeroInstance.id).where(
+                HeroInstance.account_id == account.id,
+                HeroInstance.template_id == hero.template_id,
+                HeroInstance.id != hero.id,
+            )
+            .limit(1)
+        )
+        special_up = UpgradePreview(
+            available=owned_dupes_count is not None,
+            cost={
+                "target_special_level": hero.special_level + 1,
+                "fodder_needed": 1,
+                "max_special_level": MAX_SPECIAL_LEVEL,
+                # +10% per level beyond 1 in the resolver.
+                "scale_multiplier_after": round(1.0 + 0.10 * (hero.special_level + 1 - 1), 2),
+            },
+            # Stat sheet is unchanged by special-up; deltas are zero.
+            delta={k: 0 for k in current},
+            after=current,
+        )
+    else:
+        special_up = UpgradePreview(
+            available=False,
+            cost={"target_special_level": hero.special_level, "reason": "max special level"},
+            delta={k: 0 for k in current},
+            after=current,
+        )
+
+    return HeroPreviewOut(
+        hero_instance_id=hero.id,
+        current=current,
+        level_up=level_up,
+        star_up=star_up,
+        special_up=special_up,
+    )
+
+
 @router.get("/{hero_instance_id}/sell-preview", response_model=SellPreviewOut)
 def sell_preview(
     hero_instance_id: int,
