@@ -376,6 +376,10 @@ class BattleIn(BaseModel):
 class BattleOut(BaseModel):
     id: int
     stage_id: int
+    # Stage's `code` slug — exposed alongside id so the replay viewer can
+    # pick a background without a second /stages/{id} fetch. Optional for
+    # backwards-compat with any tests that build a BattleOut by hand.
+    stage_code: str | None = None
     outcome: BattleOutcome
     first_clear: bool
     log: list[dict]

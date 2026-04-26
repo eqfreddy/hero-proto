@@ -311,6 +311,7 @@ def fight(
     return BattleOut(
         id=battle.id,
         stage_id=stage.id,
+        stage_code=stage.code,
         outcome=outcome,
         first_clear=rewards.first_clear,
         log=combined_log,
@@ -341,9 +342,11 @@ def get_battle(
         rewards = json.loads(b.rewards_json or "{}")
     except json.JSONDecodeError:
         rewards = {}
+    stage = db.get(Stage, b.stage_id)
     return BattleOut(
         id=b.id,
         stage_id=b.stage_id,
+        stage_code=stage.code if stage is not None else None,
         outcome=b.outcome,
         first_clear=bool(b.first_clear),
         log=log,
@@ -465,9 +468,11 @@ def get_battle(
         rewards = json.loads(b.rewards_json)
     except json.JSONDecodeError:
         rewards = {}
+    stage = db.get(Stage, b.stage_id)
     return BattleOut(
         id=b.id,
         stage_id=b.stage_id,
+        stage_code=stage.code if stage is not None else None,
         outcome=b.outcome,
         first_clear=bool(b.first_clear),
         log=log,

@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="383" viewBox="0 0 680 383">
+  <!-- CLUSTER OF FUCKERY — Background: Cable Hell -->
+  <!-- The nightmare. Spaghetti everywhere. Labels mean nothing. -->
+
+  <rect width="680" height="383" fill="#161010"/>
+  <rect x="0" y="370" width="680" height="13" fill="#120d0d"/>
+  <rect x="0" y="0" width="680" height="24" fill="#100c0c"/>
+
+  <!-- Broken fluorescent lights — one dimmer than the other -->
+  <rect x="180" y="24" width="140" height="8" rx="2" fill="#2a2020" stroke="#3a2a2a" stroke-width="1"/>
+  <rect x="184" y="26" width="132" height="4" rx="1" fill="#ffee88" opacity="0.3"/>
+  <rect x="380" y="24" width="140" height="8" rx="2" fill="#2a2020" stroke="#3a2a2a" stroke-width="1"/>
+  <rect x="384" y="26" width="132" height="4" rx="1" fill="#ffee88" opacity="0.6"/>
+
+  <!-- Warning sign top -->
+  <rect x="240" y="4" width="200" height="16" rx="2" fill="#331a00" stroke="#663300" stroke-width="1"/>
+  <text x="340" y="15" text-anchor="middle" font-family="monospace" font-size="8" fill="#ff8800">⚠ STRUCTURED CABLING: PHASE 2 (2019)</text>
+
+  <!-- LIGHT SWITCH -->
+  <rect x="14" y="80" width="18" height="28" rx="3" fill="#2a1a1a" stroke="#3a2a2a" stroke-width="1.5"/>
+  <rect x="18" y="84" width="10" height="8" rx="1" fill="#3a2020"/>
+  <rect x="21" y="86" width="4" height="4" rx="0.5" fill="#ffaa00" opacity="0.8"/>
+  <text x="23" y="116" text-anchor="middle" font-family="monospace" font-size="6" fill="#442">LIGHT</text>
+
+  <!-- Racks left and right -->
+  <rect x="18" y="32" width="90" height="351" rx="3" fill="#1a1a20" stroke="#2a2a30" stroke-width="1.5"/>
+  <rect x="572" y="32" width="90" height="351" rx="3" fill="#1a1a20" stroke="#2a2a30" stroke-width="1.5"/>
+  <rect x="22" y="36" width="82" height="9" rx="1" fill="#0a1628" stroke="#1a3a5c" stroke-width="1"/>
+  <rect x="22" y="49" width="82" height="9" rx="1" fill="#0a1628" stroke="#1a3a5c" stroke-width="1"/>
+  <rect x="22" y="62" width="82" height="18" rx="1" fill="#0d1f0d" stroke="#1a4a1a" stroke-width="1"/>
+  <rect x="22" y="84" width="82" height="9" rx="1" fill="#1a0a0a" stroke="#4a1a1a" stroke-width="1"/>
+  <circle cx="30" cy="41" r="2.5" fill="#00ff44" opacity="0.9"/>
+  <circle cx="30" cy="54" r="2.5" fill="#ffaa00" opacity="0.9"/>
+  <circle cx="30" cy="67" r="2.5" fill="#00ff44" opacity="0.9"/>
+  <circle cx="30" cy="89" r="2.5" fill="#ff4444" opacity="0.9"/>
+  <rect x="576" y="36" width="82" height="9" rx="1" fill="#0a1628" stroke="#1a3a5c" stroke-width="1"/>
+  <rect x="576" y="49" width="82" height="18" rx="1" fill="#0d1f0d" stroke="#1a4a1a" stroke-width="1"/>
+  <rect x="576" y="71" width="82" height="9" rx="1" fill="#0a1628" stroke="#1a3a5c" stroke-width="1"/>
+  <rect x="576" y="84" width="82" height="9" rx="1" fill="#1a0a0a" stroke="#4a1a1a" stroke-width="1"/>
+  <circle cx="584" cy="41" r="2.5" fill="#ffaa00" opacity="0.9"/>
+  <circle cx="584" cy="54" r="2.5" fill="#00ff44" opacity="0.9"/>
+  <circle cx="584" cy="89" r="2.5" fill="#ff4444" opacity="0.9"/>
+
+  <!-- THE SPAGHETTI — horizontal top runs -->
+  <path d="M110,40 Q160,24 230,40 Q300,56 360,32 Q420,12 490,36 Q540,52 572,40" fill="none" stroke="#2244cc" stroke-width="4" stroke-linecap="round"/>
+  <path d="M110,54 Q155,72 210,50 Q275,28 330,58 Q385,84 445,52 Q505,24 572,54" fill="none" stroke="#cc2222" stroke-width="4" stroke-linecap="round"/>
+  <path d="M110,68 Q185,52 250,72 Q305,88 360,64 Q415,42 475,68 Q520,88 572,68" fill="none" stroke="#22cc44" stroke-width="4" stroke-linecap="round"/>
+  <path d="M110,84 Q165,104 225,80 Q295,54 355,82 Q408,106 470,80 Q520,58 572,84" fill="none" stroke="#ccaa22" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- vertical drops left side -->
+  <path d="M110,40 Q125,80 114,140 Q105,200 118,260 Q132,320 116,370" fill="none" stroke="#2244cc" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+  <path d="M110,54 Q120,100 108,160 Q98,218 112,278 Q126,334 110,380" fill="none" stroke="#cc2222" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- vertical drops right side -->
+  <path d="M572,40 Q560,88 570,148 Q580,206 566,264 Q554,318 568,374" fill="none" stroke="#2244cc" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+  <path d="M572,68 Q562,116 574,172 Q584,224 568,280 Q554,332 570,380" fill="none" stroke="#22cc44" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- horizontal mid runs -->
+  <path d="M114,200 Q200,180 300,200 Q400,218 490,196 Q535,182 566,200" fill="none" stroke="#ccaa22" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M112,280 Q200,264 310,280 Q400,294 480,274 Q526,260 568,276" fill="none" stroke="#aa22cc" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M115,340 Q190,316 270,342 Q350,366 430,338 Q495,316 567,340" fill="none" stroke="#cc2222" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- Mystery cable labels -->
+  <rect x="200" y="290" width="110" height="18" rx="2" fill="#2a1a00" stroke="#4a3000" stroke-width="1" transform="rotate(-3,255,299)"/>
+  <text x="255" y="302" text-anchor="middle" font-family="monospace" font-size="7" fill="#cc8800" transform="rotate(-3,255,299)">to printer 3 (maybe)</text>
+  <rect x="340" y="250" width="120" height="18" rx="2" fill="#001a2a" stroke="#002a44" stroke-width="1" transform="rotate(4,400,259)"/>
+  <text x="400" y="262" text-anchor="middle" font-family="monospace" font-size="7" fill="#4488cc" transform="rotate(4,400,259)">DO NOT UNPLUG (why)</text>
+  <rect x="180" y="350" width="130" height="18" rx="2" fill="#1a0a00" stroke="#3a1a00" stroke-width="1" transform="rotate(2,245,359)"/>
+  <text x="245" y="362" text-anchor="middle" font-family="monospace" font-size="7" fill="#cc4400" transform="rotate(2,245,359)">IDF-B to MDF (maybe)</text>
+
+  <!-- POSTER: OSI model where layer 1 = chaos -->
+  <rect x="220" y="130" width="100" height="130" rx="2" fill="#f0f0e8" stroke="#c8c8b8" stroke-width="2"/>
+  <rect x="223" y="133" width="94" height="20" rx="1" fill="#2244aa"/>
+  <text x="270" y="147" text-anchor="middle" font-family="monospace" font-size="7" fill="#fff" font-weight="bold">OSI MODEL</text>
+  <rect x="223" y="155" width="94" height="12" rx="1" fill="#8844cc"/>
+  <text x="270" y="164" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">7. Application</text>
+  <rect x="223" y="169" width="94" height="12" rx="1" fill="#4488cc"/>
+  <text x="270" y="178" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">6. Presentation</text>
+  <rect x="223" y="183" width="94" height="12" rx="1" fill="#44aacc"/>
+  <text x="270" y="192" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">5. Session</text>
+  <rect x="223" y="197" width="94" height="12" rx="1" fill="#44cc88"/>
+  <text x="270" y="206" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">4. Transport</text>
+  <rect x="223" y="211" width="94" height="12" rx="1" fill="#88cc44"/>
+  <text x="270" y="220" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">3. Network</text>
+  <rect x="223" y="225" width="94" height="12" rx="1" fill="#ccaa44"/>
+  <text x="270" y="234" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">2. Data Link</text>
+  <rect x="223" y="239" width="94" height="12" rx="1" fill="#cc4444"/>
+  <text x="270" y="248" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">1. Physical (chaos)</text>
+  <rect x="267" y="128" width="6" height="6" rx="1" fill="#666"/>
+
+  <!-- POSTER: Have you tried turning it off and on? -->
+  <rect x="360" y="140" width="100" height="80" rx="2" fill="#1a0a0a" stroke="#3a1a1a" stroke-width="2"/>
+  <text x="410" y="162" text-anchor="middle" font-family="monospace" font-size="8" fill="#cc4444" font-weight="bold">HAVE YOU</text>
+  <text x="410" y="176" text-anchor="middle" font-family="monospace" font-size="8" fill="#cc4444" font-weight="bold">TRIED</text>
+  <text x="410" y="190" text-anchor="middle" font-family="monospace" font-size="8" fill="#ffaa00" font-weight="bold">TURNING IT</text>
+  <text x="410" y="204" text-anchor="middle" font-family="monospace" font-size="8" fill="#ffaa00" font-weight="bold">OFF &amp; ON?</text>
+  <rect x="407" y="138" width="6" height="6" rx="1" fill="#666"/>
+</svg>

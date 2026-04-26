@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="383" viewBox="0 0 680 383">
+  <!-- CLUSTER OF FUCKERY — Background: Cubicle Farm -->
+  <rect width="680" height="383" fill="#ccc8c0"/>
+  <rect x="0" y="0" width="680" height="28" fill="#bab6ae"/>
+  <rect x="0" y="26" width="680" height="4" fill="#aaa69e"/>
+  <rect x="0" y="370" width="680" height="13" fill="#b8b4ac"/>
+  <rect x="240" y="5" width="200" height="18" rx="3" fill="#888480" stroke="#78746c" stroke-width="1"/>
+  <text x="340" y="18" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#e8e4dc">IT DEPT — PLEASE KNOCK (we won't hear)</text>
+  <!-- Light switches -->
+  <rect x="14" y="60" width="16" height="26" rx="3" fill="#d0ccc4" stroke="#b0aca4" stroke-width="1.5"/>
+  <rect x="18" y="64" width="8" height="6" rx="1" fill="#e8e4dc"/>
+  <rect x="20" y="65" width="4" height="4" rx="0.5" fill="#44aa44" opacity="0.8"/>
+  <rect x="650" y="60" width="16" height="26" rx="3" fill="#d0ccc4" stroke="#b0aca4" stroke-width="1.5"/>
+  <rect x="654" y="64" width="8" height="6" rx="1" fill="#e8e4dc"/>
+  <rect x="656" y="65" width="4" height="4" rx="0.5" fill="#44aa44" opacity="0.8"/>
+  <!-- Cubicle dividers -->
+  <rect x="18" y="30" width="2" height="353" fill="#a0a098"/>
+  <rect x="222" y="30" width="2" height="353" fill="#a0a098"/>
+  <rect x="426" y="30" width="2" height="353" fill="#a0a098"/>
+  <rect x="628" y="30" width="2" height="353" fill="#a0a098"/>
+  <rect x="18" y="30" width="612" height="2" fill="#a0a098"/>
+  <rect x="18" y="210" width="612" height="2" fill="#a0a098"/>
+  <rect x="18" y="370" width="612" height="2" fill="#a0a098"/>
+  <rect x="18" y="124" width="204" height="2" fill="#a0a098"/>
+  <rect x="222" y="124" width="204" height="2" fill="#a0a098"/>
+  <rect x="426" y="124" width="204" height="2" fill="#a0a098"/>
+  <rect x="18" y="314" width="204" height="2" fill="#a0a098"/>
+  <rect x="222" y="314" width="204" height="2" fill="#a0a098"/>
+  <rect x="426" y="314" width="204" height="2" fill="#a0a098"/>
+  <!-- Cube 1: git blame everyone_else -->
+  <rect x="26" y="36" width="188" height="86" fill="#d0ccc4"/>
+  <rect x="30" y="90" width="180" height="11" rx="2" fill="#c8b898" stroke="#b8a888" stroke-width="1"/>
+  <rect x="34" y="42" width="115" height="42" rx="2" fill="#2a2a2a" stroke="#111" stroke-width="1.5"/>
+  <rect x="36" y="44" width="111" height="38" rx="1" fill="#1a3a5c"/>
+  <text x="91" y="62" text-anchor="middle" font-family="monospace" font-size="7" fill="#4a9a4a">C:\&gt; git blame</text>
+  <text x="91" y="74" text-anchor="middle" font-family="monospace" font-size="7" fill="#4a9a4a">everyone_else</text>
+  <rect x="158" y="44" width="52" height="38" rx="1" fill="#ffee88" stroke="#e8d840" stroke-width="1" transform="rotate(2,184,63)"/>
+  <text x="184" y="58" text-anchor="middle" font-family="monospace" font-size="6" fill="#664" transform="rotate(2,184,63)">wifi pw:</text>
+  <text x="184" y="68" text-anchor="middle" font-family="monospace" font-size="6" fill="#664" transform="rotate(2,184,63)">Welcome1</text>
+  <text x="184" y="78" text-anchor="middle" font-family="monospace" font-size="5" fill="#aa4" transform="rotate(2,184,63)">(pls change)</text>
+  <!-- Cube 2: ping timeout -->
+  <rect x="230" y="36" width="188" height="86" fill="#ccc8c0"/>
+  <rect x="234" y="90" width="180" height="11" rx="2" fill="#c8b898" stroke="#b8a888" stroke-width="1"/>
+  <rect x="238" y="42" width="115" height="42" rx="2" fill="#2a2a2a" stroke="#111" stroke-width="1.5"/>
+  <rect x="240" y="44" width="111" height="38" rx="1" fill="#1a2a1a"/>
+  <text x="295" y="60" text-anchor="middle" font-family="monospace" font-size="7" fill="#4aaa4a">ping 8.8.8.8</text>
+  <text x="295" y="72" text-anchor="middle" font-family="monospace" font-size="6" fill="#ff4444">timeout timeout</text>
+  <!-- Synergy poster between cubes -->
+  <rect x="370" y="36" width="56" height="48" rx="2" fill="#e8f0e8" stroke="#c8d8c8" stroke-width="1"/>
+  <rect x="373" y="39" width="50" height="24" rx="1" fill="#2a4a2a"/>
+  <ellipse cx="398" cy="51" rx="12" ry="8" fill="none" stroke="#4a8a4a" stroke-width="2"/>
+  <line x1="390" y1="51" x2="406" y2="51" stroke="#4a8a4a" stroke-width="1.5"/>
+  <line x1="398" y1="43" x2="398" y2="59" stroke="#4a8a4a" stroke-width="1.5"/>
+  <text x="398" y="73" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#4a6a4a" font-weight="bold">SYNERGY</text>
+  <text x="398" y="82" text-anchor="middle" font-family="monospace" font-size="5" fill="#888">(please)</text>
+  <rect x="395" y="34" width="6" height="5" rx="1" fill="#888"/>
+  <!-- Cube 3: 847 open tickets -->
+  <rect x="434" y="36" width="188" height="86" fill="#d4d0c8"/>
+  <rect x="438" y="90" width="180" height="11" rx="2" fill="#c8b898" stroke="#b8a888" stroke-width="1"/>
+  <rect x="442" y="42" width="115" height="42" rx="2" fill="#2a2a2a" stroke="#111" stroke-width="1.5"/>
+  <rect x="444" y="44" width="111" height="38" rx="1" fill="#1a1a3a"/>
+  <text x="499" y="60" text-anchor="middle" font-family="monospace" font-size="6" fill="#aaaaff">TICKETS OPEN: 847</text>
+  <text x="499" y="72" text-anchor="middle" font-family="monospace" font-size="6" fill="#ff4444">CRITICAL:  23</text>
+  <!-- Cube 4: screensaver -->
+  <rect x="26" y="218" width="188" height="90" fill="#d0ccc4"/>
+  <rect x="30" y="270" width="180" height="11" rx="2" fill="#c8b898" stroke="#b8a888" stroke-width="1"/>
+  <rect x="34" y="224" width="115" height="42" rx="2" fill="#2a2a2a" stroke="#111" stroke-width="1.5"/>
+  <rect x="36" y="226" width="111" height="38" rx="1" fill="#1a1a1a"/>
+  <text x="91" y="248" text-anchor="middle" font-family="monospace" font-size="7" fill="#555">*screensaver*</text>
+  <rect x="162" y="228" width="46" height="16" rx="2" fill="#ffe8e8" stroke="#d8b8b8" stroke-width="1"/>
+  <text x="185" y="239" text-anchor="middle" font-family="monospace" font-size="6" fill="#884">UPS: 12%</text>
+  <!-- Cube 5: printer fire -->
+  <rect x="230" y="218" width="188" height="90" fill="#ccc8c0"/>
+  <rect x="234" y="270" width="180" height="11" rx="2" fill="#c8b898" stroke="#b8a888" stroke-width="1"/>
+  <rect x="238" y="224" width="115" height="42" rx="2" fill="#2a2a2a" stroke="#111" stroke-width="1.5"/>
+  <rect x="240" y="226" width="111" height="38" rx="1" fill="#2a1a1a"/>
+  <text x="295" y="242" text-anchor="middle" font-family="monospace" font-size="6" fill="#ff6666">PRINTER FIRE</text>
+  <text x="295" y="254" text-anchor="middle" font-family="monospace" font-size="6" fill="#888">physically. fire.</text>
+  <!-- Persistence poster -->
+  <rect x="340" y="218" width="80" height="70" rx="2" fill="#f8f4ec" stroke="#d8d4cc" stroke-width="1.5"/>
+  <rect x="343" y="221" width="74" height="36" rx="1" fill="#1a2a4a"/>
+  <path d="M343,255 L360,232 L375,248 L385,238 L417,255Z" fill="#2a4a8a"/>
+  <text x="380" y="272" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#6a8abb" font-weight="bold">PERSISTENCE</text>
+  <text x="380" y="282" text-anchor="middle" font-family="monospace" font-size="5" fill="#aaa">it won't help but ok</text>
+  <rect x="377" y="216" width="6" height="5" rx="1" fill="#888"/>
+  <!-- Cube 6: Windows Update -->
+  <rect x="434" y="218" width="188" height="90" fill="#d4d0c8"/>
+  <rect x="438" y="270" width="180" height="11" rx="2" fill="#c8b898" stroke="#b8a888" stroke-width="1"/>
+  <rect x="442" y="224" width="115" height="42" rx="2" fill="#2a2a2a" stroke="#111" stroke-width="1.5"/>
+  <rect x="444" y="226" width="111" height="38" rx="1" fill="#2a2a1a"/>
+  <text x="499" y="242" text-anchor="middle" font-family="monospace" font-size="6" fill="#aaaa44">Windows Update…</text>
+  <text x="499" y="254" text-anchor="middle" font-family="monospace" font-size="6" fill="#ffaa00">Do not turn off</text>
+</svg>
