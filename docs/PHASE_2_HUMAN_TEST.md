@@ -1,0 +1,363 @@
+# Phase 2 — Human Test Checklist
+
+**Status as of:** 2026-04-26 — code shipped, awaiting human verification.
+
+This is the running tracker for hands-on testing of everything in Phase 2.
+Tick `[x]` as items pass, `[!]` for found bugs (then add a row in "Bugs
+found"), `[-]` for "skipped, won't test." Add new ideas to the "New test
+ideas" section at the bottom and graduate them up to a real section once
+they're worth running every release.
+
+**Pair this with:** `tests/test_phase2_acceptance.py` — that test exercises
+every PRD § 7 acceptance bullet in one flow. It's the automated bright
+line; this doc is for everything you'd actually click on a real server.
+
+## Legend
+
+| Mark | Meaning |
+|---|---|
+| `[ ]` | Not yet tested |
+| `[x]` | Verified working |
+| `[!]` | Bug found — see "Bugs found" |
+| `[-]` | Skipped / not applicable to this run |
+| `[?]` | Inconclusive — couldn't reproduce or env-blocked |
+
+---
+
+## 0. The fast win — run the walkthrough script
+
+If you can get any server up, this hits ~80% of the surface in one go.
+
+```bash
+HEROPROTO_MOCK_PAYMENTS_ENABLED=1 uv run uvicorn app.main:app &
+uv run python -m scripts.client_walkthrough
+```
+
+Should print 17 sections + `CLIENT WALKTHROUGH PASSED`. First failure
+points at the broken endpoint with full HTTP context.
+
+- [ ] Walkthrough exits 0 with all 17 sections green
+
+If this passes, items #2 / #3 / #6 / #8 / #9 / #10 / #12 below are also
+covered automatically. Failure here means stop and triage before going
+into the per-section tests.
+
+---
+
+## 1. EXILE faction default (Phase 2.5)
+
+**What it is:** Every new account starts with `Faction.EXILE` ("not yet
+aligned" in the bigger Corp story). Phase 3's level-50 fork will flip
+this to RESISTANCE / CORP_GREED.
+
+- [ ] Register a brand-new account → `GET /me` returns `faction: "EXILE"`
+- [ ] /me also surfaces: `qol_unlocks: []`, `cosmetic_frames: []`,
+      `hero_slot_cap >= 50`, `gear_slot_cap >= 200`,
+      `account_level: 1`, `account_xp: 0`
+- [ ] In the dashboard ⚙️ Account tab, faction shows "EXILE" somewhere
+      visible (or accept that the UI hasn't surfaced it yet — flag if so)
+
+---
+
+## 2. Hero detail / next-upgrade preview (Phase 2.1)
+
+**What it is:** `GET /heroes/{id}/preview` returns current vs after-stats
+for level/star/special upgrade paths. The roster detail sheet now uses
+this real preview instead of the old fake `power * 1.15` heuristic.
+
+- [ ] Open Roster tab → click any hero → detail sheet opens
+- [ ] On the Power line you see `+47 to 312 after star-up (0/1 dupes)` —
+      *not* the old `+15% to ~XXX` format
+- [ ] If the hero has a duplicate, the dupes count reads `≥1` and a `✓`
+      shows on the same line
+- [ ] API direct: `GET /heroes/{id}/preview` returns
+      `{ current, level_up, star_up, special_up }` — each with
+      `available`, `cost`, `delta`, `after`
+- [ ] preview.current.power equals the same hero's power on /heroes/mine
+      (no math drift between endpoints)
+
+---
+
+## 3. Stat variance on duplicate summons (Phase 2.2)
+
+**What it is:** Pulling a hero you already own rolls a triangular ±10%
+per-stat offset stored on `HeroInstance.variance_pct_json`. First copy
+is always vanilla.
+
+- [ ] Give yourself 1000+ shards (admin grant or DB poke)
+- [ ] Run x10 summons until you land a duplicate
+- [ ] Open the dupe in the roster detail sheet → "Roll variance: HP +3%
+      · ATK -7% ..." line shows under Power, color-coded green if net-
+      positive, red if net-negative
+- [ ] First copy of any template still shows no variance line
+- [ ] In combat: dupe's stats actually differ from the vanilla copy in
+      battle simulation (verify via /battles result HP/ATK on the
+      participants_json snapshot)
+
+---
+
+## 4. Story chapters + cutscenes (Phase 2.5)
+
+**What it is:** 3 chapters (Onboarding / Middle Management / Executive
+Floor) gated by account level. Cutscene text per stage. New /story API
++ /story/cutscene-seen endpoint.
+
+- [ ] `GET /story` (or open 📖 Story tab) shows 3 chapters
+- [ ] Chapter 1 unlocked at account level 1
+- [ ] Chapters 2/3 locked with "Unlocks at level 10 / 20" hint
+- [ ] Chapter 1 lists 5 stages with cutscene `intro`/`outro` text
+      preview
+- [ ] `POST /story/cutscene-seen { chapter_code, stage_code, beat: "intro" }`
+      returns 204
+- [ ] Re-loading /story shows the seen cutscene flagged in
+      story_state_json (DB row check)
+- [ ] Bad chapter_code → 404; bad beat ("middle") → 400
+
+---
+
+## 5. Chapter-end reward grant (Phase 2.5 fix)
+
+**What it is:** First-clearing the last stage of a chapter, when all
+stages of that chapter are cleared, triggers a one-time bundle from
+CHAPTER_END_REWARDS. Idempotent.
+
+The hard way: actually clear all 5 stages.
+The easy way: admin-poke `stages_cleared_json` then play the final stage.
+
+- [ ] Reach 100% completion of Chapter 1 (Onboarding)
+- [ ] Final stage clear triggers a `chapter_complete` notification (bell)
+- [ ] /me shows +200 gems, +50 shards, +2 free_summon_credits delta
+- [ ] /story now shows `chapters[0].completed: true`,
+      `reward_claimed: true`
+- [ ] Re-clearing the same final stage does not double-grant
+- [ ] Chapter 2 (Middle Management) reward = +400 gems + 100 shards +
+      3 access_cards + 3 credits — verify when you actually hit it
+
+---
+
+## 6. PoE2 QoL / cosmetic shop catalog (Phase 2.4)
+
+**What it is:** New SKUs for QoL unlocks (auto_battle, extra_presets,
+quick_summon, roster_sort_advanced), stackable slot packs (+25 hero,
++100 gear), 4 cosmetic frames + a frame bundle. Tone lock: never raw
+power, only QoL or cosmetic.
+
+- [ ] Shop tab lists the new SKUs (or hit `GET /shop/products`)
+- [ ] Mock-buy `qol_auto_battle` → /me shows `qol_unlocks: ["auto_battle"]`
+- [ ] Mock-buy `cosmetic_frame_neon` → /me shows
+      `cosmetic_frames: ["frame_neon_cubicle"]`
+- [ ] Mock-buy `slots_hero_pack` twice → `hero_slot_cap` jumps 50 → 75 → 100
+- [ ] Mock-buy `slots_gear_pack` → `gear_slot_cap` jumps 200 → 300
+- [ ] Mock-buy `cosmetic_frame_bundle` → all 4 frames appear
+- [ ] One-time SKUs (auto_battle etc.) reject 2nd purchase with 409
+- [ ] Stackable SKUs (slot packs) accept multiple purchases
+
+---
+
+## 7. Apple StoreKit + Google Play IAP (Phase 2.4)
+
+**What it is:** `POST /shop/iap/{apple,google}` accepts a signed receipt
+and grants the matching SKU. Sandbox shortcut: receipts prefixed
+`fake-apple:` / `fake-google:` skip the real SDK and validate
+structurally.
+
+```bash
+# Apple sandbox receipt:
+POST /shop/iap/apple
+{
+  "sku": "qol_auto_battle",
+  "receipt": "fake-apple:{\"productId\":\"qol_auto_battle\",\"transactionId\":\"test-123\"}"
+}
+
+# Google sandbox receipt:
+POST /shop/iap/google
+{
+  "sku": "cosmetic_frame_neon",
+  "receipt": "fake-google:{\"productId\":\"cosmetic_frame_neon\",\"orderId\":\"GPA.test-456\"}"
+}
+```
+
+- [ ] Apple receipt → 201, `state: COMPLETED`, `processor: apple`
+- [ ] Google receipt → 201, `state: COMPLETED`, `processor: google`
+- [ ] Idempotency: re-POST same Apple receipt → returns same purchase id,
+      no double grant
+- [ ] SKU mismatch (body claims `qol_quick_summon`, receipt says
+      `qol_auto_battle`) → 400 "sku mismatch"
+- [ ] Empty receipt → 400 "empty receipt"
+- [ ] Granted contents visible on /me immediately after the 201
+
+---
+
+## 8. Admin refund of IAP grants (Phase 2.4 fix)
+
+**What it is:** Pre-fix, refunding an Apple QoL purchase left the unlock
+owned (free-money bug). Now `apply_refund` reverses qol_unlocks /
+cosmetic_frames / slot bumps.
+
+- [ ] Buy `qol_auto_battle` via Apple sandbox receipt
+- [ ] As admin: `POST /admin/purchases/{id}/refund { "reason": "..." }`
+- [ ] Purchase `state: REFUNDED`
+- [ ] /me shows `qol_unlocks: []` (auto_battle revoked)
+- [ ] Buy `cosmetic_frame_neon` → refund → frame removed from /me
+- [ ] Buy `slots_hero_pack` (cap 50 → 75) → refund → cap back to 50
+- [ ] Buy `slots_hero_pack` 4× to push cap to 50+100=150 → refund one
+      pack → cap goes to 125 (claws back 25, never floors below 50)
+- [ ] Refund of `gems_small` (currency) still works as before
+- [ ] Double-refund is rejected with 409
+
+---
+
+## 9. Myth-tier event banner (Phase 2.2 fix)
+
+**What it is:** `LiveOpsKind.EVENT_BANNER` is a new kind. Players summon
+Applecrumb / TBFAM via `POST /summon/event-banner` only during the
+active window, with per-account pull cap.
+
+### 9a — No active banner path
+
+- [ ] `GET /summon/event-banner` returns `{ "active": false }`
+- [ ] `POST /summon/event-banner` → 409 "no event banner is active"
+
+### 9b — With an active banner
+
+Insert a banner directly in the DB (or use `scripts/activate_event` if
+you can shift the Mother's Day event into the present):
+
+```sql
+INSERT INTO liveops_events (kind, name, starts_at, ends_at, payload_json)
+VALUES ('EVENT_BANNER', 'TestBanner',
+  datetime('now', '-1 hour'),
+  datetime('now', '+24 hours'),
+  '{"hero_template_code":"applecrumb","shard_cost":8,"per_account_cap":3}');
+```
+
+- [ ] `GET /summon/event-banner` returns
+      `{ active: true, hero_template_code: "applecrumb", pulls_used: 0,
+         pulls_remaining: 3, shard_cost: 8, ends_at: "..." }`
+- [ ] `POST /summon/event-banner` → 201, body has `rarity: "MYTH"`
+- [ ] /me shards balance dropped by exactly 8
+- [ ] Pull 3 times → 4th attempt 409 "cap reached"
+- [ ] Insufficient shards (set shards=0) → 409 "not enough shards"
+- [ ] Misconfigured banner (bad hero_template_code) → 500 "not seeded"
+- [ ] Force `ends_at` into the past → next pull 409 (window expired)
+
+---
+
+## 10. Balance notebooks (Phase 2.6)
+
+**What it is:** `analytics/*.ipynb` — three runnable Jupyter notebooks
+producing committed PNG outputs.
+
+- [ ] `uv sync --extra analytics` succeeds
+- [ ] `uv run jupyter nbconvert --to notebook --execute --inplace analytics/gacha_ev.ipynb` exits 0
+- [ ] Same for `combat_dps.ipynb` and `arena_convergence.ipynb`
+- [ ] Output PNGs match the committed ones in spirit (rates table, hero
+      DPS curve, rating convergence) — they regenerate cleanly even
+      after balance edits to `app/gacha.py` / `app/combat.py`
+- [ ] PRD acceptance: `analytics/output/gacha_ev_by_rarity.png` exists
+      and shows the per-pull rarity distribution
+
+---
+
+## 11. Analytics events firing (Phase 2.3)
+
+**What it is:** PostHog wrapper at `app/analytics.py` + 12 instrumented
+events. Hard-disabled in test env; this section is for staging /
+production verification.
+
+- [ ] Set `HEROPROTO_POSTHOG_API_KEY=phc_...` + run
+      `uv run python -m scripts.verify_analytics`
+- [ ] All 12 sentinel events visible in PostHog Live Events within ~30s
+- [ ] Run `client_walkthrough` against staging → events arrive with
+      real `account_id` distinct_ids
+- [ ] Import `scripts/posthog_dashboard.json` → 10 insights render
+- [ ] First-purchase funnel (register → stage_clear[won=true] →
+      purchase_complete) shows non-zero conversion after a walkthrough
+
+---
+
+## Cross-cutting concerns / regression watchlist
+
+Things that have broken before or are easy to break in Phase 2:
+
+- [ ] Old accounts (created before EXILE migration) read `faction: "EXILE"`
+      via the `server_default` backfill — verify by checking a pre-2026-04-26
+      account if any exist
+- [ ] Variance round-trips through `participants_json` on a Battle row —
+      replay must show the same stats the player saw in their roster
+- [ ] Chapter-reward notification appears in the bell, not just the
+      battle response payload
+- [ ] /me response time hasn't regressed — Phase 2 added 4 new
+      JSON-decode paths (qol, cosmetics, story state)
+- [ ] Stripe Checkout flow still works (Phase 2 didn't touch it but the
+      payment_adapters module restructure is adjacent)
+- [ ] Migration chain runs clean from an empty DB (3 new alembic revs
+      since Phase 2.3 close: faction, variance, qol+cosmetics)
+
+---
+
+## Bugs found
+
+When something in this checklist fails, log it here. Format:
+`#NN — short title — section that triggered it — repro / response`.
+
+| # | Section | Issue | Repro | Status |
+|---|---|---|---|---|
+| _no entries yet_ |   |   |   |   |
+
+---
+
+## New test ideas (graduate to sections above when worth it)
+
+- [ ] Variance under +/- floats edge cases — what if `participants_json`
+      JSON-decode fails mid-battle? Sim should fall back gracefully.
+- [ ] EVENT_BANNER + variance interaction — pulling Applecrumb twice in
+      one event should give the second copy variance.
+- [ ] Chapter reward firing across multiple chapters in one battle
+      session (theoretically impossible due to ordering but worth a
+      poke if you ever batch-clear).
+- [ ] QoL unlock in `/me` doesn't actually gate any UI yet — the
+      `auto_battle` flag is owned but where does it actually toggle a
+      different flow? (Ship Phase 3 acks this; Phase 2 just owns the
+      catalog.)
+- [ ] Cosmetic frames don't render on hero cards yet — UI side-quest.
+- [ ] Per-event-banner pull *history* — should pulls show up in
+      gacha_records with a flag distinguishing event banner from
+      standard? Currently they're commingled.
+- [ ] Refund analytics — when a Purchase flips REFUNDED, do we fire a
+      `purchase_refund` PostHog event? Probably should.
+
+---
+
+## Setup gotchas / troubleshooting
+
+Stuff that has eaten time during install:
+
+- **Stale bytecode**: if migrations re-run with old schema, delete
+  `app/__pycache__/` + `tests/__pycache__/`.
+- **Mock payments off**: shop endpoints look broken — set
+  `HEROPROTO_MOCK_PAYMENTS_ENABLED=1` in env *before* starting uvicorn.
+- **No starter team on register**: `_grant_starter_team` skips silently
+  if no COMMON heroes are seeded — re-run `uv run python -m app.seed`.
+- **EXILE column missing on existing DB**: pull the latest then run
+  `uv run alembic upgrade head` to add `accounts.faction`.
+- **Variance shows nothing**: only fires on dupes — first copy of every
+  template stays vanilla forever. Need 2+ of the same template.
+- **Chapter reward not firing**: only on `first_clear` of the *last*
+  stage when *all* chapter stages are cleared. Re-clearing nothing.
+- **Event banner endpoint 409 even with active row**: check the
+  `starts_at <= now < ends_at` window — DB may have your row in UTC
+  but the server clock differs. Set both clocks to UTC.
+- **Notebooks fail to execute**: `uv sync --extra analytics` is the
+  step you forgot. Jupyter is opt-in.
+
+---
+
+## Sign-off
+
+When every section above is `[x]` (or has a tracked bug entry):
+
+- [ ] Tag the commit `phase-2-verified`
+- [ ] Update `docs/PRD.md § 7` status from "code shipped" to "verified shipped"
+- [ ] File the bugs as Phase 3 polish issues
+- [ ] Move on to Phase 3 — combat depth (PRD § 8)
