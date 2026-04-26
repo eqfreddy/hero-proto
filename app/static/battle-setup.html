@@ -732,8 +732,25 @@
           btn.textContent = "Fight";
           return;
         }
-        // Hand off to the design replay viewer (fallback: Phaser page supports same id).
-        location.href = `/app/battle-replay.html?id=${body.id}`;
+        // Hand off to the design replay viewer. Two paths:
+        //  1. Embedded inside the dashboard's in-app overlay → swap the
+        //     iframe src so we don't open another nested overlay.
+        //  2. Standalone (this page opened in its own browser tab) →
+        //     navigate normally.
+        const replayUrl = `/app/battle-replay.html?id=${body.id}`;
+        if (window.parent && window.parent !== window && window.parent.inApp) {
+          // Replace the parent overlay's iframe so the user lands on the
+          // replay without leaving the dashboard's overlay frame.
+          const parentDoc = window.parent.document;
+          const iframe = parentDoc.getElementById('iav-frame');
+          if (iframe) {
+            iframe.src = replayUrl;
+            const t = parentDoc.getElementById('iav-title');
+            if (t) t.textContent = '▶ Replay';
+            return;
+          }
+        }
+        location.href = replayUrl;
       } catch (e) {
         toast.error("Network error: " + e.message);
         btn.disabled = false;
