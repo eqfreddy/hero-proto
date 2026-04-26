@@ -76,6 +76,21 @@
     const CANVAS_W = 960, CANVAS_H = 520;
 
     class BattleScene extends Phaser.Scene {
+      // Glyph-per-status for the status row. Emoji carry their own color so
+      // the row stays readable without inline color spans (Phaser Text doesn't
+      // support those). Add new entries here when StatusEffectKind grows.
+      static STATUS_GLYPH = {
+        POISON:     "☣",
+        BURN:       "🔥",
+        FREEZE:     "❄",
+        STUN:       "💫",
+        SHIELD:     "🛡",
+        HEAL_BLOCK: "🚫",
+        REFLECT:    "🪞",
+        ATK_UP:     "⬆",
+        DEF_DOWN:   "⬇",
+      };
+
       constructor() { super("battle"); }
 
       init(data) {
@@ -276,6 +291,39 @@
           case "REVIVE":
             this.doRevive(e.target, e.hp);
             break;
+          case "REVIVE_BLOCKED":
+            // Heal-blocked corpse stays down. Show the "rez blocked" tag
+            // hovering over the dead unit so the caller knows why their
+            // expensive AOE_REVIVE went nowhere.
+            this.floatText(e.target, "rez blocked", 0xff6b4a);
+            break;
+          case "FROZEN":
+            // Frozen unit skips its turn this tick. Distinct from STUNNED
+            // both in color and copy — FREEZE breaks on damage where STUN
+            // doesn't, so the visual cue should hint at fragility.
+            this.floatText(e.unit, "frozen", 0x6ec8ff);
+            break;
+          case "STATUS_BROKEN":
+            // FREEZE shattered by damage. Cyan sparkle + brief shudder so
+            // it reads as "the ice cracked" rather than "status faded out".
+            this.floatText(e.unit, `${e.kind} broken`, 0x6ec8ff);
+            this.removeStatus(e.unit, e.kind);
+            break;
+          case "HEAL_BLOCKED":
+            // Inbound heal/lifesteal/revive suppressed by HEAL_BLOCK on the
+            // target. Worth surfacing — the cleric just wasted a special.
+            this.floatText(e.target, "heal blocked", 0xff6b4a);
+            break;
+          case "REFLECT":
+            // REFLECT bounce-back: animate a beam from defender to attacker
+            // so the cause-and-effect of the buff reads at a glance.
+            this.reflectBeam(e.source, e.target, e.amount || 0);
+            break;
+          case "FACTION_SYNERGY":
+            // Fires once per side at battle start. Pin a top banner long
+            // enough to read so newcomers understand the +ATK/+DEF mod.
+            this.factionSynergyBanner(e);
+            break;
           case "WAVE_START":
             this.showCaption(`Wave ${e.wave}`, 1100);
             break;
@@ -448,7 +496,72 @@
       }
       renderStatuses(uid) {
         const s = this.state[uid]; if (!s) return;
-        s.statusRow.setText(s.statuses.map(x => x.kind).join(" "));
+        // Color-coded glyphs per status kind. Glyphs are intrinsically
+        // colorful (emoji), so the row stays readable without inline color
+        // markup. Unknown kinds fall back to their literal name so a new
+        // backend status type degrades gracefully instead of disappearing.
+        const glyphs = s.statuses
+          .map(x => BattleScene.STATUS_GLYPH[x.kind] || x.kind)
+          .join(" ");
+        s.statusRow.setText(glyphs);
+      }
+
+      // Lightweight beam from defender to attacker showing a REFLECT bounce.
+      // Pure Graphics line + fade — no asset, no extra deps.
+      reflectBeam(attackerUid, defenderUid, amount) {
+        const a = this.state[attackerUid], d = this.state[defenderUid];
+        if (!a || !d) {
+          if (d) this.floatText(defenderUid, "reflect!", 0xc080ff);
+          return;
+        }
+        const g = this.add.graphics().setDepth(90);
+        g.lineStyle(3, 0xc080ff, 1.0);
+        g.beginPath();
+        g.moveTo(d.container.x, d.container.y);
+        g.lineTo(a.container.x, a.container.y);
+        g.strokePath();
+        this.tweens.add({
+          targets: g, alpha: { from: 1, to: 0 },
+          duration: 380, ease: "Quad.in",
+          onComplete: () => g.destroy(),
+        });
+        this.floatText(defenderUid, "reflect!", 0xc080ff);
+        if (amount > 0) this.floatText(attackerUid, "-" + amount, 0xc080ff, 18);
+      }
+
+      // Top banner shown once per side when their faction synergy kicks in.
+      // Reads as: "HELPDESK ×3  →  +10% ATK". Stacks vertically for the rare
+      // case where both sides synergize on the same battle.
+      factionSynergyBanner(e) {
+        const atkPct = Math.round((e.atk_pct || 0) * 100);
+        const defPct = Math.round((e.def_pct || 0) * 100);
+        const sideLabel = e.side === "A" ? "Your team" : "Enemy team";
+        const sideColor = e.side === "A" ? "#6dd39a" : "#ff7a59";
+        const bonus = [
+          atkPct > 0 ? `+${atkPct}% ATK` : null,
+          defPct > 0 ? `+${defPct}% DEF` : null,
+        ].filter(Boolean).join(" / ");
+        // Stack: side A gets y=70, side B gets y=100.
+        const y = e.side === "A" ? 70 : 100;
+        const text = this.add.text(CANVAS_W / 2,
+          y,
+          `${sideLabel}: ${e.faction} ×${e.count}  →  ${bonus}`, {
+            fontSize: "14px", color: sideColor,
+            fontFamily: "system-ui, sans-serif", fontStyle: "bold",
+            backgroundColor: "rgba(0,0,0,0.7)",
+            padding: { x: 12, y: 4 },
+          }).setOrigin(0.5).setAlpha(0).setDepth(80);
+        this.tweens.add({
+          targets: text, alpha: 1, duration: 200,
+          onComplete: () => {
+            this.time.delayedCall(2200, () => {
+              this.tweens.add({
+                targets: text, alpha: 0, duration: 400,
+                onComplete: () => text.destroy(),
+              });
+            });
+          },
+        });
       }
 
       floatText(uid, text, color, size = 18) {
