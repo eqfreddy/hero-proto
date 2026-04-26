@@ -427,6 +427,39 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
             if target is not None:
                 _revive(actor, target, float(spec.get("frac", 0.3)), log)
 
+        elif stype == "BOSS_PHASE":
+            # Raid-boss signature move. Combines an AOE strike with multiple
+            # statuses on enemies + self-buffs in a single cast — a "phase
+            # change" feel that hero specials don't have. Schema:
+            #   {
+            #     "type": "BOSS_PHASE",
+            #     "name": "...",
+            #     "mult": 1.5,
+            #     "effects":      [<status>, ...],   # applied to every live enemy
+            #     "self_effects": [<status>, ...],   # applied to the boss itself
+            #   }
+            # Only intended for raid-boss templates. Status `value` is scaled
+            # by special_level the same way other specials are.
+            targets = _pick_aoe_targets(actor, allies, enemies, "all_enemies")
+            mult = float(spec.get("mult", actor.basic_mult * 1.0)) * scale
+            for tgt in targets:
+                if actor.dead:
+                    break
+                dmg, crit = _damage(actor, tgt, mult, rng)
+                dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
+                damage_dealt += dealt
+                log.append({
+                    "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
+                    "amount": dealt, "crit": crit, "via": "BOSS_PHASE",
+                })
+                if tgt.dead:
+                    log.append({"type": "DEATH", "unit": tgt.uid})
+                else:
+                    for eff in spec.get("effects", []):
+                        _apply_effect(tgt, _scaled_effect(eff), log)
+            for self_eff in spec.get("self_effects", []):
+                _apply_effect(actor, _scaled_effect(self_eff), log)
+
         elif stype == "AOE_REVIVE":
             # Resurrect every dead ally at frac HP. Strong but expensive — meant
             # to be paired with high cooldowns (4-6) on the template's special.

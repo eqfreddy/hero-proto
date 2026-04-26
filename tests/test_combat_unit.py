@@ -252,6 +252,70 @@ def test_simulate_logs_faction_synergy_and_buffs_atk() -> None:
     assert syn_team[0].base_atk == syn_team[0].atk
 
 
+# --- BOSS_PHASE special type (raid bosses only) -----------------------------
+
+
+def test_boss_phase_aoe_damages_all_enemies_and_applies_each_effect() -> None:
+    """BOSS_PHASE = AOE damage + N statuses on enemies + N self-buffs in one
+    cast. Verifies all three components fire on a single use."""
+    from app.combat import _act
+    rng = random.Random(42)
+    boss = _gremlin("b0", "B")
+    boss.special = {
+        "type": "BOSS_PHASE",
+        "name": "Bureaucratic Inertia",
+        "mult": 1.2,
+        "effects": [
+            {"kind": "DEF_DOWN", "turns": 3, "value": 0.30},
+            {"kind": "HEAL_BLOCK", "turns": 2, "value": 1.0},
+        ],
+        "self_effects": [{"kind": "REFLECT", "turns": 4, "value": 0.30}],
+    }
+    boss.special_cooldown_max = 5
+    boss.special_cooldown_left = 0
+    enemies = [_gremlin(f"a{i}", "A") for i in range(3)]
+    for u in enemies + [boss]:
+        u.base_atk = u.atk; u.base_def = u.def_
+    log: list[dict] = []
+    _act(boss, allies=[boss], enemies=enemies, rng=rng, log=log)
+
+    # Every live enemy took damage and is now both DEF_DOWN-ed and HEAL_BLOCK-ed.
+    boss_hits = [e for e in log if e.get("via") == "BOSS_PHASE"]
+    assert len(boss_hits) == 3
+    for e in enemies:
+        assert e.hp < e.max_hp
+        kinds = {s.kind for s in e.statuses}
+        from app.models import StatusEffectKind as K
+        assert K.DEF_DOWN in kinds and K.HEAL_BLOCK in kinds
+
+    # Boss now has REFLECT on itself.
+    from app.models import StatusEffectKind as K
+    assert any(s.kind == K.REFLECT for s in boss.statuses)
+
+
+def test_boss_phase_doesnt_apply_status_to_corpses() -> None:
+    """Heroes killed by the AOE swing don't get DEF_DOWN/HEAL_BLOCK applied —
+    matches the existing AOE_DAMAGE convention. (Status on a corpse would
+    persist into a rez and confuse the viewer.)"""
+    from app.combat import _act
+    rng = random.Random(0)
+    boss = _gremlin("b0", "B"); boss.atk = 100000  # one-shot anything alive
+    boss.special = {
+        "type": "BOSS_PHASE",
+        "mult": 5.0,
+        "effects": [{"kind": "BURN", "turns": 3, "value": 0.10}],
+        "self_effects": [],
+    }
+    boss.special_cooldown_max = 0
+    enemy = _gremlin("a0", "A"); enemy.hp = 1
+    for u in (boss, enemy):
+        u.base_atk = u.atk; u.base_def = u.def_
+    log: list[dict] = []
+    _act(boss, allies=[boss], enemies=[enemy], rng=rng, log=log)
+    assert enemy.dead
+    assert not any(s.kind.value == "BURN" for s in enemy.statuses)
+
+
 # --- Unchanged regressions --------------------------------------------------
 
 

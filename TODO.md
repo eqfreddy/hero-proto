@@ -118,12 +118,12 @@ Dockerfile + compose exist; nothing's been pushed or deployed.
 - [ ] Automated daily DB backup (volume → dated tarball on a schedule)
 - [ ] Graceful shutdown — worker cancels + in-flight battles finish
 
-### D. Raid depth
+### D. Raid depth ✅ done (2026-04-25)
 Raids work; they're shallow.
-- [ ] Scheduled raid auto-start (worker rotates when guild has no active raid)
-- [ ] Per-attempt cooldown (currently only gated by energy)
-- [ ] Leaderboard endpoint (top-contributing guilds this week)
-- [ ] Unique boss-only specials (dedicated templates now exist, still use hero specials)
+- [x] Scheduled raid auto-start — `_auto_rotate_raids()` in `app/worker.py` (already shipped)
+- [x] Per-attempt cooldown — `RAID_ATTEMPT_COOLDOWN_SECONDS = 600` enforced in `attack_raid` (already shipped)
+- [x] Leaderboard endpoint — `GET /raids/leaderboard?days=7&limit=25`, public, in `app/routers/raids.py` (already shipped)
+- [x] Unique boss-only specials — new `BOSS_PHASE` special type; 3 raid bosses re-tuned to use it with HEAL_BLOCK / FREEZE / BURN + self REFLECT/ATK_UP. See "Sprint D close (2026-04-25)" below.
 
 ### E. Observability next steps
 - [ ] OpenTelemetry tracing (propagate request IDs into spans)
@@ -227,10 +227,10 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] Per-guild achievements / milestones
 
 ### Raids
-- [ ] Scheduled raid auto-start (worker rotates when guild has no active raid)
-- [ ] Per-attempt cooldown (currently only gated by energy)
-- [ ] Leaderboard endpoint (top-contributing guilds this week)
-- [ ] Boss-only unique specials
+- [x] Scheduled raid auto-start (`_auto_rotate_raids` in worker)
+- [x] Per-attempt cooldown (`RAID_ATTEMPT_COOLDOWN_SECONDS`, 10 min)
+- [x] Leaderboard endpoint (`GET /raids/leaderboard`)
+- [x] Boss-only unique specials (`BOSS_PHASE` type — see Combat depth log)
 
 ### LiveOps
 - [ ] Scheduled future events (`starts_at` in the future — admin endpoint always uses `now`)
@@ -391,6 +391,24 @@ Output format for everything on this list: **paste the final file(s) back here i
 - Active sessions: `GET /me/sessions`, single + bulk revoke; refresh tokens carry IP/UA/last_used_at (migration `3aa50c822bb6`)
 - GDPR art. 20 export: `GET /me/export` — full account dump w/ secrets redacted + per-table caps
 - Per-IP guild-chat rate limit layered alongside per-account bucket
+
+**Sprint D close — Raid depth (2026-04-25)**
+Three of four items in Sprint D were already in the codebase (`_auto_rotate_raids`,
+the `RAID_ATTEMPT_COOLDOWN_SECONDS` gate in `attack_raid`, and the public
+`GET /raids/leaderboard` endpoint) — TODO had drifted from reality. Marked
+those done. The remaining item: boss-only unique specials.
+- New `BOSS_PHASE` special type in `app/combat.py` — single-cast multi-effect
+  AOE: damage + N statuses on every live enemy + N self-buffs on the boss.
+  Statuses are scaled by special_level the same way other specials are.
+- Three raid bosses re-tuned in `app/seed.py`:
+  - Legacy Colossus → Bureaucratic Inertia: AOE + DEF_DOWN + HEAL_BLOCK,
+    self-stacks REFLECT each cast (focus-fire becomes a trap).
+  - C-Suite Hydra → Mandatory Re-Org: AOE + FREEZE on all (any damage
+    breaks it, so priority puzzle), self-buffs ATK_UP.
+  - Chaos Dragon → Cascading Outage: AOE + BURN on all (stat-independent
+    bleed), self ATK_UP.
+- 2 new unit tests in `tests/test_combat_unit.py` covering BOSS_PHASE shape
+  and the corpse-status edge case.
 
 **Combat depth (2026-04-25)**
 Pure-resolver expansion in `app/combat.py` — no DB or schema changes:

@@ -430,16 +430,28 @@ HERO_SEEDS: list[dict] = [
         },
         "special_cooldown": 6,
     },
-    # --- Boss-tier raid templates: hp-heavy, long cooldown signature specials ---
+    # --- Boss-tier raid templates: hp-heavy, long cooldown signature specials.
+    # Each uses the BOSS_PHASE special type — multi-effect AOE strike + boss
+    # self-buff in a single cast. Mechanically distinct from any hero special.
     {
         "code": "raidboss_legacy_colossus",
         "name": "Legacy Colossus",
         "rarity": Rarity.LEGENDARY, "faction": Faction.LEGACY, "role": Role.DEF,
         "base_hp": 3400, "base_atk": 180, "base_def": 220, "base_spd": 80,
         "basic_mult": 1.1,
+        # Bureaucratic Inertia: AOE chunk + DEF_DOWN + HEAL_BLOCK (no escape via
+        # heal). Boss layers REFLECT on itself each phase, so the longer the
+        # fight goes, the more dangerous it is to focus the boss.
         "special": {
-            "name": "Thirty-Year Accretion", "type": "AOE_DAMAGE",
-            "mult": 1.6, "effect": {"kind": "DEF_DOWN", "turns": 3, "value": 0.35},
+            "name": "Bureaucratic Inertia", "type": "BOSS_PHASE",
+            "mult": 1.5,
+            "effects": [
+                {"kind": "DEF_DOWN", "turns": 3, "value": 0.35},
+                {"kind": "HEAL_BLOCK", "turns": 2, "value": 1.0},
+            ],
+            "self_effects": [
+                {"kind": "REFLECT", "turns": 4, "value": 0.30},
+            ],
         },
         "special_cooldown": 5,
     },
@@ -449,10 +461,19 @@ HERO_SEEDS: list[dict] = [
         "rarity": Rarity.LEGENDARY, "faction": Faction.EXECUTIVE, "role": Role.ATK,
         "base_hp": 3100, "base_atk": 260, "base_def": 140, "base_spd": 130,
         "basic_mult": 1.2,
+        # Mandatory Re-Org: AOE damage + freezes every survivor for one turn.
+        # Forces the team to break the freeze (any damage clears it) on the
+        # heroes you most want acting next — priority puzzle every cast.
+        # Self-buffs ATK_UP for the inevitable next phase.
         "special": {
-            "name": "Re-Org The Re-Org", "type": "DAMAGE",
-            "mult": 3.2, "hits": 3, "target": "enemy_lowest_hp",
-            "effect": {"kind": "STUN", "turns": 1, "value": 1.0},
+            "name": "Mandatory Re-Org", "type": "BOSS_PHASE",
+            "mult": 1.4,
+            "effects": [
+                {"kind": "FREEZE", "turns": 1, "value": 1.0},
+            ],
+            "self_effects": [
+                {"kind": "ATK_UP", "turns": 3, "value": 0.30},
+            ],
         },
         "special_cooldown": 4,
     },
@@ -462,9 +483,18 @@ HERO_SEEDS: list[dict] = [
         "rarity": Rarity.LEGENDARY, "faction": Faction.DEVOPS, "role": Role.ATK,
         "base_hp": 3600, "base_atk": 240, "base_def": 160, "base_spd": 150,
         "basic_mult": 1.15,
+        # Cascading Outage: AOE chunk + stacking BURN on the whole team. BURN
+        # ticks every actor's turn so a long fight just bleeds the team out.
+        # Boss self-buffs ATK_UP — escalation pressure.
         "special": {
-            "name": "Prod Is Down", "type": "AOE_DAMAGE",
-            "mult": 1.8, "effect": {"kind": "POISON", "turns": 3, "value": 0.15},
+            "name": "Cascading Outage", "type": "BOSS_PHASE",
+            "mult": 1.5,
+            "effects": [
+                {"kind": "BURN", "turns": 3, "value": 0.10},
+            ],
+            "self_effects": [
+                {"kind": "ATK_UP", "turns": 3, "value": 0.20},
+            ],
         },
         "special_cooldown": 5,
     },
