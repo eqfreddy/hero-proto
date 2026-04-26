@@ -131,6 +131,12 @@
         // from CodeMonkey's CharacterBattle.cs callback-chain pattern, adapted
         // for our event-log replay model.
         this.attackInFlight = false;
+        // Set when SPECIAL has detected an upcoming multi-hit run (e.g.
+        // TBFAM's 4-hit "Everything on the Desk", any AOE_DAMAGE). The DAMAGE
+        // handler reads this to skip per-hit lunges and just play the hit
+        // visual on each target while the attacker stays forward; cleared
+        // when hitsRemaining drops to 0 and the slide-back completes.
+        this.multiHitMode = null;
       }
 
       preload() {
@@ -310,11 +316,19 @@
             }
             break;
           case "DAMAGE":
-            // When the log carries a known source, run the lunge → hit-frame →
-            // return chain so damage visuals land on contact, not on event-start.
-            // Status-tick damage (POISON/BURN) and reflected damage have no
-            // attacker to animate, so we fall through to immediate.
-            if (e.source && this.state[e.source] && !this.state[e.source].dead) {
+            // Three paths:
+            //   1. Multi-hit special is in flight from this source → just play
+            //      the hit visual on the target; the SPECIAL handler already
+            //      lunged once and will slide back when hitsRemaining hits 0.
+            //   2. Otherwise, known live source → standard lunge → hit-frame
+            //      → return single-hit chain.
+            //   3. Source unknown or dead (POISON/BURN ticks, REFLECT bounce
+            //      onto attacker) → fire damage visual immediately.
+            if (this.multiHitMode && this.multiHitMode.source === e.source) {
+              this.doDamage(e.target, e.amount || 0, !!e.crit);
+              this.multiHitMode.hitsRemaining--;
+              if (this.multiHitMode.hitsRemaining <= 0) this._endMultiHit();
+            } else if (e.source && this.state[e.source] && !this.state[e.source].dead) {
               this._animatedAttack(e.source, e.target, e.amount || 0, !!e.crit);
             } else {
               this.doDamage(e.target, e.amount || 0, !!e.crit);
@@ -341,6 +355,16 @@
               this.bossPhaseCinematic(e.unit, e.name || "Boss Phase");
             } else {
               this.floatText(e.unit, e.name || "special", 0xffd86b);
+            }
+            // Multi-hit / AOE peek: if 2+ DAMAGE events from this unit are
+            // about to fire (hits=4 specials, AOE strikes), do one lunge
+            // and stay forward through all hits — way punchier than 4
+            // separate slide-in/slide-out cycles.
+            if (e.kind === "DAMAGE" || e.kind === "AOE_DAMAGE" || e.kind === "BOSS_PHASE") {
+              const hits = this._countUpcomingHits(e.unit);
+              if (hits >= 2 && this.state[e.unit] && !this.state[e.unit].dead) {
+                this._beginMultiHit(e.unit, hits);
+              }
             }
             break;
           case "LIFESTEAL":
@@ -434,6 +458,66 @@
           this._updateFrameTint(uid);
         });
         this.damageNumber(uid, amount, crit);
+      }
+
+      // Peek ahead in the event log: count consecutive DAMAGE events from
+      // `sourceUid` that are about to fire. DEATH and STATUS_APPLIED events
+      // don't break the chain (they sit between AOE damage hits). Stop at
+      // any event that signals end-of-actor (TURN, SPECIAL, END, VIOLENT_TURN,
+      // BOSS_PHASE, FACTION_SYNERGY, WAVE_START) or a DAMAGE from a different
+      // source. Cursor still points at the SPECIAL when this is called, so
+      // we scan from cursor+1 forward.
+      _countUpcomingHits(sourceUid) {
+        const STOP = new Set([
+          "TURN", "SPECIAL", "END", "VIOLENT_TURN", "WAVE_START",
+        ]);
+        let count = 0;
+        for (let i = this.cursor + 1; i < this.battle.log.length; i++) {
+          const ev = this.battle.log[i];
+          if (STOP.has(ev.type)) break;
+          if (ev.type === "DAMAGE") {
+            if (ev.source === sourceUid) count++;
+            else break;     // damage from someone else = chain ended
+          }
+          // DEATH / STATUS_APPLIED / STATUS_EXPIRED / FROZEN / etc. pass through.
+        }
+        return count;
+      }
+
+      // Lunge the attacker forward and stay there for the duration of a
+      // multi-hit run. The DAMAGE handler decrements hitsRemaining as each
+      // event fires; when it hits 0, _endMultiHit slides back and clears.
+      _beginMultiHit(sourceUid, hitCount) {
+        const a = this.state[sourceUid];
+        if (!a) return;
+        this.attackInFlight = true;
+        const baseX = a.originX != null ? a.originX : a.container.x;
+        // Lunge toward enemy side. Side A heroes are on the left, B on right.
+        const lungeX = (baseX < CANVAS_W / 2) ? baseX + 70 : baseX - 70;
+        const lungeMs = Math.max(60, this.speedMs * 0.30);
+        this.tweens.add({
+          targets: a.container, x: lungeX,
+          duration: lungeMs, ease: "Quad.out",
+        });
+        this.multiHitMode = {
+          source: sourceUid,
+          hitsRemaining: hitCount,
+          baseX,
+        };
+      }
+
+      _endMultiHit() {
+        if (!this.multiHitMode) { this.attackInFlight = false; return; }
+        const a = this.state[this.multiHitMode.source];
+        const baseX = this.multiHitMode.baseX;
+        this.multiHitMode = null;
+        if (!a) { this.attackInFlight = false; return; }
+        const returnMs = Math.max(70, this.speedMs * 0.35);
+        this.tweens.add({
+          targets: a.container, x: baseX,
+          duration: returnMs, ease: "Quad.in",
+          onComplete: () => { this.attackInFlight = false; },
+        });
       }
 
       // Lunge → hit-frame → slide back. Returns nothing; sets attackInFlight
@@ -776,6 +860,7 @@
         // Cancel any in-flight attack chain so containers snap back to base.
         this.tweens.killAll();
         this.attackInFlight = false;
+        this.multiHitMode = null;
         // Reset state in place.
         for (const p of this.battle.participants) {
           const s = this.state[p.uid];
