@@ -1,7 +1,8 @@
 {% if not event %}
-<div class="card muted">
-  <h2 style="margin-top: 0; font-size: 14px; color: var(--muted);">Event</h2>
-  <div>No special event is live right now. Watch this tab during holidays + LiveOps windows.</div>
+<div class="empty-state">
+  <div class="empty-state-icon">⚡</div>
+  <div class="empty-state-msg">No special event is live right now</div>
+  <div class="empty-state-hint">This tab lights up during holidays and LiveOps windows — Mother's Day, Canada Day, summer-long currency events, etc. The bell on the header announces a new one when it kicks off.</div>
 </div>
 {% else %}
 <div class="stack">

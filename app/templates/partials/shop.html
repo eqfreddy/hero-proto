@@ -82,6 +82,13 @@
     ('SEASONAL_BUNDLE', '🎪 Seasonal Bundles'),
   ] %}
 
+  {% if not products %}
+  <div class="empty-state">
+    <div class="empty-state-icon">🛍️</div>
+    <div class="empty-state-msg">Shop catalog is empty right now</div>
+    <div class="empty-state-hint">Either no products are seeded or the active LiveOps event has none configured. The seed adds gem packs + a starter pack on first run; activating an event JSON adds the limited bundles it carries.</div>
+  </div>
+  {% endif %}
   {% for kind, label in groups %}
     {% set kind_products = products | selectattr('kind', 'equalto', kind) | list %}
     {% if kind_products %}
