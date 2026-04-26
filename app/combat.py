@@ -756,11 +756,20 @@ def build_unit(
     special_level: int = 1,
     stars: int = 1,
     faction: Faction | None = None,
+    variance_pct: dict[str, float] | None = None,
 ) -> CombatUnit:
     hp = scale_stat(base_hp, level, stars)
     atk = scale_stat(base_atk, level, stars)
     df = scale_stat(base_def, level, stars)
     spd = base_spd  # SPD isn't scaled by level in this MVP.
+    # Phase 2.2 — duplicate-summon variance applied before gear so a +10% atk
+    # roll feels equally meaningful at level 1 and level 60. Empty / None
+    # means first copy (no variance).
+    if variance_pct:
+        hp = int(round(hp * (1.0 + float(variance_pct.get("hp", 0.0) or 0.0))))
+        atk = int(round(atk * (1.0 + float(variance_pct.get("atk", 0.0) or 0.0))))
+        df = int(round(df * (1.0 + float(variance_pct.get("def", 0.0) or 0.0))))
+        spd = int(round(spd * (1.0 + float(variance_pct.get("spd", 0.0) or 0.0))))
     if gear_bonus:
         hp += int(gear_bonus.get("hp", 0))
         atk += int(gear_bonus.get("atk", 0))

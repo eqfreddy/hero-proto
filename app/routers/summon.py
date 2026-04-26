@@ -9,7 +9,7 @@ from app.daily import on_summon
 from app.event_state import QUEST_KINDS_SUMMON, on_activity as event_on_activity
 from app.db import get_db
 from app.deps import get_current_account
-from app.gacha import roll
+from app.gacha import roll, roll_variance, serialize_variance
 from app.models import Account, GachaRecord, HeroInstance, HeroTemplate, Rarity
 from app.routers.heroes import instance_out
 from app.schemas import HeroInstanceOut, SummonOut
@@ -48,7 +48,28 @@ def _do_one_pull(db: Session, account: Account, rng: random.Random, *, allow_fre
     result = roll(account.pulls_since_epic, rng)
     template = _pick_template(db, result.rarity, rng)
     account.pulls_since_epic = result.new_pity
-    hero = HeroInstance(account_id=account.id, template_id=template.id, level=1, xp=0)
+
+    # Phase 2.2 — duplicate detection. If the account already owns ≥1 copy of
+    # this template, roll per-stat variance so this copy isn't identical.
+    # First copy stays vanilla (variance_pct_json = "{}"). Variance is set at
+    # creation and never re-rolled — keeps the stat sheet stable across
+    # ascensions and sells.
+    already_owned = db.scalar(
+        select(HeroInstance.id)
+        .where(
+            HeroInstance.account_id == account.id,
+            HeroInstance.template_id == template.id,
+        )
+        .limit(1)
+    )
+    variance_blob = "{}"
+    if already_owned is not None:
+        variance_blob = serialize_variance(roll_variance(rng))
+
+    hero = HeroInstance(
+        account_id=account.id, template_id=template.id, level=1, xp=0,
+        variance_pct_json=variance_blob,
+    )
     db.add(hero)
     db.add(GachaRecord(
         account_id=account.id,

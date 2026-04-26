@@ -45,6 +45,7 @@ def _unit_from_instance(hero: HeroInstance, side: str, idx: int) -> CombatUnit:
         special = json.loads(t.special_json or "null")
     except json.JSONDecodeError:
         special = None
+    from app.gacha import parse_variance
     return build_unit(
         uid=f"{side}{idx}",
         side=side,
@@ -60,6 +61,7 @@ def _unit_from_instance(hero: HeroInstance, side: str, idx: int) -> CombatUnit:
         special_level=hero.special_level,
         stars=hero.stars,
         faction=_template_faction(t),
+        variance_pct=parse_variance(hero.variance_pct_json),
     )
 
 

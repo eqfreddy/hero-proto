@@ -283,6 +283,7 @@ def attack_raid(
             return None
         return f if isinstance(f, Faction) else Faction(f)
 
+    from app.gacha import parse_variance as _pv
     team_a = [
         build_unit(
             uid=f"A{i}",
@@ -301,6 +302,7 @@ def attack_raid(
             special_level=h.special_level,
             stars=h.stars,
             faction=_faction(h.template),
+            variance_pct=_pv(h.variance_pct_json),
         )
         for i, h in enumerate(heroes)
     ]

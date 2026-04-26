@@ -43,6 +43,16 @@ def instance_out(h: HeroInstance) -> HeroInstanceOut:
     atk = scale_stat(t.base_atk, h.level, h.stars)
     df = scale_stat(t.base_def, h.level, h.stars)
     spd = t.base_spd
+    # Phase 2.2 variance — per-stat % offset, applied to the *base* scaled
+    # stat before gear so a +10% atk roll feels equally meaningful at
+    # level 1 and level 60. Empty {} means first copy / pre-Phase-2.2.
+    from app.gacha import parse_variance
+    variance = parse_variance(h.variance_pct_json)
+    if variance:
+        hp = int(round(hp * (1.0 + variance.get("hp", 0.0))))
+        atk = int(round(atk * (1.0 + variance.get("atk", 0.0))))
+        df = int(round(df * (1.0 + variance.get("def", 0.0))))
+        spd = int(round(spd * (1.0 + variance.get("spd", 0.0))))
     bonus = gear_bonus_for(h)
     hp += bonus["hp"]
     atk += bonus["atk"]
@@ -70,6 +80,7 @@ def instance_out(h: HeroInstance) -> HeroInstanceOut:
         power=power_rating(hp, atk, df, spd),
         equipped_gear_ids=equipped_ids,
         active_sets=completed_sets(h),
+        variance_pct=variance,
     )
 
 

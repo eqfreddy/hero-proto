@@ -117,6 +117,9 @@ class HeroInstanceOut(BaseModel):
     power: int
     equipped_gear_ids: list[int] = []
     active_sets: dict[str, int] = {}
+    # Phase 2.2 — per-stat variance % rolled on duplicate summons. {} means
+    # first copy (no variance applied). Floats in [-0.10, +0.10].
+    variance_pct: dict[str, float] = {}
 
     model_config = ConfigDict(populate_by_name=True)
 

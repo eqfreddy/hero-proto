@@ -327,6 +327,13 @@ class HeroInstance(Base):
     xp: Mapped[int] = mapped_column(Integer, default=0)
     special_level: Mapped[int] = mapped_column(Integer, default=1)
     stars: Mapped[int] = mapped_column(Integer, default=1)
+    # Phase 2.2 — per-stat variance percentage rolled when this instance is
+    # a *duplicate* summon (the player already owns ≥1 copy of the template).
+    # First copy stays vanilla so seeded / starter heroes are deterministic.
+    # Format: JSON dict with float values in [-VARIANCE_MAX, +VARIANCE_MAX]
+    # for keys hp/atk/def/spd. Empty {} means "no variance applied" (first
+    # copy or pre-Phase-2.2 hero).
+    variance_pct_json: Mapped[str] = mapped_column(String(128), default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
     account: Mapped[Account] = relationship(back_populates="heroes")
