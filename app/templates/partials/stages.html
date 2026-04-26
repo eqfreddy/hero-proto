@@ -38,6 +38,7 @@
       {% else %}
         <div class="row" style="margin-top: 10px; gap: 6px; flex-wrap: wrap; align-items: center;">
           <button class="primary" onclick="openPickerThenBattle({{ s.id }}, '{{ s.name | replace("'", "&#39;") | safe }}')" title="Pick team with portraits">🎨 Pick team & fight</button>
+          <button class="secondary" onclick="openPreview({{ s.id }}, '{{ s.name | replace("'", "&#39;") | safe }}')" title="Estimate outcome + power gap before committing energy">🔮 Preview</button>
           {% if s.cleared %}<button class="secondary" onclick="sweepStage({{ s.id }})" title="sweep cleared stage with last winning team">Sweep</button>{% endif %}
           <details style="margin-left: auto; font-size: 11px;">
             <summary class="muted" style="cursor: pointer;">Advanced</summary>
@@ -140,6 +141,79 @@
 
   // Populate dropdowns once on first render.
   _populatePresetSelects();
+
+  // Phase 3.2 UI — battle preview. Opens the team picker, then on
+  // confirm POSTs /battles/preview (no energy cost) and shows a quick
+  // modal summary so the player can decide whether to commit.
+  async function openPreview(stageId, stageName) {
+    let initial = [];
+    try {
+      const last = await fetch('/me/last-team', {
+        headers: { authorization: 'Bearer ' + (localStorage.getItem('heroproto_jwt') || '') },
+      });
+      if (last.ok) initial = (await last.json()).team || [];
+    } catch {}
+    if (!window.teamPicker) { if (window.toast) toast.error('Picker unavailable.'); return; }
+    teamPicker.open({
+      teamSize: 3,
+      initial,
+      title: '🔮 Preview — ' + (stageName || 'stage'),
+      showPresets: true,
+      onConfirm: async (team) => {
+        const out = document.getElementById('stage-result-' + stageId);
+        out.innerHTML = '<span class="spinner"></span> simulating…';
+        try {
+          const r = await fetch('/battles/preview', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              authorization: 'Bearer ' + (localStorage.getItem('heroproto_jwt') || ''),
+            },
+            body: JSON.stringify({ stage_id: stageId, team }),
+          });
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            const msg = (window.toast && toast.formatErrorBody)
+              ? toast.formatErrorBody(body) : (body.detail || `HTTP ${r.status}`);
+            out.innerHTML = `<span style="color: var(--bad);">${r.status}: ${msg}</span>`;
+            return;
+          }
+          // Outcome pill + power-gap line + notes.
+          const outcome = body.expected_outcome;
+          const winPct = Math.round(body.win_probability * 100);
+          const cls = outcome === 'WIN' ? 'good' : outcome === 'LOSS' ? 'bad' : '';
+          const gap = body.power_gap;
+          const gapColor = gap >= 0 ? 'var(--good)' : 'var(--bad)';
+          const gapTxt = gap >= 0 ? `+${gap}` : `${gap}`;
+          const notesHtml = (body.notes || []).length
+            ? `<ul style="margin: 6px 0 0; padding-left: 18px; font-size: 11px; color: var(--muted);">${body.notes.map(n => `<li>${n.replace(/</g, '&lt;')}</li>`).join('')}</ul>`
+            : '';
+          out.innerHTML = `
+            <div style="margin-top: 8px; padding: 10px; border: 1px dashed var(--accent); border-radius: 6px; background: rgba(78, 161, 255, 0.04);">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <strong>🔮 Preview:</strong>
+                  <span class="pill ${cls}" style="margin-left: 6px;">${outcome}</span>
+                  <span class="muted" style="font-size: 11px; margin-left: 6px;">${winPct}% win across 5 sims</span>
+                </div>
+                <div style="font-size: 12px;">
+                  Team <strong>${body.team_power}</strong> vs Enemy <strong>${body.enemy_power}</strong>
+                  <span style="color: ${gapColor}; font-weight: 700; margin-left: 6px;">${gapTxt}</span>
+                </div>
+              </div>
+              ${notesHtml}
+              <div style="margin-top: 8px;">
+                <button class="primary" onclick="(function(){document.getElementById('team-${stageId}').value='${team.join(',')}'; battleStage(${stageId});})()" style="font-size: 11px; padding: 4px 10px;">⚔ Fight for real</button>
+                <span class="muted" style="font-size: 11px; margin-left: 8px;">No energy spent on the preview.</span>
+              </div>
+            </div>
+          `;
+        } catch (e) {
+          out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+        }
+      },
+    });
+  }
 
   // Bug #6 — portrait-based team picker. Opens the shared modal,
   // pre-selects last team if any, and on confirm fills the input +

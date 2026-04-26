@@ -92,7 +92,11 @@
     const REFRESH_KEY = "heroproto_refresh";
     // Keys that are *not* per-account (UI state, device prefs) — keep
     // these across login boundaries.
-    const SESSION_PRESERVE = new Set(["heroproto_tab", "heroproto_sound"]);
+    const SESSION_PRESERVE = new Set([
+      "heroproto_tab", "heroproto_sound",
+      // Phase 3 ask — resizable content panel state + width.
+      "heroproto_resize", "heroproto_resize_w",
+    ]);
 
     window.heroSetAuthSession = function (accessToken, refreshToken) {
       // Wipe everything except UI/device prefs *before* storing the new

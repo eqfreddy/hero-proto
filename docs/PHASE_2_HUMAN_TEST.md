@@ -326,7 +326,7 @@ When something in this checklist fails, log it here. Format:
 | 4 | §6 / shop | **Shop shows purchases from a different test account.** Same root as #1 (cross-account leak). Symptom localized to /shop/purchases/mine. | Already covered by #1 repro. | **FIXED** — same fix as #1. |
 | 5 | Battle replay | **Post-mortem (battle result screen) shows no portrait.** Roster stats panel "You have 0" font is too small + needs a solid red color so empty state actually reads. No "create group" / preset-from-result option visible. | Win or lose any battle, look at the result panel. | **FIXED** — stages.html post-mortem now renders bust portraits + name + level for each hero that fought, plus reward currency tallies + chapter-reward callout. Roster detail sheet "You have 0" dupe count now 13px bold red when 0, green when ≥ required count. |
 | 6 | Stages | **Team picker uses hero IDs, not portraits.** Nobody remembers ID numbers. Saved-team / "use last" flow is buried — Hero Roster team build is hard to find and there's no save/edit/rename/delete UI for presets. | Stages tab → pick a stage → team field is a comma-separated ID input. | OPEN — UI: portrait-based picker + preset CRUD surface (deferred — bigger UX overhaul, queued with the Phase 3 design notes) |
-| 7 | Daily / shop | **Lots of dead space on Daily tab.** Could host a banner bar with currency totals + "buy more gems" tease. When user is short on a currency mid-purchase, surface a "go to shop" CTA at the failure point instead of a generic 409. | Open Daily tab; try to summon with 0 shards. | OPEN — UX consolidation (deferred — needs design pass) |
+| 7 | Daily / shop | **Lots of dead space on Daily tab.** Could host a banner bar with currency totals + "buy more gems" tease. When user is short on a currency mid-purchase, surface a "go to shop" CTA at the failure point instead of a generic 409. | Open Daily tab; try to summon with 0 shards. | **FIXED (partial)** — Daily tab now leads with a banner: claimable summary ("🎁 N quests ready to claim"), reward total, daily-bonus claim button, plus "Pull a hero →" / "Fight a stage →" CTAs. Quests grid is 2-up. Currency totals already global via the bar header. Low-balance shop CTA on purchase failure deferred. |
 | 8 | Cross-cutting / errors | **Error messages render at the bottom of the screen.** User clicking near the top doesn't see them. Should pop near the click target (toast-relative or inline-by-button). | Trigger any 4xx (e.g. summon with 0 shards). | **FIXED** — toast stack repositioned from `bottom: 28px` (column-reverse) to `top: 64px` (column) so toasts land in the natural reading focus zone. |
 
 ---
@@ -441,9 +441,14 @@ Listed in roughly the order they were observed.
 - Bell looks fine. Backburner.
 
 ### Tech / framework asks
-- **Resizeable windows per tab** — feasibility ask. How much code? Just
-  ballpark whether it's a CSS-grid swap or a full layout-engine
-  rewrite, then decide.
+- **Resizeable windows per tab** — feasibility ask answered: ✅
+  prototype shipped. CSS native `resize: horizontal` on `#content`,
+  toggle button bottom-right, persists width via localStorage +
+  ResizeObserver. ~30 lines of CSS + 30 lines of JS. Verdict: **cheap
+  to ship**, not a layout-engine rewrite. Per-tab resize would need
+  a tiny refactor to scope the size key by `data-tab`. Multi-pane
+  splitters (Discord-style) would be a bigger lift — that's the full
+  layout-engine territory.
 - Modal/popup close affordance — too many tabs open new windows; need
   a consistent dismiss UX.
 - Backgrounds + visual detail without performance regressions —

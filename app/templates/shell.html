@@ -170,9 +170,40 @@
   #currency-bar .cb-pill[data-buy]:hover, #currency-bar .cb-pill[data-action]:hover {
     background: rgba(78, 161, 255, 0.12); border-color: var(--accent);
   }
+
+  /* Resizable content panel (feasibility prototype, post-shipment design ask).
+     Browser-native CSS resize gives us free drag-to-resize without JS for
+     the common case. Min/max keep it sane; localStorage persists the width
+     so reload restores. Only activates when user toggles via the button
+     in the bottom-right corner of the panel. */
+  main.resizable-active {
+    display: flex;
+    justify-content: center;
+  }
+  main.resizable-active > #content {
+    resize: horizontal;
+    overflow: auto;
+    min-width: 480px;
+    max-width: 100vw;
+    border: 1px dashed var(--accent);
+    padding: 8px;
+    border-radius: 6px;
+  }
+  #resize-toggle {
+    position: fixed; bottom: 16px; right: 16px; z-index: 8500;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--muted); padding: 6px 10px; border-radius: 6px;
+    font-size: 11px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  }
+  #resize-toggle:hover { color: var(--text); border-color: var(--accent); }
+  #resize-toggle.active { color: var(--accent); border-color: var(--accent); }
 </style>
 
-<main>
+<button id="resize-toggle" onclick="toggleResize()" title="Resize the content panel (drag the corner once enabled)">
+  📐 Resize
+</button>
+
+<main id="main-content">
   <div id="content">
     <!-- Skeleton placeholder while the initial partial loads. HTMX swaps
          this whole block when /app/partials/<tab> resolves; the shimmer
@@ -330,6 +361,49 @@
 
   document.body.addEventListener('htmx:afterRequest', refreshWho);
   refreshWho();
+
+  // Resizable content panel — feasibility prototype. Toggle on/off via
+  // a corner button; persists state + width in localStorage so reload
+  // restores. Off by default — flipping it shows a dashed border + a
+  // drag handle in the bottom-right corner of #content (CSS native).
+  const RESIZE_KEY = 'heroproto_resize';
+  function applyResizeState() {
+    const main = document.getElementById('main-content');
+    const content = document.getElementById('content');
+    const toggle = document.getElementById('resize-toggle');
+    const state = localStorage.getItem(RESIZE_KEY);
+    if (state === 'on') {
+      main.classList.add('resizable-active');
+      toggle.classList.add('active');
+      // Restore previous width if any.
+      const w = localStorage.getItem(RESIZE_KEY + '_w');
+      if (w) content.style.width = w + 'px';
+    } else {
+      main.classList.remove('resizable-active');
+      toggle.classList.remove('active');
+      content.style.width = '';
+    }
+  }
+  function toggleResize() {
+    const cur = localStorage.getItem(RESIZE_KEY) === 'on';
+    localStorage.setItem(RESIZE_KEY, cur ? 'off' : 'on');
+    applyResizeState();
+    if (window.toast) {
+      toast.info(cur ? 'Resize off' : 'Resize on — drag the bottom-right corner of the content panel.');
+    }
+  }
+  // Persist width on user resize via ResizeObserver. Only fires while
+  // resizable mode is active.
+  const _content = document.getElementById('content');
+  if (_content && 'ResizeObserver' in window) {
+    new ResizeObserver(() => {
+      if (localStorage.getItem(RESIZE_KEY) === 'on') {
+        const w = _content.offsetWidth;
+        if (w > 0) localStorage.setItem(RESIZE_KEY + '_w', String(w));
+      }
+    }).observe(_content);
+  }
+  applyResizeState();
 
   // Auto-show the Event tab during a live event window. Probes /events/active
   // once on load and shows the button if anything's live. Re-probes after every

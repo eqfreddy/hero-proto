@@ -210,10 +210,23 @@ def partial_me(
 def _hero_row(h: HeroInstance) -> dict:
     t = h.template
     bonus = gear_bonus_for(h)
-    hp = scale_stat(t.base_hp, h.level, h.stars) + bonus.get("hp", 0)
-    atk = scale_stat(t.base_atk, h.level, h.stars) + bonus.get("atk", 0)
-    def_ = scale_stat(t.base_def, h.level, h.stars) + bonus.get("def", 0)
-    spd = scale_stat(t.base_spd, h.level, h.stars) + bonus.get("spd", 0)
+    # Apply Phase 2.2 variance to base stats before gear, matching the
+    # combat resolver's order. Empty dict means "first copy, no variance".
+    from app.gacha import parse_variance
+    variance = parse_variance(getattr(h, "variance_pct_json", "") or "")
+    hp_base = scale_stat(t.base_hp, h.level, h.stars)
+    atk_base = scale_stat(t.base_atk, h.level, h.stars)
+    def_base = scale_stat(t.base_def, h.level, h.stars)
+    spd_base = scale_stat(t.base_spd, h.level, h.stars)
+    if variance:
+        hp_base = int(round(hp_base * (1.0 + variance.get("hp", 0.0))))
+        atk_base = int(round(atk_base * (1.0 + variance.get("atk", 0.0))))
+        def_base = int(round(def_base * (1.0 + variance.get("def", 0.0))))
+        spd_base = int(round(spd_base * (1.0 + variance.get("spd", 0.0))))
+    hp = hp_base + bonus.get("hp", 0)
+    atk = atk_base + bonus.get("atk", 0)
+    def_ = def_base + bonus.get("def", 0)
+    spd = spd_base + bonus.get("spd", 0)
     return {
         "id": h.id,
         "code": t.code,
@@ -226,6 +239,10 @@ def _hero_row(h: HeroInstance) -> dict:
         "special_level": h.special_level,
         "hp": hp, "atk": atk, "def_": def_, "spd": spd,
         "power": power_rating(hp, atk, def_, spd),
+        # Phase 2.2 — sum-of-variance for the grid badge ("hot rolls"
+        # on a roster card). Net positive shows green, net negative red.
+        "variance_net": round(sum(variance.values()), 4) if variance else 0.0,
+        "has_variance": bool(variance),
     }
 
 
@@ -614,7 +631,37 @@ def partial_daily(
         }
         for q in quests
     ]
-    return templates.TemplateResponse(request, "partials/daily.html", {"quests": rows})
+    # Phase 2 follow-up (bug #7): summary stats + claimable count so the
+    # tab leads with what's actionable instead of starting with a list.
+    completed_unclaimed = sum(1 for r in rows if r["status"] == "COMPLETE")
+    in_progress = sum(1 for r in rows if r["status"] == "ACTIVE")
+    total_claimable_coins = sum(r["reward_coins"] for r in rows if r["status"] == "COMPLETE")
+    total_claimable_gems = sum(r["reward_gems"] for r in rows if r["status"] == "COMPLETE")
+    total_claimable_shards = sum(r["reward_shards"] for r in rows if r["status"] == "COMPLETE")
+    # Daily-bonus claim status — same surface as /me but cheaper to check
+    # here since we already have the account.
+    from app.daily_bonus import can_claim as _can_claim, preview_next_streak as _peek
+    can_claim_bonus = _can_claim(account)
+    next_streak = _peek(account)
+    return templates.TemplateResponse(
+        request, "partials/daily.html",
+        {
+            "quests": rows,
+            "completed_unclaimed": completed_unclaimed,
+            "in_progress": in_progress,
+            "total_claimable": {
+                "coins": total_claimable_coins,
+                "gems": total_claimable_gems,
+                "shards": total_claimable_shards,
+            },
+            "can_claim_bonus": can_claim_bonus,
+            "next_streak": next_streak,
+            "account_energy": account.energy_stored,
+            "account_energy_cap": settings.energy_cap,
+            "account_gems": account.gems,
+            "account_shards": account.shards,
+        },
+    )
 
 
 @router.get("/partials/arena", response_class=HTMLResponse)
