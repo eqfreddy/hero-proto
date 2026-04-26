@@ -39,7 +39,12 @@
     try {
       const friends = await fetch('/friends', { headers: _fheaders() }).then(r => r.json());
       if (!friends.length) {
-        out.innerHTML = '<div class="card muted" style="padding: 18px; text-align: center;">No friends yet. Use <strong>+ Add friend</strong> to send a request.</div>';
+        out.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">👥</div>
+            <div class="empty-state-msg">No friends yet</div>
+            <div class="empty-state-hint">Tap <strong>+ Add friend</strong> above to send a request by email prefix. Once they accept, you can DM, see their roster, and (later) co-op raids.</div>
+          </div>`;
         return;
       }
       out.innerHTML = friends.map(f => `
@@ -110,7 +115,12 @@
     try {
       const threads = await fetch('/dm/threads', { headers: _fheaders() }).then(r => r.json());
       if (!threads.length) {
-        out.innerHTML = '<div class="card muted" style="padding: 18px; text-align: center;">No conversations yet. Open a friend\'s profile from the Friends tab and tap 💬 Message.</div>';
+        out.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">✉️</div>
+            <div class="empty-state-msg">No conversations yet</div>
+            <div class="empty-state-hint">Open a friend's profile from the Friends tab and tap <strong>💬 Message</strong> to start a thread. DMs are private 1:1; you can delete your own messages later.</div>
+          </div>`;
         return;
       }
       out.innerHTML = threads.map(t => `

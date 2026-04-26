@@ -118,7 +118,11 @@
   <div class="card">
     <h3 style="margin: 0 0 6px; font-size: 13px; color: var(--muted);">Recent purchases</h3>
     {% if not history %}
-      <div class="muted" style="font-size: 12px;">No purchases yet.</div>
+      <div class="empty-state">
+        <div class="empty-state-icon">🧾</div>
+        <div class="empty-state-msg">No purchases yet</div>
+        <div class="empty-state-hint">Anything you buy from the shop or via in-app purchase lands here with state, price, and what you got. Refunds (when needed) are processed by an admin from this same record.</div>
+      </div>
     {% else %}
     <table>
       <thead><tr><th>when</th><th>item</th><th>paid</th><th>state</th><th>granted</th></tr></thead>
