@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DragonBones — feasibility demo for hero-proto battle visuals</title>
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --panel: #14181e;
+      --panel-2: #1a1f27;
+      --border: #2d3847;
+      --text: #ddd;
+      --muted: #8a96a8;
+      --accent: #4ea1ff;
+      --good: #2ad06a;
+      --bad: #ff6b4a;
+    }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 14px/1.5 system-ui, -apple-system, sans-serif;
+    }
+    header {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    header h1 { margin: 0; font-size: 16px; font-weight: 700; }
+    header .pill { background: rgba(78, 161, 255, 0.12); color: var(--accent); padding: 3px 8px; border-radius: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    main { display: grid; grid-template-columns: 1fr 320px; gap: 20px; padding: 20px; max-width: 1280px; margin: 0 auto; }
+    @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
+    .stage {
+      background: linear-gradient(180deg, #1a2032 0%, #0e131c 100%);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      position: relative;
+      min-height: 540px;
+    }
+    .stage canvas {
+      display: block;
+      margin: 0 auto;
+      border-radius: 6px;
+      background: radial-gradient(ellipse at center bottom, rgba(78,161,255,0.07), transparent 70%);
+    }
+    .stage-meta {
+      position: absolute; top: 10px; left: 14px; right: 14px;
+      display: flex; justify-content: space-between; font-size: 11px; color: var(--muted);
+      pointer-events: none;
+    }
+    .stage-meta strong { color: var(--text); font-weight: 600; }
+    .controls {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px; height: fit-content;
+    }
+    .controls h2 { margin: 0 0 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .controls section { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .controls section:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+    .controls label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .controls select, .controls input[type=range] {
+      width: 100%;
+      background: var(--panel-2); color: var(--text);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 6px 8px; font: inherit;
+    }
+    .controls .anim-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+    }
+    .controls .anim-grid button {
+      background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text); padding: 6px 10px; border-radius: 4px;
+      font-size: 12px; cursor: pointer; font-weight: 500;
+    }
+    .controls .anim-grid button:hover { border-color: var(--accent); color: var(--accent); }
+    .controls .anim-grid button.active { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+    .info {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px; margin: 0 20px 20px; max-width: calc(1280px - 40px); box-sizing: border-box;
+    }
+    .info h2 { margin: 0 0 10px; font-size: 14px; color: var(--accent); }
+    .info p { margin: 6px 0; line-height: 1.55; color: var(--text); }
+    .info ul { margin: 6px 0 12px; padding-left: 20px; color: var(--text); }
+    .info ul li { margin: 4px 0; }
+    .info .verdict-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px;
+    }
+    .info .verdict-grid > div { padding: 10px; border-radius: 6px; }
+    .info .pros { background: rgba(42, 208, 106, 0.06); border-left: 3px solid var(--good); }
+    .info .cons { background: rgba(255, 107, 74, 0.06); border-left: 3px solid var(--bad); }
+    .info code {
+      background: rgba(78, 161, 255, 0.1); color: var(--accent);
+      padding: 1px 5px; border-radius: 3px; font-size: 12px;
+    }
+    #status {
+      font-size: 11px; color: var(--muted); margin-top: 6px;
+    }
+    #status.error { color: var(--bad); }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🐉 DragonBones — battle visuals feasibility demo</h1>
+  <span class="pill">Plan B</span>
+  <span style="margin-left: auto; font-size: 11px; color: var(--muted);">Pixi 4.6 + DragonBones 5.7 runtime · official samples (Apache-2.0)</span>
+</header>
+
+<main>
+  <div class="stage">
+    <div class="stage-meta">
+      <span>Canvas <strong>800 × 500</strong> — same dimensions as our existing <code style="color:var(--accent)">/app/battle-phaser.html</code></span>
+      <span id="status">loading…</span>
+    </div>
+  </div>
+
+  <aside class="controls">
+    <section>
+      <h2>Sample armature</h2>
+      <label for="sample-select">Pick a rig (DragonBones official samples):</label>
+      <select id="sample-select">
+        <option value="mecha_1004d">Mecha 1004B — full action set (idle/walk/hit/death + 5 skills)</option>
+        <option value="mecha_1004d_show">Mecha 1004B Show — idle-only beauty pose</option>
+      </select>
+    </section>
+
+    <section>
+      <h2>Animation</h2>
+      <div class="anim-grid" id="anim-buttons">
+        <em style="grid-column: 1/-1; color: var(--muted); font-size: 11px;">Loading…</em>
+      </div>
+    </section>
+
+    <section>
+      <h2>Speed</h2>
+      <label for="speed-slider">Time scale: <span id="speed-val">1.0×</span></label>
+      <input id="speed-slider" type="range" min="0.1" max="3" step="0.1" value="1" />
+    </section>
+
+    <section>
+      <h2>Loop count</h2>
+      <label for="loop-input">0 = forever, 1 = once, ...</label>
+      <input id="loop-input" type="number" min="0" max="20" value="0"
+             style="width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font: inherit;" />
+    </section>
+  </aside>
+</main>
+
+<div class="info">
+  <h2>What you're looking at</h2>
+  <p><strong>Mecha 1004B</strong> is the official DragonBones flagship sample — a humanoid mech rig with weapon swap and a full action vocabulary. Same skeletal-animation tech as Spine, but free.</p>
+  <p>The action set already maps cleanly onto our combat resolver:</p>
+  <ul>
+    <li><code>idle</code> → between turns / waiting</li>
+    <li><code>walk</code> → entrance, retreat</li>
+    <li><code>attack_01</code> → BASIC damage event</li>
+    <li><code>skill_01</code> / <code>skill_03</code> / <code>skill_04</code> / <code>skill_05</code> → SPECIAL types (DAMAGE / AOE_DAMAGE / HEAL / BUFF)</li>
+    <li><code>hit</code> → DAMAGE incoming</li>
+    <li><code>death</code> → DEATH event</li>
+    <li><code>victory</code> → end-of-battle WIN</li>
+  </ul>
+
+  <div class="verdict-grid">
+    <div class="pros">
+      <strong style="color: var(--good);">Pros (over Plan A stick figures)</strong>
+      <ul>
+        <li>Smooth bone interpolation, mesh deform supported</li>
+        <li>Bone events fire at exact frames — perfect for syncing damage popups + particle hits</li>
+        <li>~8KB JSON + 1MB atlas per rig; reuse the rig across all heroes via skin slots</li>
+        <li>Free editor + free runtime, MIT/Apache licensing</li>
+        <li>Phaser plugin (raksa/phaser-dragonbones) still active as of Dec 2025</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <strong style="color: var(--bad);">Cons / open questions</strong>
+      <ul>
+        <li>Editor learning curve (~2 days for rigging from scratch)</li>
+        <li>Phaser plugin is community-maintained, not first-party</li>
+        <li>Three rigs ≠ thirty bespoke heroes — every ATK still moves identically; head/weapon swap is your differentiator</li>
+        <li>Pixi 4.6 here for the demo; production would migrate to Pixi 8.x or run alongside Phaser via the plugin</li>
+      </ul>
+    </div>
+  </div>
+  <p style="margin-top: 14px;"><strong>Verdict prompt:</strong> if this looks acceptable to you, the path forward is: 1 author-week to build 3 base rigs (ATK / DEF / SUP) with a head-skin slot, then drop hero card portraits into that slot. ~7-10 days to MVP per <code>docs/BATTLE_VISUALS_STACK.md</code>.</p>
+</div>
+
+<script src="libs/pixi.js"></script>
+<script src="libs/dragonBones.js"></script>
+<script>
+(function () {
+  const STAGE_W = 800;
+  const STAGE_H = 500;
+
+  const SAMPLES = {
+    mecha_1004d: {
+      name: 'mecha_1004d',
+      skeleton: 'mecha_1004d/mecha_1004d_ske.json',
+      atlas: 'mecha_1004d/mecha_1004d_tex.json',
+      texture: 'mecha_1004d/mecha_1004d_tex.png',
+      armature: 'mecha_1004d',
+      defaultAnim: 'idle',
+      // Mecha is rendered around 0,0 in DB-space; offset to center at canvas mid-bottom.
+      x: STAGE_W * 0.5,
+      y: STAGE_H * 0.85,
+      scale: 0.9,
+    },
+    mecha_1004d_show: {
+      name: 'mecha_1004d_show',
+      skeleton: 'mecha_1004d_show/mecha_1004d_show_ske.json',
+      atlas: 'mecha_1004d_show/mecha_1004d_show_tex.json',
+      texture: 'mecha_1004d_show/mecha_1004d_show_tex.png',
+      armature: 'mecha_1004d',
+      defaultAnim: 'idle',
+      x: STAGE_W * 0.5,
+      y: STAGE_H * 0.85,
+      scale: 0.7,
+    },
+  };
+
+  // Pixi 4 application — renderer + stage, attached to the .stage container.
+  const stageEl = document.querySelector('.stage');
+  const app = new PIXI.Application({
+    width: STAGE_W,
+    height: STAGE_H,
+    transparent: true,
+    antialias: true,
+    autoDensity: true,
+    resolution: window.devicePixelRatio || 1,
+  });
+  stageEl.appendChild(app.view);
+
+  // DragonBones uses its own ticker; wire Pixi's ticker to drive it.
+  // Pixi 4 ticker delivers a deltaTime in 60fps frames (~1.0 per tick at 60fps).
+  // PixiFactory.factory.update wants seconds.
+  const factory = dragonBones.PixiFactory.factory;
+  app.ticker.add(() => {
+    factory.update(app.ticker.elapsedMS / 1000);
+  });
+
+  // Optional drop-shadow ground-plane for visual reference.
+  const ground = new PIXI.Graphics();
+  ground.beginFill(0x4ea1ff, 0.06);
+  ground.drawEllipse(STAGE_W / 2, STAGE_H * 0.86, 220, 14);
+  ground.endFill();
+  app.stage.addChild(ground);
+
+  let currentArmatureDisplay = null;
+  let currentSampleKey = 'mecha_1004d';
+  let currentAnim = 'idle';
+  let timeScale = 1.0;
+  let loopCount = 0;
+
+  function setStatus(msg, isError) {
+    const s = document.getElementById('status');
+    s.textContent = msg;
+    s.classList.toggle('error', !!isError);
+  }
+
+  function renderAnimButtons(animations) {
+    const wrap = document.getElementById('anim-buttons');
+    wrap.innerHTML = '';
+    if (!animations.length) {
+      wrap.innerHTML = '<em style="grid-column: 1/-1; color: var(--muted); font-size: 11px;">No animations on this armature.</em>';
+      return;
+    }
+    for (const name of animations) {
+      const btn = document.createElement('button');
+      btn.textContent = name;
+      btn.dataset.anim = name;
+      if (name === currentAnim) btn.classList.add('active');
+      btn.onclick = () => {
+        currentAnim = name;
+        document.querySelectorAll('#anim-buttons button').forEach(b => b.classList.toggle('active', b.dataset.anim === name));
+        if (currentArmatureDisplay) {
+          currentArmatureDisplay.animation.play(name, loopCount);
+        }
+      };
+      wrap.appendChild(btn);
+    }
+  }
+
+  async function loadSample(key) {
+    setStatus(`loading ${key}…`);
+    if (currentArmatureDisplay) {
+      app.stage.removeChild(currentArmatureDisplay);
+      currentArmatureDisplay.destroy();
+      currentArmatureDisplay = null;
+    }
+    const sample = SAMPLES[key];
+    if (!sample) { setStatus('unknown sample', true); return; }
+    currentSampleKey = key;
+    try {
+      // Fetch skeleton + atlas JSON ourselves so we can hand parsed objects to
+      // the factory. Pixi 4's loader works too, but this stays explicit.
+      const [skeRes, atlasRes] = await Promise.all([
+        fetch(sample.skeleton),
+        fetch(sample.atlas),
+      ]);
+      if (!skeRes.ok) throw new Error(`skeleton fetch ${skeRes.status}`);
+      if (!atlasRes.ok) throw new Error(`atlas fetch ${atlasRes.status}`);
+      const ske = await skeRes.json();
+      const atlas = await atlasRes.json();
+
+      // Texture fetch via Pixi's loader so we get a ready PIXI.Texture.
+      const texture = await new Promise((resolve, reject) => {
+        const loader = new PIXI.loaders.Loader();
+        loader.add('tex_' + key, sample.texture);
+        loader.load((_, resources) => {
+          const r = resources['tex_' + key];
+          if (r && r.texture) resolve(r.texture);
+          else reject(new Error('texture load failed'));
+        });
+        loader.onError.add((err) => reject(err));
+      });
+
+      factory.parseDragonBonesData(ske);
+      factory.parseTextureAtlasData(atlas, texture);
+
+      const armature = factory.buildArmatureDisplay(sample.armature);
+      if (!armature) throw new Error(`armature ${sample.armature} not in skeleton`);
+      armature.x = sample.x;
+      armature.y = sample.y;
+      armature.scale.x = armature.scale.y = sample.scale;
+      app.stage.addChild(armature);
+      currentArmatureDisplay = armature;
+      armature.animation.timeScale = timeScale;
+
+      const anims = armature.animation.animationNames || [];
+      currentAnim = anims.includes(sample.defaultAnim) ? sample.defaultAnim : (anims[0] || '');
+      if (currentAnim) armature.animation.play(currentAnim, loopCount);
+      renderAnimButtons(anims);
+
+      setStatus(`✓ loaded ${key} — ${anims.length} animations`);
+    } catch (err) {
+      console.error(err);
+      setStatus(`load failed: ${err.message}`, true);
+    }
+  }
+
+  // Wire UI.
+  document.getElementById('sample-select').addEventListener('change', (e) => loadSample(e.target.value));
+  document.getElementById('speed-slider').addEventListener('input', (e) => {
+    timeScale = parseFloat(e.target.value);
+    document.getElementById('speed-val').textContent = timeScale.toFixed(1) + '×';
+    if (currentArmatureDisplay) currentArmatureDisplay.animation.timeScale = timeScale;
+  });
+  document.getElementById('loop-input').addEventListener('change', (e) => {
+    loopCount = parseInt(e.target.value, 10) || 0;
+    if (currentArmatureDisplay && currentAnim) {
+      currentArmatureDisplay.animation.play(currentAnim, loopCount);
+    }
+  });
+
+  loadSample('mecha_1004d');
+})();
+</script>
+</body>
+</html>
