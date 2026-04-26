@@ -22,6 +22,12 @@ line; this doc is for everything you'd actually click on a real server.
 | `[-]` | Skipped / not applicable to this run |
 | `[?]` | Inconclusive — couldn't reproduce or env-blocked |
 
+## Session log
+
+| Date | Tester | Notes |
+|---|---|---|
+| 2026-04-26 | ridler69 | Drive-by tab tour — context-switching with a server install fight. Logged 8 bugs (#1–#8 below). Story tab + Achievements + Notifications + Daily-claim + Guild tab all read fine on first impression. Battle visual + Arena explicitly deferred until Phase 3 combat depth lands. Lots of design-direction notes captured in "Phase 3 / future" section. |
+
 ---
 
 ## 0. The fast win — run the walkthrough script
@@ -102,7 +108,12 @@ is always vanilla.
 Floor) gated by account level. Cutscene text per stage. New /story API
 + /story/cutscene-seen endpoint.
 
-- [ ] `GET /story` (or open 📖 Story tab) shows 3 chapters
+> **2026-04-26 drive-by:** Story tab "looks ok at the moment" — chapters
+> render, layout reads. Per-stage interactions and the question of
+> whether stages should be renamed "challenges" pulled into Phase 3
+> design notes below. API-level checks below still pending.
+
+- [x] `GET /story` (or open 📖 Story tab) shows 3 chapters — visual ok
 - [ ] Chapter 1 unlocked at account level 1
 - [ ] Chapters 2/3 locked with "Unlocks at level 10 / 20" hint
 - [ ] Chapter 1 lists 5 stages with cutscene `intro`/`outro` text
@@ -142,7 +153,13 @@ quick_summon, roster_sort_advanced), stackable slot packs (+25 hero,
 +100 gear), 4 cosmetic frames + a frame bundle. Tone lock: never raw
 power, only QoL or cosmetic.
 
-- [ ] Shop tab lists the new SKUs (or hit `GET /shop/products`)
+> **2026-04-26 drive-by:** Shop tab is showing purchase history from a
+> different account (`hello@zombiesub.com`). See bug #1 / #4 — same
+> cross-account session leak. Tone-lock + SKU catalog itself still
+> pending end-to-end verification once the leak is fixed.
+
+- [!] Shop tab lists the new SKUs (or hit `GET /shop/products`) — tab
+      renders but contaminated by prior account's purchase history
 - [ ] Mock-buy `qol_auto_battle` → /me shows `qol_unlocks: ["auto_battle"]`
 - [ ] Mock-buy `cosmetic_frame_neon` → /me shows
       `cosmetic_frames: ["frame_neon_cubicle"]`
@@ -303,7 +320,14 @@ When something in this checklist fails, log it here. Format:
 
 | # | Section | Issue | Repro | Status |
 |---|---|---|---|---|
-| _no entries yet_ |   |   |   |   |
+| 1 | Cross-cutting / auth | **Cross-account session leak.** Logged in as `kelsey.riddle@gmail.com` (new account) and saw 23 heroes + cards from a previous test account. Cleared after a few clicks. Suspect: localStorage `heroproto_jwt` not being cleared on logout / new register, or browser cache holding the previous /me + /heroes/mine response. Same symptom in §6 (shop showed `hello@zombiesub.com` purchases) and §arena (W1/L2 from prior account leaking in). | Register a new account in a tab that previously hosted another account session; check Roster + Shop tabs before refreshing. | OPEN — auth/dashboard fix needed |
+| 2 | §0 / summon UX | **Summon recent-pulls feed doesn't refresh after a pull.** Have to take another action to see the new entry. Both x1 and x10 affected. | Open Summon tab, do a pull, look at "recent pulls" — old list. Click anything else, come back, new pulls appear. | OPEN — frontend cache invalidation on POST /summon/* |
+| 3 | Sweep | **Sweep returns `422: [object Object]`.** Error message is unhelpful. Either the request shape changed or the toast layer is stringifying a Pydantic validation list wrong. | Open Stages → pick a cleared stage → Sweep → server returns 422; UI shows `[object Object]`. | OPEN — backend 422 detail + frontend error pretty-print |
+| 4 | §6 / shop | **Shop shows purchases from a different test account.** Same root as #1 (cross-account leak). Symptom localized to /shop/purchases/mine. | Already covered by #1 repro. | OPEN — same fix as #1 |
+| 5 | Battle replay | **Post-mortem (battle result screen) shows no portrait.** Roster stats panel "You have 0" font is too small + needs a solid red color so empty state actually reads. No "create group" / preset-from-result option visible. | Win or lose any battle, look at the result panel. | OPEN — UI polish |
+| 6 | Stages | **Team picker uses hero IDs, not portraits.** Nobody remembers ID numbers. Saved-team / "use last" flow is buried — Hero Roster team build is hard to find and there's no save/edit/rename/delete UI for presets. | Stages tab → pick a stage → team field is a comma-separated ID input. | OPEN — UI: portrait-based picker + preset CRUD surface |
+| 7 | Daily / shop | **Lots of dead space on Daily tab.** Could host a banner bar with currency totals + "buy more gems" tease. When user is short on a currency mid-purchase, surface a "go to shop" CTA at the failure point instead of a generic 409. | Open Daily tab; try to summon with 0 shards. | OPEN — UX consolidation |
+| 8 | Cross-cutting / errors | **Error messages render at the bottom of the screen.** User clicking near the top doesn't see them. Should pop near the click target (toast-relative or inline-by-button). | Trigger any 4xx (e.g. summon with 0 shards). | OPEN — toast positioning rework |
 
 ---
 
@@ -326,6 +350,104 @@ When something in this checklist fails, log it here. Format:
       standard? Currently they're commingled.
 - [ ] Refund analytics — when a Purchase flips REFUNDED, do we fire a
       `purchase_refund` PostHog event? Probably should.
+
+---
+
+## Phase 3 / future design notes (raw from playtests)
+
+Captured 2026-04-26 during the drive-by tab tour. Not Phase 2 acceptance
+work — these are direction notes for combat depth / UX-overhaul phases.
+Listed in roughly the order they were observed.
+
+### Tutorial UX
+- Needs popup hints / tooltip overlays guiding "click here next."
+- Skip-tutorial button — express path for returning users.
+- Idea: branch tutorial into "Express" vs "First-Timer" — same end
+  reward, different pacing. Reward should be generous-but-not-crazy.
+- Emphasize the prize at the end so the carrot is visible mid-tutorial.
+
+### Summon tab
+- Recent-pulls feed is stale until next action (logged as bug #2).
+- Sub-menu / tabs for special summons. More banners = more reasons to
+  spend currency.
+- Card images in recent-pulls should be clickable → opens that hero's
+  detail sheet.
+
+### Battle viewer / animation pipeline
+- **Battle visual hasn't changed.** Should be next priority — players
+  spend most of their time on the battle screen.
+- Replace static portrait roster art with animated actors (Moho,
+  Adobe 2025 full suite is what's available).
+- Need a setup script for the animation export pipeline.
+
+### Stages tab → "Challenges"
+- Rename stages → challenges per playtest gut feel.
+- Team picker should use portraits, not numeric IDs (bug #6).
+- Map-based stage navigation: place stage nodes on a world map,
+  per-region or geo-randomized to player's login country. Hover →
+  shows the local stage menu (1-1, 1-2, ...). Next stage highlighted,
+  later stages greyed with minimal detail.
+- Per-stage backgrounds + light story interaction so stages feel like
+  progress, not "a screen of boxes."
+
+### Hero roster / team build
+- "Very obscure to find." Surface the team builder as a top-nav action,
+  not buried in roster.
+- Save / edit / rename / delete UI for team presets (bug #6).
+- Replace placeholder roster art with the cluster-of-fuckery card art
+  pipeline output.
+
+### Synergy rework
+- Cap at max 2 active synergies per team. Rule of thumb: a team with
+  2 yellow + 2 blue + 1 purple lights up the 2★ tier of yellow + blue,
+  purple gets nothing.
+- Tier the synergy ladder 2★ → 5★ to give more creative team combos
+  meaningful reward.
+- More gear slots / things to gear into for variety.
+
+### Daily / shop UX
+- Lots of dead space on Daily tab (bug #7). Consolidate.
+- Banner bar with character art + currency totals + "buy more" CTA.
+- When a purchase fails for insufficient currency, popup CTA → shop
+  route, not a generic 409.
+- Confirmed working: `daily_bonus_claim` payload looks correct
+  (logged: `{"id":7,"day_key":"2026-04-26","kind":"SUMMON_HEROES",
+  "status":"CLAIMED","goal":10,"progress":10,"reward_gems":20,
+  "reward_coins":500,"reward_shards":2}`)
+
+### Friends tab
+- Anti-spam / RMT seller / racism guards needed before launch.
+- Friend-request rate limit per day, message length limits, etc.
+  (Some buckets already shipped — verify coverage during Phase 3.)
+
+### Achievements
+- Looks good. Add a "hardcore achievements" teaser somewhere visible
+  to seed long-term engagement.
+
+### Arena overhaul (waiting on combat depth)
+- Defer until battle layer is figured out. Will be the highest-pressure
+  competitive surface.
+- Payout schedule: avoid one-shot 24h payouts — staggers favor a single
+  timezone. Need to think through global fairness so the market doesn't
+  saturate / get fucked.
+- Bug #1 may be the source of the W1/L2 record showing on the new
+  account — investigate alongside the cross-account leak.
+
+### Guild tab
+- Fine for now. Future: guild perks. POE2 had a great cosmetic system
+  with a separate currency — worth modeling.
+
+### Notifications
+- Bell looks fine. Backburner.
+
+### Tech / framework asks
+- **Resizeable windows per tab** — feasibility ask. How much code? Just
+  ballpark whether it's a CSS-grid swap or a full layout-engine
+  rewrite, then decide.
+- Modal/popup close affordance — too many tabs open new windows; need
+  a consistent dismiss UX.
+- Backgrounds + visual detail without performance regressions —
+  need to figure out the budget before art lands.
 
 ---
 
@@ -361,3 +483,20 @@ When every section above is `[x]` (or has a tracked bug entry):
 - [ ] Update `docs/PRD.md § 7` status from "code shipped" to "verified shipped"
 - [ ] File the bugs as Phase 3 polish issues
 - [ ] Move on to Phase 3 — combat depth (PRD § 8)
+
+> Drive-by playtest notes from 2026-04-26 have been folded into the
+> "Bugs found" table (#1–#8) and the "Phase 3 / future design notes"
+> section above. Raw notes archived in commit history if needed.
+
+
+
+
+
+
+
+
+
+
+
+
+
