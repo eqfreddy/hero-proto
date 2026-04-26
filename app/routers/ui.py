@@ -294,6 +294,19 @@ def partial_account(
     return templates.TemplateResponse(request, "partials/account.html", {})
 
 
+@router.get("/partials/raids", response_class=HTMLResponse)
+def partial_raids(
+    request: Request,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    """Guild raids tab. Surfaces /raids/mine (active raid for caller's guild)
+    and /raids/leaderboard (top contributors this week). Empty states cover
+    not-in-guild and no-active-raid (auto-rotation kicks in within 24h of
+    the previous raid ending)."""
+    return templates.TemplateResponse(request, "partials/raids.html", {})
+
+
 @router.get("/partials/story", response_class=HTMLResponse)
 def partial_story(
     request: Request,

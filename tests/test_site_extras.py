@@ -178,3 +178,37 @@ def test_account_tab_in_shell_nav(client) -> None:
     body = r.text
     assert 'data-tab="account"' in body
     assert "/app/partials/account" in body
+
+
+# --- Raids partial ----------------------------------------------------------
+
+
+def test_raids_partial_requires_auth(client) -> None:
+    r = client.get("/app/partials/raids")
+    assert r.status_code == 401
+
+
+def test_raids_partial_renders_for_authed_user(client) -> None:
+    """Partial is mostly client-side fetches; verify the wiring."""
+    import random
+    email = f"raidtab+{random.randint(100000, 999999)}@example.com"
+    r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
+    token = r.json()["access_token"]
+    r = client.get("/app/partials/raids", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    body = r.text
+    for marker in (
+        "Guild raid",
+        "Leaderboard",
+        "/raids/mine",
+        "/raids/leaderboard",
+        "raid-attack-btn",
+    ):
+        assert marker in body, f"raids partial missing marker: {marker!r}"
+
+
+def test_raids_tab_in_shell_nav(client) -> None:
+    r = client.get("/app/")
+    body = r.text
+    assert 'data-tab="raids"' in body
+    assert "/app/partials/raids" in body
