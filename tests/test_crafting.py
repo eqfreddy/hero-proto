@@ -160,11 +160,13 @@ def test_battle_win_grants_materials(client) -> None:
     # Tutorial = order 0, no drops in that tier. Battle stage 1 to actually
     # roll. Need to clear tutorial first to unlock stage 1 (already done).
     stage1 = next(s for s in stages if s["order"] == 1)
-    # Try a few times; battle drops are RNG-gated.
-    for _ in range(10):
+    # Drops are RNG-gated (~40% per win for keyboard keys). 10 attempts had
+    # a ~0.6% chance of zero drops, which we hit 1-in-200 runs. Bumping to
+    # 25 attempts drops the false-fail rate to ~3 in 100,000 — effectively
+    # never under normal CI cadence.
+    for _ in range(25):
         client.post("/battles", json={"stage_id": stage1["id"], "team": team}, headers=hdr)
 
     mats = client.get("/crafting/materials", headers=hdr).json()
     total_held = sum(m["quantity"] for m in mats)
-    # 10 wins × ~40% drop chance for keyboard keys → ~4 expected; allow slack.
-    assert total_held > 0, f"expected at least one material drop in 10 wins, got {total_held}"
+    assert total_held > 0, f"expected at least one material drop in 25 wins, got {total_held}"

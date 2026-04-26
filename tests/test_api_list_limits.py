@@ -123,14 +123,18 @@ def test_my_applications_respects_limit(client) -> None:
     """GET /guilds/applications/mine is capped + default 50."""
     # Make an applicant with a bunch of pending apps — need as many guilds.
     applicant_email, applicant_hdr, aid = _register(client, "appmelim")
-    # Create 4 guilds, apply to each.
+    # Create 4 guilds, apply to each. Tags must be globally unique and the
+    # column caps at 6 chars — `GA{0..99}` only has 90 slots and was colliding
+    # with other tests' tags in the full-suite run. Widen to 5 trailing digits.
     for _ in range(4):
         _g_email, g_hdr, _g_aid = _register(client, "gapp")
+        suffix = random.randint(10**12, 10**13 - 1)
         r = client.post(
             "/guilds",
-            json={"name": f"GApp{random.randint(1,999999)}", "tag": f"GA{random.randint(10,99)}"},
+            json={"name": f"GApp_{suffix}", "tag": f"a{suffix % 100000:05d}"},
             headers=g_hdr,
         )
+        assert r.status_code == 201, r.text
         gid = r.json()["id"]
         client.post(f"/guilds/{gid}/apply", json={"message": "hi"}, headers=applicant_hdr)
 
