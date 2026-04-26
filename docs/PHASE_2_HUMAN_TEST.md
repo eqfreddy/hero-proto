@@ -27,6 +27,7 @@ line; this doc is for everything you'd actually click on a real server.
 | Date | Tester | Notes |
 |---|---|---|
 | 2026-04-26 | ridler69 | Drive-by tab tour — context-switching with a server install fight. Logged 8 bugs (#1–#8 below). Story tab + Achievements + Notifications + Daily-claim + Guild tab all read fine on first impression. Battle visual + Arena explicitly deferred until Phase 3 combat depth lands. Lots of design-direction notes captured in "Phase 3 / future" section. |
+| 2026-04-26 | claude | Autonomous polish session — fixed 7 of 8 bugs (#6 portrait picker still partial), wired all four QoL unlocks, added cosmetic frame equip flow, currency banner header, Phase 3.1 attack-channel split, /battles/preview endpoint + UI button, hardcore achievements teaser, friends anti-spam (per-day caps), achievement progress bars, stage card team-power-vs-recommended, daily tab consolidation, resizable content panel feasibility prototype. **Suite at 563 passed / 3 skipped.** 8 commits pushed: bd6f07d → adf58a0. |
 
 ---
 
@@ -340,11 +341,13 @@ When something in this checklist fails, log it here. Format:
 - [ ] Chapter reward firing across multiple chapters in one battle
       session (theoretically impossible due to ordering but worth a
       poke if you ever batch-clear).
-- [ ] QoL unlock in `/me` doesn't actually gate any UI yet — the
-      `auto_battle` flag is owned but where does it actually toggle a
-      different flow? (Ship Phase 3 acks this; Phase 2 just owns the
-      catalog.)
-- [ ] Cosmetic frames don't render on hero cards yet — UI side-quest.
+- [x] **WIRED 2026-04-26** QoL unlock `auto_battle` → `auto_resolved`
+      flag on /battles + skip-watch UI; `extra_team_presets` → cap
+      5→10; `quick_summon` → instant tab refresh; `roster_sort_advanced`
+      → sort/faction chip bar.
+- [x] **WIRED 2026-04-26** Cosmetic frames render on hero cards via
+      `Account.active_cosmetic_frame` + roster CSS overrides; equip via
+      `POST /me/cosmetic-frame`.
 - [ ] Per-event-banner pull *history* — should pulls show up in
       gacha_records with a flag distinguishing event banner from
       standard? Currently they're commingled.
