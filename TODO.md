@@ -105,10 +105,10 @@ The dashboard works; nobody wants to look at it. Biggest perceived-quality lift 
 
 ### B. Anti-cheat depth
 One layer shipped (per-account battle rate limit). More to add.
-- [ ] Cap arena attack attempts per hour (separate from /battles bucket)
-- [ ] Audit all endpoints for `hero_instance_id` ownership check
-- [ ] Reject implausible combat outcomes (if a client-authoritative layer is ever added)
-- [ ] Per-IP guild-message rate limit to stop chat flooding
+- [x] Cap arena attack attempts per hour — `arena_attack_per_minute_per_account=20` enforced via `enforce_arena_rate_limit`
+- [x] Audit all endpoints for `hero_instance_id` ownership check — 7 guard tests in `test_cross_account_ownership.py`
+- [ ] Reject implausible combat outcomes (still blocked on a client-authoritative layer; not actionable yet)
+- [x] Per-IP guild-message rate limit — `enforce_guild_message_ip_rate_limit` in chat dependencies, Redis-backed under horizontal scale
 
 ### C. Deploy pipeline
 Dockerfile + compose exist; nothing's been pushed or deployed.
@@ -138,16 +138,15 @@ Medium-sized but the highest-leverage UX work right now. See Product Direction s
 - [ ] Rarity-separated tabs in roster (Common / Uncommon / Rare / Epic / Legendary / Myth)
 - [ ] Pretty x10 summon result (grid of cards w/ rarity borders) — *partially landed 2026-04-24*
 - [ ] Per-hero detail page: stats, skill level, gear loadout, next-star preview
-- [ ] Saved team presets (Arena / Campaign / Raid) — QoL, paid unlock candidate
-- [ ] "Use last team" one-click on the Battle tab
+- [x] Saved team presets — `TeamPreset` model + full CRUD at `/me/team-presets` (`tests/test_team_presets.py`); paid unlock gating remains a future product call
+- [x] "Use last team" — `GET /me/last-team` derives from most recent winning battle, falls back to most recent any-result, then to empty
 
-### H. PWA — put it on a phone home screen
-Cheapest path to "on my phone, feels like an app." See [Mobile Strategy](#-mobile-strategy) below for the full roadmap (PWA → Capacitor → native).
-- [ ] `app/static/manifest.webmanifest` — name, short_name, icons (192/512 + maskable), theme_color, background_color, display=standalone
-- [ ] Service worker at `/app/sw.js` — offline shell for `/app/` shell + cached static assets, network-first for `/me` and other live endpoints
-- [ ] Apple touch icons + meta tags in `templates/base.html` (Apple ignores standard manifest icons, needs its own)
-- [ ] Test: install on Android Chrome, install on iOS Safari, confirm icon + splash + offline-launch both work
-- [ ] Register service worker from the dashboard entry template
+### H. PWA ✅ shipped
+- [x] `app/static/manifest.webmanifest`
+- [x] Service worker at `/app/static/sw.js` — versioned cache, shell cache-first, /me & friends network-only
+- [x] Apple touch icons + meta tags in `templates/base.html`
+- [x] Service worker registered from dashboard entry
+- [ ] Field-test: install on Android Chrome, install on iOS Safari, confirm icon + splash + offline-launch — **manual QA pass, not automatable**
 
 ### G. Combat depth (from play-testing)
 Design-first sprint — probably 2-3 iterations before it's good. Reference games listed in Product Direction.
@@ -212,7 +211,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 ## 🚧 Backlog — everything else
 
 ### Admin tooling
-- [ ] Ban should invalidate existing JWTs (Sprint A)
+- [x] Ban should invalidate existing JWTs — `admin.ban()` bumps `token_version`, `deps.get_current_account` rejects stale tokens, covered by `tests/test_admin.py::test_ban_revokes_outstanding_jwt_via_token_version`
 - [ ] Admin UI over the existing `/admin/*` endpoints (currently curl-only)
 
 ### Auth / account
