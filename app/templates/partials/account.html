@@ -72,6 +72,34 @@
     <div id="twofa-status">
       <span class="skeleton skeleton-line short"></span>
     </div>
+    <div id="twofa-setup" style="display: none; margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2, var(--bg));">
+      <div class="desc" style="margin: 0 0 10px;">Add this account to your authenticator app. Scan the QR or paste the secret manually, then enter the 6-digit code below.</div>
+      <div style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;">
+        <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Secret</div>
+        <code id="twofa-secret"></code>
+      </div>
+      <div style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; word-break: break-all; margin-top: 8px; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;">
+        <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">otpauth URI (deep-link or paste)</div>
+        <a id="twofa-uri" href="#" target="_blank" rel="noopener" style="color: var(--accent, #4ea1ff); text-decoration: none;"></a>
+      </div>
+      <form id="twofa-confirm-form" style="display: flex; gap: 8px; margin-top: 12px;">
+        <input id="twofa-code" type="text" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="6-digit code"
+          style="padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel-2, var(--bg)); color: var(--text); font: inherit; width: 130px; letter-spacing: 0.1em;">
+        <button type="submit" class="neutral-btn" id="twofa-confirm-btn">Verify &amp; enable</button>
+        <button type="button" class="neutral-btn" id="twofa-cancel-btn">Cancel</button>
+      </form>
+      <div id="twofa-recovery" style="display: none; margin-top: 12px; padding: 10px; border: 1px solid var(--good, #2ad06a); border-radius: 4px; background: rgba(45,208,106,0.08);">
+        <div style="font-weight: 700; font-size: 12px; color: var(--good, #2ad06a); margin-bottom: 6px;">Recovery codes — save these now, they won't be shown again</div>
+        <pre id="twofa-recovery-list" style="margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap;"></pre>
+      </div>
+    </div>
+    <div id="twofa-disable-form" style="display: none; margin-top: 10px;">
+      <form style="display: flex; gap: 8px;" onsubmit="event.preventDefault(); window._twofaDisable();">
+        <input id="twofa-disable-code" type="text" inputmode="numeric" pattern="[0-9]{6,16}" minlength="6" maxlength="16" required placeholder="6-digit code or recovery code"
+          style="padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel-2, var(--bg)); color: var(--text); font: inherit; width: 220px;">
+        <button type="submit" class="danger-btn" id="twofa-disable-btn">Disable 2FA</button>
+      </form>
+    </div>
   </section>
 
   <section>
@@ -182,17 +210,110 @@
 
     async function loadTwoFA() {
       const wrap = document.getElementById('twofa-status');
+      const setup = document.getElementById('twofa-setup');
+      const disableForm = document.getElementById('twofa-disable-form');
       try {
         const r = await fetch('/me', { headers: HDR });
         const me = await r.json();
         const on = !!me.totp_enabled;
-        wrap.innerHTML = on
-          ? '<span class="twofa-status on">ENABLED</span>  <span class="desc" style="margin: 0;">Disable from /auth/2fa/disable.</span>'
-          : '<span class="twofa-status off">DISABLED</span>  <span class="desc" style="margin: 0;">Set up via /auth/2fa/setup.</span>';
+        if (on) {
+          wrap.innerHTML = '<span class="twofa-status on">ENABLED</span>  <span class="desc" style="margin: 0;">Enter your current TOTP or a recovery code below to disable.</span>';
+          setup.style.display = 'none';
+          disableForm.style.display = '';
+        } else {
+          wrap.innerHTML = `
+            <span class="twofa-status off">DISABLED</span>
+            <button class="neutral-btn" id="twofa-enroll-btn" style="margin-left: 10px;">Set up 2FA</button>`;
+          setup.style.display = 'none';
+          disableForm.style.display = 'none';
+          document.getElementById('twofa-enroll-btn').addEventListener('click', startTwoFAEnroll);
+        }
       } catch (e) {
         wrap.innerHTML = `<div class="desc" style="color: var(--bad);">Failed to load 2FA status.</div>`;
       }
     }
+
+    async function startTwoFAEnroll() {
+      try {
+        const r = await fetch('/auth/2fa/enroll', { method: 'POST', headers: HDR });
+        const body = await r.json();
+        if (!r.ok) {
+          if (window.toast) toast.error(body.detail || `HTTP ${r.status}`);
+          return;
+        }
+        document.getElementById('twofa-secret').textContent = body.secret;
+        const uriEl = document.getElementById('twofa-uri');
+        uriEl.textContent = body.otpauth_uri;
+        uriEl.href = body.otpauth_uri;
+        document.getElementById('twofa-recovery').style.display = 'none';
+        document.getElementById('twofa-setup').style.display = '';
+        document.getElementById('twofa-code').focus();
+      } catch (e) {
+        if (window.toast) toast.error('Network error: ' + e.message);
+      }
+    }
+
+    async function confirmTwoFA(e) {
+      e.preventDefault();
+      const code = document.getElementById('twofa-code').value.trim();
+      const btn = document.getElementById('twofa-confirm-btn');
+      btn.disabled = true;
+      try {
+        const r = await fetch('/auth/2fa/confirm', {
+          method: 'POST',
+          headers: { ...HDR, 'content-type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const body = await r.json();
+        if (!r.ok) {
+          if (window.toast) toast.error(body.detail || `HTTP ${r.status}`);
+          return;
+        }
+        const codes = (body.recovery_codes || []).join('\n');
+        if (codes) {
+          document.getElementById('twofa-recovery-list').textContent = codes;
+          document.getElementById('twofa-recovery').style.display = '';
+        }
+        if (window.toast) toast.success('2FA enabled. Recovery codes shown — save them now.');
+        // Refresh status; leave the recovery codes block visible until the
+        // user navigates away.
+        loadTwoFA();
+      } catch (e) {
+        if (window.toast) toast.error('Network error: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function cancelTwoFASetup() {
+      document.getElementById('twofa-setup').style.display = 'none';
+      document.getElementById('twofa-code').value = '';
+    }
+
+    window._twofaDisable = async function () {
+      const code = document.getElementById('twofa-disable-code').value.trim();
+      const btn = document.getElementById('twofa-disable-btn');
+      btn.disabled = true;
+      try {
+        const r = await fetch('/auth/2fa/disable', {
+          method: 'POST',
+          headers: { ...HDR, 'content-type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const body = await r.json();
+        if (!r.ok) {
+          if (window.toast) toast.error(body.detail || `HTTP ${r.status}`);
+          return;
+        }
+        if (window.toast) toast.success('2FA disabled.');
+        document.getElementById('twofa-disable-code').value = '';
+        loadTwoFA();
+      } catch (e) {
+        if (window.toast) toast.error('Network error: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    };
 
     async function downloadExport() {
       const btn = document.getElementById('export-btn');
@@ -269,6 +390,8 @@
     document.getElementById('revoke-all-btn').addEventListener('click', revokeAll);
     document.getElementById('export-btn').addEventListener('click', downloadExport);
     document.getElementById('change-password-form').addEventListener('submit', changePassword);
+    document.getElementById('twofa-confirm-form').addEventListener('submit', confirmTwoFA);
+    document.getElementById('twofa-cancel-btn').addEventListener('click', cancelTwoFASetup);
     loadSessions();
     loadTwoFA();
   })();
