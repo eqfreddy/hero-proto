@@ -14,6 +14,7 @@ Single-process only — fine for alpha. For horizontal scale, move to a worker
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import random
 from datetime import timedelta
@@ -23,6 +24,7 @@ from sqlalchemy import delete, func, select
 from app.db import SessionLocal
 from app.models import (
     Account,
+    Battle,
     DailyQuest,
     DailyQuestStatus,
     Guild,
@@ -32,6 +34,7 @@ from app.models import (
     Raid,
     RaidState,
     RaidTier,
+    RefreshToken,
     utcnow,
 )
 from app.routers.raids import boss_hp_for_tier
@@ -44,6 +47,15 @@ WORKER_INTERVAL_SECONDS = 60.0
 RAID_ROTATION_COOLDOWN_HOURS = 6
 # Auto-rotated raids run for this long before expiring.
 RAID_AUTO_DURATION_HOURS = 24
+# After this many days, replace a Battle.log_json with a single END event.
+# Players almost never re-watch month-old battles; the full per-tick log is
+# 30-65 KB each and accumulates faster than any other table. The participants
+# snapshot, outcome, and rewards stay intact — only the play-by-play is lost.
+BATTLE_LOG_COMPACTION_DAYS = 30
+# Hard delete refresh-token rows that have been revoked (or simply expired)
+# for longer than this. The active sessions list filters them out already, so
+# they're dead weight in the DB after this window.
+REFRESH_TOKEN_RETENTION_DAYS = 30
 # Backoff on loop-level crash (not individual job failures — those are swallowed).
 SUPERVISOR_RESTART_DELAY_SECONDS = 5.0
 SUPERVISOR_RESTART_DELAY_MAX = 60.0
@@ -157,12 +169,51 @@ def _run_jobs() -> None:
         # candidates for replacement in the same tick.
         rotated = _auto_rotate_raids(db, now)
 
-        if deleted or expired or unbanned or rotated:
+        # Battle log compaction. Replace log_json with a single END marker on
+        # battles older than the retention window. We use json.dumps directly
+        # rather than going through the resolver to avoid pulling combat code
+        # into worker land. Match by an explicit prefix on log_json so re-
+        # running this never re-touches an already-compacted row.
+        compaction_cutoff = now - timedelta(days=BATTLE_LOG_COMPACTION_DAYS)
+        compacted = 0
+        for b in db.scalars(
+            select(Battle).where(
+                Battle.created_at < compaction_cutoff,
+                # Compacted rows start with [{"type":"COMPACTED"... — skip them.
+                ~Battle.log_json.startswith('[{"type":"COMPACTED"'),
+            ).limit(500)  # cap each tick's work so we don't lock the table
+        ):
+            b.log_json = json.dumps([{
+                "type": "COMPACTED",
+                "outcome": str(b.outcome),
+                "reason": f"battle log compacted after {BATTLE_LOG_COMPACTION_DAYS} days",
+            }], separators=(",", ":"))
+            compacted += 1
+
+        # Refresh-token cleanup. Once a token has been revoked or has expired
+        # past the retention window, the active-sessions endpoint already
+        # filters it out — but the row still occupies space and slows index
+        # lookups. Hard-delete past the window. Replaced rows have a non-null
+        # replaced_by_id pointing at the new token; ondelete=SET NULL on that
+        # FK means deleting the old one just nulls the back-pointer (no
+        # cascade to the live token).
+        token_cutoff = now - timedelta(days=REFRESH_TOKEN_RETENTION_DAYS)
+        token_result = db.execute(
+            delete(RefreshToken).where(
+                # Either revoked long ago, or expired long ago.
+                ((RefreshToken.revoked_at.is_not(None)) & (RefreshToken.revoked_at < token_cutoff))
+                | ((RefreshToken.revoked_at.is_(None)) & (RefreshToken.expires_at < token_cutoff))
+            )
+        )
+        tokens_pruned = token_result.rowcount or 0
+
+        if deleted or expired or unbanned or rotated or compacted or tokens_pruned:
             db.commit()
             log.info(
                 "worker tick: pruned %d dailies, expired %d raids, "
-                "auto-unbanned %d accounts, auto-rotated %d raids",
-                deleted, expired, unbanned, rotated,
+                "auto-unbanned %d accounts, auto-rotated %d raids, "
+                "compacted %d battle logs, pruned %d refresh tokens",
+                deleted, expired, unbanned, rotated, compacted, tokens_pruned,
             )
 
 
