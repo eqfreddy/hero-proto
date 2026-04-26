@@ -567,11 +567,29 @@
       // DamagePopup-style: scale up to 130%, scale back to 100%, fade out.
       // Crit variant ramps the font size + color (red instead of orange).
       // Lifecycle pattern lifted from CodeMonkey TurnBattleSystem DamagePopup.cs.
+      //
+      // Multi-hit specials (TBFAM's 4-hit, Cascading Outage's BURN ticks) used
+      // to spawn every number at the same x and stack on top of each other,
+      // unreadable. Fanning consecutive hits to the same target across a
+      // 4-position cycle (-27 / -9 / +9 / +27 px) so each number gets its own
+      // spot. Per-uid counter decays after 600ms so unrelated later hits start
+      // at the centre again.
       damageNumber(uid, amount, crit) {
         const s = this.state[uid]; if (!s) return;
+        const stagger = s._dmgNumberStagger || 0;
+        s._dmgNumberStagger = stagger + 1;
+        // Each number contributes one decay slot so the counter unwinds at
+        // the same rate it built up — sequence of 4 fast hits all clear
+        // within ~600ms after the last one fires.
+        this.time.delayedCall(600, () => {
+          s._dmgNumberStagger = Math.max(0, (s._dmgNumberStagger || 1) - 1);
+        });
+        const xOffsets = [-27, -9, 9, 27];
+        const xOff = xOffsets[stagger % xOffsets.length];
+        const startX = s.container.x + xOff;
         const baseSize = crit ? 32 : 24;
         const color = crit ? "#ff2b00" : "#ffc500";
-        const t = this.add.text(s.container.x, s.container.y - 30,
+        const t = this.add.text(startX, s.container.y - 30,
           (crit ? "✦" : "") + amount, {
             fontSize: `${baseSize}px`, color: color,
             fontStyle: "bold", stroke: "#000", strokeThickness: 4,
