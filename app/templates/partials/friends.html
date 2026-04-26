@@ -239,19 +239,97 @@
   // --- Add friend ---
   function _renderAddFriend() {
     document.getElementById('friends-content').innerHTML = `
-      <div class="card" style="padding: 18px; max-width: 420px;">
-        <h3 style="margin: 0 0 8px; font-size: 14px;">Send a friend request</h3>
-        <p class="muted" style="font-size: 12px; margin: 0 0 12px;">Search by the other player's email prefix (the part before the @). Case-insensitive.</p>
+      <div class="card" style="padding: 18px; max-width: 480px;">
+        <h3 style="margin: 0 0 8px; font-size: 14px;">Find a friend</h3>
+        <p class="muted" style="font-size: 12px; margin: 0 0 12px;">Type the start of someone's email — at least 2 characters. We'll show matches as you type.</p>
         <div class="row" style="gap: 6px;">
-          <input id="add-friend-input" type="text" placeholder="email prefix" style="flex: 1;" onkeydown="if(event.key==='Enter') sendFriendRequest()" />
-          <button class="primary" onclick="sendFriendRequest()">Send</button>
+          <input id="add-friend-input" type="text" placeholder="search email prefix…" style="flex: 1;" oninput="searchFriendsDebounced()" onkeydown="if(event.key==='Enter') searchFriends()" />
         </div>
+        <div id="friend-search-results" style="margin-top: 12px;"></div>
         <div id="add-friend-result" style="margin-top: 10px; font-size: 12px;"></div>
       </div>
     `;
     document.getElementById('add-friend-input').focus();
   }
 
+  // Debounced search: 220ms after typing stops we hit /friends/search.
+  let _friendSearchTimer = null;
+  function searchFriendsDebounced() {
+    clearTimeout(_friendSearchTimer);
+    _friendSearchTimer = setTimeout(searchFriends, 220);
+  }
+
+  async function searchFriends() {
+    const inp = document.getElementById('add-friend-input');
+    const out = document.getElementById('friend-search-results');
+    const q = (inp.value || '').trim();
+    if (q.length < 2) {
+      out.innerHTML = '<div class="muted" style="font-size: 11px;">Keep typing — at least 2 characters.</div>';
+      return;
+    }
+    out.innerHTML = '<div class="muted" style="font-size: 11px;">Searching…</div>';
+    try {
+      const r = await fetch(`/friends/search?q=${encodeURIComponent(q)}&limit=8`, { headers: _fheaders() });
+      if (!r.ok) {
+        out.innerHTML = `<div style="color: var(--bad); font-size: 12px;">Search failed: ${r.status}</div>`;
+        return;
+      }
+      const hits = await r.json();
+      if (!hits.length) {
+        out.innerHTML = `<div class="muted" style="font-size: 12px; padding: 10px; border: 1px dashed var(--border); border-radius: 4px;">No matches for "${escapeHtml(q)}". Make sure you have the right prefix.</div>`;
+        return;
+      }
+      out.innerHTML = hits.map(h => {
+        let actionHtml = '';
+        if (h.is_friend) {
+          actionHtml = `<span class="pill" style="color: var(--good); font-size: 10px;">✓ already friends</span>`;
+        } else if (h.has_pending_request) {
+          actionHtml = `<span class="pill" style="color: var(--muted); font-size: 10px;">⏳ request pending</span>`;
+        } else if (h.is_blocked) {
+          actionHtml = `<span class="pill bad" style="font-size: 10px;">blocked</span>`;
+        } else {
+          actionHtml = `<button class="primary" style="padding: 3px 10px; font-size: 11px;" onclick="sendFriendRequestById(${h.account_id}, '${escapeHtml(h.name).replace(/'/g, '&#39;')}')">+ Send</button>`;
+        }
+        return `
+          <div class="row" style="justify-content: space-between; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 4px;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px;">${escapeHtml(h.name)}</div>
+              <div class="muted" style="font-size: 10px;">id ${h.account_id}</div>
+            </div>
+            <div>${actionHtml}</div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      out.innerHTML = `<div style="color: var(--bad); font-size: 12px;">${e.message}</div>`;
+    }
+  }
+
+  async function sendFriendRequestById(accountId, name) {
+    const out = document.getElementById('add-friend-result');
+    out.innerHTML = '<span class="muted">Sending…</span>';
+    try {
+      const r = await fetch('/friends/request', {
+        method: 'POST',
+        headers: { ..._fheaders(), 'content-type': 'application/json' },
+        body: JSON.stringify({ account_id: accountId }),
+      });
+      const json = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        out.innerHTML = `<span style="color: var(--bad);">${json.detail || r.status}</span>`;
+        return;
+      }
+      out.innerHTML = `<span style="color: var(--good);">✓ Request sent to ${escapeHtml(name)}</span>`;
+      // Re-run the current search so the row updates to "request pending".
+      searchFriends();
+      if (window.sound) window.sound.play('success');
+    } catch (e) {
+      out.innerHTML = `<span style="color: var(--bad);">${e.message}</span>`;
+    }
+  }
+
+  // Backwards-compat — old "Send" button path still wired in case the
+  // user types an exact prefix and hits Enter without picking from the list.
   async function sendFriendRequest() {
     const inp = document.getElementById('add-friend-input');
     const out = document.getElementById('add-friend-result');

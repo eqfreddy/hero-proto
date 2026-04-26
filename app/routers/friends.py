@@ -201,6 +201,82 @@ def list_outgoing_requests(
     return [_friend_row(db, fr) for fr in rows]
 
 
+# --- Friend search (typo-tolerant lookup before sending a request) ---------
+#
+# Returns up to N candidates whose email local-part starts with the query.
+# Read-only, doesn't bump the friend-request rate limit, but capped to a
+# small result set so it can't be abused as a user-discovery firehose.
+
+class FriendSearchHit(BaseModel):
+    account_id: int
+    name: str
+    is_friend: bool
+    has_pending_request: bool
+    is_blocked: bool
+
+
+@router.get("/friends/search", response_model=list[FriendSearchHit])
+def search_friends(
+    q: str,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 5,
+) -> list[FriendSearchHit]:
+    """Find players by email-prefix substring. Returns up to `limit`
+    matches (max 10) annotated with the caller's relationship state so
+    the UI can surface "already friends" / "request pending" / "blocked"
+    inline instead of 409-ing on send.
+
+    Privacy notes:
+    - Only the email *prefix* (local-part) is returned, never the full
+      address.
+    - Self never appears in results.
+    - Banned accounts never appear (`is_banned` filter).
+    - The caller's blocked-by-other side never appears either — those
+      look like "user not found" everywhere else, so respect that here.
+    """
+    q = (q or "").strip().lower()
+    if not q or len(q) < 2:
+        return []
+    limit = max(1, min(10, int(limit)))
+
+    rows = db.scalars(
+        select(Account)
+        .where(
+            func.lower(Account.email).like(q + "%@%"),
+            Account.id != account.id,
+            Account.is_banned == False,  # noqa: E712 — SA-style filter
+        )
+        .limit(limit + 5)  # over-fetch to allow filtering blocks below
+    ).all()
+
+    out: list[FriendSearchHit] = []
+    for target in rows:
+        if _is_blocked(db, target.id, account.id):
+            continue  # other has blocked us → invisible
+        # Relationship hints for the UI.
+        is_friend = _both_friends(db, account.id, target.id)
+        pending = db.scalar(
+            select(Friendship).where(
+                Friendship.account_id == account.id,
+                Friendship.other_account_id == target.id,
+                Friendship.status == FriendshipStatus.PENDING,
+            )
+        ) is not None
+        blocked = _is_blocked(db, account.id, target.id)
+        prefix = target.email.split("@", 1)[0]
+        out.append(FriendSearchHit(
+            account_id=target.id,
+            name=prefix,
+            is_friend=is_friend,
+            has_pending_request=pending,
+            is_blocked=blocked,
+        ))
+        if len(out) >= limit:
+            break
+    return out
+
+
 @router.post("/friends/request", response_model=FriendOut, status_code=status.HTTP_201_CREATED)
 def send_friend_request(
     body: FriendRequestIn,

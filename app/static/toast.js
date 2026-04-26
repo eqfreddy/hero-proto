@@ -76,6 +76,25 @@
     return stack;
   }
 
+  // Bug #7 closeout — when a 4xx says "not enough X" (shards/gems/coins/
+  // energy/access cards), render the toast with a "Go to Shop" CTA so
+  // the player can jump straight to recharging without hunting for the
+  // tab. Returns null if the message doesn't look like a currency 409.
+  const _LOW_BALANCE_PATTERNS = [
+    { re: /\bnot enough (gems?)\b/i, label: '💎 Buy gems' },
+    { re: /\bnot enough (shards?|✦)\b/i, label: '✦ Buy shards' },
+    { re: /\bnot enough (coins?|🪙)\b/i, label: '🪙 Earn coins' },
+    { re: /\bnot enough (access[\s_]cards?|🎫)\b/i, label: '🎫 Buy access cards' },
+    { re: /\bnot enough (energy|⚡)\b/i, label: '⚡ Refill energy' },
+  ];
+  function _detectLowBalance(msg) {
+    const text = String(msg || '');
+    for (const { re, label } of _LOW_BALANCE_PATTERNS) {
+      if (re.test(text)) return { label, isEnergy: /energy/i.test(text) };
+    }
+    return null;
+  }
+
   function show(msg, kind, opts) {
     if (!msg) return;
     ensureStyle();
@@ -83,11 +102,37 @@
     const k = ['error', 'success', 'info'].includes(kind) ? kind : 'info';
     const node = document.createElement('div');
     node.className = `toast ${k}`;
-    node.textContent = String(msg);
+    const text = String(msg);
+
+    // Bug #7 — if this is a currency-related error, attach a Shop CTA.
+    const lowBal = (k === 'error' && (!opts || opts.cta !== false)) ? _detectLowBalance(text) : null;
+    if (lowBal) {
+      node.textContent = '';
+      const msgSpan = document.createElement('div');
+      msgSpan.textContent = text;
+      const cta = document.createElement('button');
+      cta.textContent = lowBal.label;
+      cta.style.cssText = 'margin-top: 8px; background: rgba(255,255,255,0.95); color: #2a6dc7; border: none; padding: 4px 10px; border-radius: 4px; font: 600 11px/1 system-ui; cursor: pointer; display: block;';
+      cta.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Energy refill lives on /me; everything else is the Shop tab.
+        const sel = lowBal.isEnergy ? '[data-tab="me"]' : '[data-tab="shop"]';
+        const tab = document.querySelector(sel);
+        if (tab) tab.click();
+        node.click();  // dismiss the toast
+      });
+      node.appendChild(msgSpan);
+      node.appendChild(cta);
+    } else {
+      node.textContent = text;
+    }
+
     // Errors linger 5s — failures need a second look. info/success default 3.5s.
-    const ttl = (opts && Number.isFinite(opts.ttlMs)) ? opts.ttlMs : (k === 'error' ? 5000 : 3500);
+    // Low-balance toasts get an extra second so the CTA is reachable.
+    const ttl = (opts && Number.isFinite(opts.ttlMs))
+      ? opts.ttlMs
+      : (k === 'error' ? (lowBal ? 7000 : 5000) : 3500);
     stack.appendChild(node);
-    // Animate in on next frame so the transition fires.
     requestAnimationFrame(() => node.classList.add('show'));
     let dismissed = false;
     const dismiss = () => {

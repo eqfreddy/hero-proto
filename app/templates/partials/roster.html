@@ -268,12 +268,15 @@
     overlay.style.display = 'flex';
 
     try {
-      const [heroes, sellPreview, upgradePreview] = await Promise.all([
+      const [heroes, sellPreview, upgradePreview, gear] = await Promise.all([
         fetch('/heroes/mine', { headers: { authorization: 'Bearer ' + token } }).then(r => r.json()),
         fetch(`/heroes/${Number(instanceId)}/sell-preview`, { headers: { authorization: 'Bearer ' + token } }).then(r => r.ok ? r.json() : null),
         // Phase 2.1 — real next-upgrade preview from the backend. Falls back
         // to null if the request fails so the sheet still renders.
         fetch(`/heroes/${Number(instanceId)}/preview`, { headers: { authorization: 'Bearer ' + token } }).then(r => r.ok ? r.json() : null),
+        // Equipped gear — fetch once + filter client-side. /gear/mine is paged
+        // with limit=500 default which is fine for any realistic roster.
+        fetch('/gear/mine?limit=1000', { headers: { authorization: 'Bearer ' + token } }).then(r => r.ok ? r.json() : []),
       ]);
       const hero = heroes.find(h => h.id === Number(instanceId));
       if (!hero) {
@@ -360,6 +363,59 @@
               </div>` : ''}
           </div>
         </div>
+
+        ${(() => {
+          // Equipped gear panel — 6 slots (WEAPON / HELMET / ARMOR / BOOTS / RING / AMULET).
+          // Filter the player's full gear list to what's pinned to this hero.
+          const equipped = (gear || []).filter(g => g.equipped_on === hero.id);
+          if (!equipped.length && !hero.equipped_gear_ids?.length) {
+            return `
+              <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
+                <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Equipped gear</div>
+                <div class="muted" style="font-size: 12px; margin-top: 6px; padding: 12px; border: 1px dashed var(--border); border-radius: 6px;">
+                  No gear equipped. Win battles or sweep cleared stages to drop gear.
+                </div>
+              </div>`;
+          }
+          const gearRarityColor = {
+            COMMON: '#9ca7b3', RARE: 'var(--accent)',
+            EPIC: '#c97aff', LEGENDARY: 'var(--r-legendary)',
+          };
+          // Show a fixed 6-slot grid; missing slots render as empty placeholders
+          // so the player sees the shape of what's still uncovered.
+          const SLOT_ORDER = ['WEAPON', 'HELMET', 'ARMOR', 'BOOTS', 'RING', 'AMULET'];
+          const SLOT_ICON = { WEAPON: '⚔', HELMET: '⛑', ARMOR: '🛡', BOOTS: '🥾', RING: '💍', AMULET: '📿' };
+          const bySlot = Object.fromEntries(equipped.map(g => [g.slot, g]));
+          const cells = SLOT_ORDER.map(slot => {
+            const g = bySlot[slot];
+            if (!g) {
+              return `
+                <div style="padding: 8px; border: 1px dashed var(--border); border-radius: 5px; opacity: 0.4; min-height: 60px;">
+                  <div style="font-size: 16px; text-align: center; opacity: 0.5;">${SLOT_ICON[slot]}</div>
+                  <div class="muted" style="font-size: 10px; text-align: center; margin-top: 2px;">${slot}</div>
+                </div>`;
+            }
+            const c = gearRarityColor[String(g.rarity)] || 'var(--muted)';
+            const statBits = Object.entries(g.stats || {}).map(([k, v]) =>
+              `<span style="margin-right: 6px;"><span class="muted">${k.toUpperCase()}</span> +${v}</span>`).join('');
+            return `
+              <div style="padding: 8px 10px; border: 1px solid ${c}; border-radius: 5px; background: rgba(0,0,0,0.25); min-height: 60px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                  <span style="font-size: 12px; font-weight: 700;">${SLOT_ICON[slot]} ${slot}</span>
+                  <span style="font-size: 9px; font-weight: 700; color: ${c}; text-transform: uppercase;">${g.rarity}</span>
+                </div>
+                <div style="font-size: 10px; color: var(--muted); margin-top: 3px;">${g.set ? '⚜ ' + g.set.toLowerCase() : ''}</div>
+                <div style="font-size: 11px; margin-top: 4px;">${statBits || '<span class="muted">no stats</span>'}</div>
+              </div>`;
+          }).join('');
+          return `
+            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
+              <div class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Equipped gear (${equipped.length} / ${SLOT_ORDER.length})</div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px;">
+                ${cells}
+              </div>
+            </div>`;
+        })()}
 
         <!-- Action panel: ascend / skill-up / sell. -->
         <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);">

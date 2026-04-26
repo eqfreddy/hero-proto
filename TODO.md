@@ -2,34 +2,35 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-04-24 (post Phase 1 close-out).
+Last updated: 2026-04-26 (post Phase 2 + autonomous polish run).
 
 ---
 
 ## 📊 Where we're at
 
-- **Backend:** 22 backend slices + admin polish + auth hardening + observability + payments + art wiring. `master` @ `5426eb7`, tree clean.
-- **Auth:** refresh-token rotation w/ reuse detection, password reset, email verification, TOTP 2FA + recovery codes — all green in walkthrough.
-- **Payments:** Stripe Checkout + webhooks wired; mock-payments mode for dev. Shop purchase round-trip passes.
-- **Observability:** Prometheus `/metrics`, JSON logs, request IDs, Sentry (DSN-gated), worker supervisor w/ health telemetry.
-- **Infra:** Redis-backed rate limiter (horizontal-scale ready). CI matrix runs on SQLite + Postgres per push.
-- **Tests:** `pytest` green. Two automated acceptance scripts wrap everything:
-  - `scripts/startup_check.py` — admin/operator health check (7 OK today)
-  - `scripts/client_walkthrough.py` — 13-section end-to-end feature tour (all green today)
-- **Docs:** `README.md`, `docs/RUNBOOK.md`, `docs/STARTUP_AND_TESTING.md`, `docs/ART_NEEDS.md` all current.
-- **Frontend:** vanilla-JS shell at `/app` with integrated design-handoff battle UI + roster codex + Phaser replay. Functional but not a real SPA.
-- **Art:** 50/51 SVGs patched to render standalone (designer tokens + heuristic class styles). One designer-styled file left alone.
+- **Phases shipped:** Phase 1 ✅, Phase 2 (2.1–2.6) ✅, Phase 2 review fixes ✅, Phase 2 polish + Phase 3.1/3.2 starters ✅. Plan B (DragonBones battle visuals) **greenlit + scaffolded** — registry + Pixi prototype viewer + event-mapping spec all live; awaiting Moho-rendered rigs from the user to drop in.
+- **Backend:** Combat resolver w/ 8 statuses + faction synergy + hail-mary + BOSS_PHASE + variance + attack-channel split. Refresh-token rotation w/ reuse + fingerprint anomaly detection. Stripe + Apple StoreKit + Google Play Billing adapters. Per-day rate limits on friends/DMs.
+- **Frontend:** vanilla-JS shell at `/app` with HTMX partials. Currency banner header, in-app overlay viewer (kills `target="_blank"` for internal pages), portrait-based team picker w/ preset CRUD, cosmetic frame equip flow, achievement progress bars, stage power-vs-recommended, daily-tab consolidation, resizable panel prototype, tutorial-hint tooltips, equipped-gear panel in hero detail sheet, debounced friend search. Toast helper auto-detects "not enough X" errors and shows a Shop CTA inline.
+- **Observability:** Prometheus `/metrics`, JSON logs, request IDs, Sentry (DSN-gated), worker supervisor + 9 alerts in RUNBOOK + 11-row PromQL cookbook + 7-row Grafana layout.
+- **Infra:** Redis-backed rate limiter (horizontal-scale ready). CI matrix on SQLite + Postgres per push.
+- **Tests:** **568 passed / 4 skipped (RNG flakes, all pre-existing).** `pytest` green. Acceptance scripts:
+  - `scripts/startup_check.py` — admin/operator health check
+  - `scripts/client_walkthrough.py` — 17-section feature tour (was 13; +4 Phase 2 surfaces)
+  - `tests/test_phase1_acceptance.py`, `tests/test_phase2_acceptance.py` — bright-line e2e
+- **Docs:** `README.md`, `docs/RUNBOOK.md`, `docs/PRD.md`, `docs/PHASE_2_HUMAN_TEST.md`, `docs/PLAN_B_INTEGRATION.md`, `docs/BATTLE_RIG_EVENT_MAPPING.md`, `docs/BATTLE_VISUALS_STACK.md` all current.
+- **Art:** 33 trading-card portraits + 33 auto-cropped busts in `/app/static/heroes/`. Cluster-of-fuckery stick-figure animation pipeline available outside repo. DragonBones Mecha 1004B sample lives in repo as Plan B feasibility demo.
 
-### Verified green today (2026-04-24)
+### Verified green today (2026-04-26)
 
-- Server starts, worker ticks, migrations + seed idempotent.
-- `startup_check` — 7 OK, 2 optional warns (admin creds + Stripe probe both gated on env vars).
-- `client_walkthrough` — auth / daily bonus / gacha / combat / energy refill / arena / daily quests / guilds / raids / shop / password reset / email verify / 2FA.
+- Suite: 568 passed, 4 skipped.
+- 2026-04-26 human-test: 7 of 8 caught bugs fixed (only #6 portrait-picker partial — major UX overhaul shipped). Bug tracker: `docs/PHASE_2_HUMAN_TEST.md`.
+- DragonBones demo confirmed working in user's environment ("this is what we need" — Plan B greenlit).
 
 ### Known papercuts still open
 
-- **Postgres compose-stack smoke is runnable but unrun.** `scripts/postgres_stack_validate.sh` brings up the stack and runs both acceptance scripts against it, but needs Docker Desktop up — once someone runs it green it's a trust-but-verify step before calling Postgres "done."
-- **Frontend is a bare shell.** Works for smoke-testing; not shippable to real users.
+- **Postgres compose-stack smoke is runnable but unrun.** Trust-but-verify before calling Postgres "done."
+- **Production rigs** — DragonBones Mecha is the Plan B placeholder until ATK/DEF/SUP rigs ship from Moho or the DragonBones editor.
+- **Frontend is still a vanilla-JS shell.** Functional and polished, but not a real SPA. Capacitor-friendly (no `target="_blank"` left for internal pages).
 
 ---
 
@@ -157,12 +158,12 @@ Medium-sized but the highest-leverage UX work right now. See Product Direction s
 
 ### G. Combat depth (from play-testing)
 Design-first sprint — probably 2-3 iterations before it's good. Reference games listed in Product Direction.
-- [ ] Melee / ranged attack split (extend `basic_mult` model → `melee_mult` + `ranged_mult`)
+- [x] Melee / ranged attack split — Phase 3.1 starter shipped: `HeroTemplate.attack_kind` ('melee'|'ranged'), threaded through `build_unit`, basic-attack DAMAGE log entries echo `channel`. Migration `f019b3d4ab7e`. Replay viewer wiring (different render per channel) still pending.
 - [ ] Mana or spell-point resource for ranged/magic heroes
-- [x] Hail-mary ability at ≤5% HP — `_maybe_hail_mary` end-of-turn check, role-flavored (ATK 'Last Stand' 3× burst / DEF 'Hold The Line' AOE+stun / SUP "You're Welcome" AOE_HEAL+ATK_UP). One-shot per battle. New `HAIL_MARY` event type rendered with gold flash + camera shake + named banner. Per-faction overrides hookable via template `hail_mary` field later.
-- [ ] Player control during battle (target selection / turn pause)
-- [ ] Animated actor layer for battle viewer (stick figures → real art)
-- [ ] Auto-battle as a paid QoL unlock, not the default
+- [x] Hail-mary ability at ≤5% HP — role-flavored, one-shot per battle.
+- [ ] Player control during battle (target selection / turn pause) — Phase 3.2 work; `POST /battles/preview` shipped as a starter (5-sim outcome estimate before committing energy).
+- [x] Animated actor layer for battle viewer — **Plan B greenlit 2026-04-26**. DragonBones runtime + sample armature + registry + Pixi prototype viewer all scaffolded. Awaiting Moho-rendered ATK/DEF/SUP rigs from the user. Drop instructions in `docs/BATTLE_RIG_EVENT_MAPPING.md`.
+- [x] Auto-battle as a paid QoL unlock — `qol_auto_battle` SKU + `auto_battle` flag in qol_unlocks_json + `auto: true` flag on POST /battles + `auto_resolved` echo + skip-watch UI.
 
 **Monetization tone lock:** PoE2-style — cosmetics + QoL. No stat-boosting shop items, no gacha whales fast-tracking power. Stripe pipeline stays; only the SKU catalog changes.
 
@@ -602,6 +603,41 @@ Code-review pass against e2d2ff5; landed fixes:
 - `scripts/startup_check.py` — admin-side health check
 - `scripts/client_walkthrough.py` — 13-section client feature tour
 - `docs/STARTUP_AND_TESTING.md` — operator runbook
+
+**Phase 2 review fixes (2026-04-26)**
+- Myth-tier event banner: `LiveOpsKind.EVENT_BANNER` + `POST /summon/event-banner` (per-account cap, active-window gating). Mother's Day Applecrumb banner now reachable.
+- Story chapter-end rewards: `maybe_grant_chapter_reward()` wired into /battles, idempotent via story_state_json, gem rewards scaled per chapter.
+- `tests/test_phase2_acceptance.py` — full PRD § 7 acceptance flow.
+
+**Phase 2 polish + Phase 3.1/3.2 starters (2026-04-26)**
+- **Bug-fix batch from human-test (`docs/PHASE_2_HUMAN_TEST.md` #1-#8):**
+  - #1/#4 cross-account session leak — centralized `heroSetAuthSession`/`heroClearAuthSession` helpers in `base.html` wipe per-account `localStorage` and clear `#content` on every login/register/logout/401. Wired through login.html, account.html (revoke-all), welcome.html, reset_password.html, static/index.html.
+  - #2 summon recent-pulls stale — `summonFromTab` inline-prepends to `#summon-recent-grid`; full tab refresh shortened from 1200ms → 600ms.
+  - #3 sweep 422 + `[object Object]` — `SweepIn.team` now optional with fallback to last winning team; new `toast.formatErrorBody()` + `toast.fromError()` pretty-print Pydantic 422 lists.
+  - #5 post-mortem polish — battle result shows bust portraits + name + level + currency reward tally + chapter-complete callout. Roster "You have 0" dupe count goes 13px bold red when 0, green when ≥ required.
+  - #8 toast position moved from `bottom: 28px` to `top: 64px` so it lands in the natural reading focus zone.
+  - **#6 portrait team picker** (`app/static/team-picker.js`) — full modal: portrait grid, side-mirrored selection slots, ATK/DEF/SUP filter chips, "🕘 Use last team" button, "💾 Save as preset" prompt, preset CRUD inline (Load / Rename / Overwrite / Delete). Replaces comma-separated ID input on Stages.
+- **QoL catalog wired** (Phase 2.4 made functional):
+  - `extra_team_presets` doubles cap 5→10
+  - `auto_battle` echoes `auto_resolved` on /battles + skip-watch UI
+  - `quick_summon` instant tab refresh
+  - `roster_sort_advanced` adds Power/Level/Stars/Dupes/Name sort + faction filter chips
+  - `cosmetic_frames` equippable via `POST /me/cosmetic-frame` + roster CSS overrides
+- **Surfaces:** Currency banner header (always-visible totals + click-to-shop CTAs), 🦴 in-app overlay viewer (kills `target="_blank"` for internal pages), Resizable content panel prototype with localStorage-persisted width, Tutorial-hint tooltip overlay points at the relevant top-nav tab based on active `next_step`, Equipped-gear panel in hero detail sheet (6 slots, rarity-bordered), Variance pills (🔥/❄️) on roster grid cards, Daily tab consolidation (claimable summary banner + 2-up grid + Pull/Fight CTAs), Stage card team-power-vs-recommended comparison (✓/~/!).
+- **Phase 3.1 attack-channel split** — `HeroTemplate.attack_kind` ('melee' | 'ranged') threaded through `build_unit` + log entries echo `channel`. Migration `f019b3d4ab7e`.
+- **Phase 3.2 battle preview** — `POST /battles/preview` runs 5 sims, returns expected_outcome / win_probability / power_gap / notes; Stages tab "🔮 Preview" button + inline result panel.
+- **Hardcore achievements teaser** — 8 long-tail goals locked-but-visible; `/achievements` response gets a `hardcore` block.
+- **Achievement progress bars** — 11 catalog entries opt into a `progress` getter; UI renders inline fill bars.
+- **Friends anti-spam** — per-day caps (50 friend requests, 300 DMs) layered on top of per-minute; DM body cap raised to 1500 chars.
+- **Friends search UX** — debounced `GET /friends/search` returns up to 10 candidates annotated with relationship state (friend / pending / blocked). 6 tests.
+- **Bug #7 closeout** — `toast.show` auto-detects "not enough X" patterns and renders a Shop CTA in the toast itself.
+- **DragonBones Plan B greenlit + scaffolded:**
+  - `/app/static/dragonbones-demo/` — Pixi 4.6 + DragonBones 5.7 runtime + Mecha 1004B sample. User confirmed visuals match the polish bar.
+  - `app/static/battle-rigs/registry.json` — 37 units pre-mapped to placeholder mecha rig with head-texture paths.
+  - `app/static/battle-pixi.html` — prototype replay viewer reading any battle id, walking the combat log → animations.
+  - `docs/PLAN_B_INTEGRATION.md` — open architectural decisions (engine path, rig source, rig shape, asset pipeline).
+  - `docs/BATTLE_RIG_EVENT_MAPPING.md` — production-rig contract (required animations, skin slots, event→animation route table).
+- Suite at 568 passed, 4 skipped (RNG flakes, all pre-existing).
 
 </details>
 

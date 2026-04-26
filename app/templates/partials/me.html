@@ -1,3 +1,9 @@
+<script>
+  // Surface the active next-step (or null) for the shell-level
+  // tutorial-hints overlay. Read on every /me partial swap so the
+  // tooltip updates as the player progresses.
+  window.heroNextStep = {% if next_step %}{ key: {{ next_step.key | tojson }} }{% else %}null{% endif %};
+</script>
 <div class="stack">
   {% if next_step %}
   <div class="card" style="background: linear-gradient(135deg, rgba(78,161,255,0.12), rgba(78,161,255,0.02)); border-left: 3px solid var(--accent);">
