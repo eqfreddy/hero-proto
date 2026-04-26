@@ -28,7 +28,7 @@ def _get_redis_client():
     return _redis_client
 
 
-def _make_bucket(limit_per_minute: int, namespace: str) -> RateBucket:
+def _make_bucket(limit: int, namespace: str, *, window_seconds: int = 60) -> RateBucket:
     """Build a per-action bucket honouring settings.rate_limit_backend.
 
     Memory backend is per-process; under horizontal scale each replica has
@@ -36,10 +36,13 @@ def _make_bucket(limit_per_minute: int, namespace: str) -> RateBucket:
     shares state across replicas — required for per-IP gates (the new
     guild-chat one) and recommended for per-account gates whenever > 1 worker
     is running.
+
+    `window_seconds` defaults to 60 so existing per-minute buckets keep their
+    semantics. Pass 86400 for a per-day bucket (Phase 2 anti-spam follow-up).
     """
     if settings.rate_limit_backend == "redis":
-        return RedisTokenBucket(_get_redis_client(), limit_per_minute, namespace=namespace)
-    return TokenBucket(limit_per_minute)
+        return RedisTokenBucket(_get_redis_client(), limit, namespace=namespace, window_seconds=window_seconds)
+    return TokenBucket(limit, window_seconds=window_seconds)
 
 
 # Per-action rate buckets, separate from the per-IP middleware buckets. Use the
@@ -50,6 +53,14 @@ _guild_msg_bucket = _make_bucket(settings.guild_message_per_minute_per_account, 
 _friend_request_bucket = _make_bucket(settings.friend_request_per_minute_per_account, "friend-req")
 _direct_message_bucket = _make_bucket(settings.direct_message_per_minute_per_account, "dm")
 _data_export_bucket = _make_bucket(settings.data_export_per_minute_per_account, "data-export")
+# Daily caps that catch slow-burn spammers the per-minute gates miss.
+# Window is 24h; reset is rolling, not midnight-aligned.
+_friend_request_daily_bucket = _make_bucket(
+    settings.friend_request_per_day_per_account, "friend-req-d", window_seconds=86400,
+)
+_direct_message_daily_bucket = _make_bucket(
+    settings.direct_message_per_day_per_account, "dm-d", window_seconds=86400,
+)
 # Per-IP layer that sits *underneath* per-account buckets. Used by guild chat
 # to defend against rotating-account-on-one-IP spam. MUST be Redis-backed in
 # horizontal-scale deploys — a per-IP gate that lives only inside one replica
@@ -183,10 +194,14 @@ def enforce_data_export_rate_limit(
 def enforce_friend_request_rate_limit(
     account: Annotated[Account, Depends(get_current_account)],
 ) -> Account:
-    return _enforce_account_bucket(account, _friend_request_bucket, "friend request")
+    # Two-layer gate: per-minute burst + per-day total. Both must pass.
+    # Per-day catches slow-burn spammers the per-minute window misses.
+    _enforce_account_bucket(account, _friend_request_bucket, "friend request")
+    return _enforce_account_bucket(account, _friend_request_daily_bucket, "friend request (daily)")
 
 
 def enforce_direct_message_rate_limit(
     account: Annotated[Account, Depends(get_current_account)],
 ) -> Account:
-    return _enforce_account_bucket(account, _direct_message_bucket, "direct message")
+    _enforce_account_bucket(account, _direct_message_bucket, "direct message")
+    return _enforce_account_bucket(account, _direct_message_daily_bucket, "direct message (daily)")

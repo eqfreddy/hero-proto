@@ -56,9 +56,15 @@ class Settings(BaseSettings):
     # offices, dorms) exist.
     guild_message_per_minute_per_ip: int = 90
     # Per-account caps on friend system + DMs to slow abuse without
-    # frustrating real users.
+    # frustrating real users. Daily caps catch slow-burn spammers that
+    # the per-minute bucket misses.
     friend_request_per_minute_per_account: int = 10
+    friend_request_per_day_per_account: int = 50
     direct_message_per_minute_per_account: int = 30
+    direct_message_per_day_per_account: int = 300
+    # Max DM message length (chars). Anything past this is rejected
+    # 422; normal users never hit it, spammers hit it on every paste.
+    direct_message_max_length: int = 1500
     # GDPR data export is expensive (multi-table query, ~10MB JSON). Cap hard:
     # legitimate users want this once a year, never repeatedly.
     data_export_per_minute_per_account: int = 1

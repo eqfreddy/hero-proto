@@ -184,9 +184,11 @@
         }
       }
 
-      // Full tab refresh on a shorter delay so pity/shards/variance
-      // metadata syncs fast (bug #2: was 1200ms, felt stuck).
-      setTimeout(() => htmx.ajax('GET', '/app/partials/summon', '#content'), 600);
+      // Full tab refresh — owners of `quick_summon` skip the visual
+      // beat entirely (instant refresh), everyone else gets a 600ms
+      // settle so the rarity sound finishes its cue.
+      const _quickSummon = {{ 'true' if has_quick_summon else 'false' }};
+      setTimeout(() => htmx.ajax('GET', '/app/partials/summon', '#content'), _quickSummon ? 0 : 600);
     } catch (e) {
       out.innerHTML = `<div style="color: var(--bad); padding: 10px;">${e.message}</div>`;
     } finally {

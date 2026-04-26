@@ -130,3 +130,40 @@ def test_battle_default_auto_resolved_false(client) -> None:
     )
     assert r.status_code == 201, r.text
     assert r.json()["auto_resolved"] is False, r.json()
+
+
+# --- roster_sort_advanced + quick_summon ---------------------------------
+
+
+def test_roster_sort_chips_hidden_without_unlock(client) -> None:
+    hdr, _ = _register(client)
+    r = client.get("/app/partials/roster", headers=hdr)
+    assert r.status_code == 200
+    # The `<div id="roster-sort-bar">` markup itself is the visible chip
+    # bar. Reference to the id from the inline JS is ok (it's a no-op
+    # when the element doesn't exist).
+    assert 'id="roster-sort-bar"' not in r.text
+
+
+def test_roster_sort_chips_visible_with_unlock(client) -> None:
+    hdr, aid = _register(client)
+    _grant_unlock(aid, "roster_sort_advanced")
+    r = client.get("/app/partials/roster", headers=hdr)
+    assert r.status_code == 200
+    assert 'id="roster-sort-bar"' in r.text
+    # Sort + faction chips render.
+    assert 'data-sort="power-desc"' in r.text
+    assert 'data-faction="EXILE"' in r.text
+
+
+def test_summon_partial_threads_quick_summon_flag(client) -> None:
+    hdr, aid = _register(client)
+    r1 = client.get("/app/partials/summon", headers=hdr)
+    assert r1.status_code == 200
+    # Without the unlock, the JS branch reads `false`.
+    assert "_quickSummon = false" in r1.text
+
+    _grant_unlock(aid, "quick_summon")
+    r2 = client.get("/app/partials/summon", headers=hdr)
+    assert r2.status_code == 200
+    assert "_quickSummon = true" in r2.text

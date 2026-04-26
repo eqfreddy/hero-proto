@@ -88,7 +88,11 @@ class ThreadPreviewOut(BaseModel):
 
 
 class DMSendIn(BaseModel):
-    body: str = Field(min_length=1, max_length=1000)
+    # Cap synced with settings.direct_message_max_length so the spam
+    # rate-limit and the message-length gate both ratchet the same lever.
+    # Pydantic validates client-side errors at 422; the rate-limit gate
+    # also reads this cap server-side as a defence in depth.
+    body: str = Field(min_length=1, max_length=1500)
 
 
 class DMReportIn(BaseModel):

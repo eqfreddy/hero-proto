@@ -20,12 +20,32 @@
     {% endfor %}
   </div>
 
+  {% if has_advanced_sort %}
+  <!-- Phase 2.4 QoL — roster_sort_advanced unlock surfaces sort/filter chips. -->
+  <div class="row" id="roster-sort-bar" style="gap: 6px; flex-wrap: wrap; align-items: center; font-size: 11px;">
+    <span class="muted">Sort:</span>
+    <button class="sort-chip active" data-sort="power-desc" style="padding: 3px 8px; border-radius: 12px; background: var(--accent); border: 1px solid var(--accent); color: var(--bg); cursor: pointer; font-weight: 600;">Power ↓</button>
+    <button class="sort-chip" data-sort="level-desc" style="padding: 3px 8px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); cursor: pointer;">Level ↓</button>
+    <button class="sort-chip" data-sort="stars-desc" style="padding: 3px 8px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); cursor: pointer;">Stars ↓</button>
+    <button class="sort-chip" data-sort="dupes-desc" style="padding: 3px 8px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); cursor: pointer;">Dupes ↓</button>
+    <button class="sort-chip" data-sort="name-asc" style="padding: 3px 8px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); cursor: pointer;">Name A-Z</button>
+    <span class="muted" style="margin-left: 12px;">Faction:</span>
+    <button class="faction-chip active" data-faction="all" style="padding: 3px 8px; border-radius: 12px; background: var(--accent); border: 1px solid var(--accent); color: var(--bg); cursor: pointer; font-weight: 600;">All</button>
+    {% for f in ['HELPDESK', 'DEVOPS', 'EXECUTIVE', 'ROGUE_IT', 'LEGACY', 'EXILE'] %}
+      <button class="faction-chip" data-faction="{{ f }}" style="padding: 3px 8px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); color: var(--faction-{{ f | lower | replace('_', '-') }}, var(--muted)); cursor: pointer;">{{ f | capitalize | replace('_', ' ') }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- Grid. The {{ active_frame }} class lets us swap the card border
        palette per equipped cosmetic frame (Phase 2.4). Vanilla rarity
        border is the no-frame fallback. -->
   <div id="roster-grid" class="{% if active_frame %}has-frame frame-{{ active_frame }}{% endif %}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;">
     {% for h in heroes %}
-    <div class="hero-card" data-rarity="{{ h.rarity }}" data-code="{{ h.code }}" data-id="{{ h.id }}" style="
+    <div class="hero-card" data-rarity="{{ h.rarity }}" data-code="{{ h.code }}" data-id="{{ h.id }}"
+         data-power="{{ h.power }}" data-level="{{ h.level }}" data-stars="{{ h.stars }}"
+         data-dupes="{{ h.dupe_count }}" data-name="{{ h.name }}" data-faction="{{ h.faction }}"
+         style="
       cursor: pointer;
       border-radius: 8px;
       border: 2px solid var(--r-{{ h.rarity | lower }});
@@ -150,6 +170,86 @@
     grid.querySelectorAll('.hero-card').forEach(card => {
       card.addEventListener('click', () => openHeroDetail(card.dataset.id, card.dataset.code));
     });
+
+    // Phase 2.4 QoL — roster_sort_advanced sort + faction filter chips.
+    // Hidden if the unlock isn't owned (the chip bar isn't rendered at
+    // all server-side); this script only runs when the bar exists.
+    const sortBar = document.getElementById('roster-sort-bar');
+    if (sortBar) {
+      let activeSort = 'power-desc';
+      let activeFaction = 'all';
+
+      function applySortAndFilter() {
+        const cards = Array.from(grid.querySelectorAll('.hero-card'));
+        const visibleByFaction = c => activeFaction === 'all' || c.dataset.faction === activeFaction;
+        const rarityTab = document.querySelector('.rarity-tab.active');
+        const wantedRarity = rarityTab ? rarityTab.dataset.rarity : 'all';
+        const visibleByRarity = c => wantedRarity === 'all' || c.dataset.rarity === wantedRarity;
+
+        // Sort: read the active chip + key + direction.
+        const [field, dir] = activeSort.split('-');
+        const key = card => {
+          if (field === 'power') return Number(card.dataset.power || 0);
+          if (field === 'level') return Number(card.dataset.level || 0);
+          if (field === 'stars') return Number(card.dataset.stars || 0);
+          if (field === 'dupes') return Number(card.dataset.dupes || 0);
+          if (field === 'name') return (card.dataset.name || '').toLowerCase();
+          return 0;
+        };
+        cards.sort((a, b) => {
+          const ka = key(a), kb = key(b);
+          if (ka < kb) return dir === 'asc' ? -1 : 1;
+          if (ka > kb) return dir === 'asc' ? 1 : -1;
+          return 0;
+        });
+        let visible = 0;
+        for (const c of cards) {
+          const show = visibleByFaction(c) && visibleByRarity(c);
+          c.style.display = show ? '' : 'none';
+          if (show) visible++;
+          grid.appendChild(c);
+        }
+        const countEl = document.getElementById('roster-count');
+        if (countEl) countEl.textContent = visible;
+      }
+
+      sortBar.querySelectorAll('.sort-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          sortBar.querySelectorAll('.sort-chip').forEach(c => {
+            c.classList.remove('active');
+            c.style.background = 'var(--panel-2)';
+            c.style.borderColor = 'var(--border)';
+            c.style.color = 'var(--text)';
+            c.style.fontWeight = '';
+          });
+          chip.classList.add('active');
+          chip.style.background = 'var(--accent)';
+          chip.style.borderColor = 'var(--accent)';
+          chip.style.color = 'var(--bg)';
+          chip.style.fontWeight = '600';
+          activeSort = chip.dataset.sort;
+          applySortAndFilter();
+        });
+      });
+      sortBar.querySelectorAll('.faction-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          sortBar.querySelectorAll('.faction-chip').forEach(c => {
+            c.classList.remove('active');
+            c.style.background = 'var(--panel-2)';
+            c.style.borderColor = 'var(--border)';
+            c.style.fontWeight = '';
+          });
+          chip.classList.add('active');
+          chip.style.background = 'var(--accent)';
+          chip.style.borderColor = 'var(--accent)';
+          chip.style.fontWeight = '600';
+          activeFaction = chip.dataset.faction;
+          applySortAndFilter();
+        });
+      });
+      // Re-apply when rarity tab changes.
+      tabs.forEach(t => t.addEventListener('click', () => setTimeout(applySortAndFilter, 0)));
+    }
   })();
 
   async function openHeroDetail(instanceId, code) {

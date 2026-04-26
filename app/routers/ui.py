@@ -461,6 +461,13 @@ def partial_summon(
         starter_eligible = (not already_purchased) and still_in_window
         starter_expires_at = seven_day_window
 
+    # QoL: quick_summon collapses the post-pull animation/refresh delay.
+    import json as _json_su
+    try:
+        _qol = _json_su.loads(account.qol_unlocks_json or "{}")
+        has_quick_summon = isinstance(_qol, dict) and "quick_summon" in _qol
+    except _json_su.JSONDecodeError:
+        has_quick_summon = False
     return templates.TemplateResponse(
         request, "partials/summon.html",
         {
@@ -472,6 +479,7 @@ def partial_summon(
             "starter_product": starter_product,
             "starter_eligible": starter_eligible,
             "starter_expires_at": starter_expires_at,
+            "has_quick_summon": has_quick_summon,
         },
     )
 
@@ -533,11 +541,19 @@ def partial_roster(
     # vanilla rarity-colored borders. Frame codes map 1:1 to CSS classes
     # in the partial: `frame-frame_neon_cubicle` etc.
     active_frame = (account.active_cosmetic_frame or "").strip()
+    # QoL: roster_sort_advanced unlocks extra sort/filter chips.
+    import json as _json_ru
+    try:
+        _qol = _json_ru.loads(account.qol_unlocks_json or "{}")
+        has_advanced_sort = isinstance(_qol, dict) and "roster_sort_advanced" in _qol
+    except _json_ru.JSONDecodeError:
+        has_advanced_sort = False
     return templates.TemplateResponse(
         request, "partials/roster.html",
         {
             "heroes": grouped, "total": len(rows),
             "active_frame": active_frame,
+            "has_advanced_sort": has_advanced_sort,
         },
     )
 

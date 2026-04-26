@@ -35,9 +35,15 @@ class TokenBucket:
     small instances, breaks under horizontal scaling (each replica has its
     own counter — the effective limit is N × configured)."""
 
-    def __init__(self, limit_per_minute: int) -> None:
+    def __init__(self, limit_per_minute: int, *, window_seconds: int = _WINDOW_SECONDS) -> None:
+        # Phase 2 follow-up: window_seconds defaults to 60 so all existing
+        # callsites stay per-minute. Daily caps pass window_seconds=86400.
+        # The kwarg name `limit_per_minute` is kept for back-compat with
+        # callers that pre-date the windowing change; despite the name,
+        # the integer is just a count-per-window once window_seconds is
+        # overridden.
         self.limit = limit_per_minute
-        self.window = _WINDOW_SECONDS
+        self.window = window_seconds
         self.hits: dict[str, deque[float]] = defaultdict(deque)
 
     def allow(self, key: str, now: float) -> bool:
@@ -66,10 +72,10 @@ class RedisTokenBucket:
     bucket.
     """
 
-    def __init__(self, client: redis.Redis, limit_per_minute: int, namespace: str) -> None:
+    def __init__(self, client: redis.Redis, limit_per_minute: int, namespace: str, *, window_seconds: int = _WINDOW_SECONDS) -> None:
         self.client = client
         self.limit = limit_per_minute
-        self.window = _WINDOW_SECONDS
+        self.window = window_seconds
         self.namespace = namespace
 
     def _key(self, key: str) -> str:
