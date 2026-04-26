@@ -100,7 +100,7 @@ Each sprint is sized to be shippable in one session. Pick one; don't interleave.
 The dashboard works; nobody wants to look at it. Biggest perceived-quality lift per hour.
 - [ ] CSS pass on `/app/*` (currently unstyled vanilla HTML)
 - [x] Error toasts — `app/static/toast.js` provides `toast.error/success/info(msg)`; bottom-center stack, color-coded by kind, auto-dismiss (errors 5s, others 3.5s), tap-to-dismiss; replaced 9 `alert()` callsites in friends/stages/story partials + battle-setup/roster static pages
-- [ ] Loading states (skeleton placeholders for `/me`, roster, etc.)
+- [x] Loading states — shared `.skeleton` / `.skeleton-line` / `.skeleton-grid` utilities in shell.html + initial `#content` placeholder + reuse in account/raids partials. Per-section refinement (every partial gets its own shimmer skeleton matching its layout) is still open as a polish pass.
 - [ ] Mobile-responsive layout
 - [ ] Or: rewrite as a real SPA (React / Svelte) — bigger bet; needs a build step
 
@@ -192,8 +192,8 @@ Work the design AI can do without committing code. Outputs land as SVG / PNG / L
 - [ ] **Faction badges 2.0** — current are fine; a signed-off final palette would let the UI stop tuning colors ad-hoc.
 
 ### Low leverage / nice-to-have
-- [ ] **Loading skeleton designs** — shimmer states per section (me / roster / battle setup).
-- [ ] **Empty-state illustrations** — "no opponents in arena", "no guild yet", "no active raid", "no heroes yet — do a pull."
+- [ ] **Loading skeleton designs** — generic shimmer utility shipped (`.skeleton`/`.skeleton-line`/`.skeleton-grid` in shell.html); this row is about per-section skeletons that match each partial's actual layout (me / roster / battle setup / shop).
+- [ ] **Empty-state illustrations** — text-and-emoji placeholders shipped via the shared `.empty-state` component; this row is now about *upgrading the icon* to a real illustration per state (arena/guild/raid/heroes/mailbox/etc.).
 - [ ] **Hero lore snippets** — 2–3 sentence backstory per template; names exist, flavor doesn't.
 - [ ] **Logo / wordmark** — current header is plain text; a simple mark would help branding.
 - [ ] **Stage tier icons** — NORMAL / HARD / future NIGHTMARE tier badges.
@@ -392,6 +392,121 @@ Output format for everything on this list: **paste the final file(s) back here i
 - Active sessions: `GET /me/sessions`, single + bulk revoke; refresh tokens carry IP/UA/last_used_at (migration `3aa50c822bb6`)
 - GDPR art. 20 export: `GET /me/export` — full account dump w/ secrets redacted + per-table caps
 - Per-IP guild-chat rate limit layered alongside per-account bucket
+
+**Big batch — battle visuals + UX polish + worker hygiene (2026-04-25 → 2026-04-26)**
+Bunch of self-contained wins shipped together. By area:
+
+Battle replay viewer (`app/static/battle-phaser.html`)
+- Lunge-on-hit attack animation: attacker slides forward, damage visual
+  fires on contact frame, slides back. Multi-hit specials (TBFAM 4-hit,
+  AOE strikes, BOSS_PHASE) consolidate into one lunge-and-stay via
+  cursor-lookahead.
+- DamagePopup-style scale-pulse-fade damage numbers + crit variant +
+  fan-out staggered x so 4 hits don't stack at the same point.
+- BOSS_PHASE cinematic: red flash + camera shake + name banner.
+- HAIL_MARY cinematic: gold flash + role-flavored banner.
+- FACTION_SYNERGY top banner per side.
+- REFLECT bounce-beam from defender to attacker.
+- Status-aware frame tints (FREEZE cyan, BURN orange, HEAL_BLOCK
+  magenta, etc.) so dominant status reads at a glance.
+- Color-coded emoji glyphs on the status row.
+- Per-stage backgrounds — `stage_code` exposed on `BattleOut`,
+  cluster-of-fuckery SVGs copied into `app/static/backgrounds/cof/`,
+  thematic mapping per stage code with cubicle as default.
+- Keyboard shortcuts: Space/K play-pause, N/→ step, R restart, 1-5
+  speed presets, ?/H toggle in-canvas help overlay, Esc closes.
+- 6 previously-missing event handlers wired (FROZEN, STATUS_BROKEN,
+  HEAL_BLOCKED, REVIVE_BLOCKED, REFLECT, FACTION_SYNERGY).
+
+Combat depth (`app/combat.py`)
+- 4 new statuses: FREEZE / BURN / HEAL_BLOCK / REFLECT.
+- Faction synergy: 3/4/5-of-faction tiers grant ATK/DEF baked into
+  base before sim, logged once for the replay.
+- AOE_REVIVE special type — respects HEAL_BLOCK on corpses.
+- AOE_HEAL primitive (Mother's Day Applecrumb's signature).
+- BOSS_PHASE special type — 3 raid bosses retuned to use it.
+- Hail-mary at ≤5% HP — one-shot per battle, role-flavored
+  (ATK 'Last Stand' / DEF 'Hold The Line' / SUP 'You're Welcome').
+
+Sprint D close — raid depth (`app/worker.py`, `app/routers/raids.py`)
+- Auto-rotate, per-attempt cooldown, leaderboard endpoint were
+  already shipped (TODO drift swept).
+- BOSS_PHASE special type rounded out the last item.
+
+Mother's Day 2026 event (`events/2026-05-10_mothers_day.json`)
+- Applecrumb (MYTH SUP) seed + 48h DOUBLE_REWARDS + Bouquet bundle.
+- Activate via `uv run python -m scripts.activate_event` on launch day.
+
+Hero card art (66 files via the cluster-of-fuckery pipeline)
+- 33 trading-card portraits in `app/static/heroes/cards/`
+- 33 auto-cropped busts in `app/static/heroes/busts/` — crop
+  recipe (top=9.0%, side=88.1%, h-centered, 512×512) reverse-
+  engineered from the 5 reference busts.
+
+Authn / security (`app/routers/auth.py`, `app/routers/me.py`,
+`app/observability.py`, migrations)
+- Post-review hardening: Redis-backed rate buckets, X-Forwarded-For
+  trust gate, `/me/export` rate-limited, `SessionOut.is_current`
+  computed from last_used_at.
+- Refresh-token fingerprint anomaly detection — sha256(UA|IP) at
+  issue, compared on rotation, mismatch logs warning + ticks
+  `refresh_token_anomaly_total` Prometheus counter.
+- `POST /me/password` for authed password change.
+
+UX polish
+- Toast notifications (`app/static/toast.js`) — replaces 9 alert()
+  callsites with bottom-center stack, color-coded by kind.
+- Skeleton placeholders (`.skeleton`/`.skeleton-line`/`.skeleton-grid`
+  in shell.html) for the initial #content swap + reused across
+  partials.
+- Shared `.empty-state` component (icon + headline + actionable hint)
+  applied to arena / daily / mailbox / roster / friends / conversations
+  / purchases / event / shop empty paths.
+- Account / security panel (new ⚙️ Account tab) — sessions list with
+  per-row revoke + bulk revoke, GDPR data export, 2FA inline setup
+  (secret + otpauth deep-link, recovery codes display) + disable form,
+  password change form.
+- Raids panel (new 🐉 Raid tab) — surfaces /raids/mine + /raids/leaderboard
+  with empty states for not-in-guild and no-active-raid.
+- Friends partial: DM delete link on own bubbles, deleted bubbles
+  italic+0.55 opacity.
+- Bell badge: visibility-aware polling (paused while tab hidden,
+  immediate refresh on focus / visibilitychange / window focus).
+
+Worker hygiene (`app/worker.py`)
+- Battle log compaction — battles older than 30 days get log_json
+  replaced with a single COMPACTED marker (~30KB → ~80 bytes each).
+  Idempotent + capped at 500 rows/tick.
+- Refresh-token cleanup — revoked or expired rows older than 30 days
+  hard-deleted; replaced_by_id is ondelete=SET NULL so live tokens
+  in a rotation chain aren't cascaded.
+
+DM soft-delete (`app/routers/friends.py`, migration `177a30b78d4a`)
+- Sender-only `DELETE /dm/{id}`, body redacted to `[deleted]`
+  in /dm/with/* + /dm/threads. Row stays for audit/abuse-report.
+
+Tests
+- 49 new tests added across the session (combat statuses + faction
+  synergy + AOE_REVIVE + AOE_HEAL + BOSS_PHASE + hail-mary + sessions
+  is_current + GDPR sessions/admin_actions blocks + DM soft-delete +
+  worker compaction/cleanup + change-password + account partial +
+  raids partial + guild invites + refresh-token fingerprint).
+- 3 pre-existing flaky tests fixed (guild-tag collision widened,
+  RNG-dropped material rate iterations bumped, achievement-count
+  unlock-set check).
+- Suite at 473 passed clean post-session (was 411 at start).
+
+Docs
+- `docs/BATTLE_VISUALS_STACK.md` — three full stack picks (free
+  cluster-of-fuckery / DragonBones / Spine Pro) with tradeoff matrix
+  and recommended starter (Plan A).
+- `docs/RUNBOOK.md` — alerting fleshed out (10 alerts with thresholds
+  + severity tags + PromQL), 11-row PromQL cookbook, 7-row Grafana
+  dashboard layout, graceful shutdown uvicorn flag recommendations,
+  refresh-token anomaly counter alert.
+- `events/README.md` — Mother's Day calendar entry.
+- `app/static/heroes/cards/` notes (in memory): 3 unmatched filenames
+  intentional (`The_Man_The_Dev`, `applecrumb`, `ticket_gremlinx4`).
 
 **Guild invite flow (2026-04-25)**
 The inverse of /guilds/.../apply: leader/officer asks a specific player; the
