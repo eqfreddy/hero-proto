@@ -369,6 +369,13 @@ Each entry has a threshold tuned for the alpha workload — adjust as traffic gr
 9. **Battle throughput drop.** [info]
    Threshold: `battles_total` 5-minute rate falls > 80% off its weekly trailing average during peak hours. Useful for spotting silent regressions where battles still 200 but the route is broken further down.
 
+10. **Refresh-token fingerprint mismatch rate.** [info → page if sustained]
+    Threshold: `refresh_token_anomaly_total` rising at > 5/min sustained over 15 minutes is a token-theft signal. Single events are noisy (legit users roam between wifi and tether all the time, browsers update UAs); a sustained burst from a population of accounts is the actual signal. Cross-reference the structured `auth.refresh` warning logs by `account_id` to see whether one account is hot or many are.
+    PromQL:
+    ```
+    rate(refresh_token_anomaly_total[5m]) > (5 / 60)
+    ```
+
 ### PromQL cookbook
 
 Copy-paste-ready queries for common Grafana panels.
@@ -386,6 +393,7 @@ Copy-paste-ready queries for common Grafana panels.
 | 429s by path | `sum by (path) (rate(requests_total{status="429"}[5m]))` |
 | Auth failures (401 on auth paths) | `sum(rate(requests_total{path=~"/auth/.*",status="401"}[5m]))` |
 | Active in-flight (estimate) | `sum(rate(requests_total[1m])) * histogram_quantile(0.50, sum by (le) (rate(request_duration_seconds_bucket[5m])))` |
+| Refresh-token fingerprint anomalies (per min) | `60 * rate(refresh_token_anomaly_total[5m])` |
 
 ### Dashboard layout
 
