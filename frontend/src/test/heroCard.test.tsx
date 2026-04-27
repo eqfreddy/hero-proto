@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { HeroCard } from '../components/HeroCard'
 import type { Hero } from '../types'
 
@@ -33,5 +33,14 @@ describe('HeroCard', () => {
   it('shows dupe badge when count > 1', () => {
     render(<HeroCard hero={{ ...hero, dupe_count: 3 }} />)
     expect(screen.getByText('×3')).toBeInTheDocument()
+  })
+
+  it('is keyboard-activatable when onClick provided', () => {
+    const handler = vi.fn()
+    render(<HeroCard hero={hero} onClick={handler} />)
+    const card = screen.getByRole('button')
+    expect(card).toBeInTheDocument()
+    fireEvent.keyDown(card, { key: 'Enter' })
+    expect(handler).toHaveBeenCalledTimes(1)
   })
 })

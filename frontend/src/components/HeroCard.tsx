@@ -17,6 +17,9 @@ export function HeroCard({ hero, onClick, selected }: Props) {
   return (
     <div
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
       style={{
         background: 'var(--panel)',
         border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
@@ -29,7 +32,7 @@ export function HeroCard({ hero, onClick, selected }: Props) {
     >
       <div style={{ position: 'relative', aspectRatio: '1', background: 'var(--bg-inset)', overflow: 'hidden' }}>
         <img
-          src={hero.has_variance ? bustUrl : placeholderUrl}
+          src={hero.has_bust ? bustUrl : placeholderUrl}
           alt={t.name}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={(e) => { (e.target as HTMLImageElement).src = placeholderUrl }}
