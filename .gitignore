@@ -34,3 +34,4 @@ wheels/
 # Claude working dir / scratch
 .claude/
 tests-scratch.db
+.worktrees/
