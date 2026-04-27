@@ -14,6 +14,8 @@ import { GuildRoute, GuildOverview } from './routes/Guild'
 import { GuildMembers } from './routes/Guild/Members'
 import { GuildChat } from './routes/Guild/Chat'
 import { GuildRaids } from './routes/Guild/Raids'
+import { FriendsLayout, FriendsList } from './routes/Friends'
+import { MessagesRoute } from './routes/Friends/Messages'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -37,9 +39,9 @@ const router = createBrowserRouter([
       { path: 'stages', element: <StagesRoute /> },
       { path: 'daily', element: <Stub name="Daily" /> },
       { path: 'story', element: <Stub name="Story" /> },
-      { path: 'friends', children: [
-        { index: true, element: <Stub name="Friends" /> },
-        { path: 'messages', element: <Stub name="Messages" /> },
+      { path: 'friends', element: <FriendsLayout />, children: [
+        { index: true, element: <FriendsList /> },
+        { path: 'messages', element: <MessagesRoute /> },
       ]},
       { path: 'achievements', element: <Stub name="Achievements" /> },
       { path: 'arena', element: <Stub name="Arena" /> },
