@@ -10,6 +10,10 @@ import { HeroDetailRoute } from './routes/Roster/HeroDetail'
 import { StagesRoute } from './routes/Stages'
 import { SummonRoute } from './routes/Summon'
 import { ShopRoute } from './routes/Shop'
+import { GuildRoute, GuildOverview } from './routes/Guild'
+import { GuildMembers } from './routes/Guild/Members'
+import { GuildChat } from './routes/Guild/Chat'
+import { GuildRaids } from './routes/Guild/Raids'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -39,11 +43,11 @@ const router = createBrowserRouter([
       ]},
       { path: 'achievements', element: <Stub name="Achievements" /> },
       { path: 'arena', element: <Stub name="Arena" /> },
-      { path: 'guild', children: [
-        { index: true, element: <Stub name="Guild" /> },
-        { path: 'members', element: <Stub name="Guild Members" /> },
-        { path: 'chat', element: <Stub name="Guild Chat" /> },
-        { path: 'raids', element: <Stub name="Guild Raids" /> },
+      { path: 'guild', element: <GuildRoute />, children: [
+        { index: true, element: <GuildOverview /> },
+        { path: 'members', element: <GuildMembers /> },
+        { path: 'chat', element: <GuildChat /> },
+        { path: 'raids', element: <GuildRaids /> },
       ]},
       { path: 'raids', element: <Stub name="Raids" /> },
       { path: 'shop', element: <ShopRoute /> },
