@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist, StateStorage } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
+import type { PersistStorage, StorageValue } from 'zustand/middleware'
 
 interface AuthState {
   jwt: string | null
@@ -7,38 +8,23 @@ interface AuthState {
   clearJwt: () => void
 }
 
-// Custom storage that stores only the JWT value (not the full state object)
-const jwtStorage: StateStorage = {
-  getItem: (name) => {
-    const token = localStorage.getItem(name)
-    if (!token) return null
-    // Return Zustand's expected persist format with the token in the state
-    return JSON.stringify({ state: { jwt: token }, version: 0 })
+type PersistedAuth = Pick<AuthState, 'jwt'>
+
+const jwtStorage: PersistStorage<PersistedAuth> = {
+  getItem: (name): StorageValue<PersistedAuth> | null => {
+    const val = localStorage.getItem(name)
+    if (!val) return null
+    return { state: { jwt: val }, version: 0 }
   },
-  setItem: (name, value) => {
-    let jwtValue: string | null = null
-
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value)
-        jwtValue = parsed.state?.jwt
-      } catch (e) {
-        // Fall through
-      }
-    } else if (typeof value === 'object' && value !== null) {
-      // value is already the state object
-      jwtValue = (value as any).state?.jwt
-    }
-
-    if (jwtValue === null) {
+  setItem: (name, value: StorageValue<PersistedAuth>): void => {
+    const jwt = value.state.jwt
+    if (jwt === null) {
       localStorage.removeItem(name)
-    } else if (jwtValue) {
-      localStorage.setItem(name, jwtValue)
+    } else {
+      localStorage.setItem(name, jwt)
     }
   },
-  removeItem: (name) => {
-    localStorage.removeItem(name)
-  },
+  removeItem: (name): void => localStorage.removeItem(name),
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -51,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'heroproto_jwt',
       storage: jwtStorage,
+      partialize: (state) => ({ jwt: state.jwt }),
     }
   )
 )
