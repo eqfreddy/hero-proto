@@ -76,11 +76,11 @@ export function MeRoute() {
         <h2 style={{ marginTop: 0, fontSize: 14, color: 'var(--muted)' }}>Currencies</h2>
         <div className="row" style={{ gap: 24, flexWrap: 'wrap' }}>
           {[
-            ['💎', 'Gems', me.gems],
-            ['✦', 'Shards', me.shards],
+            ['💎', 'Gems', me.gems.toLocaleString()],
+            ['✦', 'Shards', me.shards.toLocaleString()],
             ['🪙', 'Coins', me.coins.toLocaleString()],
-            ['🎫', 'Access Cards', me.access_cards],
-            ['🎟️', 'Free Summons', me.free_summon_credits],
+            ['🎫', 'Access Cards', me.access_cards.toLocaleString()],
+            ['🎟️', 'Free Summons', me.free_summon_credits.toLocaleString()],
           ].map(([icon, label, val]) => (
             <div key={String(label)}>
               <div className="muted" style={{ fontSize: 11 }}>{icon} {label}</div>
