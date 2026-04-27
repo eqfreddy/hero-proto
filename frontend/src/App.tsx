@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Shell } from './components/Layout/Shell'
 import { Login } from './routes/Login'
 import { Stub } from './routes/Stub'
+import { MeRoute } from './routes/Me'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -17,7 +18,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/app/me" replace /> },
       { path: 'login', element: <Login /> },
-      { path: 'me', element: <Stub name="Me" /> },
+      { path: 'me', element: <MeRoute /> },
       { path: 'roster', children: [
         { index: true, element: <Stub name="Roster" /> },
         { path: ':heroId', element: <Stub name="Hero Detail" /> },
