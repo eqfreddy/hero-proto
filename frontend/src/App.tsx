@@ -16,6 +16,7 @@ import { GuildChat } from './routes/Guild/Chat'
 import { GuildRaids } from './routes/Guild/Raids'
 import { FriendsLayout, FriendsList } from './routes/Friends'
 import { MessagesRoute } from './routes/Friends/Messages'
+import { ArenaRoute } from './routes/Arena'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -44,7 +45,7 @@ const router = createBrowserRouter([
         { path: 'messages', element: <MessagesRoute /> },
       ]},
       { path: 'achievements', element: <Stub name="Achievements" /> },
-      { path: 'arena', element: <Stub name="Arena" /> },
+      { path: 'arena', element: <ArenaRoute /> },
       { path: 'guild', element: <GuildRoute />, children: [
         { index: true, element: <GuildOverview /> },
         { path: 'members', element: <GuildMembers /> },
