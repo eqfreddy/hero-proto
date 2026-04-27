@@ -17,6 +17,9 @@ import { GuildRaids } from './routes/Guild/Raids'
 import { FriendsLayout, FriendsList } from './routes/Friends'
 import { MessagesRoute } from './routes/Friends/Messages'
 import { ArenaRoute } from './routes/Arena'
+import { RaidsTabRoute } from './routes/RaidsTab'
+import { DailyRoute } from './routes/Daily'
+import { StoryRoute } from './routes/Story'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -38,8 +41,8 @@ const router = createBrowserRouter([
       { path: 'summon', element: <SummonRoute /> },
       { path: 'crafting', element: <Stub name="Crafting" /> },
       { path: 'stages', element: <StagesRoute /> },
-      { path: 'daily', element: <Stub name="Daily" /> },
-      { path: 'story', element: <Stub name="Story" /> },
+      { path: 'daily', element: <DailyRoute /> },
+      { path: 'story', element: <StoryRoute /> },
       { path: 'friends', element: <FriendsLayout />, children: [
         { index: true, element: <FriendsList /> },
         { path: 'messages', element: <MessagesRoute /> },
@@ -52,7 +55,7 @@ const router = createBrowserRouter([
         { path: 'chat', element: <GuildChat /> },
         { path: 'raids', element: <GuildRaids /> },
       ]},
-      { path: 'raids', element: <Stub name="Raids" /> },
+      { path: 'raids', element: <RaidsTabRoute /> },
       { path: 'shop', element: <ShopRoute /> },
       { path: 'account', element: <Stub name="Account" /> },
       { path: 'event', element: <Stub name="Event" /> },
