@@ -35,3 +35,6 @@ wheels/
 .claude/
 tests-scratch.db
 .worktrees/
+
+# SPA build output
+app/static/spa/
