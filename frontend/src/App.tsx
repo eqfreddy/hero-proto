@@ -7,6 +7,7 @@ import { Stub } from './routes/Stub'
 import { MeRoute } from './routes/Me'
 import { RosterRoute } from './routes/Roster'
 import { HeroDetailRoute } from './routes/Roster/HeroDetail'
+import { StagesRoute } from './routes/Stages'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -27,7 +28,7 @@ const router = createBrowserRouter([
       ]},
       { path: 'summon', element: <Stub name="Summon" /> },
       { path: 'crafting', element: <Stub name="Crafting" /> },
-      { path: 'stages', element: <Stub name="Stages" /> },
+      { path: 'stages', element: <StagesRoute /> },
       { path: 'daily', element: <Stub name="Daily" /> },
       { path: 'story', element: <Stub name="Story" /> },
       { path: 'friends', children: [
