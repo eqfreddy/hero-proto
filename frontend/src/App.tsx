@@ -24,6 +24,7 @@ import { AchievementsRoute } from './routes/Achievements'
 import { EventRoute } from './routes/Event'
 import { CraftingRoute } from './routes/Crafting'
 import { AccountRoute } from './routes/Account'
+import BattleSetupRoute from './routes/battle/BattleSetupRoute'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -68,7 +69,7 @@ const router = createBrowserRouter([
   {
     path: '/battle',
     children: [
-      { path: 'setup', element: <Stub name="Battle Setup" /> },
+      { path: 'setup', element: <BattleSetupRoute /> },
       { path: ':id/watch', element: <Stub name="Battle Watch" /> },
       { path: ':id/play', element: <Stub name="Battle Play" /> },
       { path: ':id/replay', element: <Stub name="Battle Replay" /> },
