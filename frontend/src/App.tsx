@@ -1,35 +1,64 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Shell } from './components/Layout/Shell'
+import { Login } from './routes/Login'
+import { Stub } from './routes/Stub'
 
-function App() {
-  const [count, setCount] = useState(0)
+const qc = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+})
 
+const router = createBrowserRouter([
+  { path: '/', element: <Navigate to="/app/me" replace /> },
+  {
+    path: '/app',
+    element: <Shell />,
+    children: [
+      { index: true, element: <Navigate to="/app/me" replace /> },
+      { path: 'login', element: <Login /> },
+      { path: 'me', element: <Stub name="Me" /> },
+      { path: 'roster', children: [
+        { index: true, element: <Stub name="Roster" /> },
+        { path: ':heroId', element: <Stub name="Hero Detail" /> },
+      ]},
+      { path: 'summon', element: <Stub name="Summon" /> },
+      { path: 'crafting', element: <Stub name="Crafting" /> },
+      { path: 'stages', element: <Stub name="Stages" /> },
+      { path: 'daily', element: <Stub name="Daily" /> },
+      { path: 'story', element: <Stub name="Story" /> },
+      { path: 'friends', children: [
+        { index: true, element: <Stub name="Friends" /> },
+        { path: 'messages', element: <Stub name="Messages" /> },
+      ]},
+      { path: 'achievements', element: <Stub name="Achievements" /> },
+      { path: 'arena', element: <Stub name="Arena" /> },
+      { path: 'guild', children: [
+        { index: true, element: <Stub name="Guild" /> },
+        { path: 'members', element: <Stub name="Guild Members" /> },
+        { path: 'chat', element: <Stub name="Guild Chat" /> },
+        { path: 'raids', element: <Stub name="Guild Raids" /> },
+      ]},
+      { path: 'raids', element: <Stub name="Raids" /> },
+      { path: 'shop', element: <Stub name="Shop" /> },
+      { path: 'account', element: <Stub name="Account" /> },
+      { path: 'event', element: <Stub name="Event" /> },
+    ],
+  },
+  {
+    path: '/battle',
+    children: [
+      { path: 'setup', element: <Stub name="Battle Setup" /> },
+      { path: ':id/watch', element: <Stub name="Battle Watch" /> },
+      { path: ':id/play', element: <Stub name="Battle Play" /> },
+      { path: ':id/replay', element: <Stub name="Battle Replay" /> },
+    ],
+  },
+])
+
+export default function App() {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <QueryClientProvider client={qc}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   )
 }
-
-export default App
