@@ -1,5 +1,5 @@
 // frontend/vite.config.ts
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -48,6 +48,7 @@ export default defineConfig({
       '/events': 'http://localhost:8000',
       '/crafting': 'http://localhost:8000',
       '/notifications': 'http://localhost:8000',
+      '/announcements': 'http://localhost:8000',
       '/liveops': 'http://localhost:8000',
       '/auth': 'http://localhost:8000',
       '/placeholder': 'http://localhost:8000',
