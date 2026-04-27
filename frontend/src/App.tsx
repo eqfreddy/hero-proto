@@ -20,6 +20,10 @@ import { ArenaRoute } from './routes/Arena'
 import { RaidsTabRoute } from './routes/RaidsTab'
 import { DailyRoute } from './routes/Daily'
 import { StoryRoute } from './routes/Story'
+import { AchievementsRoute } from './routes/Achievements'
+import { EventRoute } from './routes/Event'
+import { CraftingRoute } from './routes/Crafting'
+import { AccountRoute } from './routes/Account'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -39,7 +43,7 @@ const router = createBrowserRouter([
         { path: ':heroId', element: <HeroDetailRoute /> },
       ]},
       { path: 'summon', element: <SummonRoute /> },
-      { path: 'crafting', element: <Stub name="Crafting" /> },
+      { path: 'crafting', element: <CraftingRoute /> },
       { path: 'stages', element: <StagesRoute /> },
       { path: 'daily', element: <DailyRoute /> },
       { path: 'story', element: <StoryRoute /> },
@@ -47,7 +51,7 @@ const router = createBrowserRouter([
         { index: true, element: <FriendsList /> },
         { path: 'messages', element: <MessagesRoute /> },
       ]},
-      { path: 'achievements', element: <Stub name="Achievements" /> },
+      { path: 'achievements', element: <AchievementsRoute /> },
       { path: 'arena', element: <ArenaRoute /> },
       { path: 'guild', element: <GuildRoute />, children: [
         { index: true, element: <GuildOverview /> },
@@ -57,8 +61,8 @@ const router = createBrowserRouter([
       ]},
       { path: 'raids', element: <RaidsTabRoute /> },
       { path: 'shop', element: <ShopRoute /> },
-      { path: 'account', element: <Stub name="Account" /> },
-      { path: 'event', element: <Stub name="Event" /> },
+      { path: 'account', element: <AccountRoute /> },
+      { path: 'event', element: <EventRoute /> },
     ],
   },
   {
