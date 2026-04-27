@@ -133,24 +133,6 @@ def test_day_eight_wraps_to_day_one_reward(client) -> None:
     assert body["granted"]["gems"] == 0
 
 
-def test_htmx_me_partial_shows_claim_card(client) -> None:
-    hdr, _ = _register(client)
-    r = client.get("/app/partials/me", headers=hdr)
-    assert r.status_code == 200
-    assert "Daily Login Bonus" in r.text
-    assert "Claim" in r.text
-
-
-def test_htmx_me_partial_shows_cooldown_after_claim(client) -> None:
-    hdr, _ = _register(client)
-    client.post("/me/daily-bonus/claim", headers=hdr)
-    r = client.get("/app/partials/me", headers=hdr)
-    assert r.status_code == 200
-    assert "Current streak:" in r.text
-    # Button should be disabled / show claimed state.
-    assert "Claimed ✓" in r.text
-
-
 def test_status_cooldown_window_correct(client) -> None:
     hdr, account_id = _register(client)
     # Last claimed 5 hours ago — well inside the 20h cooldown.

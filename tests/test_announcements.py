@@ -115,21 +115,6 @@ def test_admin_can_delete(client) -> None:
     assert not any(a["id"] == aid for a in active)
 
 
-def test_me_partial_shows_active_banner(client) -> None:
-    admin_hdr, admin_id = _register(client, "annban_adm")
-    _promote(admin_id)
-    client.post(
-        "/admin/announcements",
-        headers=admin_hdr,
-        json={"title": "BIG_MOTD_BANNER", "body": "shows up on /me tab", "priority": 10},
-    )
-    player_hdr, _ = _register(client, "annban_pl")
-    r = client.get("/app/partials/me", headers=player_hdr)
-    assert r.status_code == 200
-    assert "BIG_MOTD_BANNER" in r.text
-    assert "shows up on /me tab" in r.text
-
-
 def test_ends_at_in_future_still_visible(client) -> None:
     hdr, admin_id = _register(client, "annfut")
     _promote(admin_id)

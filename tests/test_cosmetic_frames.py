@@ -75,32 +75,3 @@ def test_clear_frame_with_empty_string(client) -> None:
     assert me["active_cosmetic_frame"] == ""
 
 
-def test_roster_partial_renders_active_frame_class(client) -> None:
-    """The /app/partials/roster HTML should include the active frame's
-    CSS class on #roster-grid so the css overrides apply."""
-    hdr, aid = _register(client)
-    _grant_frame(aid, "frame_terminal_green")
-    client.post("/me/cosmetic-frame", json={"code": "frame_terminal_green"}, headers=hdr)
-    r = client.get("/app/partials/roster", headers=hdr)
-    assert r.status_code == 200
-    assert "frame-frame_terminal_green" in r.text
-    assert "has-frame" in r.text
-
-
-def test_roster_partial_no_frame_class_when_none_active(client) -> None:
-    """The grid container should NOT carry `has-frame` when no frame is
-    equipped. The static CSS rules for individual frames stay in place
-    (they're declarative and only fire when the parent class matches),
-    so we only assert the dynamic class is absent."""
-    hdr, _ = _register(client)
-    r = client.get("/app/partials/roster", headers=hdr)
-    assert r.status_code == 200
-    assert 'class=""' in r.text or 'id="roster-grid" class=""' in r.text or 'class="active"' in r.text
-    # Specifically, the grid-container class attribute should not include
-    # "has-frame" or "frame-frame_*" — those are the *active-frame* hooks.
-    import re
-    grid_match = re.search(r'id="roster-grid"\s+class="([^"]*)"', r.text)
-    if grid_match:
-        cls = grid_match.group(1)
-        assert "has-frame" not in cls, cls
-        assert "frame-frame_" not in cls, cls

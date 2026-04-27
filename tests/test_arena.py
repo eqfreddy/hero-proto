@@ -190,47 +190,6 @@ def test_opponents_widens_window_when_pool_is_sparse(client) -> None:
     assert opps, "fallback widening failed — got empty opponent list despite defenders existing"
 
 
-def test_arena_partial_shows_recent_matches_with_replay_link(client) -> None:
-    """After an arena attack, the HTMX partial should list the match with a replay link."""
-    _def_hdr, def_id, _ = _setup_defender_with_defense_team(client)
-    atk_hdr, _, atk_team = _register_and_team(client, "atkrepl")
-
-    r = client.post(
-        "/arena/attack",
-        json={"defender_account_id": def_id, "team": atk_team},
-        headers=atk_hdr,
-    )
-    assert r.status_code == 201
-    match_id = r.json()["id"]
-
-    r = client.get("/app/partials/arena", headers=atk_hdr)
-    assert r.status_code == 200
-    body = r.text
-    # Recent matches section + per-row replay link pointing at the Phaser page
-    # in arena mode.
-    assert "Recent matches" in body
-    assert f"/app/battle-replay.html?id={match_id}&amp;mode=arena" in body or \
-           f"/app/battle-replay.html?id={match_id}&mode=arena" in body
-
-
-def test_arena_partial_hides_recent_matches_when_empty(client) -> None:
-    """Fresh account with no arena history should not render the Recent matches card."""
-    hdr, _, _ = _register_and_team(client, "nohist")
-    r = client.get("/app/partials/arena", headers=hdr)
-    assert r.status_code == 200
-    # Defender/opponents cards always render; Recent matches card only when matches exist.
-    assert "Recent matches" not in r.text
-
-
-def test_arena_partial_attack_uses_correct_field_name(client) -> None:
-    """Regression check: the HTMX attack POST must send defender_account_id, not defender_id."""
-    hdr, _, _ = _register_and_team(client, "fieldcheck")
-    r = client.get("/app/partials/arena", headers=hdr)
-    assert r.status_code == 200
-    assert "defender_account_id" in r.text, "arena partial JS must POST defender_account_id"
-    assert '"defender_id"' not in r.text, "old field name still present — bug regression"
-
-
 def test_opponents_excludes_recently_attacked(client) -> None:
     """After attacking defender X, /opponents should exclude X until the cooldown elapses."""
     def_hdr, def_id, _ = _setup_defender_with_defense_team(client)

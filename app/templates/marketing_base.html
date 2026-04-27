@@ -1,76 +1,116 @@
-{% extends "base.html" %}
-{% block head %}
-{# Open Graph + Twitter Card meta. Pages override og_title / og_description /
-   og_image via these blocks; defaults match the marketing pitch. #}
-<meta property="og:site_name" content="hero-proto" />
-<meta property="og:type" content="{% block og_type %}website{% endblock %}" />
-<meta property="og:title" content="{% block og_title %}hero-proto · the corporate IT gacha RPG{% endblock %}" />
-<meta property="og:description" content="{% block og_description %}Collect overworked sysadmins, predatory consultants, and feral helpdesk gremlins. Free to play. No pay-to-win.{% endblock %}" />
-<meta property="og:image" content="{% block og_image %}/app/static/icons/hero-proto-1024.png{% endblock %}" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="{{ self.og_title() }}" />
-<meta name="twitter:description" content="{{ self.og_description() }}" />
-<meta name="twitter:image" content="{{ self.og_image() }}" />
-{% if active_page == 'devblog' %}
-<link rel="alternate" type="application/rss+xml" title="hero-proto devblog" href="/devblog.xml" />
-{% endif %}
-<style>
-  body {
-    background:
-      radial-gradient(ellipse at top, rgba(255,216,107,0.06), transparent 60%),
-      radial-gradient(ellipse at bottom right, rgba(78,161,255,0.05), transparent 50%),
-      var(--bg);
-  }
-  .site-nav {
-    position: sticky; top: 0; z-index: 50;
-    backdrop-filter: blur(8px);
-    background: rgba(11, 13, 16, 0.85);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 24px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    flex-wrap: wrap;
-  }
-  .site-nav .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
-  .site-nav .brand img { width: 32px; height: 32px; border-radius: 6px; }
-  .site-nav .brand .title { font-weight: 800; letter-spacing: 0.02em; }
-  .site-nav .brand .ver { color: var(--muted); font-size: 11px; margin-left: 8px; padding: 2px 6px; background: var(--panel); border-radius: 3px; }
-  .site-nav .links { display: flex; gap: 4px; flex-wrap: wrap; }
-  .site-nav .links a { color: var(--muted); padding: 6px 10px; text-decoration: none; font-size: 13px; border-radius: 4px; }
-  .site-nav .links a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
-  .site-nav .links a.active { color: var(--accent); background: rgba(78,161,255,0.1); font-weight: 600; }
-  .site-nav .play-cta { padding: 8px 16px; border-radius: 6px; background: var(--accent); color: #0b0d10; font-weight: 700; cursor: pointer; border: none; font-size: 13px; text-decoration: none; }
-  .site-nav .play-cta:hover { filter: brightness(1.1); }
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}hero-proto{% endblock %}</title>
 
-  .site-content { max-width: 980px; margin: 0 auto; padding: 40px 24px 64px; }
-  .site-content h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; line-height: 1.1; margin: 0 0 12px; }
-  .site-content h2 { font-size: 22px; font-weight: 700; margin: 28px 0 8px; }
-  .site-content h3 { font-size: 16px; font-weight: 700; margin: 20px 0 6px; color: var(--text); }
-  .site-content p { line-height: 1.65; color: var(--text); margin: 8px 0; }
-  .site-content .lead { color: var(--muted); font-size: 16px; max-width: 640px; }
-  .site-content a { color: var(--accent); }
-  .site-content code { background: var(--panel); padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-  .site-content .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 14px 0; }
-  .site-content ul, .site-content ol { line-height: 1.7; color: var(--text); }
+  <!-- PWA meta -->
+  <link rel="manifest" href="/app/static/spa/manifest.webmanifest" />
+  <meta name="theme-color" content="#0b0d10" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/app/static/icons/hero-proto-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/app/static/icons/hero-proto-512.png" />
+  <link rel="apple-touch-icon" href="/app/static/icons/hero-proto-1024.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="hero-proto" />
 
-  .site-footer { border-top: 1px solid var(--border); margin-top: 48px; padding: 24px; text-align: center; color: var(--muted); font-size: 12px; }
-  .site-footer .links { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
-  .site-footer .links a { color: var(--muted); }
-  .site-footer .links a:hover { color: var(--text); }
-  .site-footer .small { font-size: 11px; opacity: 0.7; }
+  <!-- Open Graph + Twitter Card -->
+  <meta property="og:site_name" content="hero-proto" />
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+  <meta property="og:title" content="{% block og_title %}hero-proto · the corporate IT gacha RPG{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}Collect overworked sysadmins, predatory consultants, and feral helpdesk gremlins. Free to play. No pay-to-win.{% endblock %}" />
+  <meta property="og:image" content="{% block og_image %}/app/static/icons/hero-proto-1024.png{% endblock %}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ self.og_title() }}" />
+  <meta name="twitter:description" content="{{ self.og_description() }}" />
+  <meta name="twitter:image" content="{{ self.og_image() }}" />
+  {% if active_page == 'devblog' %}
+  <link rel="alternate" type="application/rss+xml" title="hero-proto devblog" href="/devblog.xml" />
+  {% endif %}
 
-  /* Banner used on legal pages to flag template-not-final-text. */
-  .draft-banner { background: rgba(255, 152, 0, 0.12); border: 1px solid rgba(255, 152, 0, 0.4); border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: var(--warn); }
-  .draft-banner strong { color: var(--warn); }
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d10;
+      --panel: #14181e;
+      --panel-2: #1b2430;
+      --border: #2d3847;
+      --text: #dde3ea;
+      --muted: #7d8a9c;
+      --accent: #4ea1ff;
+      --good: #6dd39a;
+      --warn: #ffd86b;
+      --bad: #ff6b4a;
+      --atk: #ff7a59;
+      --def: #59a0ff;
+      --sup: #6dd39a;
+      --r-common: #9ca7b3;
+      --r-uncommon: #6dd39a;
+      --r-rare: #59a0ff;
+      --r-epic: #c97aff;
+      --r-legendary: #ffd86b;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; min-height: 100vh; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button, input, select { font: inherit; }
+    body {
+      background:
+        radial-gradient(ellipse at top, rgba(255,216,107,0.06), transparent 60%),
+        radial-gradient(ellipse at bottom right, rgba(78,161,255,0.05), transparent 50%),
+        var(--bg);
+    }
+    .site-nav {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(8px);
+      background: rgba(11, 13, 16, 0.85);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      flex-wrap: wrap;
+    }
+    .site-nav .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+    .site-nav .brand img { width: 32px; height: 32px; border-radius: 6px; }
+    .site-nav .brand .title { font-weight: 800; letter-spacing: 0.02em; }
+    .site-nav .brand .ver { color: var(--muted); font-size: 11px; margin-left: 8px; padding: 2px 6px; background: var(--panel); border-radius: 3px; }
+    .site-nav .links { display: flex; gap: 4px; flex-wrap: wrap; }
+    .site-nav .links a { color: var(--muted); padding: 6px 10px; text-decoration: none; font-size: 13px; border-radius: 4px; }
+    .site-nav .links a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .site-nav .links a.active { color: var(--accent); background: rgba(78,161,255,0.1); font-weight: 600; }
+    .site-nav .play-cta { padding: 8px 16px; border-radius: 6px; background: var(--accent); color: #0b0d10; font-weight: 700; cursor: pointer; border: none; font-size: 13px; text-decoration: none; }
+    .site-nav .play-cta:hover { filter: brightness(1.1); }
 
-  @media (max-width: 600px) {
-    .site-nav { padding: 10px 14px; }
-    .site-content { padding: 24px 14px 40px; }
-  }
-</style>
-{% block page_head %}{% endblock %}
-{% endblock %}
+    .site-content { max-width: 980px; margin: 0 auto; padding: 40px 24px 64px; }
+    .site-content h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; line-height: 1.1; margin: 0 0 12px; }
+    .site-content h2 { font-size: 22px; font-weight: 700; margin: 28px 0 8px; }
+    .site-content h3 { font-size: 16px; font-weight: 700; margin: 20px 0 6px; color: var(--text); }
+    .site-content p { line-height: 1.65; color: var(--text); margin: 8px 0; }
+    .site-content .lead { color: var(--muted); font-size: 16px; max-width: 640px; }
+    .site-content a { color: var(--accent); }
+    .site-content code { background: var(--panel); padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+    .site-content .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 14px 0; }
+    .site-content ul, .site-content ol { line-height: 1.7; color: var(--text); }
 
-{% block body %}
+    .site-footer { border-top: 1px solid var(--border); margin-top: 48px; padding: 24px; text-align: center; color: var(--muted); font-size: 12px; }
+    .site-footer .links { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+    .site-footer .links a { color: var(--muted); }
+    .site-footer .links a:hover { color: var(--text); }
+    .site-footer .small { font-size: 11px; opacity: 0.7; }
+
+    /* Banner used on legal pages to flag template-not-final-text. */
+    .draft-banner { background: rgba(255, 152, 0, 0.12); border: 1px solid rgba(255, 152, 0, 0.4); border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: var(--warn); }
+    .draft-banner strong { color: var(--warn); }
+
+    @media (max-width: 600px) {
+      .site-nav { padding: 10px 14px; }
+      .site-content { padding: 24px 14px 40px; }
+    }
+  </style>
+  {% block page_head %}{% endblock %}
+</head>
+<body>
 <nav class="site-nav">
   <a class="brand" href="/">
     <img src="/app/static/icons/hero-proto-192.png" alt="" />
@@ -88,7 +128,7 @@
     <a href="/support" class="{% if active_page == 'support' %}active{% endif %}">Support</a>
     <a href="/status" class="{% if active_page == 'status' %}active{% endif %}">Status</a>
   </div>
-  <a class="play-cta" href="/app/">Play →</a>
+  <a class="play-cta" href="/app/">Play &#x2192;</a>
 </nav>
 
 {% block content %}{% endblock %}
@@ -100,9 +140,9 @@
     <a href="/support">Support</a>
     <a href="https://github.com/eqfreddy/hero-proto" target="_blank" rel="noopener">GitHub</a>
   </div>
-  <div>hero-proto · the corporate-IT gacha RPG no one asked for</div>
+  <div>hero-proto &middot; the corporate-IT gacha RPG no one asked for</div>
   <div class="small">Satire of the IT industry. No real companies named. Probably.</div>
 </footer>
-{% endblock %}
-
 {% block scripts %}{% endblock %}
+</body>
+</html>
