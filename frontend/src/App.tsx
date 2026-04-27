@@ -9,6 +9,7 @@ import { RosterRoute } from './routes/Roster'
 import { HeroDetailRoute } from './routes/Roster/HeroDetail'
 import { StagesRoute } from './routes/Stages'
 import { SummonRoute } from './routes/Summon'
+import { ShopRoute } from './routes/Shop'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -45,7 +46,7 @@ const router = createBrowserRouter([
         { path: 'raids', element: <Stub name="Guild Raids" /> },
       ]},
       { path: 'raids', element: <Stub name="Raids" /> },
-      { path: 'shop', element: <Stub name="Shop" /> },
+      { path: 'shop', element: <ShopRoute /> },
       { path: 'account', element: <Stub name="Account" /> },
       { path: 'event', element: <Stub name="Event" /> },
     ],
