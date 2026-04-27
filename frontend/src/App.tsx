@@ -5,6 +5,8 @@ import { Shell } from './components/Layout/Shell'
 import { Login } from './routes/Login'
 import { Stub } from './routes/Stub'
 import { MeRoute } from './routes/Me'
+import { RosterRoute } from './routes/Roster'
+import { HeroDetailRoute } from './routes/Roster/HeroDetail'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -20,8 +22,8 @@ const router = createBrowserRouter([
       { path: 'login', element: <Login /> },
       { path: 'me', element: <MeRoute /> },
       { path: 'roster', children: [
-        { index: true, element: <Stub name="Roster" /> },
-        { path: ':heroId', element: <Stub name="Hero Detail" /> },
+        { index: true, element: <RosterRoute /> },
+        { path: ':heroId', element: <HeroDetailRoute /> },
       ]},
       { path: 'summon', element: <Stub name="Summon" /> },
       { path: 'crafting', element: <Stub name="Crafting" /> },
