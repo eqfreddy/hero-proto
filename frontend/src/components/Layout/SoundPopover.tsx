@@ -8,6 +8,9 @@ export function SoundButton() {
   return (
     <div style={{ position: 'relative' }}>
       <button onClick={() => setOpen((v) => !v)}
+        aria-label={muted ? 'Sound (muted) — open settings' : 'Sound — open settings'}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         style={{ background: 'transparent', border: '1px solid var(--border)', color: muted ? 'var(--bad)' : 'var(--muted)', padding: '4px 8px', borderRadius: 4, fontSize: 14 }}>
         {muted ? '🔇' : '🔊'}
       </button>

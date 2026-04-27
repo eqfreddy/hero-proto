@@ -25,6 +25,9 @@ export function BellButton() {
   return (
     <div style={{ position: 'relative' }}>
       <button onClick={() => setOpen((v) => !v)}
+        aria-label="Notifications"
+        aria-haspopup="dialog"
+        aria-expanded={open}
         style={{ position: 'relative', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', padding: '4px 8px', borderRadius: 4, fontSize: 14 }}>
         🔔
         {unread > 0 && (

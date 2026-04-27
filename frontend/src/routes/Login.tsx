@@ -35,13 +35,13 @@ export function Login() {
         <h2 style={{ marginTop: 0 }}>Sign in</h2>
         <form onSubmit={handleSubmit} className="stack">
           <div>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+            <label htmlFor="login-email" style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Email</label>
+            <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               required style={{ width: '100%' }} placeholder="you@example.com" />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+            <label htmlFor="login-password" style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Password</label>
+            <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               required style={{ width: '100%' }} />
           </div>
           <button type="submit" className="primary" disabled={loading}>
