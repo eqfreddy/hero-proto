@@ -3,7 +3,6 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Shell } from './components/Layout/Shell'
 import { Login } from './routes/Login'
-import { Stub } from './routes/Stub'
 import { MeRoute } from './routes/Me'
 import { RosterRoute } from './routes/Roster'
 import { HeroDetailRoute } from './routes/Roster/HeroDetail'
@@ -25,6 +24,8 @@ import { EventRoute } from './routes/Event'
 import { CraftingRoute } from './routes/Crafting'
 import { AccountRoute } from './routes/Account'
 import BattleSetupRoute from './routes/battle/BattleSetupRoute'
+import BattleReplayRoute from './routes/battle/BattleReplayRoute'
+import BattlePlayRoute from './routes/battle/BattlePlayRoute'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -70,9 +71,9 @@ const router = createBrowserRouter([
     path: '/battle',
     children: [
       { path: 'setup', element: <BattleSetupRoute /> },
-      { path: ':id/watch', element: <Stub name="Battle Watch" /> },
-      { path: ':id/play', element: <Stub name="Battle Play" /> },
-      { path: ':id/replay', element: <Stub name="Battle Replay" /> },
+      { path: ':id/watch', element: <BattleReplayRoute /> },
+      { path: ':id/play', element: <BattlePlayRoute /> },
+      { path: ':id/replay', element: <BattleReplayRoute /> },
     ],
   },
 ])
