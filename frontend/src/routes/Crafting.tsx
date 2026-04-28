@@ -37,7 +37,7 @@ export function CraftingRoute() {
               <button className="primary" style={{ fontSize: 12 }}
                 disabled={!r.craftable}
                 onClick={async () => {
-                  try { await craftRecipe(r.id); toast.success(`${r.name} crafted!`); qc.invalidateQueries({ queryKey: ['crafting'] }); qc.invalidateQueries({ queryKey: ['me'] }) }
+                  try { await craftRecipe(r.code); toast.success(`${r.name} crafted!`); qc.invalidateQueries({ queryKey: ['crafting'] }); qc.invalidateQueries({ queryKey: ['me'] }) }
                   catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
                 }}>Craft</button>
             </div>

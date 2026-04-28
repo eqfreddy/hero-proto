@@ -14,8 +14,18 @@ export interface ShopData {
   history: PurchaseHistory[]; shard_exchange: ShardExchange
 }
 
-export const fetchShop = (): Promise<ShopData> => apiFetch<ShopData>('/shop')
+export const fetchShop = (): Promise<ShopData> =>
+  Promise.all([
+    apiFetch<ShopProduct[]>('/shop/products'),
+    apiFetch<PurchaseHistory[]>('/shop/purchases/mine'),
+    apiFetch<ShardExchange>('/shop/shard-exchange'),
+  ]).then(([products, history, shard_exchange]) => ({
+    products: products.filter(p => p.kind !== 'STARTER_BUNDLE'),
+    starter: products.find(p => p.kind === 'STARTER_BUNDLE') ?? null,
+    history,
+    shard_exchange,
+  }))
 export const buyProduct = (sku: string, stripe_token?: string): Promise<{ granted: Record<string, unknown> }> =>
-  apiPost('/shop/buy', { sku, ...(stripe_token ? { stripe_token } : {}) })
+  apiPost('/shop/purchases', { sku, ...(stripe_token ? { stripe_token } : {}) })
 export const exchangeShards = (): Promise<{ shards_granted: number }> =>
   apiPost('/shop/shard-exchange', {})

@@ -4,6 +4,6 @@ import { apiPost } from './client'
 interface SummonResult { heroes: Hero[] }
 
 export const pullStandard = (count: 1 | 10): Promise<SummonResult> =>
-  apiPost('/summon/standard', { count })
+  count === 1 ? apiPost('/summon/x1', {}) : apiPost('/summon/x10', {})
 export const pullEventBanner = (count: 1 | 10): Promise<SummonResult> =>
   apiPost('/summon/event-banner', { count })
