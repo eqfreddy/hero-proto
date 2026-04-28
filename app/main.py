@@ -524,6 +524,12 @@ def changelog_page(request: _Request):
 _PUBLIC_PAGES = ("/", "/about", "/devblog", "/changelog", "/roadmap", "/faq", "/press", "/support", "/status", "/privacy", "/terms")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    from fastapi.responses import FileResponse
+    return FileResponse(str(_STATIC_DIR / "icons" / "hero-proto-192.png"), media_type="image/png")
+
+
 @app.get("/robots.txt", include_in_schema=False)
 def robots_txt():
     from fastapi.responses import PlainTextResponse
