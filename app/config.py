@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     sentry_environment: str = ""  # defaults to `environment` (dev/prod) if empty
     sentry_traces_sample_rate: float = 0.0  # 0.0 = no perf tracing; tune up later
 
+    # OpenTelemetry tracing. Empty endpoint disables OTel entirely (default).
+    # In prod, set HEROPROTO_OTEL_ENDPOINT to your OTLP/gRPC collector URL
+    # (e.g. http://localhost:4317). Install with: uv sync --extra otel
+    otel_endpoint: str = ""
+
     # PostHog product analytics. Empty key disables analytics entirely (default).
     # In prod, set HEROPROTO_POSTHOG_API_KEY + HEROPROTO_POSTHOG_HOST to ship
     # the 12 instrumented events (see docs/RUNBOOK.md → Analytics for the list
@@ -151,6 +156,10 @@ class Settings(BaseSettings):
     def admin_email_set(self) -> set[str]:
         raw = [x.strip().lower() for x in (self.admin_emails or "").split(",")]
         return {e for e in raw if e}
+
+    # Localization — default locale served when Accept-Language is absent or
+    # unsupported. Ops can set HEROPROTO_DEFAULT_LOCALE=es for regional deploys.
+    default_locale: str = "en"
 
     # Worker: when False, the in-process background tick doesn't start.
     # Useful for running a dedicated worker instance separately from web

@@ -353,12 +353,16 @@ def attack_raid(
     from app.account_level import XP_PER_RAID_ATTACK, grant_xp as _gxp
     _gxp(db, account, XP_PER_RAID_ATTACK)
 
+    from app.guild_achievements import _update_guild_achievement as _uga
+    _uga(db, membership.guild_id, "total_raid_damage", damage)
+
     rewards_payload: dict | None = None
     defeated = False
     if raid.remaining_hp <= 0:
         raid.remaining_hp = 0
         raid.state = RaidState.DEFEATED
         defeated = True
+        _uga(db, membership.guild_id, "raids_completed", 1)
         rewards_payload = _distribute_rewards(db, raid)
     db.commit()
 
@@ -417,3 +421,240 @@ def _distribute_rewards(db: Session, raid: Raid) -> dict:
         a.shards += shards
         paid[acct_id] = {"coins": coins, "gems": gems, "shards": shards}
     return {"total_contributions": contributions, "payouts": paid, "tier": str(tier)}
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.3 — Interactive (turn-by-turn) raid attacks
+# ---------------------------------------------------------------------------
+
+from app.interactive import (
+    InteractiveSession as _ISession,
+    advance_session as _adv_session,
+    create_raid_session,
+    get_session as _get_session,
+    session_log_delta,
+)
+from app.schemas import BattleParticipant, InteractiveActIn, InteractiveStateOut, UnitSnapshot
+
+
+def _unit_snap_r(u) -> dict:
+    return {
+        "uid": u.uid, "name": u.name, "side": u.side, "role": str(u.role),
+        "hp": u.hp, "max_hp": u.max_hp, "dead": u.dead, "shielded": u.shielded,
+        "limit_gauge": u.limit_gauge, "limit_gauge_max": u.limit_gauge_max,
+    }
+
+
+def _raid_state_out(session: _ISession, rewards: dict | None = None) -> InteractiveStateOut:
+    delta = session_log_delta(session)
+    pending = None
+    if session.pending is not None:
+        actor = next((u for u in session.team_a if u.uid == session.pending["actor"]), None)
+        pending = {
+            "actor_uid": session.pending["actor"],
+            "actor_name": actor.name if actor else session.pending["actor"],
+            "turn_number": session.turn_number,
+            "enemies": session.pending.get("enemies", []),
+        }
+    current_b = session.wave_teams_b[session.wave_idx]
+    return InteractiveStateOut(
+        session_id=session.session_id,
+        status=session.status,
+        pending=pending,
+        log_delta=delta,
+        team_a=[UnitSnapshot(**_unit_snap_r(u)) for u in session.team_a],
+        team_b=[UnitSnapshot(**_unit_snap_r(u)) for u in current_b],
+        outcome=str(session.outcome) if session.outcome is not None else None,
+        rewards=rewards,
+        participants=[BattleParticipant(**p) for p in session.participants],
+    )
+
+
+@router.post("/{raid_id}/attack/interactive/start", response_model=InteractiveStateOut, status_code=status.HTTP_201_CREATED)
+def raid_interactive_start(
+    raid_id: int,
+    body: RaidAttackIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> InteractiveStateOut:
+    """Start an interactive raid attack. Validates membership, consumes energy,
+    and primes the combat session to the first player turn.
+    """
+    membership = _require_guild(db, account)
+    raid = db.get(Raid, raid_id)
+    if raid is None or raid.guild_id != membership.guild_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "raid not found in your guild")
+    if raid.state != RaidState.ACTIVE:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"raid is {raid.state}")
+    now = utcnow()
+    if raid.ends_at <= now:
+        raid.state = RaidState.EXPIRED
+        db.commit()
+        raise HTTPException(status.HTTP_409_CONFLICT, "raid has expired")
+
+    if not (settings.rate_limit_disabled or settings.environment == "test"):
+        last = db.scalar(
+            select(RaidAttempt)
+            .where(RaidAttempt.raid_id == raid.id, RaidAttempt.account_id == account.id)
+            .order_by(RaidAttempt.created_at.desc())
+            .limit(1)
+        )
+        if last is not None:
+            elapsed = (now - last.created_at).total_seconds()
+            if elapsed < RAID_ATTEMPT_COOLDOWN_SECONDS:
+                retry = int(RAID_ATTEMPT_COOLDOWN_SECONDS - elapsed)
+                raise HTTPException(
+                    status.HTTP_429_TOO_MANY_REQUESTS,
+                    f"raid attempt cooldown — try again in {retry}s",
+                    headers={"Retry-After": str(retry)},
+                )
+
+    heroes: list[HeroInstance] = []
+    for hid in body.team:
+        h = db.get(HeroInstance, hid)
+        if h is None or h.account_id != account.id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"hero {hid} not owned")
+        heroes.append(h)
+
+    if not consume_energy(account, RAID_ENERGY_COST):
+        raise HTTPException(status.HTTP_409_CONFLICT, f"not enough energy (need {RAID_ENERGY_COST})")
+    db.commit()
+
+    boss_template = db.get(HeroTemplate, raid.boss_template_id)
+    try:
+        boss_special = json.loads(boss_template.special_json or "null")
+    except json.JSONDecodeError:
+        boss_special = None
+
+    def _faction(t: HeroTemplate) -> Faction | None:
+        f = t.faction
+        return f if isinstance(f, Faction) else (Faction(f) if f else None)
+
+    from app.gacha import parse_variance as _pv
+    team_a = [
+        build_unit(
+            uid=f"A{i}", side="A",
+            name=h.template.name,
+            role=Role(h.template.role) if not isinstance(h.template.role, Role) else h.template.role,
+            level=h.level,
+            base_hp=h.template.base_hp, base_atk=h.template.base_atk,
+            base_def=h.template.base_def, base_spd=h.template.base_spd,
+            basic_mult=h.template.basic_mult,
+            special=json.loads(h.template.special_json or "null"),
+            special_cooldown=h.template.special_cooldown,
+            gear_bonus=gear_bonus_for(h),
+            special_level=h.special_level, stars=h.stars,
+            faction=_faction(h.template),
+            variance_pct=_pv(h.variance_pct_json),
+        )
+        for i, h in enumerate(heroes)
+    ]
+    boss_unit = build_unit(
+        uid="B0", side="B",
+        name=boss_template.name,
+        role=Role(boss_template.role) if not isinstance(boss_template.role, Role) else boss_template.role,
+        level=raid.boss_level,
+        base_hp=boss_template.base_hp * 10,
+        base_atk=boss_template.base_atk, base_def=boss_template.base_def, base_spd=boss_template.base_spd,
+        basic_mult=boss_template.basic_mult,
+        special=boss_special, special_cooldown=boss_template.special_cooldown,
+        faction=_faction(boss_template),
+    )
+    participants: list[dict] = [
+        {"uid": u.uid, "side": "A", "name": u.name, "role": str(u.role),
+         "level": u.level, "max_hp": u.max_hp,
+         "template_code": heroes[i].template.code,
+         "rarity": str(heroes[i].template.rarity), "faction": str(heroes[i].template.faction)}
+        for i, u in enumerate(team_a)
+    ] + [{
+        "uid": "B0", "side": "B", "name": boss_template.name,
+        "role": str(boss_template.role), "level": raid.boss_level,
+        "max_hp": boss_unit.max_hp,
+        "template_code": boss_template.code,
+        "rarity": str(boss_template.rarity), "faction": str(boss_template.faction),
+    }]
+
+    rng = random.Random()
+    session = create_raid_session(
+        account_id=account.id,
+        raid_id=raid.id,
+        hero_ids=[h.id for h in heroes],
+        team_a=team_a,
+        boss_unit=boss_unit,
+        rng=rng,
+        participants=participants,
+    )
+    return _raid_state_out(session)
+
+
+@router.post("/interactive/{session_id}/act", response_model=InteractiveStateOut)
+def raid_interactive_act(
+    session_id: str,
+    body: InteractiveActIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> InteractiveStateOut:
+    """Send a target choice for the current player turn in a raid session."""
+    session = _get_session(session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found or expired")
+    if session.account_id != account.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "not your session")
+    if session.kind != "raid":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "not a raid session")
+    if session.status == "DONE":
+        raise HTTPException(status.HTTP_409_CONFLICT, "battle already finished")
+
+    current_b = session.wave_teams_b[session.wave_idx]
+    valid_uids = {u.uid for u in current_b if not u.dead}
+    if body.target_uid not in valid_uids:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"invalid target {body.target_uid!r}")
+
+    try:
+        _adv_session(session, turn_number=body.turn_number, target_uid=body.target_uid)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
+
+    rewards = None
+    if session.status == "DONE":
+        # Finalize: calculate damage dealt to boss, update raid state
+        boss_unit = session.wave_teams_b[0][0]
+        damage = max(1, session.boss_start_hp - boss_unit.hp)
+        raid = db.get(Raid, session.context_id)
+        if raid is not None and raid.state == RaidState.ACTIVE:
+            damage = min(damage, raid.remaining_hp)
+            raid.remaining_hp -= damage
+            db.add(RaidAttempt(raid_id=raid.id, account_id=account.id, damage_dealt=damage))
+
+            from app.daily import on_raid_damage
+            on_raid_damage(db, account, damage)
+            from app.event_state import QUEST_KINDS_RAID, on_activity as _event_on_activity
+            _event_on_activity(db, account, "raid_attack", quest_kinds=QUEST_KINDS_RAID)
+            from app.crafting import grant_material as _gm, roll_raid_drops
+            for code, qty in roll_raid_drops(session.rng):
+                _gm(db, account, code, qty)
+            from app.achievements import check_achievements as _ca
+            _ca(db, account)
+            from app.account_level import XP_PER_RAID_ATTACK, grant_xp as _gxp
+            _gxp(db, account, XP_PER_RAID_ATTACK)
+            from app.guild_achievements import _update_guild_achievement as _uga
+            _uga(db, raid.guild_id, "total_raid_damage", damage)
+
+            defeated = False
+            if raid.remaining_hp <= 0:
+                raid.remaining_hp = 0
+                raid.state = RaidState.DEFEATED
+                defeated = True
+                _uga(db, raid.guild_id, "raids_completed", 1)
+
+            db.commit()
+            rewards = {
+                "damage_dealt": damage,
+                "boss_remaining_hp": raid.remaining_hp,
+                "boss_defeated": defeated,
+            }
+            if defeated:
+                rewards["payout"] = _distribute_rewards(db, raid)
+                db.commit()
+
+    return _raid_state_out(session, rewards=rewards)

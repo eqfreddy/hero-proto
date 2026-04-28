@@ -19,9 +19,11 @@ from app.config import settings
 from app.db import SessionLocal
 from app.models import (
     Faction,
+    GuildAchievement,
     HeroTemplate,
     LiveOpsEvent,
     LiveOpsKind,
+    OfferBundle,
     Rarity,
     Role,
     ShopProduct,
@@ -939,6 +941,201 @@ SHOP_SEEDS: list[dict] = [
 ]
 
 
+# --- Offer bundles -----------------------------------------------------------
+#
+# Premium time-limited bundles with direct USD pricing. Distinct from the
+# ShopProduct catalog — no Stripe price_id needed for mock-payment paths.
+# Idempotent: added once by code, never overwritten. Add new bundles here to
+# surface them via GET /shop/bundles.
+
+OFFER_BUNDLE_SEEDS: list[dict] = [
+    {
+        "code": "starter_pack",
+        "name": "Starter Pack",
+        "description": "Jump-start your roster: 200 gems, 30 shards. One-time only.",
+        "price_usd": 4.99,
+        "gems": 200,
+        "shards": 30,
+        "one_per_account": True,
+    },
+    {
+        "code": "gem_pack_small",
+        "name": "Small Gem Pack",
+        "description": "100 gems. Stackable — buy as many times as you like.",
+        "price_usd": 1.99,
+        "gems": 100,
+        "one_per_account": False,
+    },
+    {
+        "code": "shard_surge",
+        "name": "Shard Surge",
+        "description": "100 shards for a big summon session. One-time only.",
+        "price_usd": 2.99,
+        "shards": 100,
+        "one_per_account": True,
+    },
+    {
+        "code": "vip_bundle",
+        "name": "VIP Bundle",
+        "description": "Best value: 500 gems, 50 shards, 10 access cards. One-time only.",
+        "price_usd": 9.99,
+        "gems": 500,
+        "shards": 50,
+        "access_cards": 10,
+        "one_per_account": True,
+    },
+]
+
+
+GUILD_ACHIEVEMENT_SEEDS: list[dict] = [
+    {
+        "code": "FIRST_MEMBER",
+        "name": "First Recruit",
+        "description": "A guild that grows together, stays together.",
+        "category": "membership",
+        "metric": "members_joined",
+        "target_value": 2,
+        "reward_gems": 50,
+        "reward_coins": 500,
+    },
+    {
+        "code": "GUILD_OF_5",
+        "name": "Five Strong",
+        "description": "Reach 5 total members.",
+        "category": "membership",
+        "metric": "members_joined",
+        "target_value": 5,
+        "reward_gems": 100,
+        "reward_coins": 1000,
+    },
+    {
+        "code": "GUILD_OF_10",
+        "name": "Double Digits",
+        "description": "Reach 10 total members.",
+        "category": "membership",
+        "metric": "members_joined",
+        "target_value": 10,
+        "reward_gems": 200,
+        "reward_coins": 2000,
+    },
+    {
+        "code": "FIRST_RAID",
+        "name": "First Blood",
+        "description": "Complete your first guild raid.",
+        "category": "raids",
+        "metric": "raids_completed",
+        "target_value": 1,
+        "reward_gems": 100,
+        "reward_coins": 1000,
+    },
+    {
+        "code": "RAID_VETERANS",
+        "name": "Raid Veterans",
+        "description": "Complete 10 guild raids.",
+        "category": "raids",
+        "metric": "raids_completed",
+        "target_value": 10,
+        "reward_gems": 300,
+        "reward_coins": 3000,
+    },
+    {
+        "code": "RAID_ELITE",
+        "name": "Raid Elite",
+        "description": "Complete 50 guild raids.",
+        "category": "raids",
+        "metric": "raids_completed",
+        "target_value": 50,
+        "reward_gems": 500,
+        "reward_coins": 5000,
+    },
+    {
+        "code": "FIRST_VICTORY",
+        "name": "First Victory",
+        "description": "Win your first battle as a guild.",
+        "category": "battles",
+        "metric": "battles_won",
+        "target_value": 1,
+        "reward_gems": 50,
+        "reward_coins": 500,
+    },
+    {
+        "code": "CENTURY",
+        "name": "Centurions",
+        "description": "Win 100 battles as a guild.",
+        "category": "battles",
+        "metric": "battles_won",
+        "target_value": 100,
+        "reward_gems": 400,
+        "reward_coins": 4000,
+    },
+    {
+        "code": "GUILD_CHAT_ACTIVE",
+        "name": "Active Community",
+        "description": "Send 100 messages in guild chat.",
+        "category": "social",
+        "metric": "messages_sent",
+        "target_value": 100,
+        "reward_gems": 150,
+        "reward_coins": 1500,
+    },
+    {
+        "code": "DAMAGE_DEALERS",
+        "name": "Damage Dealers",
+        "description": "Deal 1,000,000 total raid damage as a guild.",
+        "category": "raids",
+        "metric": "total_raid_damage",
+        "target_value": 1_000_000,
+        "reward_gems": 500,
+        "reward_coins": 5000,
+    },
+]
+
+
+def seed_guild_achievements(db) -> int:
+    """Idempotent upsert of guild achievement definitions. Returns count added."""
+    existing_codes = set(db.scalars(select(GuildAchievement.code)).all())
+    added = 0
+    for a in GUILD_ACHIEVEMENT_SEEDS:
+        if a["code"] in existing_codes:
+            continue
+        db.add(GuildAchievement(
+            code=a["code"],
+            name=a["name"],
+            description=a["description"],
+            category=a["category"],
+            metric=a["metric"],
+            target_value=a["target_value"],
+            reward_gems=a.get("reward_gems", 0),
+            reward_coins=a.get("reward_coins", 0),
+        ))
+        added += 1
+    return added
+
+
+def seed_offer_bundles(db) -> int:
+    """Idempotent upsert of offer bundles. Returns count added."""
+    existing_codes = set(db.scalars(select(OfferBundle.code)).all())
+    added = 0
+    for b in OFFER_BUNDLE_SEEDS:
+        if b["code"] in existing_codes:
+            continue
+        db.add(OfferBundle(
+            code=b["code"],
+            name=b["name"],
+            description=b.get("description", ""),
+            price_usd=b["price_usd"],
+            gems=b.get("gems", 0),
+            shards=b.get("shards", 0),
+            coins=b.get("coins", 0),
+            access_cards=b.get("access_cards", 0),
+            hero_template_code=b.get("hero_template_code"),
+            one_per_account=b.get("one_per_account", True),
+            active=b.get("active", True),
+        ))
+        added += 1
+    return added
+
+
 def seed() -> None:
     _ensure_schema()
     with SessionLocal() as db:
@@ -1035,8 +1232,10 @@ def seed() -> None:
             ))
             added_p += 1
 
+        added_b = seed_offer_bundles(db)
+        added_ga = seed_guild_achievements(db)
         db.commit()
-        print(f"seeded heroes+={added_h} stages+={added_s} liveops+={added_l} products+={added_p}")
+        print(f"seeded heroes+={added_h} stages+={added_s} liveops+={added_l} products+={added_p} offer_bundles+={added_b} guild_achievements+={added_ga}")
 
 
 if __name__ == "__main__":

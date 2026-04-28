@@ -38,6 +38,13 @@ analytics = [
 analytics-runtime = [
     "posthog>=4.0.0",
 ]
+otel = [
+    "opentelemetry-api>=1.0.0",
+    "opentelemetry-sdk>=1.0.0",
+    "opentelemetry-instrumentation-fastapi>=0.40b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.40b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.0.0",
+]
 
 [dependency-groups]
 dev = [

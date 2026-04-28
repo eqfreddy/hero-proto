@@ -11,9 +11,12 @@ from app.deps import (
     enforce_guild_message_rate_limit,
     get_current_account,
 )
+from app.guild_achievements import _update_guild_achievement
 from app.models import (
     Account,
     Guild,
+    GuildAchievement,
+    GuildAchievementProgress,
     GuildApplication,
     GuildApplicationStatus,
     GuildInvite,
@@ -23,6 +26,8 @@ from app.models import (
     utcnow,
 )
 from app.schemas import (
+    GuildAchievementOut,
+    GuildAchievementsResponse,
     GuildApplicationIn,
     GuildApplicationOut,
     GuildCreateIn,
@@ -83,6 +88,9 @@ def create_guild(
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "name or tag already taken") from exc
     db.add(GuildMember(account_id=account.id, guild_id=guild.id, role=GuildRole.LEADER))
+    # Count the founder as the first member so FIRST_MEMBER (target=2) fires
+    # when the next player joins, rather than never.
+    _update_guild_achievement(db, guild.id, "members_joined", 1)
     db.commit()
     db.refresh(guild)
     return _guild_out(db, guild)
@@ -167,6 +175,7 @@ def join_guild(
     if _member_count(db, guild_id) >= MAX_GUILD_SIZE:
         raise HTTPException(status.HTTP_409_CONFLICT, "guild is full")
     db.add(GuildMember(account_id=account.id, guild_id=guild_id, role=GuildRole.MEMBER))
+    _update_guild_achievement(db, guild_id, "members_joined", 1)
     db.commit()
     return _detail(db, guild_id)  # type: ignore[return-value]
 
@@ -345,6 +354,7 @@ def post_message(
     _require_membership(db, account, guild_id)
     msg = GuildMessage(guild_id=guild_id, author_id=account.id, body=body.body.strip())
     db.add(msg)
+    _update_guild_achievement(db, guild_id, "messages_sent", 1)
     db.commit()
     db.refresh(msg)
     return GuildMessageOut(
@@ -476,6 +486,7 @@ def accept_application(
     if _member_count(db, a.guild_id) >= MAX_GUILD_SIZE:
         raise HTTPException(status.HTTP_409_CONFLICT, "guild is full")
     db.add(GuildMember(account_id=a.account_id, guild_id=a.guild_id, role=GuildRole.MEMBER))
+    _update_guild_achievement(db, a.guild_id, "members_joined", 1)
     a.status = GuildApplicationStatus.ACCEPTED
     a.reviewed_at = utcnow()
     a.reviewed_by = account.id
@@ -676,6 +687,7 @@ def accept_invite(
     if _member_count(db, inv.guild_id) >= MAX_GUILD_SIZE:
         raise HTTPException(status.HTTP_409_CONFLICT, "guild is full")
     db.add(GuildMember(account_id=account.id, guild_id=inv.guild_id, role=GuildRole.MEMBER))
+    _update_guild_achievement(db, inv.guild_id, "members_joined", 1)
     inv.status = GuildApplicationStatus.ACCEPTED
     inv.decided_at = utcnow()
     # Auto-reject all other pending invites this player has — they now have a guild.
@@ -728,3 +740,95 @@ def cancel_invite(
     db.commit()
     db.refresh(inv)
     return _invite_out(db, inv)
+
+
+# --- Guild achievements -------------------------------------------------------
+
+
+def _build_achievement_out(
+    db: Session, guild_id: int, ach: GuildAchievement,
+) -> GuildAchievementOut:
+    progress = db.scalar(
+        select(GuildAchievementProgress).where(
+            GuildAchievementProgress.guild_id == guild_id,
+            GuildAchievementProgress.achievement_code == ach.code,
+        )
+    )
+    current = progress.current_value if progress else 0
+    return GuildAchievementOut(
+        code=ach.code,
+        name=ach.name,
+        description=ach.description,
+        category=ach.category,
+        metric=ach.metric,
+        target_value=ach.target_value,
+        reward_gems=ach.reward_gems,
+        reward_coins=ach.reward_coins,
+        current_value=current,
+        completed=progress.completed_at is not None if progress else False,
+        reward_claimed=progress.reward_claimed_at is not None if progress else False,
+    )
+
+
+@router.get("/{guild_id}/achievements", response_model=GuildAchievementsResponse)
+def list_guild_achievements(
+    guild_id: int,
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildAchievementsResponse:
+    """Public — no auth required. Returns all achievement definitions with per-guild progress."""
+    if db.get(Guild, guild_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "guild not found")
+    definitions = db.scalars(select(GuildAchievement).order_by(GuildAchievement.id)).all()
+    return GuildAchievementsResponse(
+        achievements=[_build_achievement_out(db, guild_id, a) for a in definitions]
+    )
+
+
+@router.post(
+    "/{guild_id}/achievements/{code}/claim",
+    response_model=GuildAchievementOut,
+    status_code=status.HTTP_200_OK,
+)
+def claim_guild_achievement(
+    guild_id: int,
+    code: str,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GuildAchievementOut:
+    """Leader/officer claims the reward for a completed achievement. Idempotent."""
+    m = _require_membership(db, account, guild_id)
+    _require_officer(m)
+
+    ach = db.scalar(select(GuildAchievement).where(GuildAchievement.code == code))
+    if ach is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "achievement not found")
+
+    progress = db.scalar(
+        select(GuildAchievementProgress).where(
+            GuildAchievementProgress.guild_id == guild_id,
+            GuildAchievementProgress.achievement_code == code,
+        )
+    )
+    if progress is None or progress.completed_at is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "achievement not yet completed")
+    if progress.reward_claimed_at is not None:
+        # Idempotent: already claimed, just return the current state.
+        return _build_achievement_out(db, guild_id, ach)
+
+    # Grant rewards to the current guild leader (not created_by, which may be stale
+    # after a leadership transfer).
+    leader_row = db.scalar(
+        select(GuildMember).where(
+            GuildMember.guild_id == guild_id,
+            GuildMember.role == GuildRole.LEADER,
+        )
+    )
+    if leader_row is not None:
+        leader_account = db.get(Account, leader_row.account_id)
+        if leader_account is not None:
+            leader_account.gems += ach.reward_gems
+            leader_account.coins += ach.reward_coins
+
+    progress.reward_claimed_at = utcnow()
+    db.commit()
+    return _build_achievement_out(db, guild_id, ach)

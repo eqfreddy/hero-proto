@@ -89,6 +89,7 @@ class MeOut(BaseModel):
     active_cosmetic_frame: str = ""
     hero_slot_cap: int = 50
     gear_slot_cap: int = 200
+    is_admin: bool = False
 
 
 class HeroTemplateOut(BaseModel):
@@ -393,6 +394,9 @@ class BattleIn(BaseModel):
     # skip the replay viewer and jump straight to the post-mortem.
     # Setting True without owning the unlock is a no-op (server ignores).
     auto: bool = False
+    # Phase 3.2 — player-chosen target priority for basic attacks.
+    # "default" preserves pre-3.2 behaviour (lowest-HP enemy).
+    target_priority: str = "default"
 
 
 
@@ -420,3 +424,63 @@ class SummonOut(BaseModel):
     rarity: Rarity
     pulled_epic_pity: bool
     pulls_since_epic_after: int
+
+
+class GuildAchievementOut(BaseModel):
+    code: str
+    name: str
+    description: str
+    category: str
+    metric: str
+    target_value: int
+    reward_gems: int
+    reward_coins: int
+    current_value: int
+    completed: bool
+    reward_claimed: bool
+
+
+class GuildAchievementsResponse(BaseModel):
+    achievements: list[GuildAchievementOut]
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.3 — Interactive (turn-by-turn) combat
+# ---------------------------------------------------------------------------
+
+class InteractiveActIn(BaseModel):
+    turn_number: int
+    target_uid: str  # uid of the enemy to attack, e.g. "b0"
+
+
+class UnitSnapshot(BaseModel):
+    uid: str
+    name: str
+    side: str
+    role: str
+    hp: int
+    max_hp: int
+    dead: bool
+    shielded: bool
+    limit_gauge: int
+    limit_gauge_max: int
+
+
+class PendingTurnOut(BaseModel):
+    actor_uid: str
+    actor_name: str
+    turn_number: int
+    enemies: list[dict]  # [{"uid": ..., "name": ..., "hp": ..., "max_hp": ...}]
+
+
+class InteractiveStateOut(BaseModel):
+    session_id: str
+    status: str  # "WAITING" | "DONE"
+    pending: PendingTurnOut | None = None
+    log_delta: list[dict]
+    team_a: list[UnitSnapshot]
+    team_b: list[UnitSnapshot]  # current wave enemies
+    # Set only when status == "DONE"
+    outcome: str | None = None
+    rewards: dict | None = None
+    participants: list[BattleParticipant] = []

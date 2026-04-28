@@ -27,7 +27,7 @@ from app.models import (
     Role,
     Stage,
 )
-from app.schemas import BattleIn, BattleOut, BattleParticipant, SweepIn, SweepOut
+from app.schemas import BattleIn, BattleOut, BattleParticipant, InteractiveActIn, InteractiveStateOut, SweepIn, SweepOut
 
 router = APIRouter(prefix="/battles", tags=["battles"])
 
@@ -63,6 +63,8 @@ def _unit_from_instance(hero: HeroInstance, side: str, idx: int) -> CombatUnit:
         faction=_template_faction(t),
         variance_pct=parse_variance(hero.variance_pct_json),
         attack_kind=getattr(t, "attack_kind", "melee") or "melee",
+        mana_cost=getattr(t, "mana_cost", 10) or 10,
+        mana_regen_per_turn=getattr(t, "mana_regen_per_turn", 15) or 15,
     )
 
 
@@ -84,6 +86,8 @@ def _unit_from_template(t: HeroTemplate, level: int, side: str, idx: int) -> Com
         special_cooldown=t.special_cooldown,
         faction=_template_faction(t),
         attack_kind=getattr(t, "attack_kind", "melee") or "melee",
+        mana_cost=getattr(t, "mana_cost", 10) or 10,
+        mana_regen_per_turn=getattr(t, "mana_regen_per_turn", 15) or 15,
     )
 
 
@@ -172,7 +176,7 @@ def fight(
 
         combined_log.append({"type": "WAVE_START", "wave": wave_idx + 1, "enemies": [u.uid for u in team_b]})
 
-        result = simulate(team_a, team_b, rng)
+        result = simulate(team_a, team_b, rng, target_priority=body.target_priority)
         combined_log.extend(result.log)
 
         if result.outcome != BattleOutcome.WIN:
@@ -328,6 +332,15 @@ def fight(
         first_clear=1 if rewards.first_clear else 0,
     )
     db.add(battle)
+
+    # Guild achievement hook: increment battles_won for every guild member who wins.
+    if outcome == BattleOutcome.WIN:
+        from app.guild_achievements import _update_guild_achievement as _uga
+        from app.models import GuildMember as _GM
+        membership = db.get(_GM, account.id)
+        if membership is not None:
+            _uga(db, membership.guild_id, "battles_won", 1)
+
     db.commit()
     db.refresh(battle)
 
@@ -488,7 +501,7 @@ def preview_battle(
             team_b.append(_unit_from_template(tmpl, level, "B", j))
         if not team_b:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "preview: no enemies could be built")
-        result = simulate(team_a, team_b, rng)
+        result = simulate(team_a, team_b, rng, target_priority=body.target_priority)
         outcomes.append(result.outcome)
         sample_ticks.append(getattr(result, "ticks", 0) or 0)
 
@@ -691,3 +704,228 @@ def get_battle(
         rewards=rewards,
         created_at=b.created_at,
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.3 — Interactive (turn-by-turn) stage battles
+# ---------------------------------------------------------------------------
+
+from app.interactive import (
+    InteractiveSession,
+    advance_session as _advance_session,
+    create_stage_session,
+    get_session,
+    session_log_delta,
+)
+from app.schemas import UnitSnapshot
+
+
+def _state_out(session: InteractiveSession, rewards: dict | None = None) -> InteractiveStateOut:
+    """Convert session state into the wire response."""
+    delta = session_log_delta(session)
+    pending = None
+    if session.pending is not None:
+        actor = next(
+            (u for u in session.team_a if u.uid == session.pending["actor"]),
+            None,
+        )
+        pending = {
+            "actor_uid": session.pending["actor"],
+            "actor_name": actor.name if actor else session.pending["actor"],
+            "turn_number": session.turn_number,
+            "enemies": session.pending.get("enemies", []),
+        }
+
+    current_team_b = session.wave_teams_b[session.wave_idx]
+    return InteractiveStateOut(
+        session_id=session.session_id,
+        status=session.status,
+        pending=pending,
+        log_delta=delta,
+        team_a=[UnitSnapshot(**_unit_snap(u)) for u in session.team_a],
+        team_b=[UnitSnapshot(**_unit_snap(u)) for u in current_team_b],
+        outcome=str(session.outcome) if session.outcome is not None else None,
+        rewards=rewards,
+        participants=[BattleParticipant(**p) for p in session.participants],
+    )
+
+
+def _unit_snap(u) -> dict:
+    return {
+        "uid": u.uid, "name": u.name, "side": u.side, "role": str(u.role),
+        "hp": u.hp, "max_hp": u.max_hp, "dead": u.dead, "shielded": u.shielded,
+        "limit_gauge": u.limit_gauge, "limit_gauge_max": u.limit_gauge_max,
+    }
+
+
+def _finalize_stage(session: InteractiveSession, account: Account, db: Session) -> dict:
+    """Run the same post-fight reward logic as fight(). Called once per session when DONE."""
+    stage = db.get(Stage, session.context_id)
+    heroes = [db.get(HeroInstance, hid) for hid in session.hero_ids]
+    heroes = [h for h in heroes if h is not None]
+
+    outcome = session.outcome
+    won = outcome == BattleOutcome.WIN
+    first_clear = mark_cleared(account, stage.code) if won else False
+
+    rewards = award_rewards(
+        account=account, stage=stage, heroes_on_team=heroes,
+        won=won, first_clear=first_clear, rng=session.rng,
+        liveops_multiplier=reward_multiplier(db),
+    )
+    rewards_extra = rewards.as_json()
+    rewards_extra["gear"] = None
+
+    completed_dailies: list[int] = []
+    if won:
+        completed_dailies = [q.id for q in on_battle_won(db, account, stage.code)]
+        from app.models import StageDifficulty as _SD
+        if stage.difficulty_tier == _SD.HARD:
+            completed_dailies += [q.id for q in on_hard_stage_clear(db, account)]
+    rewards_extra["completed_daily_quest_ids"] = completed_dailies
+
+    if won:
+        drop_chance = 0.70 if first_clear else 0.35
+        drop_chance += gear_drop_bonus(db)
+        if session.rng.random() < drop_chance:
+            slot, rarity, set_code, stats = roll_gear(session.rng, stage.order)
+            usage = gear_usage(db, account)
+            if usage.full:
+                queue_mailbox(account, "gear", {
+                    "slot": str(slot), "rarity": str(rarity),
+                    "set_code": str(set_code), "stats": stats,
+                })
+                rewards_extra["gear"] = {"mailboxed": True, "slot": str(slot), "rarity": str(rarity), "set": str(set_code), "stats": stats}
+            else:
+                g = Gear(account_id=account.id, slot=slot, rarity=rarity, set_code=set_code, stats_json=json.dumps(stats))
+                db.add(g)
+                db.flush()
+                rewards_extra["gear"] = {"id": g.id, "slot": str(slot), "rarity": str(rarity), "set": str(set_code), "stats": stats}
+
+        material_drops = roll_battle_drops(session.rng, stage.order)
+        for code, qty in material_drops:
+            grant_material(db, account, code, qty)
+        if material_drops:
+            rewards_extra["materials"] = [{"code": c, "qty": q} for c, q in material_drops]
+
+        from app.account_level import XP_PER_BATTLE_WIN, XP_PER_FIRST_CLEAR, grant_xp as _gxp
+        levelups = _gxp(db, account, XP_PER_BATTLE_WIN + (XP_PER_FIRST_CLEAR if first_clear else 0))
+        if levelups:
+            rewards_extra["account_levelups"] = levelups
+
+    trimmed_log = trim_combat_log(session.combined_log)
+    battle = Battle(
+        account_id=account.id, stage_id=stage.id,
+        team_json=json.dumps(session.hero_ids),
+        outcome=outcome,
+        log_json=json.dumps(trimmed_log),
+        participants_json=json.dumps(session.participants),
+        rewards_json=json.dumps(rewards_extra),
+        first_clear=1 if rewards.first_clear else 0,
+    )
+    db.add(battle)
+    db.commit()
+    return rewards_extra
+
+
+@router.post("/interactive/start", response_model=InteractiveStateOut, status_code=status.HTTP_201_CREATED)
+def interactive_start(
+    body: BattleIn,
+    account: Annotated[Account, Depends(enforce_battle_rate_limit)],
+    db: Annotated[Session, Depends(get_db)],
+) -> InteractiveStateOut:
+    """Start an interactive stage battle. Consumes energy immediately.
+    Returns the first state snapshot with the first PLAYER_TURN pending choice.
+    """
+    stage = db.get(Stage, body.stage_id)
+    if stage is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "stage not found")
+    if stage.requires_code and stage.requires_code not in load_cleared(account):
+        raise HTTPException(status.HTTP_409_CONFLICT, f"locked: clear {stage.requires_code!r} on NORMAL first")
+
+    heroes: list[HeroInstance] = []
+    for hid in body.team:
+        h = db.get(HeroInstance, hid)
+        if h is None or h.account_id != account.id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"hero {hid} not owned")
+        heroes.append(h)
+
+    if not consume_energy(account, stage.energy_cost):
+        raise HTTPException(status.HTTP_409_CONFLICT, f"not enough energy (need {stage.energy_cost})")
+    db.commit()
+
+    waves = json.loads(stage.waves_json or "[]")
+    team_a = [_unit_from_instance(h, "A", i) for i, h in enumerate(heroes)]
+    participants: list[dict] = [
+        {"uid": u.uid, "side": "A", "name": u.name, "role": str(u.role), "level": u.level,
+         "max_hp": u.max_hp, "template_code": heroes[i].template.code,
+         "rarity": str(heroes[i].template.rarity), "faction": str(heroes[i].template.faction)}
+        for i, u in enumerate(team_a)
+    ]
+
+    wave_teams_b: list[list[CombatUnit]] = []
+    enemy_counter = 0
+    for wave in waves:
+        wave_b: list[CombatUnit] = []
+        for spec in wave.get("enemies", []):
+            tmpl = db.scalar(select(HeroTemplate).where(HeroTemplate.code == spec["template_code"]))
+            if tmpl is None:
+                raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"missing template {spec['template_code']!r}")
+            eu = _unit_from_template(tmpl, int(spec.get("level", 1)), "B", enemy_counter)
+            wave_b.append(eu)
+            participants.append({
+                "uid": eu.uid, "side": "B", "name": eu.name, "role": str(eu.role),
+                "level": eu.level, "max_hp": eu.max_hp,
+                "template_code": tmpl.code, "rarity": str(tmpl.rarity), "faction": str(tmpl.faction),
+            })
+            enemy_counter += 1
+        wave_teams_b.append(wave_b)
+
+    rng = random.Random()
+    session = create_stage_session(
+        account_id=account.id,
+        stage_id=stage.id,
+        hero_ids=[h.id for h in heroes],
+        team_a=team_a,
+        wave_teams_b=wave_teams_b,
+        rng=rng,
+        participants=participants,
+        target_priority=body.target_priority,
+    )
+    return _state_out(session)
+
+
+@router.post("/interactive/{session_id}/act", response_model=InteractiveStateOut)
+def interactive_act(
+    session_id: str,
+    body: InteractiveActIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> InteractiveStateOut:
+    """Send a target choice for the current player turn.
+    When status == 'DONE', rewards are calculated and the battle is persisted.
+    """
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found or expired")
+    if session.account_id != account.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "not your session")
+    if session.status == "DONE":
+        raise HTTPException(status.HTTP_409_CONFLICT, "battle already finished")
+
+    # Validate target is a live enemy in the current wave
+    current_b = session.wave_teams_b[session.wave_idx]
+    valid_uids = {u.uid for u in current_b if not u.dead}
+    if body.target_uid not in valid_uids:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"invalid target {body.target_uid!r}")
+
+    try:
+        _advance_session(session, turn_number=body.turn_number, target_uid=body.target_uid)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e))
+
+    rewards = None
+    if session.status == "DONE":
+        rewards = _finalize_stage(session, account, db)
+
+    return _state_out(session, rewards=rewards)

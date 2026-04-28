@@ -13,14 +13,14 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text as _text
 
 from app.config import settings
-from app.middleware import RateLimitMiddleware, RequestLogMiddleware
+from app.middleware import LocaleMiddleware, RateLimitMiddleware, RequestLogMiddleware
 from app.observability import (
     MetricsMiddleware,
     RequestIDMiddleware,
     configure_logging,
     metrics_response,
 )
-from app.routers import achievements, admin, announcements, arena, auth, battles, crafting, daily, events, friends, gear, guilds, heroes, inventory, liveops, me, notifications, raids, shop, stages, story, summon, ui
+from app.routers import achievements, admin, announcements, arena, auth, battles, crafting, daily, events, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, notifications, raids, shop, stages, story, summon, ui
 from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -28,6 +28,8 @@ configure_logging(json_logs=settings.json_logs)
 # Sentry must init before FastAPI creates the app so middleware hooks attach properly.
 from app.sentry_init import init_sentry
 init_sentry()
+from app.tracing import setup_tracing, instrument_app as _instrument_app
+setup_tracing()
 log = logging.getLogger("lifespan")
 
 
@@ -111,7 +113,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(LocaleMiddleware, default_locale=settings.default_locale)
 app.add_middleware(RequestIDMiddleware)
+_instrument_app(app)
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 if _STATIC_DIR.is_dir():
@@ -183,6 +187,7 @@ app.include_router(achievements.router)
 app.include_router(notifications.router)
 app.include_router(story.router)
 app.include_router(friends.router)
+app.include_router(i18n_router.router)
 
 # Stripe checkout + webhook. Endpoints 503 until HEROPROTO_STRIPE_* vars are set.
 from app import stripe_ext as _stripe_ext

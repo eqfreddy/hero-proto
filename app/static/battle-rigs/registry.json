@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Battle rig registry \u2014 maps hero template_code to which DragonBones rig + head texture to use. v1 placeholder: every hero uses the demo Mecha 1004B rig until production atk/def/sup rigs ship.",
+  "description": "Battle rig registry — maps hero template_code to which DragonBones rig + head texture to use. placeholder_atk/def/sup reuse the mecha_demo skeleton with role tints until production rigs ship.",
   "rigs": {
     "mecha_demo": {
       "skeleton": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_ske.json",
@@ -22,197 +22,263 @@
       "scale_default": 0.45,
       "head_slot": null,
       "weapon_slot": null
+    },
+    "placeholder_atk": {
+      "skeleton": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_ske.json",
+      "atlas": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_tex.json",
+      "texture": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_tex.png",
+      "armature": "mecha_1004d",
+      "tint": 16737882,
+      "animations": {
+        "idle": "idle",
+        "walk": "walk",
+        "attack_basic": "attack_01",
+        "attack_special": "skill_01",
+        "attack_special_aoe": "skill_03",
+        "attack_special_heal": "skill_04",
+        "attack_special_buff": "skill_05",
+        "hit": "hit",
+        "death": "death",
+        "victory": "victory"
+      },
+      "scale_default": 0.45,
+      "head_slot": null,
+      "weapon_slot": null
+    },
+    "placeholder_def": {
+      "skeleton": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_ske.json",
+      "atlas": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_tex.json",
+      "texture": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_tex.png",
+      "armature": "mecha_1004d",
+      "tint": 5873919,
+      "animations": {
+        "idle": "idle",
+        "walk": "walk",
+        "attack_basic": "attack_01",
+        "attack_special": "skill_01",
+        "attack_special_aoe": "skill_03",
+        "attack_special_heal": "skill_04",
+        "attack_special_buff": "skill_05",
+        "hit": "hit",
+        "death": "death",
+        "victory": "victory"
+      },
+      "scale_default": 0.48,
+      "head_slot": null,
+      "weapon_slot": null
+    },
+    "placeholder_sup": {
+      "skeleton": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_ske.json",
+      "atlas": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_tex.json",
+      "texture": "/app/static/dragonbones-demo/mecha_1004d/mecha_1004d_tex.png",
+      "armature": "mecha_1004d",
+      "tint": 7197594,
+      "animations": {
+        "idle": "idle",
+        "walk": "walk",
+        "attack_basic": "attack_01",
+        "attack_special": "skill_01",
+        "attack_special_aoe": "skill_03",
+        "attack_special_heal": "skill_04",
+        "attack_special_buff": "skill_05",
+        "hit": "hit",
+        "death": "death",
+        "victory": "victory"
+      },
+      "scale_default": 0.42,
+      "head_slot": null,
+      "weapon_slot": null
     }
   },
   "units": {
     "ticket_gremlin": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/ticket_gremlin.png"
     },
     "printer_whisperer": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/printer_whisperer.png"
     },
     "overnight_janitor": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/overnight_janitor.png"
     },
     "jaded_intern": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/jaded_intern.png"
     },
     "sre_on_call": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/sre_on_call.png"
     },
     "compliance_officer": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/compliance_officer.png"
     },
     "security_auditor": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/security_auditor.png"
     },
     "the_sysadmin": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/the_sysadmin.png"
     },
     "root_access_janitor": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/root_access_janitor.png"
     },
     "vp_of_vibes": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/vp_of_vibes.png"
     },
     "keymaster_gary": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/keymaster_gary.png"
     },
     "the_post_mortem": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": null
     },
     "midnight_pager": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/midnight_pager.png"
     },
     "the_consultant": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/the_consultant.png"
     },
     "the_founder": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/the_founder.png"
     },
     "devops_apprentice": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/devops_apprentice.png"
     },
     "forgotten_contractor": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/forgotten_contractor.png"
     },
     "helpdesk_veteran": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/helpdesk_veteran.png"
     },
     "build_engineer": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/build_engineer.png"
     },
     "rogue_dba": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/rogue_dba.png"
     },
     "oncall_warrior": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/oncall_warrior.png"
     },
     "retired_mainframe_guru": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/retired_mainframe_guru.png"
     },
     "shadow_it_operator": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/shadow_it_operator.png"
     },
     "chaos_monkey": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/chaos_monkey.png"
     },
     "the_board_member": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/the_board_member.png"
     },
     "frontline_l1_tech": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/frontline_l1_tech.png"
     },
     "office_coffee_hoarder": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/office_coffee_hoarder.png"
     },
     "database_archaeologist": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/database_archaeologist.png"
     },
     "agile_coach": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/agile_coach.png"
     },
     "cert_collector": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/cert_collector.png"
     },
     "blue_team_lead": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/blue_team_lead.png"
     },
     "tape_library_ghost": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/tape_library_ghost.png"
     },
     "raidboss_legacy_colossus": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_def",
       "role": "DEF",
       "head_texture": "/app/static/heroes/busts/raidboss_legacy_colossus.png"
     },
     "raidboss_c_suite_hydra": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/raidboss_c_suite_hydra.png"
     },
     "raidboss_chaos_dragon": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/raidboss_chaos_dragon.png"
     },
     "tbfam": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_atk",
       "role": "ATK",
       "head_texture": "/app/static/heroes/busts/tbfam.png"
     },
     "applecrumb": {
-      "rig": "mecha_demo",
+      "rig": "placeholder_sup",
       "role": "SUP",
       "head_texture": "/app/static/heroes/busts/applecrumb.png"
     }
   },
   "_notes": {
-    "engine": "Pixi 4.6 + DragonBones 5.7 \u2014 matches the working demo at /app/static/dragonbones-demo/.",
+    "engine": "Pixi 4.6 + DragonBones 5.7 — matches the working demo at /app/static/dragonbones-demo/.",
     "production_rigs_pending": {
       "atk": "5 actions (idle/attack_basic/attack_special/hit/death) + optional victory. Head + weapon slots.",
       "def": "Same 5 actions. Head + shield slot.",

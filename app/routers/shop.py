@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -28,6 +28,7 @@ from app.db import get_db
 from app.deps import get_current_account
 from app.models import (
     Account,
+    OfferBundle,
     Purchase,
     PurchaseState,
     ShopProduct,
@@ -394,6 +395,204 @@ def list_my_purchases(
         .limit(limit)
     )
     return [_purchase_out(p) for p in rows]
+
+
+# --- Offer bundles -----------------------------------------------------------
+#
+# Separate from the ShopProduct catalog: these use USD float pricing and have
+# their own purchase path. Velocity limit: max 5 purchases/hour across all
+# bundles, DB-counted so it works without Redis.
+
+
+class BundleOut(BaseModel):
+    code: str
+    name: str
+    description: str
+    price_usd: float
+    gems: int
+    shards: int
+    coins: int
+    access_cards: int
+    hero_template_code: str | None
+    one_per_account: bool
+    available_from: datetime | None = None
+    available_until: datetime | None = None
+
+
+class BundlePurchaseOut(BaseModel):
+    id: int
+    bundle_code: str
+    price_usd: float
+    gems_granted: int
+    shards_granted: int
+    coins_granted: int
+    access_cards_granted: int
+    hero_template_code: str | None
+    created_at: datetime
+
+
+_BUNDLE_VELOCITY_LIMIT = 5   # max bundle purchases per hour per account
+_BUNDLE_VELOCITY_WINDOW = timedelta(hours=1)
+
+
+def _bundle_time_active(bundle: OfferBundle, now: datetime) -> bool:
+    if not bundle.active:
+        return False
+    if bundle.available_from is not None and now < bundle.available_from:
+        return False
+    if bundle.available_until is not None and now >= bundle.available_until:
+        return False
+    return True
+
+
+def _count_recent_bundle_purchases(db: Session, account_id: int, since: datetime) -> int:
+    """Count bundle purchases (sku prefix 'bundle:') for velocity gate."""
+    return db.scalar(
+        select(func.count(Purchase.id)).where(
+            Purchase.account_id == account_id,
+            Purchase.sku.like("bundle:%"),
+            Purchase.state.in_((PurchaseState.COMPLETED, PurchaseState.PENDING)),
+            Purchase.created_at >= since,
+        )
+    ) or 0
+
+
+@router.get("/bundles", response_model=list[BundleOut])
+def list_bundles(
+    db: Annotated[Session, Depends(get_db)],
+) -> list[BundleOut]:
+    """Public endpoint — lists active bundles within their availability window."""
+    now = utcnow()
+    rows = db.scalars(
+        select(OfferBundle)
+        .where(OfferBundle.active.is_(True))
+        .order_by(OfferBundle.id)
+    )
+    return [
+        BundleOut(
+            code=b.code,
+            name=b.name,
+            description=b.description,
+            price_usd=b.price_usd,
+            gems=b.gems,
+            shards=b.shards,
+            coins=b.coins,
+            access_cards=b.access_cards,
+            hero_template_code=b.hero_template_code,
+            one_per_account=b.one_per_account,
+            available_from=b.available_from,
+            available_until=b.available_until,
+        )
+        for b in rows
+        if _bundle_time_active(b, now)
+    ]
+
+
+@router.post(
+    "/bundles/{code}/purchase",
+    response_model=BundlePurchaseOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def purchase_bundle(
+    code: str,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> BundlePurchaseOut:
+    """Purchase an offer bundle with mock payment.
+
+    Checks:
+    - bundle active + within availability window (404/409)
+    - one_per_account enforcement (409)
+    - velocity limit: max 5 bundle purchases per hour (429)
+    - mock payments enabled (503)
+    """
+    if not settings.mock_payments_enabled:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "bundle purchases require a payment processor — set HEROPROTO_MOCK_PAYMENTS_ENABLED=1 in dev",
+        )
+
+    bundle = db.scalar(select(OfferBundle).where(OfferBundle.code == code))
+    if bundle is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"bundle {code!r} not found")
+
+    now = utcnow()
+    if not _bundle_time_active(bundle, now):
+        raise HTTPException(status.HTTP_409_CONFLICT, "bundle is not currently available")
+
+    sku = f"bundle:{bundle.code}"
+
+    # One-per-account check.
+    if bundle.one_per_account:
+        already = count_account_purchases(db, account.id, sku)
+        if already >= 1:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"bundle {code!r} can only be purchased once per account",
+            )
+
+    # Velocity check: max 5 bundle purchases in the last hour.
+    since = now - _BUNDLE_VELOCITY_WINDOW
+    recent = _count_recent_bundle_purchases(db, account.id, since)
+    if recent >= _BUNDLE_VELOCITY_LIMIT:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "too many bundle purchases — maximum 5 per hour",
+            headers={"Retry-After": "3600"},
+        )
+
+    # Build the contents dict for apply_grant.
+    contents: dict = {}
+    if bundle.gems:
+        contents["gems"] = bundle.gems
+    if bundle.shards:
+        contents["shards"] = bundle.shards
+    if bundle.coins:
+        contents["coins"] = bundle.coins
+    if bundle.access_cards:
+        contents["access_cards"] = bundle.access_cards
+    if bundle.hero_template_code:
+        contents["hero_template_code"] = bundle.hero_template_code
+
+    price_cents = round(bundle.price_usd * 100)
+    purchase = Purchase(
+        account_id=account.id,
+        sku=sku,
+        title_snapshot=bundle.name,
+        price_cents_paid=price_cents,
+        currency_code="USD",
+        processor="mock-payment",
+        processor_ref=uuid.uuid4().hex,
+        state=PurchaseState.PENDING,
+        contents_snapshot_json=json.dumps(contents),
+    )
+    db.add(purchase)
+    db.flush()
+
+    try:
+        apply_grant(db, account, purchase, contents)
+    except ValueError as exc:
+        purchase.state = PurchaseState.FAILED
+        purchase.refund_reason = str(exc)[:256]
+        db.commit()
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc)) from exc
+
+    purchase.state = PurchaseState.COMPLETED
+    purchase.completed_at = utcnow()
+    db.commit()
+    db.refresh(purchase)
+
+    return BundlePurchaseOut(
+        id=purchase.id,
+        bundle_code=bundle.code,
+        price_usd=bundle.price_usd,
+        gems_granted=bundle.gems,
+        shards_granted=bundle.shards,
+        coins_granted=bundle.coins,
+        access_cards_granted=bundle.access_cards,
+        hero_template_code=bundle.hero_template_code,
+        created_at=purchase.created_at,
+    )
 
 
 # --- Shard store (in-game gems → shards exchange) ---------------------------

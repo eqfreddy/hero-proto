@@ -1,4 +1,4 @@
-"""Rate-limit + request-log middleware.
+"""Rate-limit + request-log + locale middleware.
 
 Rate limiting has two backends:
   - memory: per-process sliding window (fine for single-instance alpha).
@@ -18,6 +18,8 @@ import redis
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
+from app.i18n import get_locale, locale_var
 
 log = logging.getLogger("http")
 
@@ -200,3 +202,28 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             duration_ms,
         )
         return response
+
+
+class LocaleMiddleware(BaseHTTPMiddleware):
+    """Resolve Accept-Language header to a supported locale and store it in locale_var.
+
+    Runs after RequestIDMiddleware so every log line already carries a request ID
+    when locale resolution happens. The resolved locale is available via
+    ``app.i18n.locale_var.get()`` anywhere downstream in the same request context.
+
+    The ``default_locale`` parameter lets ops override the server-wide fallback
+    via ``HEROPROTO_DEFAULT_LOCALE`` without touching source code.
+    """
+
+    def __init__(self, app, default_locale: str = "en") -> None:
+        super().__init__(app)
+        self._default_locale = default_locale
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        accept_lang = request.headers.get("accept-language")
+        locale = get_locale(accept_lang, default=self._default_locale)
+        token = locale_var.set(locale)
+        try:
+            return await call_next(request)
+        finally:
+            locale_var.reset(token)

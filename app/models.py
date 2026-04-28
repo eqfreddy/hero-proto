@@ -340,6 +340,8 @@ class HeroTemplate(Base):
     # consumes this; for now the resolver routes basic damage through
     # one channel or the other so balance work can start.
     attack_kind: Mapped[str] = mapped_column(String(8), default="melee")
+    mana_cost: Mapped[int] = mapped_column(Integer, default=10)
+    mana_regen_per_turn: Mapped[int] = mapped_column(Integer, default=15)
 
 
 class HeroInstance(Base):
@@ -983,6 +985,37 @@ class Purchase(Base):
     refund_reason: Mapped[str] = mapped_column(String(256), default="")
 
 
+class OfferBundle(Base):
+    """Premium offer bundles — distinct from ShopProduct catalog items.
+
+    Bundles use USD float pricing (not cents) and have their own purchase
+    path (/shop/bundles/{code}/purchase) with built-in velocity limiting.
+    They do NOT use ShopProduct.sku — the `code` field is the identifier
+    passed in the URL.
+    """
+
+    __tablename__ = "offer_bundles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    description: Mapped[str] = mapped_column(String(512), default="")
+    price_usd: Mapped[float] = mapped_column(Float)
+    gems: Mapped[int] = mapped_column(Integer, default=0)
+    shards: Mapped[int] = mapped_column(Integer, default=0)
+    coins: Mapped[int] = mapped_column(Integer, default=0)
+    access_cards: Mapped[int] = mapped_column(Integer, default=0)
+    # Optional hero grant — null means no hero included.
+    hero_template_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # When True, a player can purchase this bundle at most once (enforced at runtime).
+    one_per_account: Mapped[bool] = mapped_column(Boolean, default=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    # NULL bounds = always available while active.
+    available_from: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    available_until: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
 class PurchaseLedger(Base):
     """Audit-only: every paid-currency grant and refund debit. Never exposed to players;
     used for reconciliation and customer-support tooling.
@@ -1004,3 +1037,49 @@ class PurchaseLedger(Base):
     direction: Mapped[LedgerDirection] = mapped_column(String(16), index=True)
     note: Mapped[str] = mapped_column(String(256), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+
+
+class GuildAchievement(Base):
+    """Definition row for a guild achievement. Seeded once; not user-created.
+
+    `metric` names the counter key that `_update_guild_achievement` increments
+    (e.g. "members_joined", "raids_completed"). `target_value` is the threshold
+    at which `GuildAchievementProgress.completed_at` gets set.
+    """
+
+    __tablename__ = "guild_achievements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    description: Mapped[str] = mapped_column(String(256), default="")
+    category: Mapped[str] = mapped_column(String(32), default="")
+    metric: Mapped[str] = mapped_column(String(64))
+    target_value: Mapped[int] = mapped_column(Integer)
+    reward_gems: Mapped[int] = mapped_column(Integer, default=0)
+    reward_coins: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class GuildAchievementProgress(Base):
+    """Per-guild progress row for each achievement definition.
+
+    Created on-demand the first time `_update_guild_achievement` fires for a
+    (guild_id, achievement_code) pair. `current_value` is the running counter;
+    `completed_at` is set (once) when current_value >= target_value.
+    `reward_claimed_at` is set when a LEADER/OFFICER calls the claim endpoint.
+    """
+
+    __tablename__ = "guild_achievement_progress"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    guild_id: Mapped[int] = mapped_column(
+        ForeignKey("guilds.id", ondelete="CASCADE"), index=True
+    )
+    achievement_code: Mapped[str] = mapped_column(String(64), index=True)
+    current_value: Mapped[int] = mapped_column(Integer, default=0)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    reward_claimed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("guild_id", "achievement_code", name="uq_guild_achievement_progress"),
+    )

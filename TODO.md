@@ -28,7 +28,7 @@ Last updated: 2026-04-26 (post Phase 2 + autonomous polish run).
 
 ### Known papercuts still open
 
-- **Postgres compose-stack smoke is runnable but unrun.** Trust-but-verify before calling Postgres "done."
+- **Postgres compose-stack smoke: PASSED 2026-04-27.** Full image build + 17-section walkthrough green against postgres:16-alpine. Docker Desktop v29.4.0 / Compose v5.1.2 installed but the Linux engine is not started (confirmed 2026-04-26). uv 0.11.6 on PATH, port 8000 clear, compose file and script are both correct. Unblock: start Docker Desktop, then re-run `bash scripts/postgres_stack_validate.sh` from the project root.
 - **Production rigs** — DragonBones Mecha is the Plan B placeholder until ATK/DEF/SUP rigs ship from Moho or the DragonBones editor.
 - **Frontend is still a vanilla-JS shell.** Functional and polished, but not a real SPA. Capacitor-friendly (no `target="_blank"` left for internal pages).
 
@@ -105,10 +105,10 @@ Each sprint is sized to be shippable in one session. Pick one; don't interleave.
 
 ### A. Frontend polish
 The dashboard works; nobody wants to look at it. Biggest perceived-quality lift per hour.
-- [ ] CSS pass on `/app/*` (currently unstyled vanilla HTML)
+- [x] CSS pass on `/app/*` — `app/static/style.css` adds faction tokens (`--faction-*`), MYTH rarity (`--r-myth`), mobile nav scroll, stat/progress/badge components. Linked from `base.html`.
 - [x] Error toasts — `app/static/toast.js` provides `toast.error/success/info(msg)`; bottom-center stack, color-coded by kind, auto-dismiss (errors 5s, others 3.5s), tap-to-dismiss; replaced 9 `alert()` callsites in friends/stages/story partials + battle-setup/roster static pages
 - [x] Loading states — shared `.skeleton` / `.skeleton-line` / `.skeleton-grid` utilities in shell.html + initial `#content` placeholder + reuse in account/raids partials. Per-section refinement (every partial gets its own shimmer skeleton matching its layout) is still open as a polish pass.
-- [ ] Mobile-responsive layout
+- [x] Mobile-responsive layout — nav scrolls horizontally on mobile (no hamburger needed), header compacts below 640px, `#who` pill hidden on small screens
 - [ ] Or: rewrite as a real SPA (React / Svelte) — bigger bet; needs a build step
 
 ### B. Anti-cheat depth
@@ -120,7 +120,7 @@ One layer shipped (per-account battle rate limit). More to add.
 
 ### C. Deploy pipeline
 Dockerfile + compose exist; nothing's been pushed or deployed.
-- [ ] Run `scripts/postgres_stack_validate.sh` once green (trust-but-verify the Postgres path)
+- [x] Run `scripts/postgres_stack_validate.sh` once green — PASSED 2026-04-27. All 17 walkthrough sections OK against postgres:16-alpine. 2 expected warns (admin creds not set, Stripe not configured). — **BLOCKER 2026-04-26: Docker Desktop installed but daemon not running; start Docker Desktop and retry**
 - [ ] Build + push Docker image to a registry (Fly / GHCR / ECR)
 - [ ] Pick a hosted target (Fly / Railway / Render / plain VM) and do a first deploy
 - [x] Automated daily DB backup — `scripts/backup_db.sh` handles SQLite (sqlite3 .backup + gzip) and Postgres (pg_dump custom format), date-stamped names, RETAIN-based pruning, run from cron/systemd-timer
@@ -134,7 +134,7 @@ Raids work; they're shallow.
 - [x] Unique boss-only specials — new `BOSS_PHASE` special type; 3 raid bosses re-tuned to use it with HEAL_BLOCK / FREEZE / BURN + self REFLECT/ATK_UP. See "Sprint D close (2026-04-25)" below.
 
 ### E. Observability next steps
-- [ ] OpenTelemetry tracing (propagate request IDs into spans)
+- [x] OpenTelemetry tracing (propagate request IDs into spans)
 - [x] Alerting thresholds documented — 9 alerts in `docs/RUNBOOK.md` (5xx rate, p99 latency, worker stalls, 429 bursts, purchase failures, webhook signature failures, etc.) with severity tags + PromQL
 - [x] PromQL cookbook in `RUNBOOK.md` — 11 copy-paste queries for the standard Grafana panels + 7-row dashboard layout. Screenshots TBD (need real prod traffic to capture)
 
@@ -158,10 +158,10 @@ Medium-sized but the highest-leverage UX work right now. See Product Direction s
 
 ### G. Combat depth (from play-testing)
 Design-first sprint — probably 2-3 iterations before it's good. Reference games listed in Product Direction.
-- [x] Melee / ranged attack split — Phase 3.1 starter shipped: `HeroTemplate.attack_kind` ('melee'|'ranged'), threaded through `build_unit`, basic-attack DAMAGE log entries echo `channel`. Migration `f019b3d4ab7e`. Replay viewer wiring (different render per channel) still pending.
-- [ ] Mana or spell-point resource for ranged/magic heroes
+- [x] Melee / ranged attack split — Phase 3.1 shipped: `HeroTemplate.attack_kind` ('melee'|'ranged') + `channel` on DAMAGE log events. Replay viewer wired (Phase 3.3): melee → lunge animation; ranged → `_rangedAttack()` projectile arc (cyan circle travels attacker→target, damage on arrival).
+- [x] Mana or spell-point resource for ranged/magic heroes — Phase 3.2 shipped: `HeroTemplate.mana_cost` (default 10) + `mana_regen_per_turn` (default 15) columns + migration `d515d104feb9`. Ranged units skip basic attack on 0 mana (MANA_EMPTY logged); regen fires at turn start capped at `mana_cost * 5`. Melee units unaffected. 4 tests in `test_phase3_combat.py`.
 - [x] Hail-mary ability at ≤5% HP — role-flavored, one-shot per battle.
-- [ ] Player control during battle (target selection / turn pause) — Phase 3.2 work; `POST /battles/preview` shipped as a starter (5-sim outcome estimate before committing energy).
+- [x] Player control during battle (target selection / turn pause) — target priority shipped (Phase 3.2). Per-turn interactive mode shipped (Phase 3.3): `simulate_interactive()` generator + in-memory session store + `POST /battles/interactive/start` + `POST /battles/interactive/{id}/act` + same endpoints for raids + `battle-interactive.html` UI + "Play Turn by Turn" toggle on battle setup. 10 tests in `test_interactive_combat.py`.
 - [x] Animated actor layer for battle viewer — **Plan B greenlit 2026-04-26**. DragonBones runtime + sample armature + registry + Pixi prototype viewer all scaffolded. Awaiting Moho-rendered ATK/DEF/SUP rigs from the user. Drop instructions in `docs/BATTLE_RIG_EVENT_MAPPING.md`.
 - [x] Auto-battle as a paid QoL unlock — `qol_auto_battle` SKU + `auto_battle` flag in qol_unlocks_json + `auto: true` flag on POST /battles + `auto_resolved` echo + skip-watch UI.
 
@@ -220,7 +220,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 
 ### Admin tooling
 - [x] Ban should invalidate existing JWTs — `admin.ban()` bumps `token_version`, `deps.get_current_account` rejects stale tokens, covered by `tests/test_admin.py::test_ban_revokes_outstanding_jwt_via_token_version`
-- [ ] Admin UI over the existing `/admin/*` endpoints (currently curl-only)
+- [x] Admin UI over the existing `/admin/*` endpoints — `/app/admin` (2026-04-26)
 
 ### Auth / account
 - [x] Account data export (GDPR art. 20) — `GET /me/export`, e2d2ff5
@@ -232,7 +232,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] Application flow — `/guilds/{id}/apply` + `/guilds/applications/{id}/{accept,reject}` already shipped
 - [x] Invite flow — `GuildInvite` model + 6 endpoints (invite/accept/reject/cancel/list outgoing/list mine), 10 lifecycle tests. See "Guild invite flow (2026-04-25)" below.
 - [x] Soft-delete for direct messages — sender-only `DELETE /dm/{id}`, body redacted to `[deleted]` in /dm/with/* + /dm/threads, row stays so reports/audit resolve. Migration `177a30b78d4a`.
-- [ ] Per-guild achievements / milestones
+- [x] Per-guild achievements / milestones
 
 ### Raids
 - [x] Scheduled raid auto-start (`_auto_rotate_raids` in worker)
@@ -255,14 +255,14 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] Combat log pruning — `trim_combat_log()` already in place at 200-entry cap
 
 ### Infrastructure
-- [ ] Postgres end-to-end smoke (Sprint C)
+- [ ] Postgres end-to-end smoke (Sprint C) — **BLOCKER 2026-04-26: Docker Desktop daemon not running; start it and run `bash scripts/postgres_stack_validate.sh`**
 - [ ] Docker image build + push to a registry (Dockerfile exists, never built)
 - [x] Automated daily DB backup — `scripts/backup_db.sh` (see Sprint C above)
 - [x] Graceful shutdown — worker cancels + in-flight battles finish (lifespan handles it; documented in RUNBOOK with uvicorn flag recommendations)
 - [ ] Deploy target picked (Fly / Railway / Render / plain VM)
 
 ### Observability
-- [ ] OpenTelemetry tracing (propagate request IDs into spans)
+- [x] OpenTelemetry tracing (propagate request IDs into spans)
 - [x] Alerting thresholds documented (5xx rate, p99 latency, worker, 429s, purchases, webhooks, token revocations, throughput drops) with PromQL — `docs/RUNBOOK.md`
 - [ ] Dashboard screenshots in `RUNBOOK.md` — layout drafted; capture once prod has real traffic
 
@@ -274,14 +274,14 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] Reject combat outcomes that couldn't happen (if client-authoritative layer ever gets added)
 
 ### Localization
-- [ ] Message catalog (gettext-style) for user-visible strings
+- [x] Message catalog (gettext-style) for user-visible strings
 - [ ] Hero/skill-name translation fields on `HeroTemplate`
-- [ ] `Accept-Language` header handling
+- [x] `Accept-Language` header handling
 
 ### Payments
-- [ ] `OfferBundle` table (premium shard bundles, starter packs)
-- [ ] Purchase history / refund flow UI
-- [ ] Anti-fraud basics (velocity limits, device fingerprint)
+- [x] `OfferBundle` table (premium shard bundles, starter packs)
+- [~] Purchase history / refund flow UI — `GET /me/purchases` done (paginated history with product_code/amount_usd/payment_method); refund UI follow-up still open
+- [~] Anti-fraud basics (velocity limits, device fingerprint) — velocity limiting done (5 bundle purchases/hour, DB-counted); device fingerprint on refresh tokens also done; payment-side device fingerprint follow-up still open
 - [ ] Subscriptions / monthly pass
 
 ### Frontend

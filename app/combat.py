@@ -116,6 +116,22 @@ class CombatUnit:
     # animations differently.
     attack_kind: str = "melee"
 
+    # Phase 3.2 — mana resource for ranged heroes. Melee units keep these
+    # at zero and the resolver never checks them. Ranged units spend
+    # mana_cost on each basic attack; if below cost they skip basic and
+    # log MANA_EMPTY instead. Regen fires at the start of every turn
+    # before stun/freeze checks, capped at mana_cost * 5.
+    mana: int = 0
+    mana_cost: int = 0
+    mana_regen: int = 0
+
+    # Limit break gauge. Fills proportional to damage taken as a fraction
+    # of max HP (mirrors RPG-Turn-Battle Unity reference: IncreaseLimitBar).
+    # When gauge hits limit_gauge_max the unit fires its limit break at the
+    # start of its next turn (overrides stun/freeze), then resets to 0.
+    limit_gauge: int = 0
+    limit_gauge_max: int = 100
+
 
 def _special_scale(level: int) -> float:
     # +10% per level beyond 1 (level 5 = 1.4x).
@@ -171,6 +187,16 @@ def _apply_damage(
     defender.hp = max(0, defender.hp - amount)
     if defender.hp == 0:
         defender.dead = True
+    # Limit gauge fills proportional to damage taken vs max HP.
+    # Only charge if the unit survived — a killing blow doesn't power a dead unit's gauge.
+    if amount > 0 and not defender.dead and defender.limit_gauge_max > 0:
+        fill = int((amount / max(1, defender.max_hp)) * defender.limit_gauge_max)
+        if fill > 0:
+            prev = defender.limit_gauge
+            defender.limit_gauge = min(defender.limit_gauge_max, prev + fill)
+            # Emit one event when gauge transitions from not-ready to ready.
+            if prev < defender.limit_gauge_max <= defender.limit_gauge and log is not None:
+                log.append({"type": "LIMIT_READY", "unit": defender.uid})
     if amount > 0 and any(s.kind == StatusEffectKind.FREEZE for s in defender.statuses):
         defender.statuses = [s for s in defender.statuses if s.kind != StatusEffectKind.FREEZE]
         if log is not None:
@@ -211,6 +237,22 @@ def _pick_aoe_targets(actor: CombatUnit, allies: list[CombatUnit], enemies: list
     if selector == "all_allies":
         return [u for u in allies if not u.dead]
     return []
+
+
+def _pick_priority_target(enemies: list[CombatUnit], priority: str) -> CombatUnit | None:
+    live = [u for u in enemies if not u.dead]
+    if not live:
+        return None
+    if priority == "lowest_hp":
+        return min(live, key=lambda u: (u.hp, u.uid))
+    if priority == "highest_hp":
+        return max(live, key=lambda u: (u.hp, u.uid))
+    if priority == "lowest_def":
+        return min(live, key=lambda u: (_effective_def(u), u.uid))
+    if priority == "highest_threat":
+        return max(live, key=lambda u: (_effective_atk(u), u.uid))
+    # "default" — same as existing enemy_lowest_hp so existing tests pass.
+    return min(live, key=lambda u: (u.hp, u.uid))
 
 
 def _tick_statuses(unit: CombatUnit, log: list[dict]) -> None:
@@ -320,9 +362,41 @@ def _lifesteal(actor: CombatUnit, damage_dealt: int, log: list[dict]) -> None:
         log.append({"type": "LIFESTEAL", "unit": actor.uid, "amount": healed, "hp": actor.hp})
 
 
-def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit], rng: random.Random, log: list[dict]) -> int:
-    """Execute one action. Returns total damage the actor dealt (for lifesteal accounting)."""
+def _needs_target_choice(actor: CombatUnit) -> bool:
+    """True when this actor's turn would reach the basic-attack branch of _act().
+    Used by the interactive simulator to decide whether to pause for player input."""
+    if actor.limit_gauge >= actor.limit_gauge_max > 0:
+        return False  # limit break fires first (auto)
+    if _is_stunned(actor) or _is_frozen(actor):
+        return False  # CC — turn is skipped
+    if actor.special is not None and actor.special_cooldown_left == 0:
+        return False  # special auto-fires
+    return True
+
+
+def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit], rng: random.Random, log: list[dict], target_priority: str = "default", forced_target_uid: str | None = None) -> int:
+    """Execute one action. Returns total damage the actor dealt (for lifesteal accounting).
+
+    `forced_target_uid` — when set by the interactive simulator, overrides the
+    auto-pick for basic attacks. Falls back to target_priority if the uid is
+    dead or not found (e.g. killed by a preceding unit this tick).
+    """
     damage_dealt = 0
+
+    # Mana regen fires at turn start, before stun/freeze, so the resource
+    # always ticks even on a skipped turn.
+    if actor.attack_kind == "ranged" and actor.mana_regen > 0:
+        cap = actor.mana_cost * 5
+        gain = min(actor.mana_regen, cap - actor.mana)
+        if gain > 0:
+            actor.mana = min(cap, actor.mana + actor.mana_regen)
+            log.append({"type": "MANA_REGEN", "actor": actor.uid, "amount": gain, "mana": actor.mana})
+
+    # Limit break fires before stun/freeze — rage breaks through crowd control.
+    if actor.limit_gauge >= actor.limit_gauge_max > 0:
+        damage_dealt = _do_limit_break(actor, allies=allies, enemies=enemies, rng=rng, log=log)
+        actor.limit_gauge = 0
+        return damage_dealt
 
     if _is_stunned(actor):
         log.append({"type": "STUNNED", "unit": actor.uid})
@@ -505,10 +579,21 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
 
         actor.special_cooldown_left = actor.special_cooldown_max
     else:
-        # Basic attack: damage enemy_lowest_hp.
-        tgt = _pick_target(actor, allies, enemies, "enemy_lowest_hp")
+        # Basic attack: use forced target when provided (interactive mode), else priority.
+        if forced_target_uid is not None:
+            tgt = next((u for u in enemies if u.uid == forced_target_uid and not u.dead), None)
+            if tgt is None:  # target died before this actor's turn
+                tgt = _pick_priority_target(enemies, target_priority)
+        else:
+            tgt = _pick_priority_target(enemies, target_priority)
         if tgt is None:
             return damage_dealt
+        # Ranged heroes spend mana; skip basic and log MANA_EMPTY if broke.
+        if actor.attack_kind == "ranged" and actor.mana_cost > 0:
+            if actor.mana < actor.mana_cost:
+                log.append({"kind": "MANA_EMPTY", "actor": actor.uid})
+                return damage_dealt
+            actor.mana -= actor.mana_cost
         dmg, crit = _damage(actor, tgt, actor.basic_mult, rng)
         dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
         damage_dealt += dealt
@@ -667,7 +752,186 @@ def _maybe_hail_mary(
             _apply_effect(tgt, {"kind": "ATK_UP", "turns": 3, "value": 0.20}, log)
 
 
-def simulate(team_a: list[CombatUnit], team_b: list[CombatUnit], rng: random.Random) -> CombatResult:
+def _do_limit_break(
+    actor: CombatUnit,
+    *,
+    allies: list[CombatUnit],
+    enemies: list[CombatUnit],
+    rng: random.Random,
+    log: list[dict],
+) -> int:
+    """Fire a limit break. Role-flavored, more powerful than a special.
+    Returns total damage dealt (for lifesteal accounting in the caller).
+
+    ATK — Overdrive: AOE nuke at 2.5× basic_mult to all enemies.
+    DEF — Iron Fortress: AOE strike at 1.5× + SHIELD all allies.
+    SUP — Lifeline: Heal all allies for 50% max_hp + ATK_UP 30% for 2 turns.
+    """
+    role = actor.role if isinstance(actor.role, Role) else Role(actor.role)
+    name_by_role = {
+        Role.ATK: "Overdrive",
+        Role.DEF: "Iron Fortress",
+        Role.SUP: "Lifeline",
+    }
+    log.append({
+        "type": "LIMIT_BREAK",
+        "unit": actor.uid,
+        "role": str(role),
+        "name": name_by_role.get(role, "Limit Break"),
+    })
+    damage_dealt = 0
+
+    if role == Role.ATK:
+        for tgt in [u for u in enemies if not u.dead]:
+            if actor.dead:
+                break
+            dmg, crit = _damage(actor, tgt, actor.basic_mult * 2.5, rng)
+            dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
+            damage_dealt += dealt
+            log.append({
+                "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
+                "amount": dealt, "crit": crit, "via": "LIMIT_BREAK",
+            })
+            if tgt.dead:
+                log.append({"type": "DEATH", "unit": tgt.uid})
+
+    elif role == Role.DEF:
+        for tgt in [u for u in enemies if not u.dead]:
+            if actor.dead:
+                break
+            dmg, crit = _damage(actor, tgt, actor.basic_mult * 1.5, rng)
+            dealt = _apply_damage(tgt, dmg, attacker=actor, log=log)
+            damage_dealt += dealt
+            log.append({
+                "type": "DAMAGE", "source": actor.uid, "target": tgt.uid,
+                "amount": dealt, "crit": crit, "via": "LIMIT_BREAK",
+            })
+            if tgt.dead:
+                log.append({"type": "DEATH", "unit": tgt.uid})
+        for ally in [u for u in allies if not u.dead]:
+            ally.shielded = True
+            log.append({
+                "type": "STATUS_APPLIED", "unit": ally.uid, "kind": "SHIELD",
+                "turns": 1, "value": 1.0, "via": "LIMIT_BREAK",
+            })
+
+    else:  # SUP
+        for ally in [u for u in allies if not u.dead]:
+            _heal(actor, ally, max(1, int(ally.max_hp * 0.50)), log, source="LIMIT_BREAK")
+            _apply_effect(ally, {"kind": "ATK_UP", "turns": 2, "value": 0.30}, log)
+
+    return damage_dealt
+
+
+from typing import Generator as _Generator
+
+
+def simulate_interactive(
+    team_a: list[CombatUnit],
+    team_b: list[CombatUnit],
+    rng: random.Random,
+    log: list[dict],
+    target_priority: str = "default",
+) -> _Generator[dict, "str | None", CombatResult]:
+    """Interactive variant of simulate().
+
+    Shares all combat logic with simulate() via _act(forced_target_uid).
+    Yields a PLAYER_TURN dict whenever a side-A hero is about to basic-attack
+    (special / limit-break / CC all still auto-fire). Caller resumes with
+    gen.send(target_uid) — or send(None) to fall back to target_priority.
+
+    Log appends happen directly into the caller-supplied `log` list so the
+    session layer can track log deltas without extra copying.
+
+    Returns CombatResult via StopIteration.value when combat ends.
+    """
+    max_ticks = 400
+    ticks = 0
+    turn_number = 0
+
+    _apply_team_synergy(team_a, log)
+    _apply_team_synergy(team_b, log)
+
+    for u in team_a + team_b:
+        u.base_atk = u.atk
+        u.base_def = u.def_
+
+    def alive(team: list[CombatUnit]) -> bool:
+        return any(not u.dead for u in team)
+
+    while ticks < max_ticks and alive(team_a) and alive(team_b):
+        for u in team_a + team_b:
+            if not u.dead:
+                u.turn_meter += u.spd
+        ready = sorted(
+            (u for u in team_a + team_b if not u.dead and u.turn_meter >= 100),
+            key=lambda u: (-u.turn_meter, u.uid),
+        )
+        for actor in ready:
+            if actor.dead:
+                continue
+            if not (alive(team_a) and alive(team_b)):
+                break
+            log.append({"type": "TURN", "unit": actor.uid, "hp": actor.hp, "meter": round(actor.turn_meter, 2)})
+
+            forced_uid: "str | None" = None
+            if actor.side == "A" and _needs_target_choice(actor):
+                live_enemies = [u for u in team_b if not u.dead]
+                turn_number += 1
+                forced_uid = yield {
+                    "type": "PLAYER_TURN",
+                    "actor": actor.uid,
+                    "turn_number": turn_number,
+                    "enemies": [
+                        {"uid": u.uid, "name": u.name, "hp": u.hp, "max_hp": u.max_hp}
+                        for u in live_enemies
+                    ],
+                }
+
+            dealt = _act(
+                actor,
+                allies=team_a if actor.side == "A" else team_b,
+                enemies=team_b if actor.side == "A" else team_a,
+                rng=rng,
+                log=log,
+                target_priority=target_priority,
+                forced_target_uid=forced_uid,
+            )
+            actor.turn_meter -= 100
+            _lifesteal(actor, dealt, log)
+            _tick_statuses(actor, log)
+            if actor.special_cooldown_left > 0:
+                actor.special_cooldown_left -= 1
+            _maybe_hail_mary(
+                actor,
+                allies=team_a if actor.side == "A" else team_b,
+                enemies=team_b if actor.side == "A" else team_a,
+                rng=rng,
+                log=log,
+            )
+            if actor.has_violent and not actor.dead and rng.random() < 0.20:
+                actor.turn_meter += 100
+                log.append({"type": "VIOLENT_TURN", "unit": actor.uid})
+        ticks += 1
+
+    if alive(team_a) and not alive(team_b):
+        outcome = BattleOutcome.WIN
+    elif alive(team_b) and not alive(team_a):
+        outcome = BattleOutcome.LOSS
+    else:
+        outcome = BattleOutcome.DRAW
+
+    log.append({"type": "END", "outcome": str(outcome), "ticks": ticks})
+    return CombatResult(
+        outcome=outcome,
+        log=log,
+        survivors_a=[u.uid for u in team_a if not u.dead],
+        survivors_b=[u.uid for u in team_b if not u.dead],
+        ticks=ticks,
+    )
+
+
+def simulate(team_a: list[CombatUnit], team_b: list[CombatUnit], rng: random.Random, target_priority: str = "default") -> CombatResult:
     log: list[dict] = []
     max_ticks = 400
     ticks = 0
@@ -704,6 +968,7 @@ def simulate(team_a: list[CombatUnit], team_b: list[CombatUnit], rng: random.Ran
                 enemies=team_b if actor.side == "A" else team_a,
                 rng=rng,
                 log=log,
+                target_priority=target_priority,
             )
             actor.turn_meter -= 100
             _lifesteal(actor, dealt, log)
@@ -769,6 +1034,8 @@ def build_unit(
     faction: Faction | None = None,
     variance_pct: dict[str, float] | None = None,
     attack_kind: str = "melee",
+    mana_cost: int = 0,
+    mana_regen_per_turn: int = 0,
 ) -> CombatUnit:
     hp = scale_stat(base_hp, level, stars)
     atk = scale_stat(base_atk, level, stars)
@@ -795,6 +1062,17 @@ def build_unit(
             df = int(round(df * (1.0 + pct.get("def", 0.0))))
             spd = int(round(spd * (1.0 + pct.get("spd", 0.0))))
     active = (gear_bonus or {}).get("active", {}) if gear_bonus else {}
+    resolved_attack_kind = attack_kind if attack_kind in ("melee", "ranged") else "melee"
+    # Mana is only meaningful for ranged heroes. Melee units get zeros and the
+    # resolver never checks them.
+    if resolved_attack_kind == "ranged":
+        _mana_cost = max(0, int(mana_cost))
+        _mana_regen = max(0, int(mana_regen_per_turn))
+        _mana = _mana_regen * 2  # start with 2 turns of regen so hero can act immediately
+    else:
+        _mana_cost = 0
+        _mana_regen = 0
+        _mana = 0
     return CombatUnit(
         uid=uid,
         side=side,
@@ -817,7 +1095,10 @@ def build_unit(
         has_violent=bool(active.get("violent")),
         has_lifesteal=bool(active.get("lifesteal")),
         faction=faction,
-        attack_kind=attack_kind if attack_kind in ("melee", "ranged") else "melee",
+        attack_kind=resolved_attack_kind,
+        mana=_mana,
+        mana_cost=_mana_cost,
+        mana_regen=_mana_regen,
     )
 
 

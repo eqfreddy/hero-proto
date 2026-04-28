@@ -16,7 +16,7 @@ from app.daily_bonus import (
 from app.db import get_db
 from app.deps import enforce_data_export_rate_limit, get_current_account
 from app.economy import compute_energy, load_cleared
-from app.models import Account, Battle, Faction, Guild, GuildMember, GuildRole, HeroInstance
+from app.models import Account, Battle, Faction, Guild, GuildMember, GuildRole, HeroInstance, Purchase
 from app.schemas import MeOut
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -66,6 +66,7 @@ def get_me(
         active_cosmetic_frame=account.active_cosmetic_frame or "",
         hero_slot_cap=account.hero_slot_cap or 50,
         gear_slot_cap=account.gear_slot_cap or 200,
+        is_admin=bool(account.is_admin),
     )
 
 
@@ -623,6 +624,65 @@ def change_password(
         access_token=_issue_token(account.id, account.token_version),
         refresh_token=refresh_raw,
     )
+
+
+# --- Purchase history --------------------------------------------------------
+
+
+class PurchaseHistoryItemOut(BaseModel):
+    id: int
+    product_code: str        # sku
+    amount_usd: float        # price_cents_paid / 100
+    payment_method: str      # processor
+    created_at: datetime
+
+
+class PurchaseHistoryOut(BaseModel):
+    purchases: list[PurchaseHistoryItemOut]
+    total: int
+
+
+@router.get("/purchases", response_model=PurchaseHistoryOut)
+def list_purchases(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 20,
+    offset: int = 0,
+) -> PurchaseHistoryOut:
+    """Paginated purchase history for the authenticated account.
+
+    Returns all purchases (any state) newest-first. Field names follow the
+    task spec: `product_code` (sku), `amount_usd` (price_cents_paid / 100),
+    `payment_method` (processor).
+    """
+    from sqlalchemy import select as _sel, func as _func
+
+    limit = max(1, min(200, limit))
+    offset = max(0, offset)
+
+    total = db.scalar(
+        _sel(_func.count(Purchase.id)).where(Purchase.account_id == account.id)
+    ) or 0
+
+    rows = list(db.scalars(
+        _sel(Purchase)
+        .where(Purchase.account_id == account.id)
+        .order_by(Purchase.id.desc())
+        .limit(limit)
+        .offset(offset)
+    ))
+
+    items = [
+        PurchaseHistoryItemOut(
+            id=p.id,
+            product_code=p.sku,
+            amount_usd=round(p.price_cents_paid / 100, 2),
+            payment_method=p.processor,
+            created_at=p.created_at,
+        )
+        for p in rows
+    ]
+    return PurchaseHistoryOut(purchases=items, total=total)
 
 
 # --- GDPR data export -------------------------------------------------------

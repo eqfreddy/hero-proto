@@ -19,6 +19,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+try:
+    from opentelemetry import trace as _otel_trace
+    _OTEL_AVAILABLE = True
+except ImportError:
+    _OTEL_AVAILABLE = False
+
 # --- Metrics -----------------------------------------------------------------
 
 REQUESTS_TOTAL = Counter(
@@ -61,6 +67,8 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         # Reject absurdly long client-supplied values so we don't log unbounded junk.
         rid = incoming if 0 < len(incoming) <= 128 else uuid.uuid4().hex
         token = request_id_var.set(rid)
+        if _OTEL_AVAILABLE:
+            _otel_trace.get_current_span().set_attribute("http.request_id", rid)
         try:
             response = await call_next(request)
         finally:
