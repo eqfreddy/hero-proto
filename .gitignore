@@ -35,3 +35,6 @@ wheels/
 .claude/
 tests-scratch.db
 .worktrees/
+
+# SPA build output is committed so Docker/dev servers can serve it without a frontend build step.
+# Run `cd frontend && npm run build` to regenerate.

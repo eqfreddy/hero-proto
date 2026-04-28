@@ -139,17 +139,3 @@ def test_refill_advances_spend_gems_daily_quest(client) -> None:
         assert q.status == DailyQuestStatus.COMPLETE
 
 
-def test_refill_button_shows_only_when_below_cap(client) -> None:
-    """HTMX /me partial shows refill button only when energy < cap."""
-    hdr, aid = _register(client)
-    # Full energy: no refill button.
-    r = client.get("/app/partials/me", headers=hdr)
-    assert r.status_code == 200
-    assert 'onclick="refillEnergy(' not in r.text
-
-    # Drain energy: refill button appears.
-    _grant_gems_and_drain_energy(aid, gems=500)
-    r = client.get("/app/partials/me", headers=hdr)
-    assert r.status_code == 200
-    assert 'onclick="refillEnergy(' in r.text
-    assert "Refill (50💎)" in r.text

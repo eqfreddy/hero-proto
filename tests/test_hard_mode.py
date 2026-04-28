@@ -108,14 +108,3 @@ def test_hard_battle_works_after_normal_clear(client) -> None:
     assert r.json()["outcome"] in ("WIN", "LOSS", "DRAW")
 
 
-def test_stages_partial_groups_by_tier(client) -> None:
-    """HTMX stages partial renders separate Normal and Hard sections with the expected markers."""
-    hdr, _ = _register(client)
-    r = client.get("/app/partials/stages", headers=hdr)
-    assert r.status_code == 200, r.text[:200]
-    body = r.text
-    # Section headers by tier.
-    assert ">Normal<" in body, "missing Normal tier header"
-    assert ">Hard<" in body, "missing Hard tier header"
-    # Hard stages render with lock indicator (since the fresh account hasn't cleared anything).
-    assert "🔒" in body or "lock" in body.lower(), "expected lock indicator on hard stages"

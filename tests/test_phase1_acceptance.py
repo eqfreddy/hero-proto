@@ -58,15 +58,6 @@ def test_phase1_end_to_end(client) -> None:
     assert me["free_summon_credits"] == 1
     assert me["tutorial_cleared"] is True
 
-    # Dedicated Summon tab partial renders.
-    r = client.get("/app/partials/summon", headers=hdr)
-    assert r.status_code == 200
-    assert "Standard Banner" in r.text
-    assert "Pity progress" in r.text
-
-    # Starter-pack card surfaces (new account, within 7-day window).
-    assert "Jump-Ahead Bundle" in r.text
-
     # Use the free summon — credit is consumed first, so shards aren't charged.
     # Achievements (e.g. first_rare = +5) may grant shards on the pull, so the
     # post-shard count can go UP — what we verify is that it didn't go DOWN.
@@ -77,11 +68,9 @@ def test_phase1_end_to_end(client) -> None:
     assert me["free_summon_credits"] == 0, "credit should be consumed"
     assert me["shards"] >= shards_before, "shards should not decrease when credit consumed"
 
-    # Step 5: Roster tab — detail modal data for the just-pulled hero.
-    r = client.get("/app/partials/roster", headers=hdr)
-    assert r.status_code == 200
-    assert "rarity-tab" in r.text  # rarity filter present
-    assert "hero-card" in r.text
+    # Step 5: Roster tab — verify via JSON API.
+    roster_after = client.get("/heroes/mine", headers=hdr).json()
+    assert len(roster_after) == 4, "summon should add one hero to roster"
 
     # Step 6: Save a team preset.
     r = client.post("/me/team-presets", json={"name": "main", "team": team}, headers=hdr)

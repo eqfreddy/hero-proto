@@ -50,18 +50,12 @@ def test_root_serves_marketing_landing(client) -> None:
     assert "heroproto_jwt" in r.text and "/app/" in r.text
 
 
-def test_static_html_client_is_served(client) -> None:
+def test_spa_shell_is_served(client) -> None:
     r = client.get("/app/")
     assert r.status_code == 200
     body = r.text
-    # Shell renders the HTMX tab bar + wires up JWT from localStorage.
-    for marker in ("hero-proto", "heroproto_jwt", 'data-tab="login"', 'hx-get="/app/partials/'):
-        assert marker in body, f"missing marker: {marker!r}"
-
-    # Login partial is the actual source of /auth/* calls now.
-    r = client.get("/app/partials/login")
-    assert r.status_code == 200
-    assert "/auth/register" in r.text and "/auth/login" in r.text
+    # SPA shell has a root div; it's the React entry point.
+    assert '<div id="root">' in body
 
 
 def test_request_id_overlong_input_is_replaced(client) -> None:
