@@ -108,6 +108,19 @@ def get_current_admin(
     return account
 
 
+def get_current_account_verified_only(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> Account:
+    """Drop-in for get_current_account that also requires email_verified.
+    Gate summons, purchases, and any other feature where a real email matters."""
+    if not account.email_verified:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "a verified email is required — check your inbox for the verification link",
+        )
+    return account
+
+
 def _enforce_account_bucket(
     account: Account, bucket: RateBucket, label: str,
 ) -> Account:

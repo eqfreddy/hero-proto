@@ -1,0 +1,33 @@
+{% extends "email/base.html" %}
+{% block subject %}hero-proto — verify your sign-in from a new location{% endblock %}
+{% block content %}
+<p style="margin: 0 0 10px; font-size: 16px; font-weight: 700; color: #e8eaed;">New sign-in detected</p>
+<p style="margin: 0 0 14px; font-size: 14px; color: #b0bac8; line-height: 1.6;">
+  A sign-in to your hero-proto account was attempted from a location we haven't seen before.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #1b2430; border-radius: 8px; margin-bottom: 22px;">
+  <tr>
+    <td style="padding: 14px 18px;">
+      {% if login_ip %}
+      <div style="font-size: 12px; color: #7d8a9c; margin-bottom: 4px;">IP address</div>
+      <div style="font-size: 14px; color: #e8eaed; font-family: monospace; margin-bottom: 10px;">{{ login_ip }}</div>
+      {% endif %}
+      {% if user_agent %}
+      <div style="font-size: 12px; color: #7d8a9c; margin-bottom: 4px;">Browser / device</div>
+      <div style="font-size: 13px; color: #b0bac8;">{{ user_agent[:120] }}</div>
+      {% endif %}
+    </td>
+  </tr>
+</table>
+
+<p style="margin: 0 0 18px; font-size: 14px; color: #b0bac8; line-height: 1.6;">
+  If this was you, click below to approve the sign-in. The link expires in <strong style="color: #e8eaed;">{{ ttl_minutes }} minutes</strong>.
+</p>
+
+<a href="{{ approve_url }}" style="display: inline-block; background: linear-gradient(135deg, #ffd86b, #ff9800); color: #0b0d10; text-decoration: none; padding: 13px 26px; border-radius: 7px; font-weight: 800; font-size: 14px; margin-bottom: 20px;">Approve this sign-in →</a>
+
+<p style="margin: 0; font-size: 12px; color: #5a6473; line-height: 1.6;">
+  <strong style="color: #ef5b5b;">Wasn't you?</strong> Ignore this email — the sign-in will be blocked automatically when the link expires. Consider changing your password if you're concerned someone has your credentials.
+</p>
+{% endblock %}

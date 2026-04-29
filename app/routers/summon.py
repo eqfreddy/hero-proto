@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.daily import on_summon
 from app.event_state import QUEST_KINDS_SUMMON, on_activity as event_on_activity
 from app.db import get_db
-from app.deps import get_current_account
+from app.deps import get_current_account, get_current_account_verified_only
 from app.gacha import roll, roll_variance, serialize_variance
 from app.models import Account, GachaRecord, HeroInstance, HeroTemplate, Rarity
 from app.routers.heroes import instance_out
@@ -91,7 +91,7 @@ def _do_one_pull(db: Session, account: Account, rng: random.Random, *, allow_fre
 @router.post("", response_model=SummonOut, status_code=status.HTTP_201_CREATED)
 @router.post("/x1", response_model=SummonOut, status_code=status.HTTP_201_CREATED)
 def summon_one(
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(get_current_account_verified_only)],
     db: Annotated[Session, Depends(get_db)],
 ) -> SummonOut:
     """Single pull. /summon and /summon/x1 are aliases so callers can stay
@@ -115,7 +115,7 @@ def summon_one(
 
 @router.post("/x10", response_model=list[SummonOut], status_code=status.HTTP_201_CREATED)
 def summon_ten(
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(get_current_account_verified_only)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[SummonOut]:
     if account.shards < 10:
@@ -189,7 +189,7 @@ def _bump_event_banner_pulls(account: Account, banner_id: int) -> int:
 
 @router.get("/event-banner")
 def event_banner_status(
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(get_current_account_verified_only)],
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     """Returns the active event-banner config + this account's pull
@@ -222,7 +222,7 @@ def event_banner_status(
 
 @router.post("/event-banner", response_model=SummonOut, status_code=status.HTTP_201_CREATED)
 def summon_event_banner(
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(get_current_account_verified_only)],
     db: Annotated[Session, Depends(get_db)],
 ) -> SummonOut:
     """Single pull on the active event banner. 409 if no banner is active,

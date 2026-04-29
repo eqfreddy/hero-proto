@@ -84,6 +84,29 @@ def render_password_reset(*, reset_url: str, ttl_hours: int) -> tuple[str, str, 
     return subject or "hero-proto — password reset", text, html
 
 
+def render_location_challenge(
+    *, approve_url: str, login_ip: str | None, user_agent: str | None, ttl_minutes: int
+) -> tuple[str, str, str]:
+    """Returns (subject, body_text, body_html) for the location-challenge email."""
+    ctx = {
+        "approve_url": approve_url,
+        "login_ip": login_ip or "unknown",
+        "user_agent": user_agent or "unknown",
+        "ttl_minutes": ttl_minutes,
+    }
+    subject, html = _render_html("email/location_challenge.html", ctx)
+    text = (
+        f"New sign-in detected\n\n"
+        f"A sign-in to your hero-proto account was attempted from a new location.\n"
+        f"IP: {login_ip or 'unknown'}\n"
+        f"Device: {user_agent or 'unknown'}\n\n"
+        f"If this was you, approve the sign-in within {ttl_minutes} minutes:\n"
+        f"  {approve_url}\n\n"
+        f"Wasn't you? Ignore this email — the attempt is blocked until the link expires."
+    )
+    return subject or "hero-proto — verify your sign-in from a new location", text, html
+
+
 def render_account_exists(*, email: str) -> tuple[str, str, str]:
     """Returns (subject, body_text, body_html) for the 'account already exists' email."""
     login_url = f"{settings.public_base_url.rstrip('/')}/"

@@ -1,13 +1,14 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_account
-from app.models import Account, EmailVerificationToken, Faction, HeroInstance, HeroTemplate, Rarity, utcnow
+from app.models import Account, EmailVerificationToken, Faction, HeroInstance, HeroTemplate, LocationChallengeToken, Rarity, utcnow
 from app.schemas import LoginIn, RegisterIn, RegisterOut, TokenOut
 from app.security import hash_password, issue_token, verify_password
 
@@ -88,8 +89,18 @@ def register(
     db.flush()
     _grant_starter_team(db, account)
     _row, refresh_raw = _issue_refresh_token(db, account, request)
+    # Auto-send email verification so the user can unlock gated features.
+    _verify_row, verify_raw = _issue_email_verification(db, account)
     db.commit()
     db.refresh(account)
+    try:
+        from app.email_render import render_verify_email
+        from app.email_sender import get_sender as _get_sender
+        verify_url = f"{settings.public_base_url.rstrip('/')}/auth/verify-email?token={verify_raw}"
+        subj, vtxt, vhtml = render_verify_email(verify_url=verify_url, ttl_hours=EMAIL_VERIFY_TTL_HOURS)
+        _get_sender().send(to_email=account.email, subject=subj, body_text=vtxt, body_html=vhtml)
+    except Exception:
+        _log.exception("welcome verification email failed for %s", account.email)
     from app.analytics import track as _track
     _track("register", account.id, {"email_domain": body.email.split("@")[-1]})
     return RegisterOut(
@@ -98,15 +109,58 @@ def register(
     )
 
 
+class LocationChallengeOut(BaseModel):
+    status: str = "location_challenge"
+    message: str = "Sign-in from a new location — check your email to approve it."
+
+
+LOCATION_CHALLENGE_TTL_MINUTES = 15
+
+
+def _ip_prefix(ip: str | None) -> str | None:
+    """Return the /24 prefix for IPv4 or /48 prefix for IPv6 for loose matching.
+    Returns None when ip is absent or unparseable."""
+    if not ip:
+        return None
+    try:
+        if ":" in ip:
+            # IPv6 — first 3 groups (48-bit prefix)
+            parts = ip.split(":")
+            return ":".join(parts[:3]).lower()
+        else:
+            # IPv4 — first 3 octets (/24)
+            parts = ip.split(".")
+            return ".".join(parts[:3])
+    except Exception:
+        return None
+
+
+def _is_new_ip(db, account_id: int, current_ip: str | None) -> bool:
+    """True when the current IP prefix hasn't been seen in any prior refresh token."""
+    if not current_ip:
+        return False
+    prefix = _ip_prefix(current_ip)
+    if not prefix:
+        return False
+    known_ips = db.scalars(
+        select(RefreshToken.created_ip).where(
+            RefreshToken.account_id == account_id,
+            RefreshToken.created_ip.isnot(None),
+        ).limit(200)
+    ).all()
+    if not known_ips:
+        return False  # first ever login — no prior IPs to compare against
+    return all(_ip_prefix(ip) != prefix for ip in known_ips if ip)
+
+
 @router.post("/login")
 def login(
     body: LoginIn,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
-    """Password login. If the account has TOTP enabled, returns a short-lived
-    challenge_token instead of a real access token — the client must follow up
-    with POST /auth/2fa/verify using that token + the current TOTP code."""
+    """Password login. Returns a challenge token when TOTP is enabled or when the
+    login IP is unrecognised (location challenge). Otherwise returns access+refresh."""
     account = db.scalar(select(Account).where(Account.email == body.email))
     if account is None or not verify_password(body.password, account.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
@@ -123,6 +177,36 @@ def login(
         from app.analytics import track as _track
         _track("login", account.id, {"method": "password+2fa", "stage": "challenge"})
         return LoginChallengeOut(challenge_token=_issue_totp_challenge(account)).model_dump()
+
+    # Location challenge: new IP prefix → hold tokens, send approval email.
+    ip = _client_ip(request)
+    if _is_new_ip(db, account.id, ip):
+        raw = secrets.token_urlsafe(32)
+        challenge = LocationChallengeToken(
+            account_id=account.id,
+            token_hash=_hash_token(raw),
+            expires_at=utcnow() + timedelta(minutes=LOCATION_CHALLENGE_TTL_MINUTES),
+            login_ip=ip,
+            user_agent=_client_ua(request),
+        )
+        db.add(challenge)
+        db.commit()
+        approve_url = f"{settings.public_base_url.rstrip('/')}/auth/approve-login?token={raw}"
+        try:
+            from app.email_render import render_location_challenge
+            from app.email_sender import get_sender as _loc_sender
+            subj, ltxt, lhtml = render_location_challenge(
+                approve_url=approve_url,
+                login_ip=ip,
+                user_agent=_client_ua(request),
+                ttl_minutes=LOCATION_CHALLENGE_TTL_MINUTES,
+            )
+            _loc_sender().send(to_email=account.email, subject=subj, body_text=ltxt, body_html=lhtml)
+        except Exception:
+            _log.exception("location challenge email failed for account %s", account.id)
+        from app.analytics import track as _track
+        _track("login", account.id, {"method": "password", "stage": "location_challenge", "ip": ip})
+        return LocationChallengeOut().model_dump()
 
     _row, refresh_raw = _issue_refresh_token(db, account, request)
     db.commit()
@@ -358,18 +442,7 @@ def verify_email(
     return VerifyEmailOut(email=account.email)
 
 
-# Import for the deps dependency so routers can require verification.
-def get_current_account_verified_only(
-    account: Annotated[Account, Depends(get_current_account)],
-) -> Account:
-    """Drop-in replacement for get_current_account that additionally requires
-    email_verified. 403 if the caller hasn't verified yet."""
-    if not account.email_verified:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "this action requires a verified email",
-        )
-    return account
+from app.deps import get_current_account_verified_only as get_current_account_verified_only  # re-export for backward compat
 
 
 # --- Refresh tokens ----------------------------------------------------------
@@ -555,6 +628,64 @@ def logout(
     row.revoked_at = utcnow()
     db.commit()
     return LogoutOut(revoked=True)
+
+
+# --- Location challenge approval ---------------------------------------------
+
+from fastapi.responses import HTMLResponse as _HTMLResponse
+
+
+@router.get("/approve-login", response_class=_HTMLResponse, include_in_schema=False)
+def approve_login(
+    token: str,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> _HTMLResponse:
+    """Validate a location-challenge token from the email link and, on success,
+    return a tiny HTML page that stores the resulting JWT in localStorage and
+    redirects to /app/. Single-use; expires after LOCATION_CHALLENGE_TTL_MINUTES."""
+    row = db.scalar(
+        select(LocationChallengeToken).where(
+            LocationChallengeToken.token_hash == _hash_token(token)
+        )
+    )
+    _fail_html = (
+        "<html><body style='font-family:sans-serif;background:#0b0d10;color:#e8eaed;"
+        "display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0'>"
+        "<div style='text-align:center'><p style='font-size:18px'>Link invalid or expired.</p>"
+        "<a href='/' style='color:#4ea1ff'>Back to sign-in</a></div></body></html>"
+    )
+    if row is None or row.used_at is not None or row.expires_at <= utcnow():
+        return _HTMLResponse(_fail_html, status_code=400)
+
+    account = db.get(Account, row.account_id)
+    if account is None or account.is_banned:
+        return _HTMLResponse(_fail_html, status_code=400)
+
+    row.used_at = utcnow()
+    _new_row, refresh_raw = _issue_refresh_token(db, account, request)
+    db.commit()
+
+    access = issue_token(account.id, account.token_version)
+    # Return a tiny page that stores the tokens and redirects — standard magic-link pattern.
+    html = f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Signing you in…</title></head>
+<body style="font-family:sans-serif;background:#0b0d10;color:#e8eaed;
+  display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">
+<div style="text-align:center">
+  <p style="font-size:18px;margin-bottom:8px">Location verified — signing you in…</p>
+  <p style="color:#7d8a9c;font-size:13px">You'll be redirected automatically.</p>
+</div>
+<script>
+  try {{
+    localStorage.setItem('heroproto_jwt', {access!r});
+    localStorage.setItem('heroproto_refresh', {refresh_raw!r});
+  }} catch(e) {{}}
+  setTimeout(() => location.replace('/app/'), 800);
+</script>
+</body></html>"""
+    return _HTMLResponse(html)
 
 
 # --- TOTP 2FA ----------------------------------------------------------------

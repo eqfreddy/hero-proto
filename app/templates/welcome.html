@@ -264,6 +264,13 @@
         _resetCaptcha();
         return;
       }
+      if (body.status === 'location_challenge') {
+        status.textContent = '📍 Sign-in from a new location detected. Check your email and click the link to approve it. This tab can be closed.';
+        status.className = 'auth-status ok';
+        btn.disabled = false;
+        _resetCaptcha();
+        return;
+      }
       if (body.status === 'totp_required') {
         status.textContent = '2FA required — continuing to dashboard…';
         status.className = 'auth-status';

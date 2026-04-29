@@ -912,6 +912,27 @@ class AdminAnnouncement(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
 
 
+class LocationChallengeToken(Base):
+    """Single-use challenge issued when a login arrives from an unrecognised IP
+    prefix. The raw token is emailed to the account owner; only the SHA-256 hash
+    is stored. Clicking the link in the email calls /auth/approve-login which
+    validates the token and issues real access + refresh tokens.
+    """
+
+    __tablename__ = "location_challenge_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    login_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+
 class AdminAuditLog(Base):
     """Append-only record of admin actions. Referenced accounts nulled on delete so
     the audit trail survives account deletion."""

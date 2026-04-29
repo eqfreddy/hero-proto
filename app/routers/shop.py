@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.deps import get_current_account
+from app.deps import get_current_account, get_current_account_verified_only
 from app.models import (
     Account,
     OfferBundle,
@@ -163,7 +163,7 @@ def list_products(
 @router.post("/purchases", response_model=PurchaseOut, status_code=status.HTTP_201_CREATED)
 def create_purchase(
     body: PurchaseIn,
-    account: Annotated[Account, Depends(get_current_account)],
+    account: Annotated[Account, Depends(get_current_account_verified_only)],
     db: Annotated[Session, Depends(get_db)],
 ) -> PurchaseOut:
     """Mock-payment purchase.
