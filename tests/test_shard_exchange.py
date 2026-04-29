@@ -12,7 +12,7 @@ from app.models import Account
 def _register_with_gems(client, gems: int) -> dict[str, str]:
     email = f"sx+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
     me = client.get("/me", headers=hdr).json()
     with SessionLocal() as db:

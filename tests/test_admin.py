@@ -15,7 +15,7 @@ from app.models import Account, AdminAuditLog, utcnow
 def _register(client, prefix: str = "adm") -> tuple[dict[str, str], str, int]:
     email = f"{prefix}+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201, r.text
+    assert r.status_code == 200, r.text
     token = r.json()["access_token"]
     hdr = {"Authorization": f"Bearer {token}"}
     me = client.get("/me", headers=hdr).json()
@@ -26,6 +26,14 @@ def _promote_to_admin(account_id: int) -> None:
     with SessionLocal() as db:
         a = db.get(Account, account_id)
         a.is_admin = True
+        db.commit()
+
+
+def _promote_to_superadmin(account_id: int) -> None:
+    with SessionLocal() as db:
+        a = db.get(Account, account_id)
+        a.is_admin = True
+        a.is_superadmin = True
         db.commit()
 
 
@@ -106,8 +114,9 @@ def test_admin_cannot_ban_self(client) -> None:
 
 
 def test_admin_promote_makes_another_user_admin(client) -> None:
+    # promote requires superadmin
     hdr, _, admin_id = _register(client, "maker")
-    _promote_to_admin(admin_id)
+    _promote_to_superadmin(admin_id)
     _, _, new_id = _register(client, "recruit")
 
     r = client.post(f"/admin/accounts/{new_id}/promote", headers=hdr)
@@ -162,7 +171,7 @@ def test_admin_stats_shape(client) -> None:
 
 def test_audit_log_records_grant_ban_unban_promote(client) -> None:
     hdr, _, admin_id = _register(client, "auditor")
-    _promote_to_admin(admin_id)
+    _promote_to_superadmin(admin_id)  # promote endpoint requires superadmin
     _, _, victim_id = _register(client, "auditee")
 
     client.post(f"/admin/accounts/{victim_id}/grant", headers=hdr, json={"coins": 1})

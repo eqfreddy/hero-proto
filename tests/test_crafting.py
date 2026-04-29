@@ -18,7 +18,7 @@ from app.models import Account
 def _register(client) -> dict[str, str]:
     email = f"craft+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 

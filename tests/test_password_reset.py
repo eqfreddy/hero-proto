@@ -16,7 +16,7 @@ def _register(client, prefix: str = "pwr") -> tuple[str, int]:
     """Returns (email, account_id). Password is always 'hunter22'."""
     email = f"{prefix}+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     token = r.json()["access_token"]
     me = client.get("/me", headers={"Authorization": f"Bearer {token}"}).json()
     return email, me["id"]

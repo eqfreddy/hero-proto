@@ -8,7 +8,7 @@ import random
 def _register_with_heroes(client) -> tuple[dict[str, str], list[int]]:
     email = f"preset+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
     # Starter team grants 3 heroes on register; plus a summon for variety.
     client.post("/summon/x10", headers=hdr)

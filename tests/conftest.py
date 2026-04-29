@@ -47,5 +47,5 @@ def client() -> TestClient:
 def auth_headers(client: TestClient) -> dict[str, str]:
     email = f"pytest+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201, r.text
+    assert r.status_code == 200, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}

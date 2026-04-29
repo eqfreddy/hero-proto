@@ -143,7 +143,7 @@ def test_redis_bucket_open_fails_on_redis_error(redis_client) -> None:
 
 
 def test_build_buckets_memory_backend() -> None:
-    auth, general = build_buckets(
+    auth, general, admin = build_buckets(
         auth_rate_per_minute=10, general_rate_per_minute=100,
         backend="memory", redis_url="",
     )
@@ -161,7 +161,7 @@ def test_build_buckets_redis_backend(monkeypatch) -> None:
         "app.middleware.redis.Redis.from_url",
         lambda *_a, **_kw: fake,
     )
-    auth, general = build_buckets(
+    auth, general, admin = build_buckets(
         auth_rate_per_minute=10, general_rate_per_minute=100,
         backend="redis", redis_url="redis://localhost:6379/0",
     )

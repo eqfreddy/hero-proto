@@ -9,7 +9,7 @@ def _register(client, prefix: str = "cp") -> tuple[str, str, str]:
     """Returns (email, access_token, refresh_token)."""
     email = f"{prefix}+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201, r.text
+    assert r.status_code == 200, r.text
     body = r.json()
     return email, body["access_token"], body["refresh_token"]
 

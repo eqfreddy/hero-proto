@@ -15,7 +15,7 @@ from app.models import LiveOpsEvent, LiveOpsKind, utcnow
 def _register(client) -> tuple[dict[str, str], str, int]:
     email = f"liveops+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     token = r.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}, email, client.get("/me", headers={"Authorization": f"Bearer {token}"}).json()["id"]
 

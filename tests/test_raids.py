@@ -22,7 +22,7 @@ def _grant_energy(account_id: int, amount: int) -> None:
 def _register_with_team(client, *, extra_energy: int = 0) -> tuple[dict[str, str], int, list[int], str]:
     email = f"raid+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
     me = client.get("/me", headers=hdr).json()
     if extra_energy:

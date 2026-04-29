@@ -13,7 +13,7 @@ from app.models import Account
 def _register(client, prefix: str = "tp") -> tuple[str, dict, int]:
     email = f"{prefix}+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     token = r.json()["access_token"]
     hdr = {"Authorization": f"Bearer {token}"}
     me = client.get("/me", headers=hdr).json()

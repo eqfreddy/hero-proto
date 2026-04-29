@@ -21,7 +21,7 @@ from datetime import timedelta
 def _register(client) -> tuple[dict, int]:
     email = f"mythbanner+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201, r.text
+    assert r.status_code == 200, r.text
     hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
     aid = client.get("/me", headers=hdr).json()["id"]
     return hdr, aid

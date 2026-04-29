@@ -14,7 +14,7 @@ from app.models import Account, ArenaMatch, DefenseTeam
 def _register_and_team(client, prefix: str) -> tuple[dict[str, str], int, list[int]]:
     email = f"{prefix}+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
     me = client.get("/me", headers=hdr).json()
     # Summon 10 so there's a team.

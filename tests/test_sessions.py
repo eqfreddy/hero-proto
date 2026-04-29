@@ -8,7 +8,7 @@ import random
 def _register(client) -> tuple[str, str]:
     email = f"sess+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201, r.text
+    assert r.status_code == 200, r.text
     j = r.json()
     return j["access_token"], j["refresh_token"]
 

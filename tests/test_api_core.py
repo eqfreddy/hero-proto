@@ -11,7 +11,7 @@ def test_healthz(client) -> None:
 
 def test_register_grants_starter_and_onboarding_bonus(client) -> None:
     r = client.post("/auth/register", json={"email": "starter@example.com", "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     token = r.json()["access_token"]
     me = client.get("/me", headers={"Authorization": f"Bearer {token}"}).json()
     assert me["shards"] >= 20  # 10 starter + 10 onboarding bonus

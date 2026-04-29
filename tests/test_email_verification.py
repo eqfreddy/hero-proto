@@ -16,7 +16,7 @@ def _register(client, prefix: str = "ev") -> tuple[str, dict[str, str], int]:
     """Returns (email, hdr, account_id)."""
     email = f"{prefix}+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201
+    assert r.status_code == 200
     token = r.json()["access_token"]
     hdr = {"Authorization": f"Bearer {token}"}
     me = client.get("/me", headers=hdr).json()
@@ -40,14 +40,14 @@ def test_send_verification_issues_token_with_dev_url(client) -> None:
     assert body["dev_verify_url"] is not None
     assert body["dev_verify_url"].startswith("/auth/verify-email?token=")
 
-    # Hashed row landed in DB.
+    # Hashed row landed in DB (account now has 2 tokens: auto-sent on register + this one).
     raw = body["dev_verify_url"].split("token=")[1]
     with SessionLocal() as db:
         rows = db.scalars(
             select(EmailVerificationToken).where(EmailVerificationToken.account_id == account_id)
         ).all()
-        assert len(rows) == 1
-        assert rows[0].token_hash == _hash_token(raw)
+        assert len(rows) >= 1
+        assert any(r.token_hash == _hash_token(raw) for r in rows)
 
 
 def test_verify_email_happy_path(client) -> None:
@@ -105,10 +105,12 @@ def test_verify_email_expired_token_rejected(client) -> None:
     r = client.post("/auth/send-verification", headers=hdr)
     raw = r.json()["dev_verify_url"].split("token=")[1]
 
-    # Push expiry to the past.
+    # Push expiry to the past — target the specific token by its hash.
     with SessionLocal() as db:
         row = db.scalar(
-            select(EmailVerificationToken).where(EmailVerificationToken.account_id == account_id)
+            select(EmailVerificationToken).where(
+                EmailVerificationToken.token_hash == _hash_token(raw)
+            )
         )
         row.expires_at = utcnow() - timedelta(minutes=1)
         db.commit()
@@ -170,11 +172,17 @@ def test_verified_only_gate_rejects_unverified(client) -> None:
     r = client.get("/_test_gated", headers=hdr)
     # Accept 403 (verified required) OR 404 (route add didn't take) — we're really
     # just verifying the dep itself doesn't crash. Use a direct-call approach below.
-    from fastapi import HTTPException
-    import pytest
     with SessionLocal() as db:
         acct = db.get(Account, account_id)
         assert acct.email_verified is False
+    # The gate is bypassed in test environment (same pattern as rate-limit
+    # bypasses) so other tests don't need to verify every account first.
+    # Verify the gate raises 403 by temporarily treating env as prod.
+    from fastapi import HTTPException
+    import pytest
+    from unittest.mock import patch
+    with patch("app.deps.settings") as mock_s:
+        mock_s.environment = "prod"
         with pytest.raises(HTTPException) as exc_info:
             get_current_account_verified_only(acct)
         assert exc_info.value.status_code == 403

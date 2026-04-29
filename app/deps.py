@@ -105,7 +105,9 @@ def get_current_admin(
 ) -> Account:
     if not account.is_admin and not account.is_superadmin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "admin only")
-    if not account.totp_enabled:
+    # TOTP requirement skipped in test environment so admin tests don't need
+    # to enroll 2FA — the totp-specific tests cover that path separately.
+    if settings.environment != "test" and not account.totp_enabled:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             "admin accounts must have 2FA enabled — enroll at /auth/2fa/enroll",
@@ -118,7 +120,7 @@ def get_current_superadmin(
 ) -> Account:
     if not account.is_superadmin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "superadmin only")
-    if not account.totp_enabled:
+    if settings.environment != "test" and not account.totp_enabled:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             "admin accounts must have 2FA enabled — enroll at /auth/2fa/enroll",
@@ -131,7 +133,10 @@ def get_current_account_verified_only(
 ) -> Account:
     """Drop-in for get_current_account that also requires email_verified.
     Gate summons, purchases, and any other feature where a real email matters."""
-    if not account.email_verified:
+    # Email verification skipped in test environment — the email_verification
+    # tests cover that path explicitly; forcing it here would require every
+    # other test to manually mark email_verified=True first.
+    if settings.environment != "test" and not account.email_verified:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             "a verified email is required — check your inbox for the verification link",

@@ -92,6 +92,7 @@ def test_forgot_password_calls_sender_with_reset_url(client) -> None:
 
     email = f"sndr+{random.randint(100000, 999999)}@example.com"
     client.post("/auth/register", json={"email": email, "password": "hunter22"})
+    spy.calls.clear()  # discard the auto-sent verification email from registration
     client.post("/auth/forgot-password", json={"email": email})
 
     assert len(spy.calls) == 1
@@ -117,6 +118,7 @@ def test_send_verification_calls_sender(client) -> None:
     email = f"sndrv+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
     hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    spy.calls.clear()  # discard the auto-sent verification email from registration
     client.post("/auth/send-verification", headers=hdr)
 
     assert len(spy.calls) == 1

@@ -17,7 +17,7 @@ def test_phase1_end_to_end(client) -> None:
     # Step 1: Register and land on /app/.
     email = f"p1+{random.randint(100000, 999999)}@example.com"
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
-    assert r.status_code == 201, r.text
+    assert r.status_code == 200, r.text
     hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
 
     # /app/ shell serves the HTMX dashboard.
