@@ -242,7 +242,9 @@ def root(request: _Request):
     /app/ via a small JS check in the template; unauthenticated visitors see
     the hero-showcase + pitch + register panel.
     """
-    return _WELCOME_TEMPLATES.TemplateResponse(request, "welcome.html", {})
+    return _WELCOME_TEMPLATES.TemplateResponse(request, "welcome.html", {
+        "turnstile_site_key": settings.turnstile_site_key,
+    })
 
 
 # --- Marketing-site pages (about / FAQ / support / privacy / terms / press / changelog) ---

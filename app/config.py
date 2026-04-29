@@ -150,6 +150,13 @@ class Settings(BaseSettings):
     stripe_success_url: str = "http://127.0.0.1:8000/app/shop?checkout=success"
     stripe_cancel_url: str = "http://127.0.0.1:8000/app/shop?checkout=cancel"
 
+    # Cloudflare Turnstile CAPTCHA. Set HEROPROTO_TURNSTILE_SECRET_KEY via
+    # `fly secrets set`. The matching site key goes in the frontend template.
+    # Leave empty in dev/test — verification is skipped when the key is absent.
+    turnstile_secret_key: str = ""
+    # Public site key (safe to commit). Empty = Turnstile widget not rendered.
+    turnstile_site_key: str = ""
+
     # Comma-separated list of emails auto-promoted to admin on registration/login.
     admin_emails: str = ""
 

@@ -8,7 +8,7 @@ from app.config import settings
 from app.db import get_db
 from app.deps import get_current_account
 from app.models import Account, EmailVerificationToken, Faction, HeroInstance, HeroTemplate, Rarity, utcnow
-from app.schemas import LoginIn, RegisterIn, TokenOut
+from app.schemas import LoginIn, RegisterIn, RegisterOut, TokenOut
 from app.security import hash_password, issue_token, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -51,14 +51,29 @@ def _grant_starter_team(db: Session, account: Account) -> None:
         ))
 
 
-@router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=RegisterOut, status_code=status.HTTP_200_OK)
 def register(
     body: RegisterIn,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
-) -> TokenOut:
-    if db.scalar(select(Account).where(Account.email == body.email)) is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "email already registered")
+) -> RegisterOut:
+    from app.captcha import verify_turnstile
+    if not verify_turnstile(body.captcha_token, remote_ip=_client_ip(request)):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "CAPTCHA verification failed")
+
+    existing = db.scalar(select(Account).where(Account.email == body.email))
+    if existing is not None:
+        # Enumeration-safe: always 200. Notify the real owner so they know
+        # someone tried to register with their address.
+        try:
+            from app.email_render import render_account_exists
+            from app.email_sender import get_sender as _get_sender
+            subject, text, html = render_account_exists(email=body.email)
+            _get_sender().send(to_email=body.email, subject=subject, body_text=text, body_html=html)
+        except Exception:
+            _log.exception("account-exists email failed for %s", body.email)
+        return RegisterOut()
+
     account = Account(
         email=body.email,
         password_hash=hash_password(body.password),
@@ -66,9 +81,6 @@ def register(
         energy_stored=settings.starter_energy,
         energy_last_tick_at=utcnow(),
         coins=settings.starter_coins,
-        # Phase 2.5: every new account starts EXILE — narrative state for the
-        # level-50 alignment fork. Set explicitly (vs leaning on the column
-        # default) so test fixtures + admin grants stay deterministic.
         faction=Faction.EXILE,
     )
     _maybe_promote_admin(account)
@@ -80,7 +92,7 @@ def register(
     db.refresh(account)
     from app.analytics import track as _track
     _track("register", account.id, {"email_domain": body.email.split("@")[-1]})
-    return TokenOut(
+    return RegisterOut(
         access_token=issue_token(account.id, account.token_version),
         refresh_token=refresh_raw,
     )

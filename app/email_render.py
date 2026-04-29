@@ -84,6 +84,22 @@ def render_password_reset(*, reset_url: str, ttl_hours: int) -> tuple[str, str, 
     return subject or "hero-proto — password reset", text, html
 
 
+def render_account_exists(*, email: str) -> tuple[str, str, str]:
+    """Returns (subject, body_text, body_html) for the 'account already exists' email."""
+    login_url = f"{settings.public_base_url.rstrip('/')}/"
+    reset_url = f"{settings.public_base_url.rstrip('/')}/reset-password"
+    ctx = {"email": email, "login_url": login_url, "reset_url": reset_url}
+    subject, html = _render_html("email/account_exists.html", ctx)
+    text = (
+        f"Someone tried to register with your email\n\n"
+        f"A registration attempt was made using {email}, but an account with this address already exists.\n\n"
+        f"If that was you, sign in here: {login_url}\n"
+        f"Forgot your password? Reset it here: {reset_url}\n\n"
+        f"If you didn't try to register, ignore this — your account and password are unchanged."
+    )
+    return subject or "hero-proto — you already have an account", text, html
+
+
 def render_verify_email(*, verify_url: str, ttl_hours: int) -> tuple[str, str, str]:
     """Returns (subject, body_text, body_html) for the email-verify email."""
     ctx = {"verify_url": verify_url, "ttl_hours": int(ttl_hours)}

@@ -2,6 +2,9 @@
 {% set active_page = 'home' %}
 {% block title %}hero-proto · the corporate IT gacha RPG{% endblock %}
 {% block page_head %}
+{% if turnstile_site_key %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 <style>
   .hero { padding: 56px 24px 24px; max-width: 980px; margin: 0 auto; text-align: center; }
   .hero img.icon { width: 96px; height: 96px; border-radius: 18px; box-shadow: 0 12px 30px rgba(255,216,107,0.18); margin-bottom: 18px; }
@@ -122,7 +125,10 @@
     </div>
     <form class="auth-form" onsubmit="event.preventDefault(); doAuth();">
       <input id="auth-email" type="email" placeholder="email" autocomplete="email" required />
-      <input id="auth-password" type="password" placeholder="password (6+ characters)" autocomplete="current-password" minlength="6" required />
+      <input id="auth-password" type="password" placeholder="password (8+ characters)" autocomplete="current-password" minlength="8" required />
+      {% if turnstile_site_key %}
+      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark" id="auth-turnstile"></div>
+      {% endif %}
       <button id="auth-submit" type="submit" class="submit">Create account →</button>
       <div id="auth-status" class="auth-status"></div>
     </form>
@@ -218,13 +224,22 @@
       btn.disabled = false;
     }
   }
+  function _getCaptchaToken() {
+    // Turnstile stores the token in a hidden input named "cf-turnstile-response".
+    const el = document.querySelector('[name="cf-turnstile-response"]');
+    return el ? el.value : null;
+  }
+  function _resetCaptcha() {
+    if (window.turnstile) window.turnstile.reset();
+  }
+
   async function doAuth() {
     const btn = document.getElementById('auth-submit');
     const status = document.getElementById('auth-status');
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
-    if (!email || password.length < 6) {
-      status.textContent = 'Email + 6-char password required.';
+    if (!email || password.length < 8) {
+      status.textContent = 'Email + 8-character password required.';
       status.className = 'auth-status error';
       return;
     }
@@ -233,16 +248,20 @@
     status.className = 'auth-status';
     try {
       const path = _authMode === 'register' ? '/auth/register' : '/auth/login';
+      const payload = { email, password };
+      const captchaToken = _getCaptchaToken();
+      if (captchaToken) payload.captcha_token = captchaToken;
       const r = await fetch(path, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(payload),
       });
       const body = await r.json();
       if (!r.ok) {
         status.textContent = body.detail || `Error ${r.status}`;
         status.className = 'auth-status error';
         btn.disabled = false;
+        _resetCaptcha();
         return;
       }
       if (body.status === 'totp_required') {
@@ -252,11 +271,18 @@
         location.href = '/app/';
         return;
       }
-      // Centralized helper wipes prior account state before storing the
-      // new token (bug #1/#4 fix).
-      (window.heroSetAuthSession || function (t, r) {
+      // Register: if no access_token the email was already registered — both
+      // cases return 200 so we can't enumerate, but we show a helpful message.
+      if (_authMode === 'register' && !body.access_token) {
+        status.textContent = '✓ If this is a new address, check your email to finish signing up. If you already have an account, sign in below or use "Forgot password?".';
+        status.className = 'auth-status ok';
+        btn.disabled = false;
+        _resetCaptcha();
+        return;
+      }
+      (window.heroSetAuthSession || function (t, rt) {
         localStorage.setItem('heroproto_jwt', t);
-        if (r) localStorage.setItem('heroproto_refresh', r);
+        if (rt) localStorage.setItem('heroproto_refresh', rt);
       })(body.access_token, body.refresh_token);
       status.textContent = '✓ ' + (_authMode === 'register' ? 'Account created!' : 'Signed in!') + ' Loading dashboard…';
       status.className = 'auth-status ok';
@@ -265,6 +291,7 @@
       status.textContent = e.message;
       status.className = 'auth-status error';
       btn.disabled = false;
+      _resetCaptcha();
     }
   }
 </script>

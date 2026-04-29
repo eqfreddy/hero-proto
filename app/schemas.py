@@ -38,20 +38,31 @@ class BattleParticipant(BaseModel):
 
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
+    captcha_token: str | None = None
 
 
 class LoginIn(BaseModel):
     email: EmailStr
     password: str
+    captcha_token: str | None = None
+
+
+class RegisterOut(BaseModel):
+    status: str = "ok"
+    # Present on successful new registration; absent when email already exists
+    # (both cases return 200 so callers can't enumerate accounts).
+    access_token: str | None = None
+    token_type: str = "bearer"
+    refresh_token: str | None = None
 
 
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    # Long-lived rotation credential. Emitted by /auth/register, /auth/login,
-    # /auth/refresh. Clients hang on to this; swap it for a fresh access token
-    # via POST /auth/refresh when the old access token expires.
+    # Long-lived rotation credential. Emitted by /auth/login, /auth/refresh.
+    # Clients hang on to this; swap it for a fresh access token via POST
+    # /auth/refresh when the old access token expires.
     refresh_token: str | None = None
 
 

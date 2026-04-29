@@ -46,6 +46,14 @@ primary_region = "dfw"   # Dallas — change to nearest: ord, iad, lax, sea, lhr
 #
 # ► DATABASE_URL is set automatically by `fly postgres attach` — do not set manually.
 #
+# ► Cloudflare Turnstile CAPTCHA (dashboard → Turnstile → Add site → hero-proto.com):
+#
+#   fly secrets set \
+#     HEROPROTO_TURNSTILE_SECRET_KEY="<secret key from Cloudflare>"
+#
+#   Also set the PUBLIC site key in fly.toml [env] (safe to commit):
+#     HEROPROTO_TURNSTILE_SITE_KEY="<site key from Cloudflare>"
+#
 # ► Optional analytics:
 #
 #   fly secrets set \
