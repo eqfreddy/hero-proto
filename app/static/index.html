@@ -248,15 +248,16 @@
   <header>
     <h1>hero-proto</h1>
     <nav id="tabs">
-      <button data-tab="login">Login</button>
-      <button data-tab="me">Me</button>
-      <button data-tab="roster">Roster</button>
-      <button data-tab="stages">Stages</button>
-      <button data-tab="daily">Daily</button>
-      <button data-tab="arena">Arena</button>
-      <button data-tab="guild">Guild</button>
+      <button data-tab="login" data-auth="out">Login</button>
+      <button data-tab="me"     data-auth="in">Me</button>
+      <button data-tab="roster" data-auth="in">Roster</button>
+      <button data-tab="stages" data-auth="in">Stages</button>
+      <button data-tab="daily"  data-auth="in">Daily</button>
+      <button data-tab="arena"  data-auth="in">Arena</button>
+      <button data-tab="guild"  data-auth="in">Guild</button>
     </nav>
     <span id="who" class="status">signed out</span>
+    <button class="secondary" id="btn-logout" data-auth="in" style="font-size:12px;padding:4px 10px;">Log out</button>
   </header>
 
   <main>
@@ -267,7 +268,6 @@
         <input id="password" type="password" placeholder="password" />
         <button class="primary" id="btn-login">Login</button>
         <button class="secondary" id="btn-register">Register</button>
-        <button class="secondary" id="btn-logout">Log out</button>
       </div>
       <pre id="login-out"></pre>
     </section>
@@ -383,6 +383,14 @@
     }
     document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
 
+    function updateNav() {
+      const loggedIn = !!token();
+      document.querySelectorAll("[data-auth]").forEach(el => {
+        const show = el.dataset.auth === "in" ? loggedIn : !loggedIn;
+        el.style.display = show ? "" : "none";
+      });
+    }
+
     function whoami(me) {
       const w = $("who");
       if (token()) {
@@ -392,6 +400,7 @@
         w.textContent = "signed out";
         w.classList.remove("signed-in");
       }
+      updateNav();
     }
 
     // ---------- login ----------
@@ -432,7 +441,6 @@
       $("email").value = "";
       $("password").value = "";
       whoami();
-      show("login-out", "logged out");
       toast("success", "Logged out");
       setTab("login");
     });
@@ -584,6 +592,7 @@
     }));
 
     // ---------- boot ----------
+    updateNav();
     setTab(token() ? "me" : "login");
     whoami();
     if (token()) refreshMe();
