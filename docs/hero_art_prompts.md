@@ -56,6 +56,8 @@ Flavor text: "PC load letter. Every time."
 
 ### overnight_janitor
 ```
+
+
 CHARACTER: "Overnight Janitor" — COMMON / LEGACY / DEF
 
 A large tired man in grey coveralls, holding a mop in one hand and an enormous coffee mug in the other. Heavy dark circles under the eyes, stubble, hair slightly greasy. Background: empty fluorescent-lit office at 3AM, chairs on desks, a single CRT monitor glowing in the distance. Silent night-shift dignity.
@@ -248,11 +250,11 @@ Flavor text: "Blameless. Mostly."
 
 ### midnight_pager
 ```
-CHARACTER: "Midnight Pager" — EPIC / DEVOPS / ATK
+CHARACTER: "People Under the Stairs" — EPIC / Blond we think / Mother Rage ATK
 
-A wild-eyed engineer in pajamas and a bathrobe, standing in a dark bedroom with a laptop balanced on a nightstand. The pager on their shoulder is screaming (visually — motion lines). A look of primal rage. Background: a bed that was clearly occupied thirty seconds ago, an alarm clock showing 3:17 AM.
+A wild-eyed female engineer in pajamas and a bathrobe, standing in the front yard with a twisted ice tea in one hand, and a milwaukee beer in the other hand. A look of primal rage. Background: Sunny beach setting, with a raging river in the background. Kid and Dog building a sand castle. Friend zone friend helping building the sand castle.
 
-Flavor text: "I was DREAMING. Of NOT THIS."
+Flavor text: "I was DREAMING. Of THIS."
 ```
 
 ### retired_mainframe_guru
@@ -347,15 +349,15 @@ CRITICAL: RAID BOSS — dragon scale, monster framing, not a humanoid.
 
 ### tbfam
 ```
-CHARACTER: "TBFAM" — MYTH / EXECUTIVE / ATK
+CHARACTER: "GemGem" — MYTH / EXECUTIVE / ATK
 
-"The Brother From Another Mother" — a mythic CEO figure, slim-built and tall, sharply dressed in an impossibly tailored obsidian-black suit with subtle prismatic threads catching the light. Piercing eyes that shift between smokey red, liquid gold, and electric blue — clearly not mortal. Perfectly slicked hair, inhumanly sharp cheekbones, faint otherworldly aura. A knowing half-smile that suggests he remembers things you haven't done yet.
+"The Shark" — a mythic CEO figure, half dog half, sharply dressed in an impossibly tailored obsidian-black suit with subtle prismatic threads catching the light. Piercing eyes that shift between smokey red, liquid gold, and electric blue — clearly not mortal. Fins on the side, razor sharp teeth, shark tail with fur on it, shark body with fur on it. 
 
-Pose: standing at an executive desk with FOUR monitors arranged around him in a semicircle, each showing different market data, each slightly crackling with energy. Hands resting lightly on the desk but we understand that at any moment, every object on the desk — monitors, keyboards, paperweights, the coffee mug, the fountain pen — could launch as a weapon. Latent fury.
+Pose: The dog shark is in a field littered with balls off all sizes.  Latent fury.
 
 Rarity frame: IRIDESCENT PRISMATIC, holographic border that shifts between red, gold, and blue depending on viewing angle. More ornate than LEGENDARY — this is a tier above. Maybe subtle geometric mandala patterns in the border.
 
-Flavor text: "Quarterly earnings exceeded. Again. The universe agrees."
+Flavor text: "Ball BALL Ball"
 
 CRITICAL: This is the FIRST MYTH-tier hero. The frame must feel distinct from LEGENDARY — supernatural, otherworldly, limited-edition. Do not default to gold-on-dark; lean into the prismatic/holographic treatment.
 ```

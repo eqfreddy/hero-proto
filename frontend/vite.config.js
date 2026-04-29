@@ -16,8 +16,9 @@ export default defineConfig({
                 start_url: '/app/',
                 scope: '/app/',
                 icons: [
-                    { src: '/app/static/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-                    { src: '/app/static/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+                    { src: '/app/static/icons/hero-proto-192.png', sizes: '192x192', type: 'image/png' },
+                    { src: '/app/static/icons/hero-proto-512.png', sizes: '512x512', type: 'image/png' },
+                    { src: '/app/static/icons/hero-proto-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
                 ],
             },
         }),
