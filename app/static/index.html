@@ -261,17 +261,6 @@
   </header>
 
   <main>
-    <section id="tab-login">
-      <h2>Login / Register</h2>
-      <div class="row">
-        <input id="email" type="email" placeholder="email" />
-        <input id="password" type="password" placeholder="password" />
-        <button class="primary" id="btn-login">Login</button>
-        <button class="secondary" id="btn-register">Register</button>
-      </div>
-      <pre id="login-out"></pre>
-    </section>
-
     <section id="tab-me">
       <h2>Account</h2>
       <div id="me-summary" class="summary"></div>
@@ -363,6 +352,12 @@
       const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
       const text = await res.text();
       let parsed; try { parsed = JSON.parse(text); } catch { parsed = text; }
+      if (res.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem("heroproto_refresh");
+        window.location.href = "/";
+        return;
+      }
       if (!res.ok) throw Object.assign(new Error("HTTP " + res.status), { status: res.status, body: parsed });
       return parsed;
     }
@@ -403,39 +398,7 @@
       updateNav();
     }
 
-    // ---------- login ----------
-    async function login(register) {
-      const email = $("email").value.trim();
-      const password = $("password").value;
-      if (!email || !password) { toast("warn", "Fill in email + password"); return; }
-      try {
-        const path = register ? "/auth/register" : "/auth/login";
-        const r = await api("POST", path, { email, password });
-        // Wipe any prior account's cached localStorage before storing the
-        // new token (bug #1/#4 fix). Only preserve UI/device prefs.
-        try {
-          const keep = {};
-          ["heroproto_tab", "heroproto_sound"].forEach(k => {
-            const v = localStorage.getItem(k);
-            if (v != null) keep[k] = v;
-          });
-          localStorage.clear();
-          Object.entries(keep).forEach(([k, v]) => localStorage.setItem(k, v));
-        } catch (e) {}
-        localStorage.setItem(TOKEN_KEY, r.access_token);
-        if (r.refresh_token) localStorage.setItem("heroproto_refresh", r.refresh_token);
-        show("login-out", r);
-        toast("success", register ? "Registered" : "Signed in", email);
-        setTab("me");
-        refreshMe();
-      } catch (e) {
-        errToast(e, register ? "Register failed" : "Login failed");
-        show("login-out", `error: ${e.message}\n${JSON.stringify(e.body, null, 2)}`);
-      }
-    }
-    $("btn-login-header").addEventListener("click", () => setTab("login"));
-    $("btn-login").addEventListener("click", busy($("btn-login"), () => login(false)));
-    $("btn-register").addEventListener("click", busy($("btn-register"), () => login(true)));
+    $("btn-login-header").addEventListener("click", () => { window.location.href = "/"; });
     $("btn-logout").addEventListener("click", () => {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem("heroproto_refresh");
@@ -589,10 +552,11 @@
     }));
 
     // ---------- boot ----------
+    if (!token()) { window.location.href = "/"; }
     updateNav();
-    setTab(token() ? "me" : "login");
+    setTab("me");
     whoami();
-    if (token()) refreshMe();
+    refreshMe();
   </script>
 </body>
 </html>
