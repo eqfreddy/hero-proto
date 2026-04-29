@@ -98,12 +98,18 @@ class SmtpSender:
         msg.set_content(body_text)
         if body_html:
             msg.add_alternative(body_html, subtype="html")
-        with smtplib.SMTP(self.host, self.port, timeout=30) as s:
-            if self.use_tls:
-                s.starttls()
-            if self.username:
-                s.login(self.username, self.password)
-            s.send_message(msg)
+        log.info("EMAIL [smtp] to=%s subject=%r host=%s:%s", to_email, subject, self.host, self.port)
+        try:
+            with smtplib.SMTP(self.host, self.port, timeout=30) as s:
+                if self.use_tls:
+                    s.starttls()
+                if self.username:
+                    s.login(self.username, self.password)
+                s.send_message(msg)
+            log.info("EMAIL [smtp] delivered to=%s", to_email)
+        except Exception as exc:
+            log.error("EMAIL [smtp] FAILED to=%s subject=%r error=%s", to_email, subject, exc)
+            raise
 
 
 @dataclass
