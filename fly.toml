@@ -1,0 +1,78 @@
+# fly.toml — hero-proto on Fly.io
+# Deploy: fly deploy
+# First-time: fly launch --no-deploy (imports this file), then fly deploy
+
+app = "hero-proto"
+primary_region = "dfw"   # Dallas — change to nearest: ord, iad, lax, sea, lhr, fra, syd
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  HEROPROTO_ENVIRONMENT        = "prod"
+  HEROPROTO_JSON_LOGS          = "1"
+  HEROPROTO_LOG_REQUESTS       = "true"
+  HEROPROTO_MOCK_PAYMENTS_ENABLED = "false"
+  HEROPROTO_RATE_LIMIT_DISABLED   = "false"
+  HEROPROTO_WORKER_ENABLED        = "true"
+  HEROPROTO_EMAIL_SENDER_TYPE     = "smtp"
+  HEROPROTO_EMAIL_FROM_ADDRESS    = "no-reply@hero-proto.app"
+  HEROPROTO_EMAIL_SMTP_PORT       = "587"
+  HEROPROTO_EMAIL_SMTP_USE_TLS    = "true"
+  PORT = "8000"
+
+# ── Secrets (set via `fly secrets set`, never committed) ─────────────────────
+#
+# ► REQUIRED before first deploy:
+#
+#   fly secrets set \
+#     HEROPROTO_JWT_SECRET="$(openssl rand -base64 48)" \
+#     HEROPROTO_CORS_ORIGINS="https://hero-proto.fly.dev" \
+#     HEROPROTO_PUBLIC_BASE_URL="https://hero-proto.fly.dev" \
+#     HEROPROTO_ADMIN_EMAILS="ridler69@gmail.com"
+#
+# ► Email (Postmark / Mailgun / SES SMTP creds):
+#
+#   fly secrets set \
+#     HEROPROTO_EMAIL_SMTP_HOST="smtp.postmarkapp.com" \
+#     HEROPROTO_EMAIL_SMTP_USERNAME="<api-token>" \
+#     HEROPROTO_EMAIL_SMTP_PASSWORD="<api-token>"
+#
+# ► Stripe (when ready for live payments):
+#
+#   fly secrets set \
+#     HEROPROTO_STRIPE_API_KEY="sk_live_..." \
+#     HEROPROTO_STRIPE_WEBHOOK_SECRET="whsec_..."
+#
+# ► DATABASE_URL is set automatically by `fly postgres attach` — do not set manually.
+#
+# ► Optional analytics:
+#
+#   fly secrets set \
+#     HEROPROTO_POSTHOG_API_KEY="phc_..."
+
+[http_service]
+  internal_port       = 8000
+  force_https         = true
+  auto_stop_machines  = true
+  auto_start_machines = true
+  min_machines_running = 0        # scale-to-zero; set to 1 for always-on
+
+  [http_service.concurrency]
+    type       = "requests"
+    hard_limit = 200
+    soft_limit = 150
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "512mb"
+
+[checks]
+  [checks.health]
+    grace_period = "20s"
+    interval     = "30s"
+    method       = "GET"
+    path         = "/healthz"
+    port         = 8000
+    timeout      = "5s"
+    type         = "http"
