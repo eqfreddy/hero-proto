@@ -248,7 +248,6 @@
   <header>
     <h1>hero-proto</h1>
     <nav id="tabs">
-      <button data-tab="login" data-auth="out">Login</button>
       <button data-tab="me"     data-auth="in">Me</button>
       <button data-tab="roster" data-auth="in">Roster</button>
       <button data-tab="stages" data-auth="in">Stages</button>
@@ -257,6 +256,7 @@
       <button data-tab="guild"  data-auth="in">Guild</button>
     </nav>
     <span id="who" class="status">signed out</span>
+    <button class="primary"   id="btn-login-header"  data-auth="out" style="font-size:12px;padding:4px 14px;margin-left:auto;">Login</button>
     <button class="secondary" id="btn-logout" data-auth="in" style="font-size:12px;padding:4px 10px;">Log out</button>
   </header>
 
@@ -433,16 +433,13 @@
         show("login-out", `error: ${e.message}\n${JSON.stringify(e.body, null, 2)}`);
       }
     }
+    $("btn-login-header").addEventListener("click", () => setTab("login"));
     $("btn-login").addEventListener("click", busy($("btn-login"), () => login(false)));
     $("btn-register").addEventListener("click", busy($("btn-register"), () => login(true)));
     $("btn-logout").addEventListener("click", () => {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem("heroproto_refresh");
-      $("email").value = "";
-      $("password").value = "";
-      whoami();
-      toast("success", "Logged out");
-      setTab("login");
+      window.location.href = "/app/";
     });
 
     // ---------- Me tab ----------
