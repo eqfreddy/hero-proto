@@ -1,0 +1,197 @@
+/* hero-proto — design token layer + component classes
+   Extends the base.html inline :root block.
+   Link: <link rel="stylesheet" href="/app/static/style.css"> */
+
+/* ── Extended tokens ──────────────────────────────────────────────── */
+:root {
+  /* Rarity — MYTH is event-only / never in normal pool.
+     Template uses var(--r-myth) dynamically so this name must match. */
+  --r-myth: #e8294c;
+
+  /* Faction accents — template references var(--faction-<name>) dynamically,
+     e.g. var(--faction-devops), var(--faction-rogue-it). Names must match. */
+  --faction-devops:    #00b4d8;
+  --faction-executive: #c8a96e;
+  --faction-helpdesk:  #6dd39a;
+  --faction-legacy:    #9b8ec4;
+  --faction-rogue-it:  #ff7a59;
+  --faction-exile:     #aab4be;
+  --faction-resistance:#4ea1ff;
+  --faction-corp-greed:#ffd86b;
+
+  /* Tabular numbers for stats / currency */
+  --font-num: 'Cascadia Code', 'Fira Mono', 'Consolas', monospace;
+
+  /* Spacing scale */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+}
+
+/* ── Rarity modifiers (MYTH added; others mirror base.html) ─────── */
+.rarity-MYTH {
+  border-left: 3px solid var(--r-myth);
+  box-shadow: 0 0 14px rgba(232, 41, 76, 0.15);
+}
+
+/* ── Faction badge ─────────────────────────────────────────────────
+   Usage: <span class="faction-badge faction-devops">DEVOPS</span> */
+.faction-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  opacity: 0.85;
+}
+.faction-DEVOPS,    .faction-devops    { color: var(--faction-devops); }
+.faction-EXECUTIVE, .faction-executive { color: var(--faction-executive); }
+.faction-HELPDESK,  .faction-helpdesk  { color: var(--faction-helpdesk); }
+.faction-LEGACY,    .faction-legacy    { color: var(--faction-legacy); }
+.faction-ROGUE_IT,  .faction-rogue-it  { color: var(--faction-rogue-it); }
+.faction-EXILE,     .faction-exile     { color: var(--faction-exile); }
+.faction-RESISTANCE,.faction-resistance{ color: var(--faction-resistance); }
+.faction-CORP_GREED,.faction-corp-greed{ color: var(--faction-corp-greed); }
+
+/* ── Stat number display ───────────────────────────────────────────
+   Usage: <span class="stat-num">12,450</span> */
+.stat-num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ── Currency pill (reused in roster, battle result, etc.) ─────── */
+.currency-row {
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.currency-cell .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.currency-cell .value {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Stat row (label / value pairs in hero sheets, me panel) ────── */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-row .label { color: var(--muted); }
+.stat-row .value { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+/* ── Section header (card subheadings) ─────────────────────────── */
+.section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0 0 var(--sp-2);
+}
+
+/* ── Outline button variant ─────────────────────────────────────── */
+button.outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+button.outline:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Nav — mobile horizontal scroll ────────────────────────────── */
+nav#tabs {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+nav#tabs::-webkit-scrollbar { display: none; }
+
+/* ── Header — tighten on small screens ─────────────────────────── */
+@media (max-width: 640px) {
+  header { padding: 8px 12px; gap: 10px; }
+  header h1 { font-size: 14px; }
+  nav#tabs button { padding: 5px 9px; font-size: 12px; }
+  #who { display: none; }
+  main { padding: 12px; }
+}
+
+/* ── Progress bar (achievements, event quests) ──────────────────── */
+.progress-bar {
+  height: 6px;
+  background: var(--panel);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: var(--sp-1);
+}
+.progress-bar .fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 300ms ease;
+  min-width: 2px;
+}
+.progress-bar .fill.complete { background: var(--good); }
+
+/* ── Variance pills (roster grid) ───────────────────────────────── */
+.var-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.var-pill.pos { color: var(--good); background: rgba(109,211,154,0.12); }
+.var-pill.neg { color: var(--bad);  background: rgba(255,107,74,0.12); }
+
+/* ── Rarity text colors ─────────────────────────────────────────── */
+.text-common    { color: var(--r-common); }
+.text-uncommon  { color: var(--r-uncommon); }
+.text-rare      { color: var(--r-rare); }
+.text-epic      { color: var(--r-epic); }
+.text-legendary { color: var(--r-legendary); }
+.text-myth      { color: var(--r-myth); }
+
+/* ── Role text colors (aliases matching backend enum) ───────────── */
+.text-atk { color: var(--atk); }
+.text-def { color: var(--def); }
+.text-sup { color: var(--sup); }
+
+/* ── Compact table variant ──────────────────────────────────────── */
+table.compact th,
+table.compact td { padding: 4px 6px; font-size: 12px; }
+
+/* ── Admin panel tweaks ─────────────────────────────────────────── */
+.admin-section {
+  margin-bottom: var(--sp-5);
+}
+.admin-section h2 {
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+}

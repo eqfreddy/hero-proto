@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battle — Turn by Turn</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #0b0d10 0%, #14202b 100%);
+      color: #ddd;
+      margin: 0;
+      padding: 16px;
+      min-height: 100vh;
+    }
+    h2 { margin: 0 0 12px; color: #fff; font-size: 20px; font-weight: 800; }
+    .battle-layout {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .side-panel {
+      background: #16191f;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .side-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #8a9aac;
+      margin-bottom: 10px;
+    }
+    .unit-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      transition: border-color 200ms;
+    }
+    .unit-card.acting { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.3); }
+    .unit-card.dead { opacity: 0.4; }
+    .unit-card.target-option {
+      cursor: pointer;
+      border-color: rgba(255,122,89,0.5);
+    }
+    .unit-card.target-option:hover { border-color: #ff7a59; background: rgba(255,122,89,0.08); }
+    .unit-name { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+    .hp-bar-track { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+    .hp-bar-fill { height: 100%; border-radius: 3px; transition: width 300ms ease; }
+    .hp-text { font-size: 11px; color: #8a9aac; margin-top: 4px; }
+    .limit-bar-track { height: 4px; background: rgba(0,212,255,0.15); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+    .limit-bar-fill { height: 100%; background: #00d4ff; border-radius: 2px; transition: width 300ms ease; }
+    .role-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .role-ATK { background: rgba(255,122,89,0.2); color: #ff7a59; }
+    .role-DEF { background: rgba(89,160,255,0.2); color: #59a0ff; }
+    .role-SUP { background: rgba(109,211,154,0.2); color: #6dd39a; }
+
+    /* Bottom strip */
+    .action-strip {
+      max-width: 900px;
+      margin: 16px auto 0;
+      background: #16191f;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .action-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+    .target-list { display: flex; gap: 8px; flex-wrap: wrap; }
+    .target-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,122,89,0.5);
+      background: rgba(255,122,89,0.1);
+      color: #ff7a59;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12px;
+      transition: all 150ms;
+    }
+    .target-btn:hover:not(:disabled) {
+      background: rgba(255,122,89,0.25);
+      border-color: #ff7a59;
+    }
+    .target-btn:disabled { opacity: 0.4; cursor: default; }
+    .status-text { font-size: 13px; color: #8a9aac; font-style: italic; }
+
+    /* Event log */
+    .log-panel {
+      max-width: 900px;
+      margin: 12px auto 0;
+      background: #0f1217;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 12px 16px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      color: #8a9aac;
+    }
+    .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .log-entry.dmg { color: #ff7a59; }
+    .log-entry.heal { color: #6dd39a; }
+    .log-entry.special { color: #ffd700; }
+    .log-entry.limit { color: #00d4ff; font-weight: 700; }
+    .log-entry.death { color: #ff4444; }
+
+    /* Rewards overlay */
+    .rewards-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .rewards-overlay.active { display: flex; }
+    .rewards-box {
+      background: #16191f;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    .outcome-banner {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .outcome-WIN { color: #6dd39a; }
+    .outcome-LOSS { color: #ff4444; }
+    .outcome-DRAW { color: #ffd700; }
+    .rewards-list { margin: 16px 0; text-align: left; }
+    .reward-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+    .btn-done {
+      padding: 12px 32px;
+      background: #59a0ff;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    .btn-done:hover { background: #4a8ae6; }
+  </style>
+</head>
+<body>
+
+  <div class="battle-layout">
+    <div class="side-panel">
+      <div class="side-label">Your Team</div>
+      <div id="teamA"></div>
+    </div>
+    <div class="side-panel">
+      <div class="side-label">Enemies</div>
+      <div id="teamB"></div>
+    </div>
+  </div>
+
+  <div class="action-strip" id="actionStrip">
+    <div class="action-title" id="actionTitle">Loading…</div>
+    <div class="target-list" id="targetList"></div>
+  </div>
+
+  <div class="log-panel" id="logPanel"></div>
+
+  <!-- Rewards overlay -->
+  <div class="rewards-overlay" id="rewardsOverlay">
+    <div class="rewards-box">
+      <div class="outcome-banner" id="outcomeBanner"></div>
+      <div id="rewardsSummary"></div>
+      <button class="btn-done" id="doneBtn">Back to Stage Select</button>
+    </div>
+  </div>
+
+  <script src="/app/static/toast.js"></script>
+  <script>
+    const TOKEN_KEY = "heroproto_jwt";
+    const token = () => localStorage.getItem(TOKEN_KEY);
+    const authed = () => ({ Authorization: "Bearer " + token() });
+
+    if (!token()) {
+      document.body.innerHTML = '<div style="padding:40px;color:#ddd;">Not signed in. <a href="/app/" style="color:#59a0ff;">Go to dashboard</a></div>';
+      throw new Error("not signed in");
+    }
+
+    // Parse session from URL: ?session=<id>&kind=stage|raid
+    const params = new URLSearchParams(location.search);
+    const SESSION_ID = params.get("session");
+    const KIND = params.get("kind") || "stage";
+    if (!SESSION_ID) {
+      document.body.innerHTML = '<div style="padding:40px;color:#ddd;">No session ID. <a href="/app/static/battle-setup.html" style="color:#59a0ff;">Go to battle setup</a></div>';
+      throw new Error("no session");
+    }
+
+    // ---- State ----
+    let state = null;  // last InteractiveStateOut
+    let busy = false;
+
+    // ---- Rendering ----
+    function hpColor(hp, max) {
+      const pct = hp / max;
+      if (pct > 0.5) return "#6dd39a";
+      if (pct > 0.25) return "#ffd700";
+      return "#ff4444";
+    }
+
+    function renderUnit(u, container, isTarget) {
+      const pct = u.dead ? 0 : (u.hp / u.max_hp * 100);
+      const limitPct = u.limit_gauge_max > 0 ? (u.limit_gauge / u.limit_gauge_max * 100) : 0;
+      const roleName = u.role.split(".").pop();
+      const div = document.createElement("div");
+      div.className = `unit-card${u.dead ? " dead" : ""}${isTarget ? " target-option" : ""}`;
+      div.dataset.uid = u.uid;
+      div.innerHTML = `
+        <div class="unit-name">${u.name}<span class="role-badge role-${roleName}">${roleName}</span></div>
+        <div class="hp-bar-track"><div class="hp-bar-fill" style="width:${pct}%;background:${hpColor(u.hp,u.max_hp)}"></div></div>
+        <div class="hp-text">${u.dead ? "Defeated" : `${u.hp} / ${u.max_hp} HP`}</div>
+        ${u.limit_gauge_max > 0 ? `
+        <div class="limit-bar-track"><div class="limit-bar-fill" style="width:${limitPct}%"></div></div>` : ""}
+      `;
+      if (isTarget && !u.dead) {
+        div.addEventListener("click", () => sendTarget(u.uid));
+      }
+      container.appendChild(div);
+    }
+
+    function renderState() {
+      if (!state) return;
+      const a = document.getElementById("teamA");
+      const b = document.getElementById("teamB");
+      a.innerHTML = "";
+      b.innerHTML = "";
+
+      const pendingActor = state.pending ? state.pending.actor_uid : null;
+      const isWaiting = state.status === "WAITING";
+
+      state.team_a.forEach(u => {
+        const card = document.createElement("div");
+        card.className = `unit-card${u.dead ? " dead" : ""}${u.uid === pendingActor ? " acting" : ""}`;
+        const pct = u.dead ? 0 : (u.hp / u.max_hp * 100);
+        const roleName = u.role.split(".").pop();
+        card.innerHTML = `
+          <div class="unit-name">${u.name}<span class="role-badge role-${roleName}">${roleName}</span></div>
+          <div class="hp-bar-track"><div class="hp-bar-fill" style="width:${pct}%;background:${hpColor(u.hp,u.max_hp)}"></div></div>
+          <div class="hp-text">${u.dead ? "Defeated" : `${u.hp} / ${u.max_hp} HP`}</div>
+          ${u.limit_gauge_max > 0 ? `<div class="limit-bar-track"><div class="limit-bar-fill" style="width:${u.limit_gauge/u.limit_gauge_max*100}%"></div></div>` : ""}
+        `;
+        a.appendChild(card);
+      });
+
+      const targetUids = new Set(
+        isWaiting && state.pending ? state.pending.enemies.map(e => e.uid) : []
+      );
+      state.team_b.forEach(u => {
+        renderUnit(u, b, isWaiting && targetUids.has(u.uid) && !u.dead);
+      });
+
+      const strip = document.getElementById("actionStrip");
+      const title = document.getElementById("actionTitle");
+      const tList = document.getElementById("targetList");
+      tList.innerHTML = "";
+
+      if (state.status === "WAITING" && state.pending) {
+        const actor = state.team_a.find(u => u.uid === state.pending.actor_uid);
+        title.textContent = `${actor ? actor.name : state.pending.actor_uid} — pick a target`;
+        state.pending.enemies.forEach(e => {
+          const btn = document.createElement("button");
+          btn.className = "target-btn";
+          btn.disabled = busy;
+          btn.textContent = `⚔ ${e.name} (${e.hp} HP)`;
+          btn.addEventListener("click", () => sendTarget(e.uid));
+          tList.appendChild(btn);
+        });
+      } else if (state.status === "DONE") {
+        title.textContent = "Battle over!";
+      } else {
+        title.textContent = "Waiting…";
+      }
+    }
+
+    function appendLog(events) {
+      const panel = document.getElementById("logPanel");
+      events.forEach(e => {
+        const div = document.createElement("div");
+        let cls = "log-entry";
+        let text = "";
+        if (e.type === "DAMAGE") {
+          cls += " dmg";
+          text = `${e.source || "?"} → ${e.target}: -${e.amount} HP${e.crit ? " (CRIT)" : ""}`;
+        } else if (e.type === "HEAL") {
+          cls += " heal";
+          text = `Heal ${e.target}: +${e.amount} HP`;
+        } else if (e.type === "SPECIAL") {
+          cls += " special";
+          text = `✨ ${e.unit}: ${e.name}`;
+        } else if (e.type === "LIMIT_BREAK") {
+          cls += " limit";
+          text = `⚡ LIMIT BREAK — ${e.unit}: ${e.name}`;
+        } else if (e.type === "LIMIT_READY") {
+          cls += " limit";
+          text = `★ LIMIT — ${e.unit} ready!`;
+        } else if (e.type === "DEATH") {
+          cls += " death";
+          text = `💀 ${e.unit} defeated`;
+        } else if (e.type === "END") {
+          text = `── Battle ended: ${e.outcome} (${e.ticks} ticks) ──`;
+        } else if (e.type === "WAVE_START") {
+          text = `── Wave ${e.wave} ──`;
+        } else if (e.type === "TURN") {
+          text = `[${e.unit} turn — ${e.hp} HP]`;
+        } else {
+          text = JSON.stringify(e);
+        }
+        div.className = cls;
+        div.textContent = text;
+        panel.appendChild(div);
+      });
+      panel.scrollTop = panel.scrollHeight;
+    }
+
+    function showRewards(outcome, rewards) {
+      const overlay = document.getElementById("rewardsOverlay");
+      const banner = document.getElementById("outcomeBanner");
+      const summary = document.getElementById("rewardsSummary");
+      banner.textContent = outcome;
+      banner.className = `outcome-banner outcome-${outcome}`;
+      let html = '<div class="rewards-list">';
+      if (rewards) {
+        if (rewards.coins) html += `<div class="reward-row"><span>Coins</span><span>+${rewards.coins}</span></div>`;
+        if (rewards.gems) html += `<div class="reward-row"><span>Gems</span><span>+${rewards.gems}</span></div>`;
+        if (rewards.shards) html += `<div class="reward-row"><span>Shards</span><span>+${rewards.shards}</span></div>`;
+        if (rewards.gear) html += `<div class="reward-row"><span>Gear</span><span>${rewards.gear.rarity || "dropped"}</span></div>`;
+        if (rewards.damage_dealt) html += `<div class="reward-row"><span>Damage to boss</span><span>${rewards.damage_dealt}</span></div>`;
+      }
+      html += '</div>';
+      summary.innerHTML = html;
+      overlay.classList.add("active");
+    }
+
+    // ---- Actions ----
+    async function sendTarget(uid) {
+      if (busy || !state || state.status !== "WAITING") return;
+      busy = true;
+      disableTargetButtons(true);
+      const actUrl = KIND === "raid"
+        ? `/raids/interactive/${SESSION_ID}/act`
+        : `/battles/interactive/${SESSION_ID}/act`;
+      try {
+        const r = await fetch(actUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...authed() },
+          body: JSON.stringify({ turn_number: state.pending.turn_number, target_uid: uid }),
+        });
+        const body = await r.json();
+        if (!r.ok) {
+          toast.error(body.detail || "Error");
+          busy = false;
+          disableTargetButtons(false);
+          return;
+        }
+        state = body;
+        appendLog(state.log_delta || []);
+        renderState();
+        if (state.status === "DONE") {
+          showRewards(state.outcome, state.rewards);
+        }
+      } catch (e) {
+        toast.error("Network error: " + e.message);
+      }
+      busy = false;
+    }
+
+    function disableTargetButtons(disabled) {
+      document.querySelectorAll(".target-btn").forEach(b => b.disabled = disabled);
+    }
+
+    // ---- Init: load initial state ----
+    // The session is already created by battle-setup.html before navigating here.
+    // We need the initial state — if there's a ?initial=... param (JSON-encoded
+    // initial response), use it; otherwise re-fetch via a GET status endpoint.
+    // For simplicity we stash the initial state in sessionStorage.
+    (function init() {
+      const cached = sessionStorage.getItem("interactive_init_" + SESSION_ID);
+      if (cached) {
+        sessionStorage.removeItem("interactive_init_" + SESSION_ID);
+        state = JSON.parse(cached);
+        appendLog(state.log_delta || []);
+        renderState();
+        if (state.status === "DONE") {
+          showRewards(state.outcome, state.rewards);
+        }
+      } else {
+        document.getElementById("actionTitle").textContent = "Session not found — go back and start a new battle.";
+      }
+    })();
+
+    document.getElementById("doneBtn").addEventListener("click", () => {
+      location.href = "/app/static/battle-setup.html";
+    });
+  </script>
+</body>
+</html>

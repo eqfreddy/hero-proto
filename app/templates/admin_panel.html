@@ -1,0 +1,672 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel · hero-proto{% endblock %}
+{% block head %}
+<style>
+  body { font-size: 13px; }
+  header {
+    background: var(--panel); padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+  }
+  header h1 { margin: 0; font-size: 15px; color: var(--bad); }
+  header .badge { font-size: 10px; background: var(--bad); color: #fff;
+    padding: 2px 7px; border-radius: 10px; font-weight: 700; letter-spacing: .04em; }
+  #admin-email { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+  nav.tabs { display: flex; gap: 2px; background: var(--panel);
+    border-bottom: 1px solid var(--border); padding: 0 18px; }
+  nav.tabs button { background: transparent; color: var(--muted); padding: 8px 14px;
+    border-bottom: 2px solid transparent; border-radius: 0; font-size: 12px; }
+  nav.tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+  nav.tabs button:hover { color: var(--text); }
+
+  main { padding: 18px; max-width: 1200px; margin: 0 auto; }
+  .tab-panel { display: none; } .tab-panel.active { display: block; }
+
+  /* Stat tiles */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat-tile { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .stat-tile .label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+  .stat-tile .value { font-size: 26px; font-weight: 700; line-height: 1; }
+  .stat-tile .sub   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* Tables */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 6px 8px; color: var(--muted); font-weight: 600;
+    border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,.03); }
+  td.mono { font-family: ui-monospace, monospace; font-size: 11px; }
+
+  /* Search / filter bar */
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .toolbar input, .toolbar select { font-size: 12px; padding: 5px 8px; }
+  .toolbar input { flex: 1; min-width: 180px; }
+
+  /* Action buttons inside table cells */
+  .act { font-size: 11px; padding: 3px 8px; margin: 1px; }
+  .act.danger { background: #6b1f1f; }
+  .act.danger:hover { background: var(--bad); }
+  .act.good { background: #1f5a36; }
+  .act.good:hover { background: var(--good); color: #000; }
+
+  /* Account detail slide-in */
+  #acct-detail { display: none; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  #acct-detail.open { display: block; }
+  #acct-detail h3 { margin: 0 0 10px; font-size: 13px; }
+  #acct-detail .fields { display: grid; grid-template-columns: repeat(auto-fill,minmax(140px,1fr)); gap: 8px; }
+  #acct-detail .fields label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 2px; }
+  #acct-detail .fields span { font-size: 13px; font-weight: 600; }
+
+  /* LiveOps create form */
+  #liveops-form { background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; margin-bottom: 16px; display: none; }
+  #liveops-form.open { display: block; }
+  #liveops-form .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  #liveops-form label { font-size: 11px; color: var(--muted); display: flex;
+    flex-direction: column; gap: 4px; }
+  #liveops-form input, #liveops-form select { font-size: 12px; }
+
+  .pill.active { color: var(--good); border-color: var(--good); background: rgba(109,211,154,.08); }
+  .pill.banned { color: var(--bad);  border-color: var(--bad);  background: rgba(255,107,74,.08); }
+  .pill.admin  { color: var(--warn); border-color: var(--warn); background: rgba(255,216,107,.08); }
+
+  #toast-admin { position: fixed; top: 56px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 16px; font-size: 12px; z-index: 999; display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+  #toast-admin.good { border-color: var(--good); color: var(--good); }
+  #toast-admin.bad  { border-color: var(--bad);  color: var(--bad);  }
+</style>
+{% endblock %}
+{% block body %}
+
+<div id="toast-admin"></div>
+
+<header>
+  <h1>Admin Panel</h1>
+  <span class="badge">RESTRICTED</span>
+  <span id="admin-email" class="muted">checking auth…</span>
+  <a href="/app/" style="font-size: 12px; color: var(--muted); margin-left: 8px;">← back to game</a>
+</header>
+
+<nav class="tabs" id="admin-tabs">
+  <button class="active" data-panel="overview"  onclick="switchTab(this,'overview')">Overview</button>
+  <button                data-panel="accounts"  onclick="switchTab(this,'accounts')">Accounts</button>
+  <button                data-panel="purchases" onclick="switchTab(this,'purchases')">Purchases</button>
+  <button                data-panel="liveops"   onclick="switchTab(this,'liveops')">LiveOps</button>
+  <button                data-panel="audit"     onclick="switchTab(this,'audit')">Audit Log</button>
+</nav>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════════════ OVERVIEW ═══ -->
+<div id="panel-overview" class="tab-panel active">
+  <div class="stat-grid" id="stat-grid">
+    <div class="stat-tile"><div class="label">Total accounts</div><div class="value skeleton" id="s-total">—</div></div>
+    <div class="stat-tile"><div class="label">DAU</div><div class="value skeleton" id="s-dau">—</div><div class="sub" id="s-wau">WAU —</div></div>
+    <div class="stat-tile"><div class="label">Battles (24h)</div><div class="value skeleton" id="s-battles">—</div><div class="sub" id="s-battles7">7d —</div></div>
+    <div class="stat-tile"><div class="label">Summons (24h)</div><div class="value skeleton" id="s-summons">—</div><div class="sub" id="s-summons7">7d —</div></div>
+    <div class="stat-tile"><div class="label">Revenue (24h)</div><div class="value skeleton" id="s-rev24">—</div><div class="sub" id="s-revtotal">total —</div></div>
+    <div class="stat-tile"><div class="label">Payers</div><div class="value skeleton" id="s-payers">—</div><div class="sub" id="s-conv">—% conversion</div></div>
+    <div class="stat-tile"><div class="label">Banned</div><div class="value skeleton" id="s-banned">—</div></div>
+    <div class="stat-tile"><div class="label">Active events</div><div class="value skeleton" id="s-liveops">—</div></div>
+    <div class="stat-tile"><div class="label">2FA enabled</div><div class="value skeleton" id="s-2fa">—</div></div>
+    <div class="stat-tile"><div class="label">Verified email</div><div class="value skeleton" id="s-verified">—</div></div>
+  </div>
+  <div style="font-size: 11px; color: var(--muted);" id="overview-updated"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ ACCOUNTS ═══ -->
+<div id="panel-accounts" class="tab-panel">
+  <div class="toolbar">
+    <input id="acct-q" type="search" placeholder="search email…" oninput="debounceAcctSearch()" />
+    <select id="acct-limit" onchange="loadAccounts()">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+    </select>
+    <button onclick="loadAccounts()">Refresh</button>
+  </div>
+
+  <!-- Account detail panel -->
+  <div id="acct-detail">
+    <h3 id="ad-title">Account</h3>
+    <div class="fields" id="ad-fields"></div>
+    <div class="row" style="margin-top: 12px; gap: 6px;" id="ad-actions"></div>
+    <div style="margin-top: 10px;">
+      <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px;">Grant resources</div>
+      <div class="row" id="ad-grant-row">
+        <input id="g-gems"  type="number" min="0" placeholder="gems"   style="width:80px">
+        <input id="g-coins" type="number" min="0" placeholder="coins"  style="width:80px">
+        <input id="g-shards"type="number" min="0" placeholder="shards" style="width:80px">
+        <input id="g-energy"type="number" min="0" placeholder="energy" style="width:80px">
+        <input id="g-hero"  type="text"             placeholder="hero code (optional)" style="width:140px">
+        <button class="act good" onclick="doGrant()">Grant</button>
+      </div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 10px; margin-bottom: 6px;">Ban</div>
+      <div class="row">
+        <input id="g-ban-reason"   type="text"   placeholder="reason"         style="flex:1; min-width:160px">
+        <input id="g-ban-duration" type="number" placeholder="hours (blank=perm)" style="width:160px" min="1">
+        <button class="act danger" onclick="doBan()">Ban</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <table id="acct-table">
+      <thead><tr>
+        <th>ID</th><th>Email</th><th>Status</th>
+        <th>Gems</th><th>Coins</th><th>Shards</th>
+        <th>Rating</th><th>Joined</th><th></th>
+      </tr></thead>
+      <tbody id="acct-tbody"><tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PURCHASES ══ -->
+<div id="panel-purchases" class="tab-panel">
+  <div class="toolbar">
+    <input id="pu-acct" type="number" placeholder="account id (optional)" style="width:160px">
+    <select id="pu-state">
+      <option value="">all states</option>
+      <option value="COMPLETED">COMPLETED</option>
+      <option value="PENDING">PENDING</option>
+      <option value="REFUNDED">REFUNDED</option>
+      <option value="FAILED">FAILED</option>
+    </select>
+    <select id="pu-limit">
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+    </select>
+    <button onclick="loadPurchases()">Load</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Account</th><th>SKU</th><th>Title</th>
+        <th>Amount</th><th>State</th><th>Processor</th><th>Date</th><th></th>
+      </tr></thead>
+      <tbody id="pu-tbody"><tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">Press Load to fetch purchases.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ LIVEOPS ════ -->
+<div id="panel-liveops" class="tab-panel">
+  <div class="toolbar">
+    <button onclick="loadLiveops()">Refresh</button>
+    <button class="good" onclick="toggleLiveopsForm()">+ New event</button>
+  </div>
+
+  <div id="liveops-form">
+    <div class="row">
+      <label>Kind
+        <select id="lo-kind">
+          <option value="DOUBLE_REWARDS">DOUBLE_REWARDS</option>
+          <option value="BONUS_GEAR_DROPS">BONUS_GEAR_DROPS</option>
+          <option value="BONUS_SHARDS">BONUS_SHARDS</option>
+          <option value="DOUBLE_XP">DOUBLE_XP</option>
+          <option value="EVENT_BANNER">EVENT_BANNER</option>
+        </select>
+      </label>
+      <label>Name<input id="lo-name" type="text" placeholder="e.g. Launch Week 2x" style="width:200px"></label>
+      <label>Duration (hours)<input id="lo-hours" type="number" value="48" min="1" style="width:100px"></label>
+      <label>Starts at (UTC, blank=now)<input id="lo-starts" type="datetime-local" style="width:180px"></label>
+      <button class="primary" onclick="doCreateLiveops()">Create</button>
+      <button onclick="toggleLiveopsForm()">Cancel</button>
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Kind</th><th>Name</th><th>Status</th><th>Starts</th><th>Ends</th><th></th></tr></thead>
+      <tbody id="lo-tbody"><tr><td colspan="7" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ AUDIT ══════ -->
+<div id="panel-audit" class="tab-panel">
+  <div class="toolbar">
+    <select id="au-action">
+      <option value="">all actions</option>
+      <option value="ban">ban</option>
+      <option value="unban">unban</option>
+      <option value="grant">grant</option>
+      <option value="promote">promote</option>
+      <option value="refund">refund</option>
+      <option value="liveops_create">liveops_create</option>
+      <option value="liveops_cancel">liveops_cancel</option>
+    </select>
+    <input id="au-target" type="number" placeholder="target id" style="width:120px">
+    <select id="au-limit">
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+    </select>
+    <button onclick="loadAudit()">Load</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Actor</th><th>Action</th><th>Target</th><th>Payload</th><th>When</th></tr></thead>
+      <tbody id="au-tbody"><tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">Press Load to fetch audit log.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+const jwt = () => localStorage.getItem('heroproto_jwt') || '';
+
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { Authorization: `Bearer ${jwt()}`, 'Content-Type': 'application/json' },
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    const msg = await r.text().catch(() => r.statusText);
+    throw new Error(`${r.status}: ${msg}`);
+  }
+  return r.json();
+}
+
+async function checkAuth() {
+  try {
+    const me = await api('GET', '/me');
+    if (!me.is_admin) {
+      document.getElementById('admin-email').textContent = `${me.email} — not an admin`;
+      document.querySelector('main').innerHTML =
+        '<div class="empty-state" style="margin-top:48px"><div class="empty-state-icon">🚫</div>' +
+        '<div class="empty-state-msg">Access denied</div>' +
+        '<div class="empty-state-hint">This page requires an admin account.</div></div>';
+      return false;
+    }
+    document.getElementById('admin-email').textContent = me.email;
+    return true;
+  } catch (e) {
+    document.getElementById('admin-email').textContent = 'not signed in';
+    document.querySelector('main').innerHTML =
+      '<div class="empty-state" style="margin-top:48px"><div class="empty-state-icon">🔑</div>' +
+      '<div class="empty-state-msg">Sign in first</div>' +
+      '<div class="empty-state-hint">Log in via the <a href="/app/">game dashboard</a>, then return here.</div></div>';
+    return false;
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+function toast(msg, kind = 'good') {
+  const el = document.getElementById('toast-admin');
+  el.textContent = msg;
+  el.className = kind;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+
+function switchTab(btn, panel) {
+  document.querySelectorAll('#admin-tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`panel-${panel}`).classList.add('active');
+  if (panel === 'accounts'  && !_accountsLoaded)  loadAccounts();
+  if (panel === 'liveops'   && !_liveopsLoaded)   loadLiveops();
+}
+
+// ── Overview ──────────────────────────────────────────────────────────────────
+
+async function loadOverview() {
+  try {
+    const [stats, an] = await Promise.all([
+      api('GET', '/admin/stats'),
+      api('GET', '/admin/analytics/overview'),
+    ]);
+    set('s-total',    an.accounts_total);
+    set('s-dau',      an.accounts_dau);
+    set('s-wau',      `WAU ${an.accounts_wau}`);
+    set('s-battles',  an.battles.last_24h);
+    set('s-battles7', `7d ${an.battles.last_7d}`);
+    set('s-summons',  an.summons.last_24h);
+    set('s-summons7', `7d ${an.summons.last_7d}`);
+    set('s-rev24',    `$${(an.revenue.last_24h_cents / 100).toFixed(2)}`);
+    set('s-revtotal', `total $${(an.revenue.total_cents / 100).toFixed(2)}`);
+    set('s-payers',   an.payers_total);
+    set('s-conv',     `${an.payer_conversion_pct}% conversion`);
+    set('s-banned',   an.accounts_banned);
+    set('s-liveops',  stats.active_liveops);
+    set('s-2fa',      an.accounts_with_2fa);
+    set('s-verified', an.accounts_verified);
+    document.getElementById('overview-updated').textContent =
+      `Updated ${new Date().toLocaleTimeString()}`;
+    // Strip skeleton class now data is in
+    document.querySelectorAll('.stat-tile .value').forEach(el => el.classList.remove('skeleton'));
+  } catch (e) {
+    toast(`Overview error: ${e.message}`, 'bad');
+  }
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = val; el.classList.remove('skeleton'); }
+}
+
+// ── Accounts ──────────────────────────────────────────────────────────────────
+
+let _accountsLoaded = false;
+let _debounceTimer = null;
+let _selectedAccountId = null;
+
+function debounceAcctSearch() {
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(loadAccounts, 350);
+}
+
+async function loadAccounts() {
+  _accountsLoaded = true;
+  const q     = document.getElementById('acct-q').value.trim();
+  const limit = document.getElementById('acct-limit').value;
+  const tbody = document.getElementById('acct-tbody');
+  tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:16px;">Loading…</td></tr>';
+  try {
+    const params = new URLSearchParams({ limit });
+    if (q) params.set('q', q);
+    const accounts = await api('GET', `/admin/accounts?${params}`);
+    if (!accounts.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:16px;">No results.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = accounts.map(a => `
+      <tr>
+        <td class="mono">${a.id}</td>
+        <td>${esc(a.email)}${a.is_admin ? ' <span class="pill admin">admin</span>' : ''}</td>
+        <td>${a.is_banned
+          ? `<span class="pill banned">banned</span> <span class="muted" style="font-size:10px">${esc(a.banned_reason)}</span>`
+          : '<span class="pill active">active</span>'}</td>
+        <td>${a.gems.toLocaleString()}</td>
+        <td>${a.coins.toLocaleString()}</td>
+        <td>${a.shards.toLocaleString()}</td>
+        <td>${a.arena_rating}</td>
+        <td class="muted" style="font-size:11px">${fmtDate(a.created_at)}</td>
+        <td><button class="act" onclick="openAccount(${a.id})">Manage</button></td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--bad);text-align:center;padding:16px;">${esc(e.message)}</td></tr>`;
+  }
+}
+
+async function openAccount(id) {
+  _selectedAccountId = id;
+  const panel = document.getElementById('acct-detail');
+  panel.classList.add('open');
+  document.getElementById('ad-title').textContent = `Account #${id}`;
+  document.getElementById('ad-fields').innerHTML = '<span class="muted">Loading…</span>';
+  document.getElementById('ad-actions').innerHTML = '';
+  try {
+    const a = await api('GET', `/admin/accounts/${id}`);
+    document.getElementById('ad-title').textContent = `${a.email} · #${a.id}`;
+    const fields = [
+      ['Gems', a.gems.toLocaleString()],
+      ['Coins', a.coins.toLocaleString()],
+      ['Shards', a.shards.toLocaleString()],
+      ['Access cards', a.access_cards],
+      ['Energy', a.energy_stored],
+      ['Arena rating', a.arena_rating],
+      ['Status', a.is_banned ? '🔴 banned' : '🟢 active'],
+      ['Admin', a.is_admin ? 'yes' : 'no'],
+      ['Joined', fmtDate(a.created_at)],
+    ];
+    document.getElementById('ad-fields').innerHTML =
+      fields.map(([l, v]) => `<div><label>${l}</label><span>${v}</span></div>`).join('');
+
+    const actions = [];
+    if (a.is_banned) {
+      actions.push(`<button class="act good" onclick="doUnban()">Unban</button>`);
+    }
+    if (!a.is_admin) {
+      actions.push(`<button class="act" onclick="doPromote()">Promote to admin</button>`);
+    }
+    actions.push(`<button class="act secondary" onclick="closeAccount()">Close</button>`);
+    document.getElementById('ad-actions').innerHTML = actions.join('');
+  } catch (e) {
+    document.getElementById('ad-fields').innerHTML =
+      `<span style="color:var(--bad)">${esc(e.message)}</span>`;
+  }
+}
+
+function closeAccount() {
+  document.getElementById('acct-detail').classList.remove('open');
+  _selectedAccountId = null;
+}
+
+async function doGrant() {
+  if (!_selectedAccountId) return;
+  const body = {
+    gems:   parseInt(document.getElementById('g-gems').value)   || 0,
+    coins:  parseInt(document.getElementById('g-coins').value)  || 0,
+    shards: parseInt(document.getElementById('g-shards').value) || 0,
+    energy: parseInt(document.getElementById('g-energy').value) || 0,
+  };
+  const hero = document.getElementById('g-hero').value.trim();
+  if (hero) body.hero_template_code = hero;
+  try {
+    await api('POST', `/admin/accounts/${_selectedAccountId}/grant`, body);
+    toast('Granted.'); openAccount(_selectedAccountId); loadAccounts();
+  } catch (e) { toast(e.message, 'bad'); }
+}
+
+async function doBan() {
+  if (!_selectedAccountId) return;
+  const reason   = document.getElementById('g-ban-reason').value.trim() || 'violation of ToS';
+  const durStr   = document.getElementById('g-ban-duration').value;
+  const body     = { reason };
+  if (durStr) body.duration_hours = parseFloat(durStr);
+  if (!confirm(`Ban account #${_selectedAccountId}?\n"${reason}"`)) return;
+  try {
+    await api('POST', `/admin/accounts/${_selectedAccountId}/ban`, body);
+    toast('Banned.'); openAccount(_selectedAccountId); loadAccounts();
+  } catch (e) { toast(e.message, 'bad'); }
+}
+
+async function doUnban() {
+  if (!_selectedAccountId) return;
+  try {
+    await api('POST', `/admin/accounts/${_selectedAccountId}/unban`);
+    toast('Unbanned.'); openAccount(_selectedAccountId); loadAccounts();
+  } catch (e) { toast(e.message, 'bad'); }
+}
+
+async function doPromote() {
+  if (!_selectedAccountId) return;
+  if (!confirm(`Promote account #${_selectedAccountId} to admin?`)) return;
+  try {
+    await api('POST', `/admin/accounts/${_selectedAccountId}/promote`);
+    toast('Promoted.'); openAccount(_selectedAccountId); loadAccounts();
+  } catch (e) { toast(e.message, 'bad'); }
+}
+
+// ── Purchases ─────────────────────────────────────────────────────────────────
+
+async function loadPurchases() {
+  const tbody = document.getElementById('pu-tbody');
+  tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:16px;">Loading…</td></tr>';
+  try {
+    const params = new URLSearchParams({
+      limit: document.getElementById('pu-limit').value,
+    });
+    const acctId = document.getElementById('pu-acct').value;
+    const state  = document.getElementById('pu-state').value;
+    if (acctId) params.set('account_id', acctId);
+    if (state)  params.set('state', state);
+    const rows = await api('GET', `/admin/purchases?${params}`);
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:16px;">No purchases found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(p => `
+      <tr>
+        <td class="mono">${p.id}</td>
+        <td><a href="#" onclick="filterPurchasesByAcct(${p.account_id})">${p.account_id}</a></td>
+        <td class="mono">${esc(p.sku)}</td>
+        <td>${esc(p.title)}</td>
+        <td>$${(p.price_cents / 100).toFixed(2)} ${esc(p.currency_code)}</td>
+        <td><span class="pill ${p.state === 'COMPLETED' ? 'active' : p.state === 'REFUNDED' ? 'banned' : ''}">${p.state}</span></td>
+        <td class="muted" style="font-size:11px">${esc(p.processor)}</td>
+        <td class="muted" style="font-size:11px">${fmtDate(p.created_at)}</td>
+        <td>${p.state === 'COMPLETED'
+          ? `<button class="act danger" onclick="doRefund(${p.id})">Refund</button>`
+          : ''}</td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--bad);text-align:center;padding:16px;">${esc(e.message)}</td></tr>`;
+  }
+}
+
+function filterPurchasesByAcct(id) {
+  document.getElementById('pu-acct').value = id;
+  loadPurchases();
+}
+
+async function doRefund(purchaseId) {
+  const reason = prompt('Refund reason (optional):') ?? '';
+  if (reason === null) return;
+  try {
+    await api('POST', `/admin/purchases/${purchaseId}/refund`, { reason });
+    toast('Refunded.'); loadPurchases();
+  } catch (e) { toast(e.message, 'bad'); }
+}
+
+// ── LiveOps ───────────────────────────────────────────────────────────────────
+
+let _liveopsLoaded = false;
+
+async function loadLiveops() {
+  _liveopsLoaded = true;
+  const tbody = document.getElementById('lo-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:16px;">Loading…</td></tr>';
+  try {
+    // Fetch active + upcoming (90-day horizon)
+    const [active, scheduled] = await Promise.all([
+      api('GET', '/liveops/active'),
+      api('GET', '/liveops/scheduled?horizon_days=90'),
+    ]);
+    const all = [...(active.events || []), ...(scheduled || [])];
+    // Deduplicate by id
+    const seen = new Set();
+    const events = all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; });
+    if (!events.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:16px;">No events.</td></tr>';
+      return;
+    }
+    const now = Date.now();
+    tbody.innerHTML = events.map(e => {
+      const start = new Date(e.starts_at);
+      const end   = new Date(e.ends_at);
+      const isActive = start <= now && end > now;
+      const isPending = start > now;
+      return `<tr>
+        <td class="mono">${e.id}</td>
+        <td><span class="pill">${esc(e.kind)}</span></td>
+        <td>${esc(e.name)}</td>
+        <td><span class="pill ${isActive ? 'active' : isPending ? '' : 'banned'}">${isActive ? 'active' : isPending ? 'scheduled' : 'ended'}</span></td>
+        <td class="muted" style="font-size:11px">${start.toLocaleString()}</td>
+        <td class="muted" style="font-size:11px">${end.toLocaleString()}</td>
+        <td>${isActive || isPending
+          ? `<button class="act danger" onclick="doCancelLiveops(${e.id})">Cancel</button>`
+          : ''}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--bad);text-align:center;padding:16px;">${esc(e.message)}</td></tr>`;
+  }
+}
+
+function toggleLiveopsForm() {
+  document.getElementById('liveops-form').classList.toggle('open');
+}
+
+async function doCreateLiveops() {
+  const name  = document.getElementById('lo-name').value.trim();
+  const hours = parseFloat(document.getElementById('lo-hours').value);
+  const kind  = document.getElementById('lo-kind').value;
+  const startsRaw = document.getElementById('lo-starts').value;
+  if (!name) { toast('Name is required.', 'bad'); return; }
+  const body = { kind, name, duration_hours: hours, payload: {} };
+  if (startsRaw) body.starts_at = new Date(startsRaw).toISOString();
+  try {
+    await api('POST', '/admin/liveops', body);
+    toast('Event created.'); toggleLiveopsForm(); loadLiveops();
+  } catch (e) { toast(e.message, 'bad'); }
+}
+
+async function doCancelLiveops(id) {
+  if (!confirm(`Cancel event #${id}?`)) return;
+  try {
+    await api('DELETE', `/admin/liveops/${id}`);
+    toast('Cancelled.'); loadLiveops();
+  } catch (e) { toast(e.message, 'bad'); }
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+
+async function loadAudit() {
+  const tbody = document.getElementById('au-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:16px;">Loading…</td></tr>';
+  try {
+    const params = new URLSearchParams({ limit: document.getElementById('au-limit').value });
+    const action   = document.getElementById('au-action').value;
+    const targetId = document.getElementById('au-target').value;
+    if (action)   params.set('action', action);
+    if (targetId) params.set('target_id', targetId);
+    const rows = await api('GET', `/admin/audit?${params}`);
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:16px;">No entries.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td class="mono">${r.id}</td>
+        <td class="mono">${r.actor_id ?? '—'}</td>
+        <td><span class="pill">${esc(r.action)}</span></td>
+        <td class="mono">${r.target_id ?? '—'}</td>
+        <td class="mono" style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+            title="${esc(JSON.stringify(r.payload))}">${esc(JSON.stringify(r.payload))}</td>
+        <td class="muted" style="font-size:11px">${fmtDate(r.created_at)}</td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--bad);text-align:center;padding:16px;">${esc(e.message)}</td></tr>`;
+  }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+(async () => {
+  const ok = await checkAuth();
+  if (!ok) return;
+  loadOverview();
+})();
+</script>
+{% endblock %}

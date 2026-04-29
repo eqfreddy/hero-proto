@@ -33,8 +33,12 @@ wheels/
 
 # Claude working dir / scratch
 .claude/
+.superpowers/
 tests-scratch.db
 .worktrees/
+
+# Reference/external projects dropped in locally
+RPG-Turn-Battle-main/
 
 # SPA build output is committed so Docker/dev servers can serve it without a frontend build step.
 # Run `cd frontend && npm run build` to regenerate.
