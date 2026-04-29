@@ -102,6 +102,7 @@ if settings.environment != "test" and not settings.rate_limit_disabled:
         RateLimitMiddleware,
         auth_rate_per_minute=settings.auth_rate_per_minute,
         general_rate_per_minute=settings.general_rate_per_minute,
+        admin_rate_per_minute=settings.admin_rate_per_minute,
         backend=settings.rate_limit_backend,
         redis_url=settings.redis_url,
     )

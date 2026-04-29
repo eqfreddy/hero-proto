@@ -116,9 +116,11 @@ def build_buckets(
     general_rate_per_minute: int,
     backend: str,
     redis_url: str,
-) -> tuple[RateBucket, RateBucket]:
+    admin_rate_per_minute: int = 30,
+) -> tuple[RateBucket, RateBucket, RateBucket]:
     """Factory. Callable from tests with a mocked redis client — inject via
-    Redis.from_url-replacing patches (see tests/test_rate_limit_redis.py)."""
+    Redis.from_url-replacing patches (see tests/test_rate_limit_redis.py).
+    Returns (auth_bucket, general_bucket, admin_bucket)."""
     if backend == "redis":
         client = redis.Redis.from_url(redis_url, decode_responses=True)
         # Touch the connection so misconfig surfaces at startup instead of
@@ -127,10 +129,12 @@ def build_buckets(
         return (
             RedisTokenBucket(client, auth_rate_per_minute, namespace="auth"),
             RedisTokenBucket(client, general_rate_per_minute, namespace="general"),
+            RedisTokenBucket(client, admin_rate_per_minute, namespace="admin"),
         )
     return (
         TokenBucket(auth_rate_per_minute),
         TokenBucket(general_rate_per_minute),
+        TokenBucket(admin_rate_per_minute),
     )
 
 
@@ -143,11 +147,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         backend: str = "memory",
         redis_url: str = "",
         trust_forwarded_for: bool = False,
+        admin_rate_per_minute: int = 30,
     ) -> None:
         super().__init__(app)
         self.trust_forwarded_for = trust_forwarded_for
-        self.auth_bucket, self.general_bucket = build_buckets(
+        self.auth_bucket, self.general_bucket, self.admin_bucket = build_buckets(
             auth_rate_per_minute, general_rate_per_minute, backend, redis_url,
+            admin_rate_per_minute=admin_rate_per_minute,
         )
 
     def _client_key(self, request: Request) -> str:
@@ -166,8 +172,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         key = self._client_key(request)
         now = time.monotonic()
-        is_auth = request.url.path.startswith("/auth/")
-        bucket = self.auth_bucket if is_auth else self.general_bucket
+        path = request.url.path
+        if path.startswith("/admin"):
+            bucket = self.admin_bucket
+        elif path.startswith("/auth/"):
+            bucket = self.auth_bucket
+        else:
+            bucket = self.general_bucket
         if not bucket.allow(key, now):
             retry = 60
             return JSONResponse(

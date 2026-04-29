@@ -58,6 +58,11 @@ primary_region = "dfw"   # Dallas — change to nearest: ord, iad, lax, sea, lhr
 #
 #   fly secrets set \
 #     HEROPROTO_POSTHOG_API_KEY="phc_..."
+#
+# ► Superadmin email (single account that regular admins cannot touch):
+#
+#   fly secrets set \
+#     HEROPROTO_SUPERADMIN_EMAILS="ridler69@gmail.com"
 
 [http_service]
   internal_port       = 8000

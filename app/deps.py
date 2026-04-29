@@ -103,8 +103,26 @@ def get_current_account(
 def get_current_admin(
     account: Annotated[Account, Depends(get_current_account)],
 ) -> Account:
-    if not account.is_admin:
+    if not account.is_admin and not account.is_superadmin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "admin only")
+    if not account.totp_enabled:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "admin accounts must have 2FA enabled — enroll at /auth/2fa/enroll",
+        )
+    return account
+
+
+def get_current_superadmin(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> Account:
+    if not account.is_superadmin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "superadmin only")
+    if not account.totp_enabled:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "admin accounts must have 2FA enabled — enroll at /auth/2fa/enroll",
+        )
     return account
 
 

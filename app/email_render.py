@@ -123,6 +123,22 @@ def render_account_exists(*, email: str) -> tuple[str, str, str]:
     return subject or "hero-proto — you already have an account", text, html
 
 
+def render_login_locked(*, attempts: int, lockout_minutes: int, reset_url: str) -> tuple[str, str, str]:
+    """Returns (subject, body_text, body_html) for the account-locked-after-brute-force email."""
+    ctx = {"attempts": attempts, "lockout_minutes": lockout_minutes, "reset_url": reset_url}
+    subject, html = _render_html("email/login_locked.html", ctx)
+    text = (
+        f"Too many failed sign-in attempts\n\n"
+        f"Your hero-proto account has been temporarily locked after {attempts} failed sign-in attempts.\n\n"
+        f"The lock lifts automatically in {lockout_minutes} minutes. "
+        f"If you forgot your password, reset it now and the lock clears immediately:\n"
+        f"  {reset_url}\n\n"
+        f"If this wasn't you, someone is trying to access your account. "
+        f"Reset your password now to stay secure."
+    )
+    return subject or "hero-proto — account temporarily locked", text, html
+
+
 def render_verify_email(*, verify_url: str, ttl_hours: int) -> tuple[str, str, str]:
     """Returns (subject, body_text, body_html) for the email-verify email."""
     ctx = {"verify_url": verify_url, "ttl_hours": int(ttl_hours)}

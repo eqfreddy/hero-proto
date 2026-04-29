@@ -1,4 +1,4 @@
-"""Admin endpoints. All gated on Account.is_admin."""
+"""Admin endpoints. All gated on Account.is_admin (or is_superadmin for sensitive ops)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_admin
+from app.deps import get_current_admin, get_current_superadmin
 from app.models import (
     Account,
     AdminAuditLog,
@@ -38,6 +38,15 @@ def _audit(db: Session, actor: Account, action: str, target_id: int | None, **pa
         )
     )
 
+
+def _guard_superadmin_target(target: Account) -> None:
+    """Raise 403 when a regular admin tries to act on a superadmin account."""
+    if target.is_superadmin:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "cannot perform this action on a superadmin account",
+        )
+
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
@@ -54,6 +63,7 @@ class AccountSummary(BaseModel):
     energy_stored: int
     arena_rating: int
     is_admin: bool
+    is_superadmin: bool
     is_banned: bool
     banned_reason: str
     banned_until: datetime | None
@@ -108,6 +118,7 @@ def _summary(a: Account) -> AccountSummary:
         energy_stored=a.energy_stored,
         arena_rating=a.arena_rating,
         is_admin=a.is_admin,
+        is_superadmin=a.is_superadmin,
         is_banned=a.is_banned,
         banned_reason=a.banned_reason,
         banned_until=a.banned_until,
@@ -151,6 +162,7 @@ def grant(
     a = db.get(Account, account_id)
     if a is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
+    _guard_superadmin_target(a)
     a.gems += body.gems
     a.coins += body.coins
     a.shards += body.shards
@@ -182,6 +194,7 @@ def ban(
     a = db.get(Account, account_id)
     if a is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
+    _guard_superadmin_target(a)
     a.is_banned = True
     a.banned_reason = body.reason.strip()
     a.banned_until = (
@@ -203,6 +216,7 @@ def unban(
     a = db.get(Account, account_id)
     if a is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
+    _guard_superadmin_target(a)
     a.is_banned = False
     a.banned_reason = ""
     a.banned_until = None
@@ -215,14 +229,35 @@ def unban(
 @router.post("/accounts/{account_id}/promote", response_model=AccountSummary)
 def promote(
     account_id: int,
-    admin: Annotated[Account, Depends(get_current_admin)],
+    admin: Annotated[Account, Depends(get_current_superadmin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AccountSummary:
+    """Promote an account to admin. Superadmin-only — regular admins cannot create new admins."""
     a = db.get(Account, account_id)
     if a is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
     a.is_admin = True
     _audit(db, admin, "promote", a.id)
+    db.commit()
+    db.refresh(a)
+    return _summary(a)
+
+
+@router.post("/accounts/{account_id}/demote", response_model=AccountSummary)
+def demote(
+    account_id: int,
+    admin: Annotated[Account, Depends(get_current_superadmin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AccountSummary:
+    """Remove admin role. Superadmin-only. Cannot demote another superadmin."""
+    if account_id == admin.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot demote yourself")
+    a = db.get(Account, account_id)
+    if a is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "account not found")
+    _guard_superadmin_target(a)
+    a.is_admin = False
+    _audit(db, admin, "demote", a.id)
     db.commit()
     db.refresh(a)
     return _summary(a)

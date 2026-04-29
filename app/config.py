@@ -159,9 +159,23 @@ class Settings(BaseSettings):
 
     # Comma-separated list of emails auto-promoted to admin on registration/login.
     admin_emails: str = ""
+    # Superadmin emails — implies admin, cannot be touched by regular admins.
+    # Set via HEROPROTO_SUPERADMIN_EMAILS (comma-separated).
+    superadmin_emails: str = ""
+
+    # Login brute-force lockout thresholds.
+    login_lockout_attempts: int = 6       # consecutive wrong passwords before lockout
+    login_lockout_minutes: int = 15       # lockout duration
+
+    # Separate tight rate limit for /admin/* routes (per IP).
+    admin_rate_per_minute: int = 30
 
     def admin_email_set(self) -> set[str]:
         raw = [x.strip().lower() for x in (self.admin_emails or "").split(",")]
+        return {e for e in raw if e}
+
+    def superadmin_email_set(self) -> set[str]:
+        raw = [x.strip().lower() for x in (self.superadmin_emails or "").split(",")]
         return {e for e in raw if e}
 
     # Localization — default locale served when Accept-Language is absent or

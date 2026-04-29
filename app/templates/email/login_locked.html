@@ -1,0 +1,23 @@
+{% extends "email/base.html" %}
+{% block subject %}hero-proto — account temporarily locked{% endblock %}
+{% block content %}
+<p style="margin: 0 0 10px; font-size: 16px; font-weight: 700; color: #ef5b5b;">Too many failed sign-in attempts</p>
+<p style="margin: 0 0 14px; font-size: 14px; color: #b0bac8; line-height: 1.6;">
+  Your hero-proto account has been temporarily locked after <strong style="color: #e8eaed;">{{ attempts }} failed sign-in attempts</strong>.
+</p>
+<p style="margin: 0 0 22px; font-size: 14px; color: #b0bac8; line-height: 1.6;">
+  The lock lifts automatically in <strong style="color: #e8eaed;">{{ lockout_minutes }} minutes</strong>. If you forgot your password, reset it now and the lock clears immediately.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td>
+      <a href="{{ reset_url }}" style="display: inline-block; background: linear-gradient(135deg, #ffd86b, #ff9800); color: #0b0d10; text-decoration: none; padding: 12px 22px; border-radius: 7px; font-weight: 800; font-size: 14px;">Reset my password →</a>
+    </td>
+  </tr>
+</table>
+
+<p style="margin: 24px 0 0; font-size: 12px; color: #5a6473; line-height: 1.5;">
+  If this wasn't you, someone is trying to access your account. Reset your password now to stay secure.
+</p>
+{% endblock %}

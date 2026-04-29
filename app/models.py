@@ -199,6 +199,7 @@ class Account(Base):
     arena_losses: Mapped[int] = mapped_column(Integer, default=0)
 
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_superadmin: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     banned_reason: Mapped[str] = mapped_column(String(256), default="")
     # NULL = permanent ban. If set, worker/deps auto-clear once now >= banned_until.
@@ -207,6 +208,12 @@ class Account(Base):
     # Bumped on ban/demote to invalidate all outstanding JWTs for this account.
     # JWTs embed the token_version at issue; deps rejects any with a stale tv.
     token_version: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Brute-force lockout. Incremented on each wrong password; reset on success.
+    # At LOGIN_LOCKOUT_ATTEMPTS failures, login_locked_until is set and all
+    # further attempts return 401 until the window passes or password is reset.
+    login_failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    login_locked_until: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
     # Daily login bonus state. streak counts consecutive days claimed; claiming
     # after a >48h gap resets to 1. cycle is 7 days, big gem payout on day 7.

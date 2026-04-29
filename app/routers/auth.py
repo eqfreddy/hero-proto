@@ -16,8 +16,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _maybe_promote_admin(account: Account) -> None:
-    """Promote to admin if their email is in HEROPROTO_ADMIN_EMAILS. Idempotent."""
-    if not account.is_admin and account.email.lower() in settings.admin_email_set():
+    """Promote to admin/superadmin based on config email lists. Idempotent."""
+    email = account.email.lower()
+    if email in settings.superadmin_email_set():
+        account.is_superadmin = True
+        account.is_admin = True
+    elif not account.is_admin and email in settings.admin_email_set():
         account.is_admin = True
 
 
@@ -162,8 +166,49 @@ def login(
     """Password login. Returns a challenge token when TOTP is enabled or when the
     login IP is unrecognised (location challenge). Otherwise returns access+refresh."""
     account = db.scalar(select(Account).where(Account.email == body.email))
+
+    # Lockout check — must run before password verification so a locked account
+    # doesn't keep accumulating failures, but after account lookup so we don't
+    # leak timing differences.
+    if account is not None and account.login_locked_until is not None:
+        if utcnow() < account.login_locked_until:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "account is temporarily locked — too many failed attempts, try again later or reset your password",
+            )
+        # Lock expired; clear it so next failure starts a fresh counter.
+        account.login_failed_attempts = 0
+        account.login_locked_until = None
+        db.commit()
+
     if account is None or not verify_password(body.password, account.password_hash):
+        if account is not None:
+            account.login_failed_attempts = (account.login_failed_attempts or 0) + 1
+            if account.login_failed_attempts >= settings.login_lockout_attempts:
+                from datetime import timedelta as _td
+                account.login_locked_until = utcnow() + _td(minutes=settings.login_lockout_minutes)
+                db.commit()
+                try:
+                    from app.email_render import render_login_locked
+                    from app.email_sender import get_sender as _lock_sender
+                    reset_url = f"{settings.public_base_url.rstrip('/')}/reset-password"
+                    subj, ltxt, lhtml = render_login_locked(
+                        attempts=account.login_failed_attempts,
+                        lockout_minutes=settings.login_lockout_minutes,
+                        reset_url=reset_url,
+                    )
+                    _lock_sender().send(to_email=account.email, subject=subj, body_text=ltxt, body_html=lhtml)
+                except Exception:
+                    _log.exception("login-locked email failed for account %s", account.id)
+            else:
+                db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
+
+    # Successful auth — reset brute-force counter.
+    if account.login_failed_attempts:
+        account.login_failed_attempts = 0
+        account.login_locked_until = None
+
     if account.is_banned:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
