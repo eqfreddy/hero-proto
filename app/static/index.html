@@ -428,9 +428,13 @@
     $("btn-register").addEventListener("click", busy($("btn-register"), () => login(true)));
     $("btn-logout").addEventListener("click", () => {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem("heroproto_refresh");
+      $("email").value = "";
+      $("password").value = "";
       whoami();
       show("login-out", "logged out");
       toast("success", "Logged out");
+      setTab("login");
     });
 
     // ---------- Me tab ----------
