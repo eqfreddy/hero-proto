@@ -2,35 +2,126 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-04-26 (post Phase 2 + autonomous polish run).
+Last updated: 2026-05-03 (battle viewer shipped — DragonBones dropped, Dark Assassin sprite engine live).
 
 ---
 
 ## 📊 Where we're at
 
-- **Phases shipped:** Phase 1 ✅, Phase 2 (2.1–2.6) ✅, Phase 2 review fixes ✅, Phase 2 polish + Phase 3.1/3.2 starters ✅. Plan B (DragonBones battle visuals) **greenlit + scaffolded** — registry + Pixi prototype viewer + event-mapping spec all live; awaiting Moho-rendered rigs from the user to drop in.
-- **Backend:** Combat resolver w/ 8 statuses + faction synergy + hail-mary + BOSS_PHASE + variance + attack-channel split. Refresh-token rotation w/ reuse + fingerprint anomaly detection. Stripe + Apple StoreKit + Google Play Billing adapters. Per-day rate limits on friends/DMs.
-- **Frontend:** vanilla-JS shell at `/app` with HTMX partials. Currency banner header, in-app overlay viewer (kills `target="_blank"` for internal pages), portrait-based team picker w/ preset CRUD, cosmetic frame equip flow, achievement progress bars, stage power-vs-recommended, daily-tab consolidation, resizable panel prototype, tutorial-hint tooltips, equipped-gear panel in hero detail sheet, debounced friend search. Toast helper auto-detects "not enough X" errors and shows a Shop CTA inline.
+- **Phases shipped:** Phase 1 ✅, Phase 2 (2.1–2.6) ✅, Phase 2 review fixes ✅, Phase 2 polish + Phase 3.1/3.2 starters ✅, Phase 3.5 Alignment Fork ✅. Plan B (DragonBones battle visuals) **greenlit + scaffolded** — registry + Pixi prototype viewer + event-mapping spec all live; awaiting Moho-rendered rigs from the user to drop in.
+- **Backend:** Combat resolver w/ 8 statuses + faction synergy + hail-mary + BOSS_PHASE + variance + attack-channel split. Refresh-token rotation w/ reuse + fingerprint anomaly detection. Stripe + Apple StoreKit + Google Play Billing adapters. Per-day rate limits on friends/DMs. Alignment fork: `POST /story/alignment`, faction-gated chapters, exclusive hero grants, arena same-alignment soft matchmaking.
+- **Frontend:** React SPA at `/app` (built with Vite, served from `app/static/spa/`). All routes wired. Auth guard redirects unauthenticated users to login. Login page: Sign In / Register / Forgot-password tabs. NavBar hides auth-required tabs when logged out; shows Sign-out button when logged in. 401 interceptor auto-clears JWT. Dashboard redesigned (two-column grid, profile banner, stat cells, hero mini-roster). Story route overhauled (expandable chapters, stage-level cutscene previews, alignment fork choice UI). Faction badge in profile banner. Original vanilla-JS shell still present at `/app/partials/*` but SPA is the primary client.
 - **Observability:** Prometheus `/metrics`, JSON logs, request IDs, Sentry (DSN-gated), worker supervisor + 9 alerts in RUNBOOK + 11-row PromQL cookbook + 7-row Grafana layout.
 - **Infra:** Redis-backed rate limiter (horizontal-scale ready). CI matrix on SQLite + Postgres per push.
-- **Tests:** **568 passed / 4 skipped (RNG flakes, all pre-existing).** `pytest` green. Acceptance scripts:
+- **Tests:** **643 passed / 3 skipped** (backend) + **37 passed** (frontend vitest). `pytest` green; `vitest` green. Acceptance scripts:
   - `scripts/startup_check.py` — admin/operator health check
   - `scripts/client_walkthrough.py` — 17-section feature tour (was 13; +4 Phase 2 surfaces)
   - `tests/test_phase1_acceptance.py`, `tests/test_phase2_acceptance.py` — bright-line e2e
+- **Mobile:** Capacitor scaffold in `mobile/` — `package.json` + `capacitor.config.ts` targeting `app/static/spa`. `POST/DELETE /notifications/device-token` endpoints live. `app/push.py` FCM stub (no-op without `FCM_SERVER_KEY`). `frontend/src/api/push.ts` — call `initPush()` after login. iOS builds go through Codemagic / GitHub mac runners.
 - **Docs:** `README.md`, `docs/RUNBOOK.md`, `docs/PRD.md`, `docs/PHASE_2_HUMAN_TEST.md`, `docs/PLAN_B_INTEGRATION.md`, `docs/BATTLE_RIG_EVENT_MAPPING.md`, `docs/BATTLE_VISUALS_STACK.md` all current.
 - **Art:** 33 trading-card portraits + 33 auto-cropped busts in `/app/static/heroes/`. Cluster-of-fuckery stick-figure animation pipeline available outside repo. DragonBones Mecha 1004B sample lives in repo as Plan B feasibility demo.
 
-### Verified green today (2026-04-26)
+### Verified green today (2026-04-29)
 
-- Suite: 568 passed, 4 skipped.
-- 2026-04-26 human-test: 7 of 8 caught bugs fixed (only #6 portrait-picker partial — major UX overhaul shipped). Bug tracker: `docs/PHASE_2_HUMAN_TEST.md`.
+- Suite: 630 passed, 2 skipped.
+- Build revision system shipped (2026-04-30):
+  - `app/version.py` resolves `{version, branch, built_at}` once at import time. Order: `HEROPROTO_BUILD_VERSION` env → `git rev-parse --short HEAD` → `"dev"`. Same fallback for branch and time.
+  - `GET /version` endpoint surfaces the resolved info — public, safe to expose.
+  - `Dockerfile` accepts `--build-arg HEROPROTO_BUILD_VERSION` / `_BUILD_TIME` / `_BUILD_BRANCH`, bakes them as runtime env so the running image reports its own identity.
+  - `frontend/vite.config.ts` resolves a SPA build version (env override → git short SHA → "dev") and bakes it as `__APP_VERSION__` + `__APP_BUILD_TIME__` constants. `@types/node` added as devDep so config compiles cleanly.
+  - `frontend/src/components/VersionTag.tsx` — floating bottom-right badge on every screen. Click expands to show SPA version, SPA build time, plus calls `/version` on the API and shows the backend version too. **Goes red when SPA and API versions disagree** — instant "is this the new build?" check.
+  - `mobile/build-prod-android.sh` rewritten with a loud version banner: prints version + branch + built-at + API target before/after build, and bakes the same values into the SPA via `VITE_APP_VERSION` / `VITE_APP_BUILD_TIME`. Banner end-card tells you to look for the badge in the corner of the running app.
+  - Closes the "is the emulator running my latest build?" guessing game permanently.
+
+- FCM (Android push) live-fired (2026-04-30):
+  - `fly secrets set FCM_PROJECT_ID="hero-proto"` + `FCM_SERVICE_ACCOUNT_JSON` → `fly deploy`
+  - `GET /admin/push/status` returns `{"fcm":true,"fcm_project_id":"hero-proto",...}` from prod
+  - `POST /admin/push/test` accepts and routes; verified config-side, end-to-end emulator delivery still pending the prod-build install on the emulator.
+  - APNs intentionally unset (iOS on hold).
+
+- Logout redirect (2026-04-30):
+  - Sign out from NavBar or Me page → `window.location.href = '/'` (marketing landing) instead of `/app/login`. Hard exit out of the SPA so the user lands on the public site, not the SPA login screen that bounces them straight back into the 2FA flow.
+
+- Sprint H ops cheatsheet (2026-04-30):
+  - `CHEATSHEET.md` — 467-line ops/admin reference. Live URLs, Fly server lifecycle (deploy/restart/logs/secrets/DB), local dev, mobile build, testing, full admin endpoint table with curl recipes, env var reference, incident playbook, migration cookbook, game-specific SQL cheats, doc map, external service links. Pinned at the project root for ridler69's convenience down the road.
+
+- Frontend gear UI surface (2026-04-29):
+  - `frontend/src/api/gear.ts` — typed client (`GearOut`, `ARMOR_SLOTS`, `SLOT_META`, `SET_META`, `RARITY_COLOR`, `VETERAN_IT_SET`, `CHAPTER_NAMED_GEAR`) + `fetchGear`/`equipGear`/`unequipGear`.
+  - `/app/inventory` — new route. Filterable gear browser (All / Named / Armor / per-slot), sorted named-first then rarity then power proxy. Named pieces get gradient borders, ✨ badge, italic flavor quote with rarity-colored leftbar.
+  - `HeroDetail` — 9-slot equipment grid (3×3) with rarity-bordered tiles. Empty slot → opens picker modal showing all available pieces of that slot, sorted named-first. Filled slot → unequips. Named pieces get ✨ corner badge.
+  - `Me` page — `VeteranSetCard`: 6-tile silhouette grid that fills in as pieces are earned (grayscale + 35% opacity when missing). Progress bar + count, gold-tinted gradient when complete. Hover tooltips show piece name + acquisition source.
+  - `Story` chapter cards — locked/unlocked named-piece teaser with icon + name + "Legendary <slot> piece · clear chapter to unlock".
+  - NavBar — `📦 Inventory` tab in the Heroes group.
+
+- Phase 4 polish — armor system + story rewards (2026-04-29):
+  - **Gear slots reshaped to head-to-toe armor** — `GearSlot` enum now has WEAPON + 6 armor slots (HEAD, CHEST, HANDS, WRIST, LEGS, FEET) + RING + AMULET. Old HELMET/ARMOR/BOOTS renamed to HEAD/CHEST/FEET; new HANDS/WRIST/LEGS added. Migration `b2c3d4e5f6a7` rewrites existing gear rows + scans `mailbox_overflow_json` for any embedded slot strings.
+  - **Named gear infrastructure** — `Gear.name` + `Gear.flavor` columns added. `app/named_gear.py` is the canonical catalog with `grant_named_gear(db, account, code)` for idempotent grants. `GET /gear/mine` now surfaces both fields.
+  - **The Veteran IT armor set** (6 LEGENDARY pieces, one per slot, fixed stats):
+    - `help_desk_headset` (HEAD) — Chapter 1 reward
+    - `power_suit_jacket` (CHEST) — Chapter 2 reward
+    - `all_terrain_loafers` (FEET) — Chapter 3 reward
+    - `cargo_pants_of_many_tabs` (LEGS) — granted at level-50 alignment fork (universal)
+    - `burner_phone_wristband` (WRIST) — Chapter 4 RESISTANCE reward
+    - `signing_gauntlets` (HANDS) — Chapter 4 CORP_GREED reward
+  - Stats are upper-band Legendary (~RNG ceiling) but not best-in-slot — chasing top RNG rolls still matters.
+  - Chapter outros (5 chapters) rewritten to namedrop the reward in-fiction. Bell notifications include the gear name + icon.
+  - **Tests:** 8 in `tests/test_named_gear.py` covering catalog completeness, idempotency, chapter grants, alignment-fork LEGS grant, API surface, and old-enum-removal sanity.
+
+- Phase 4.4 Prod mobile build flow (2026-04-29):
+  - `frontend/src/api/client.ts` now reads `VITE_API_BASE_URL` at build time. Web/dev builds leave it unset (relative URLs); store-bound mobile builds bake in `https://hero-proto.fly.dev` (or wherever the live API lands).
+  - `mobile/capacitor.config.prod.ts` — production Capacitor config without `server.url`, so the bundled SPA loads from `file://` and hits the absolute API.
+  - `mobile/build-prod-android.sh` — one-shot helper: builds SPA with the right env, swaps configs, runs `cap sync`, restores dev config on exit. Result: open `mobile/android/` in Android Studio and Build > Generate Signed Bundle > .aab for Play Console.
+  - Backend already deployed on Fly.io (admin-lockdown sprint). After merging this branch, run `fly deploy` to ship the new push code.
+
+- Phase 4.3 Push delivery wired (2026-04-29):
+  - **Migrated FCM legacy → FCM HTTP v1.** Legacy server-key API was sunsetted by Google in June 2024 and now returns 404 in production. New code mints OAuth2 access tokens from a Firebase service account JSON, caches them for 55 min, and POSTs to `https://fcm.googleapis.com/v1/projects/{project_id}/messages:send`. Stale-token detection now keys off `UNREGISTERED` / `NOT_FOUND` / `INVALID_ARGUMENT` instead of HTTP 410.
+  - New env vars: `FCM_PROJECT_ID` + `FCM_SERVICE_ACCOUNT_JSON` (or `_PATH`). Old `FCM_SERVER_KEY` removed.
+  - `app/push.py::push_provider_status()` reports config state per provider.
+  - `GET /admin/push/status` — admin diagnostic, returns `{fcm: bool, apns: bool, ...}`.
+  - `POST /admin/push/test` — fires a test push to the calling admin's own registered devices, echoes how many were dispatched. Wired into audit log.
+  - APNs path unchanged (already on HTTP/2 + JWT, still current).
+  - `fly.toml` documents the `fly secrets set` invocations for both providers.
+  - 630 passed, 2 skipped — push token + admin endpoint tests still green.
+
+- Phase 4.2 Store compliance shipped (2026-04-29):
+  - In-app `/app/privacy` + `/app/terms` routes (`frontend/src/routes/Legal.tsx`) — concise summaries that satisfy Play Store / App Store "policy reachable from inside the app" requirement; bypass age gate + auth so unauthenticated users (and parents) can read them
+  - Login page footer links to Terms + Privacy
+  - Account page → Data &amp; Privacy section links to both policies
+  - Age gate (`frontend/src/components/AgeGate.tsx`) — first-launch modal asks birth year, blocks <13, persists to `localStorage` under `age_gate_v1`. Wired into Shell. Birth year stays client-side (privacy policy explicitly notes this).
+  - Account → Danger Zone delete button already calls `DELETE /me` (since e2d2ff5); confirmed surface meets Apple "in-app account deletion" requirement (effective 2024-06-30)
+  - Play App Signing path documented (see Infrastructure / Android keystore hardening below)
+
+- Phase 4.1 Capacitor wrap shipped (2026-04-29):
+  - `DeviceToken` model + alembic migration `a1b2c3d4e5f6`
+  - `POST /notifications/device-token` + `DELETE /notifications/device-token` (upsert, platform=fcm|apns)
+  - `app/push.py` — FCM send stub; config-gated no-op when `FCM_SERVER_KEY` absent; stale 410 tokens pruned
+  - `app/notifications.py` — `notify()` now fires `send_push_to_account()` (fire-and-forget, push failure never breaks in-app notification)
+  - `mobile/` scaffold — `package.json` (@capacitor/core 6, push-notifications), `capacitor.config.ts` (webDir → `../app/static/spa`), `.gitignore`
+  - `frontend/src/api/push.ts` — `initPush()` registers with FCM/APNs and POSTs token to backend; `unregisterPush()` on logout
+  - 8 tests in `tests/test_push_tokens.py`
+  - iOS builds: on Windows use Codemagic or GitHub Actions mac runners — do NOT use a macOS VM (Apple EULA)
+
+- Phase 3.5 Alignment Fork shipped (2026-04-29):
+  - `Account.faction` (EXILE → RESISTANCE / CORP_GREED) + `Account.alignment_chosen_at` + migration
+  - Two new EPIC exclusive heroes: The Whistleblower (RESISTANCE SUP) + The Successor (CORP_GREED ATK) — not in summon pool; granted on chapter completion
+  - 10 new story stages (5 per alignment path, orders 50–64)
+  - Two alignment Chapters in story catalog with full cutscene content; gated by faction
+  - `POST /story/alignment` — level-50 one-time fork; 403 < lvl 50, 409 if already aligned
+  - Chapter-end hero grant via `_grant_alignment_hero()`; idempotent
+  - Arena soft same-alignment matchmaking preference (RESISTANCE/CORP_GREED)
+  - `/me` now returns `faction` + `alignment_chosen_at`
+  - Story route: expandable chapter cards, per-stage cutscene previews, alignment fork choice card
+  - Faction badge on dashboard profile banner (EXILE / RESISTANCE / CORP_GREED with colors)
+  - 11 tests in `tests/test_alignment.py`
+- Admin lockdown shipped (2026-04-28): superadmin tier, login brute-force lockout, admin rate limit (30/min), enumeration-safe register (always 200), email-verification gate on summon/shop (bypassed in test env), auto-send verification on register. Deployed to Fly.io, migration at head.
+- SPA auth polish shipped (2026-04-28): Login page with Sign In / Register / Forgot-password tabs; auth guard in Shell; NavBar hides auth-required tabs for guests; Sign-out button; 401 interceptor. Rebuilt + deployed.
 - DragonBones demo confirmed working in user's environment ("this is what we need" — Plan B greenlit).
 
 ### Known papercuts still open
 
 - **Postgres compose-stack smoke: PASSED 2026-04-27.** Full image build + 17-section walkthrough green against postgres:16-alpine. Docker Desktop v29.4.0 / Compose v5.1.2 installed but the Linux engine is not started (confirmed 2026-04-26). uv 0.11.6 on PATH, port 8000 clear, compose file and script are both correct. Unblock: start Docker Desktop, then re-run `bash scripts/postgres_stack_validate.sh` from the project root.
 - **Production rigs** — DragonBones Mecha is the Plan B placeholder until ATK/DEF/SUP rigs ship from Moho or the DragonBones editor.
-- **Frontend is still a vanilla-JS shell.** Functional and polished, but not a real SPA. Capacitor-friendly (no `target="_blank"` left for internal pages).
+- **SPA shipped ✅** — React SPA is the primary client. Vanilla-JS shell still exists at `/app/partials/*` and the admin panel; those are not yet ported to React. Next: Event tab missing from SPA nav (no nav tab for `/app/event`, only appears when event is active via the event query). Admin panel is still vanilla-JS.
 
 ---
 
@@ -109,7 +200,7 @@ The dashboard works; nobody wants to look at it. Biggest perceived-quality lift 
 - [x] Error toasts — `app/static/toast.js` provides `toast.error/success/info(msg)`; bottom-center stack, color-coded by kind, auto-dismiss (errors 5s, others 3.5s), tap-to-dismiss; replaced 9 `alert()` callsites in friends/stages/story partials + battle-setup/roster static pages
 - [x] Loading states — shared `.skeleton` / `.skeleton-line` / `.skeleton-grid` utilities in shell.html + initial `#content` placeholder + reuse in account/raids partials. Per-section refinement (every partial gets its own shimmer skeleton matching its layout) is still open as a polish pass.
 - [x] Mobile-responsive layout — nav scrolls horizontally on mobile (no hamburger needed), header compacts below 640px, `#who` pill hidden on small screens
-- [ ] Or: rewrite as a real SPA (React / Svelte) — bigger bet; needs a build step
+- [x] Rewrite as a real SPA — React + Vite SPA shipped, all routes wired, auth guard, register/forgot-password on login page, Sign-out in nav, 401 interceptor
 
 ### B. Anti-cheat depth
 One layer shipped (per-account battle rate limit). More to add.
@@ -121,8 +212,8 @@ One layer shipped (per-account battle rate limit). More to add.
 ### C. Deploy pipeline
 Dockerfile + compose exist; nothing's been pushed or deployed.
 - [x] Run `scripts/postgres_stack_validate.sh` once green — PASSED 2026-04-27. All 17 walkthrough sections OK against postgres:16-alpine. 2 expected warns (admin creds not set, Stripe not configured). — **BLOCKER 2026-04-26: Docker Desktop installed but daemon not running; start Docker Desktop and retry**
-- [ ] Build + push Docker image to a registry (Fly / GHCR / ECR)
-- [ ] Pick a hosted target (Fly / Railway / Render / plain VM) and do a first deploy
+- [x] Build + push Docker image to a registry — Fly.io builds & stores the image as part of `fly deploy` (Dockerfile is the build context)
+- [x] Pick a hosted target — Fly.io chosen, app `hero-proto` already deployed during admin-lockdown sprint
 - [x] Automated daily DB backup — `scripts/backup_db.sh` handles SQLite (sqlite3 .backup + gzip) and Postgres (pg_dump custom format), date-stamped names, RETAIN-based pruning, run from cron/systemd-timer
 - [x] Graceful shutdown — worker cancels + in-flight battles finish (lifespan handles it; documented in RUNBOOK with uvicorn flag recommendations)
 
@@ -162,7 +253,7 @@ Design-first sprint — probably 2-3 iterations before it's good. Reference game
 - [x] Mana or spell-point resource for ranged/magic heroes — Phase 3.2 shipped: `HeroTemplate.mana_cost` (default 10) + `mana_regen_per_turn` (default 15) columns + migration `d515d104feb9`. Ranged units skip basic attack on 0 mana (MANA_EMPTY logged); regen fires at turn start capped at `mana_cost * 5`. Melee units unaffected. 4 tests in `test_phase3_combat.py`.
 - [x] Hail-mary ability at ≤5% HP — role-flavored, one-shot per battle.
 - [x] Player control during battle (target selection / turn pause) — target priority shipped (Phase 3.2). Per-turn interactive mode shipped (Phase 3.3): `simulate_interactive()` generator + in-memory session store + `POST /battles/interactive/start` + `POST /battles/interactive/{id}/act` + same endpoints for raids + `battle-interactive.html` UI + "Play Turn by Turn" toggle on battle setup. 10 tests in `test_interactive_combat.py`.
-- [x] Animated actor layer for battle viewer — **Plan B greenlit 2026-04-26**. DragonBones runtime + sample armature + registry + Pixi prototype viewer all scaffolded. Awaiting Moho-rendered ATK/DEF/SUP rigs from the user. Drop instructions in `docs/BATTLE_RIG_EVENT_MAPPING.md`.
+- [x] Animated actor layer for battle viewer — **shipped 2026-05-03**. Dropped DragonBones (Moho pipeline abandoned). Replaced with pre-rendered PNG frame sequences from the Dark Assassin animation pack (Spine 3.8 export, 352 frames across idle/attack/hurt/die/run). All units use the animated rig; role tinting via CSS drop-shadow — ATK=red glow, DEF=blue glow, SUP=gold glow. COF SVG backgrounds (9 stages) wired in. No runtime dependency, works in any browser. Registry updated at `app/static/battle-rigs/registry.json`.
 - [x] Auto-battle as a paid QoL unlock — `qol_auto_battle` SKU + `auto_battle` flag in qol_unlocks_json + `auto: true` flag on POST /battles + `auto_resolved` echo + skip-watch UI.
 
 **Monetization tone lock:** PoE2-style — cosmetics + QoL. No stat-boosting shop items, no gacha whales fast-tracking power. Stripe pipeline stays; only the SKU catalog changes.
@@ -226,6 +317,12 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] Account data export (GDPR art. 20) — `GET /me/export`, e2d2ff5
 - [x] Login history / active sessions list — `GET /me/sessions` + revoke endpoints, e2d2ff5
 - [x] Device fingerprinting for refresh-token anomaly detection — `fingerprint_hash` (sha256 of UA|IP) on RefreshToken, compared on rotation. Mismatch logs `auth.refresh` warning + bumps `refresh_token_anomaly_total` Prometheus counter; never auto-revokes (legit users roam, browsers update). 4 new tests cover persist + match + mismatch + null-legacy paths.
+- [ ] **Speed up email delivery (forgot-password, verification).** Currently slow on Fly — emails arrive but minutes after the trigger. Options to investigate:
+  1. Switch SMTP provider to Postmark transactional (sub-5-sec inbox in their SLA) — only requires changing `HEROPROTO_EMAIL_SMTP_*` secrets, no code change.
+  2. Verify the `HEROPROTO_EMAIL_FROM_ADDRESS` domain (SPF + DKIM) so Gmail doesn't deprioritize.
+  3. Check if any queueing layer is in front (e.g. `app/email_sender.py` runs in the worker — is the worker tick interval the bottleneck?). Confirm via `fly logs | grep email`.
+  4. Add "didn't get the email?" resend link in the SPA forgot-password screen so users aren't stuck waiting.
+  Not urgent — mail arrives eventually; tracker for when it bites a real user.
 
 ### Guilds
 - [x] Promote / transfer endpoints — `/guilds/{id}/{promote,demote,transfer,kick}/{account_id}` already shipped
@@ -256,10 +353,14 @@ Output format for everything on this list: **paste the final file(s) back here i
 
 ### Infrastructure
 - [ ] Postgres end-to-end smoke (Sprint C) — **BLOCKER 2026-04-26: Docker Desktop daemon not running; start it and run `bash scripts/postgres_stack_validate.sh`**
-- [ ] Docker image build + push to a registry (Dockerfile exists, never built)
+- [x] Docker image build + push to a registry — Fly.io builds + stores the image on every `fly deploy`
 - [x] Automated daily DB backup — `scripts/backup_db.sh` (see Sprint C above)
 - [x] Graceful shutdown — worker cancels + in-flight battles finish (lifespan handles it; documented in RUNBOOK with uvicorn flag recommendations)
-- [ ] Deploy target picked (Fly / Railway / Render / plain VM)
+- [x] Deploy target picked — Fly.io, app `hero-proto`
+- [ ] **Android keystore hardening** — current release keystore was generated with a moderate password. Two paths before production Play Store submission:
+  1. **Play App Signing (recommended)** — Google holds the distribution key. We keep an *upload* key (the existing keystore is fine for that role). On first upload to Play Console, opt into Play App Signing; Google generates a new signing key, we keep using `release.keystore` to sign uploads. If `release.keystore` is ever lost, Google can rotate the upload key — no impact on the published app's signature. **This is the path to take.**
+  2. Re-key with a stronger password — requires uninstall + reinstall by every existing user; only worth it pre-launch if we change our minds about (1).
+  - Either way, before the first signed upload: rotate the upload-key password to ≥20 chars random and update the GitHub Actions `ANDROID_KEY_PASSWORD` / `ANDROID_KEYSTORE_PASSWORD` secrets accordingly. Until first store submission this is informational only.
 
 ### Observability
 - [x] OpenTelemetry tracing (propagate request IDs into spans)
@@ -285,11 +386,11 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] Subscriptions / monthly pass
 
 ### Frontend
-- [ ] CSS + loading/error states (Sprint E)
-- [ ] Mobile-responsive layout
-- [ ] Real SPA (React / Svelte / Vue)
-- [ ] PWA offline shell
-- [ ] Native iOS / Android wrapper
+- [x] Real SPA (React + Vite) — shipped, all routes, auth guard, full login/register/forgot-password flow
+- [ ] CSS + loading/error states — SPA uses inline styles; a shared stylesheet pass would tighten consistency
+- [ ] Mobile-responsive layout — SPA nav scrolls horizontally, not collapsed on mobile
+- [ ] PWA offline shell — manifest + service worker exist in SPA build
+- [x] Native iOS / Android wrapper (Capacitor) — Android running on emulator; iOS via cloud CI
 
 ---
 
@@ -608,6 +709,25 @@ Code-review pass against e2d2ff5; landed fixes:
 - Myth-tier event banner: `LiveOpsKind.EVENT_BANNER` + `POST /summon/event-banner` (per-account cap, active-window gating). Mother's Day Applecrumb banner now reachable.
 - Story chapter-end rewards: `maybe_grant_chapter_reward()` wired into /battles, idempotent via story_state_json, gem rewards scaled per chapter.
 - `tests/test_phase2_acceptance.py` — full PRD § 7 acceptance flow.
+
+**Phase 3.5 — Alignment Fork (2026-04-29)**
+Level-50 one-time faction choice: EXILE → RESISTANCE or CORP_GREED. Permanent, idempotent, gated.
+- `Account.alignment_chosen_at` nullable DateTime + alembic migration `06604894e633`.
+- `Faction.RESISTANCE` + `Faction.CORP_GREED` added to enum (were placeholders).
+- Two exclusive EPIC heroes seeded (excluded from summon pool, same as MYTH):
+  - The Whistleblower (RESISTANCE SUP) — Leak The Memo: AOE ATK buff + DEF down
+  - The Successor (CORP_GREED ATK) — Hostile Takeover: AOE damage + HEAL_BLOCK + self ATK up
+- 10 new story stages (resistance_breach → resistance_aftermath, corpgreed_first_move → corpgreed_apotheosis).
+- Two new Chapters in `STORY_CHAPTERS` with full cutscene content (`required_alignment` field gates visibility by faction; EXILE players see neither until they choose).
+- `ALIGNMENT_CHAPTER_HERO` dict + `_grant_alignment_hero()` — creates HeroInstance of exclusive hero on chapter completion, idempotent.
+- `maybe_grant_chapter_reward()` extended: calls hero grant, returns `hero_granted` in result.
+- `chapter_status_for_account()` filters alignment chapters by `account.faction`; exposes `required_alignment` + `alignment_hero` in output.
+- `CHAPTER_END_REWARDS` extended (1200 gems + 300 shards + 8 cards + 8 credits per alignment chapter).
+- `POST /story/alignment` — validates level ≥ 50, faction == EXILE, not-yet-chosen; sets faction + alignment_chosen_at + fires notification; 403 < lvl 50, 409 if already aligned.
+- `MeOut` schema gains `alignment_chosen_at: datetime | None`; `/me` router maps it.
+- Arena `list_opponents`: `_build_stmt()` helper; same-faction pool tried first for RESISTANCE/CORP_GREED, falls back gracefully to any-faction.
+- Frontend: `types/index.ts` adds `faction` + `alignment_chosen_at` to `Me`; `api/story.ts` fully typed + `chooseAlignment()` call; `Story.tsx` overhauled (AlignmentFork card, ChapterCard with stage list + cutscene previews + faction coloring); `Me.tsx` FactionBadge component in profile banner.
+- 11 tests in `tests/test_alignment.py`. Suite: 621 passed, 3 skipped.
 
 **Phase 2 polish + Phase 3.1/3.2 starters (2026-04-26)**
 - **Bug-fix batch from human-test (`docs/PHASE_2_HUMAN_TEST.md` #1-#8):**

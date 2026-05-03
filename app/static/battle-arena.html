@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Battle Arena</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;}
+body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;color:#fff;}
+.battle-stage{width:100%;height:100%;position:relative;overflow:hidden;}
+.battle-stage::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:5;}
+.battle-bg{position:absolute;top:0;left:0;right:0;bottom:160px;z-index:0;overflow:hidden;}
+.battle-bg img{width:100%;height:100%;object-fit:cover;}
+.battle-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.35) 0%,rgba(0,0,0,0.08) 40%,rgba(0,0,0,0.55) 75%,rgba(0,0,0,0.97) 100%),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.45) 100%);pointer-events:none;}
+.arena-floor{position:absolute;bottom:160px;left:0;right:0;height:80px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,0.3) 60%,rgba(0,0,0,0.7) 100%);z-index:1;}
+.turn-order{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center;z-index:30;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.08);border-radius:40px;padding:6px 10px;backdrop-filter:blur(12px);}
+.turn-portrait{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.5);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;position:relative;transition:all 0.3s ease;flex-shrink:0;}
+.turn-portrait.ally{border-color:rgba(80,180,255,0.5);background:rgba(0,20,60,0.6);}
+.turn-portrait.enemy{border-color:rgba(255,80,80,0.5);background:rgba(60,0,0,0.6);}
+.turn-portrait.active{border-color:#ffd700;box-shadow:0 0 20px rgba(255,215,0,0.9),0 0 40px rgba(255,215,0,0.4);transform:scale(1.25);}
+.turn-portrait.dead{opacity:0.25;filter:grayscale(1);}
+.turn-indicator{position:absolute;top:72px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:3px;z-index:30;padding:4px 16px;border-radius:20px;}
+.turn-indicator.ally-turn{color:#60c0ff;background:rgba(0,100,255,0.2);border:1px solid rgba(0,150,255,0.4);}
+.turn-indicator.enemy-turn{color:#ff7070;background:rgba(200,0,0,0.2);border:1px solid rgba(255,80,80,0.4);}
+.team-strip{position:absolute;bottom:165px;z-index:20;display:flex;flex-direction:column;gap:4px;}
+.team-strip.allies{left:8px;}
+.team-strip.enemies{right:8px;}
+.team-port-card{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px 8px;backdrop-filter:blur(6px);min-width:120px;transition:all 0.2s;}
+.team-strip.enemies .team-port-card{flex-direction:row-reverse;}
+.team-port-card.active-card{border-color:#ffd700;box-shadow:0 0 8px rgba(255,215,0,0.4);}
+.team-port-card.dead-card{opacity:0.3;filter:grayscale(1);}
+.team-port-img{font-size:18px;line-height:1;flex-shrink:0;}
+.team-port-name{font-size:10px;font-weight:700;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
+.mini-bar{height:3px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:2px;width:80px;overflow:hidden;}
+.mini-fill{height:100%;border-radius:2px;transition:width 0.3s ease;}
+.mini-fill.green{background:#6dd39a;}
+.mini-fill.red{background:#ff6b6b;}
+.mini-fill.orange{background:#ffd86b;}
+.unit{position:absolute;display:flex;flex-direction:column;align-items:center;cursor:pointer;z-index:10;transition:transform 0.3s ease,filter 0.3s ease;}
+.unit.dead{opacity:0.25;filter:grayscale(1);pointer-events:none;}
+.unit-shadow{width:60px;height:12px;background:radial-gradient(ellipse,rgba(0,0,0,0.5) 0%,transparent 70%);border-radius:50%;margin-top:-6px;}
+.unit-sprite-wrap{width:80px;height:140px;position:relative;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;}
+.sprite-img{max-height:140px;max-width:80px;image-rendering:pixelated;object-fit:contain;}
+.unit-health{background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;margin-top:4px;min-width:110px;backdrop-filter:blur(4px);}
+.unit-name{font-size:11px;font-weight:700;text-align:center;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hp-row{display:flex;align-items:center;gap:4px;margin-bottom:2px;}
+.hp-row-label{font-size:8px;font-weight:800;color:#999;width:14px;flex-shrink:0;}
+.hp-bar-wrap{flex:1;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
+.hp-bar-fill{height:100%;border-radius:3px;transition:width 0.3s ease;}
+.hp-bar-fill.hp{background:linear-gradient(90deg,#6dd39a,#3aaa6a);}
+.hp-bar-fill.hp.mid{background:linear-gradient(90deg,#ffd86b,#d4a00a);}
+.hp-bar-fill.hp.low{background:linear-gradient(90deg,#ff6b6b,#cc2222);}
+.hp-bar-fill.prot{background:linear-gradient(90deg,#4ea1ff,#2266cc);}
+.hp-val{font-size:9px;color:#999;text-align:center;margin-top:3px;}
+.unit-ally-0{left:12%;bottom:25%;}
+.unit-ally-1{left:4%;bottom:18%;}
+.unit-ally-2{left:20%;bottom:18%;}
+.unit-enemy-0{right:12%;bottom:25%;}
+.unit-enemy-1{right:4%;bottom:18%;}
+.unit-enemy-2{right:20%;bottom:18%;}
+.unit.enemy .unit-sprite-wrap{transform:scaleX(-1);}
+.unit.active .unit-health{border-color:#ffd700;box-shadow:0 0 12px rgba(255,215,0,0.4);}
+.unit.targetable{cursor:crosshair;}
+.unit.targetable .unit-health{border-color:rgba(255,80,80,0.5);}
+.unit.targetable:hover .unit-health{border-color:#ff4444;box-shadow:0 0 12px rgba(255,68,68,0.4);}
+@keyframes hitFlash{0%,100%{filter:none}40%{filter:brightness(2) saturate(0)}}
+.unit.hit{animation:hitFlash 0.38s ease;}
+@keyframes lungeRight{0%,100%{transform:translateX(0)}40%{transform:translateX(30px)}}
+@keyframes lungeLeft{0%,100%{transform:translateX(0)}40%{transform:translateX(-30px)}}
+.unit.ally.attacking{animation:lungeRight 0.5s ease;}
+.unit.enemy.attacking{animation:lungeLeft 0.5s ease;}
+@keyframes floatIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-5px,3px)}40%{transform:translate(4px,-3px)}60%{transform:translate(-3px,4px)}80%{transform:translate(3px,-2px)}}
+.shake{animation:shake 0.4s ease-out;}
+.flash-overlay{position:absolute;inset:0;pointer-events:none;z-index:100;opacity:0;transition:opacity 0.05s;}
+.flash-overlay.active{opacity:1;}
+#dmg-container{position:absolute;inset:0;pointer-events:none;z-index:60;}
+@keyframes floatUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-60px);opacity:0}}
+.dmg-float{position:absolute;font-weight:900;font-size:18px;pointer-events:none;animation:floatUp 1.2s ease-out forwards;text-shadow:0 2px 4px rgba(0,0,0,0.8);}
+.dmg-float.hit{color:#fff;font-size:16px;}
+.dmg-float.crit{color:#ff4444;font-size:26px;text-shadow:0 0 20px rgba(255,50,50,0.8);}
+.dmg-float.heal{color:#6dd39a;}
+#vfx-layer{position:absolute;inset:0;pointer-events:none;z-index:50;}
+@keyframes slashPop{0%{transform:scale(0) rotate(-20deg);opacity:1}100%{transform:scale(2.5) rotate(10deg);opacity:0}}
+.vfx-slash{position:absolute;font-size:28px;animation:slashPop 0.45s ease-out forwards;}
+@keyframes critPop{0%{transform:scale(0.5) translateY(0);opacity:1}100%{transform:scale(1.4) translateY(-20px);opacity:0}}
+.vfx-crit-text{position:absolute;font-size:18px;font-weight:900;color:#ff3333;text-shadow:0 0 20px rgba(255,50,50,0.9);animation:critPop 0.75s ease-out forwards;}
+@keyframes particleFly{0%{transform:translate(0,0);opacity:1}100%{transform:translate(var(--tx),var(--ty));opacity:0}}
+.particle{position:absolute;border-radius:50%;animation:particleFly var(--dur,0.5s) ease-out forwards;}
+.action-panel{position:absolute;bottom:0;left:0;right:0;height:160px;background:linear-gradient(180deg,rgba(0,0,0,0.85) 0%,rgba(8,12,20,0.98) 100%);border-top:1px solid rgba(255,255,255,0.1);z-index:20;display:flex;align-items:center;gap:12px;padding:0 16px;}
+.active-portrait{width:70px;height:70px;border-radius:50%;background:rgba(255,215,0,0.1);border:2px solid #ffd700;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;}
+.active-info{flex:1;min-width:0;}
+.active-name{font-size:18px;font-weight:800;}
+.active-role{font-size:11px;color:#999;margin-bottom:6px;}
+.panel-bar{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.panel-bar-label{font-size:9px;font-weight:800;color:#999;width:14px;}
+.panel-bar-track{flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
+.panel-bar-fill{height:100%;border-radius:3px;transition:width 0.3s ease;}
+.panel-hp{background:linear-gradient(90deg,#6dd39a,#3aaa6a);}
+.panel-pr{background:linear-gradient(90deg,#4ea1ff,#2266cc);}
+.panel-val{font-size:10px;color:#999;min-width:50px;text-align:right;}
+.ability-bar{display:flex;gap:8px;flex-shrink:0;}
+.abl-btn{position:relative;width:70px;height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:10px;cursor:pointer;transition:all 0.15s;padding:0;font-family:inherit;color:#fff;}
+.abl-btn:hover:not(:disabled){background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3);}
+.abl-btn:disabled{opacity:0.35;cursor:not-allowed;}
+.abl-icon{font-size:20px;}
+.abl-name{font-size:8px;font-weight:700;text-transform:uppercase;text-align:center;line-height:1.2;color:#ccc;}
+.abl-cd{position:absolute;inset:0;background:rgba(0,0,0,0.75);border-radius:10px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#ffd700;}
+.controls{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+.ctrl-btn{font-size:11px;font-weight:700;padding:6px 12px;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);cursor:pointer;font-family:inherit;color:#ccc;transition:all 0.15s;white-space:nowrap;}
+.ctrl-btn.on{background:rgba(78,161,255,0.2);border-color:#4ea1ff;color:#4ea1ff;}
+.ctrl-btn:hover{border-color:rgba(255,255,255,0.3);}
+.stage-selector{position:absolute;top:14px;right:14px;z-index:30;display:flex;flex-direction:column;gap:3px;}
+.stage-btn{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.1);cursor:pointer;font-family:inherit;color:#999;transition:all 0.15s;text-align:left;}
+.stage-btn.active{background:rgba(78,161,255,0.2);border-color:#4ea1ff;color:#4ea1ff;}
+.victory-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(8px);animation:fadeIn 0.5s ease;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.victory-panel{background:rgba(8,12,20,0.95);border-radius:16px;padding:32px 40px;text-align:center;max-width:400px;width:90%;}
+.victory-panel.win{border:2px solid #ffd700;box-shadow:0 0 60px rgba(255,215,0,0.3);}
+.victory-panel.lose{border:2px solid #ff4444;box-shadow:0 0 60px rgba(255,68,68,0.3);}
+.victory-title{font-size:36px;font-weight:900;letter-spacing:4px;margin-bottom:6px;}
+.victory-panel.win .victory-title{color:#ffd700;}
+.victory-panel.lose .victory-title{color:#ff4444;}
+.victory-subtitle{font-size:14px;color:#999;margin-bottom:24px;}
+.rewards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:12px;margin-bottom:24px;}
+.reward-item{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 8px;}
+.reward-icon{font-size:24px;margin-bottom:6px;}
+.reward-label{font-size:10px;color:#999;margin-bottom:4px;}
+.reward-value{font-size:20px;font-weight:800;color:#fff;}
+.victory-btn{background:#ffd700;color:#000;border:none;font-weight:900;font-size:14px;padding:12px 32px;border-radius:8px;cursor:pointer;font-family:inherit;letter-spacing:1px;}
+.sprite-placeholder{width:70px;height:120px;display:flex;align-items:center;justify-content:center;font-size:60px;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));animation:floatIdle 2.5s ease-in-out infinite;}
+.role-atk .sprite-img{filter:drop-shadow(0 0 10px rgba(255,80,80,0.9)) drop-shadow(0 0 22px rgba(255,40,40,0.5));}
+.role-def .sprite-img{filter:drop-shadow(0 0 10px rgba(80,160,255,0.9)) drop-shadow(0 0 22px rgba(40,100,255,0.5)) hue-rotate(160deg) saturate(1.3);}
+.role-sup .sprite-img{filter:drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 0 22px rgba(255,180,0,0.5)) sepia(0.3) saturate(1.4) hue-rotate(30deg);}
+.replay-log{position:absolute;left:50%;bottom:165px;transform:translateX(-50%);max-height:140px;overflow:hidden;z-index:25;pointer-events:none;display:flex;flex-direction:column-reverse;gap:3px;}
+.log-entry{background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:3px 10px;font-size:11px;color:#ccc;backdrop-filter:blur(4px);white-space:nowrap;animation:fadeIn 0.2s ease;}
+.log-entry.hit{color:#fff;}
+.log-entry.crit{color:#ff7070;font-weight:700;}
+.log-entry.heal{color:#6dd39a;}
+.log-entry.death{color:#ff4444;font-weight:700;}
+.loading-overlay{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:1000;}
+.loading-text{color:#ffd700;font-size:18px;font-weight:700;letter-spacing:2px;}
+.replay-badge{position:absolute;bottom:310px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(78,161,255,0.35);border-radius:20px;padding:4px 14px;font-size:10px;font-weight:800;color:#4ea1ff;letter-spacing:2px;text-transform:uppercase;z-index:26;pointer-events:none;}
+.back-btn{position:absolute;top:14px;left:14px;z-index:30;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 14px;color:#ccc;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(6px);transition:all 0.15s;letter-spacing:1px;}
+.back-btn:hover{border-color:rgba(255,255,255,0.3);color:#fff;}
+.bust-img{max-height:130px;max-width:76px;object-fit:contain;filter:drop-shadow(0 4px 14px rgba(0,0,0,0.8));}
+.turn-portrait img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.active-portrait img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay" class="loading-overlay">
+  <div class="loading-text">LOADING BATTLE...</div>
+</div>
+
+<div class="battle-stage" id="stage">
+
+  <!-- Back button -->
+  <button class="back-btn" id="back-btn" onclick="history.length > 1 ? history.back() : (window.location.href='/app/stages')">← Back</button>
+
+  <!-- Background -->
+  <div class="battle-bg" id="battle-bg">
+    <img id="bg-img" src="/app/static/backgrounds/cof/bg-server-closet.svg" alt="">
+  </div>
+  <div class="arena-floor"></div>
+
+  <!-- Flash overlay -->
+  <div class="flash-overlay" id="flash-overlay"></div>
+
+  <!-- VFX layer -->
+  <div id="vfx-layer"></div>
+
+  <!-- Damage floats -->
+  <div id="dmg-container"></div>
+
+  <!-- Turn order bar -->
+  <div class="turn-order" id="turn-order"></div>
+  <div class="turn-indicator ally-turn" id="turn-indicator">ALLY TURN</div>
+
+  <!-- Stage selector -->
+  <div class="stage-selector" id="stage-selector">
+    <button class="stage-btn active" data-bg="cof/bg-server-closet.svg">Server Closet</button>
+    <button class="stage-btn" data-bg="cof/bg-noc.svg">NOC</button>
+    <button class="stage-btn" data-bg="cof/bg-cubicle.svg">Cubicle Farm</button>
+    <button class="stage-btn" data-bg="cof/bg-bossoffice.svg">Boss Office</button>
+    <button class="stage-btn" data-bg="cof/bg-cable-hell.svg">Cable Hell</button>
+    <button class="stage-btn" data-bg="cof/bg-itcorner.svg">IT Corner</button>
+    <button class="stage-btn" data-bg="cof/bg-openoffice.svg">Open Office</button>
+    <button class="stage-btn" data-bg="cof/bg-breakroom.svg">Break Room</button>
+    <button class="stage-btn" data-bg="cof/bg-storage.svg">Storage</button>
+  </div>
+
+  <!-- Team strips -->
+  <div class="team-strip allies" id="ally-strip"></div>
+  <div class="team-strip enemies" id="enemy-strip"></div>
+
+  <!-- Unit slots (ally) -->
+  <div class="unit ally unit-ally-0" id="unit-a0" data-uid="a0" data-side="ally" data-slot="0">
+    <div class="unit-sprite-wrap"><div class="sprite-placeholder"></div></div>
+    <div class="unit-shadow"></div>
+    <div class="unit-health">
+      <div class="unit-name"></div>
+      <div class="hp-row"><span class="hp-row-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill hp" style="width:100%"></div></div></div>
+      <div class="hp-row"><span class="hp-row-label">PR</span><div class="hp-bar-wrap"><div class="hp-bar-fill prot" style="width:0%"></div></div></div>
+      <div class="hp-val"></div>
+    </div>
+  </div>
+  <div class="unit ally unit-ally-1" id="unit-a1" data-uid="a1" data-side="ally" data-slot="1">
+    <div class="unit-sprite-wrap"><div class="sprite-placeholder"></div></div>
+    <div class="unit-shadow"></div>
+    <div class="unit-health">
+      <div class="unit-name"></div>
+      <div class="hp-row"><span class="hp-row-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill hp" style="width:100%"></div></div></div>
+      <div class="hp-row"><span class="hp-row-label">PR</span><div class="hp-bar-wrap"><div class="hp-bar-fill prot" style="width:0%"></div></div></div>
+      <div class="hp-val"></div>
+    </div>
+  </div>
+  <div class="unit ally unit-ally-2" id="unit-a2" data-uid="a2" data-side="ally" data-slot="2">
+    <div class="unit-sprite-wrap"><div class="sprite-placeholder"></div></div>
+    <div class="unit-shadow"></div>
+    <div class="unit-health">
+      <div class="unit-name"></div>
+      <div class="hp-row"><span class="hp-row-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill hp" style="width:100%"></div></div></div>
+      <div class="hp-row"><span class="hp-row-label">PR</span><div class="hp-bar-wrap"><div class="hp-bar-fill prot" style="width:0%"></div></div></div>
+      <div class="hp-val"></div>
+    </div>
+  </div>
+
+  <!-- Unit slots (enemy) -->
+  <div class="unit enemy unit-enemy-0" id="unit-e0" data-uid="e0" data-side="enemy" data-slot="0">
+    <div class="unit-sprite-wrap"><div class="sprite-placeholder"></div></div>
+    <div class="unit-shadow"></div>
+    <div class="unit-health">
+      <div class="unit-name"></div>
+      <div class="hp-row"><span class="hp-row-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill hp" style="width:100%"></div></div></div>
+      <div class="hp-row"><span class="hp-row-label">PR</span><div class="hp-bar-wrap"><div class="hp-bar-fill prot" style="width:0%"></div></div></div>
+      <div class="hp-val"></div>
+    </div>
+  </div>
+  <div class="unit enemy unit-enemy-1" id="unit-e1" data-uid="e1" data-side="enemy" data-slot="1">
+    <div class="unit-sprite-wrap"><div class="sprite-placeholder"></div></div>
+    <div class="unit-shadow"></div>
+    <div class="unit-health">
+      <div class="unit-name"></div>
+      <div class="hp-row"><span class="hp-row-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill hp" style="width:100%"></div></div></div>
+      <div class="hp-row"><span class="hp-row-label">PR</span><div class="hp-bar-wrap"><div class="hp-bar-fill prot" style="width:0%"></div></div></div>
+      <div class="hp-val"></div>
+    </div>
+  </div>
+  <div class="unit enemy unit-enemy-2" id="unit-e2" data-uid="e2" data-side="enemy" data-slot="2">
+    <div class="unit-sprite-wrap"><div class="sprite-placeholder"></div></div>
+    <div class="unit-shadow"></div>
+    <div class="unit-health">
+      <div class="unit-name"></div>
+      <div class="hp-row"><span class="hp-row-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill hp" style="width:100%"></div></div></div>
+      <div class="hp-row"><span class="hp-row-label">PR</span><div class="hp-bar-wrap"><div class="hp-bar-fill prot" style="width:0%"></div></div></div>
+      <div class="hp-val"></div>
+    </div>
+  </div>
+
+  <!-- Replay log -->
+  <div class="replay-log" id="replay-log"></div>
+  <div class="replay-badge" id="replay-badge" style="display:none">⏵ REPLAY</div>
+
+  <!-- Action panel -->
+  <div class="action-panel">
+    <div class="active-portrait" id="panel-portrait">?</div>
+    <div class="active-info">
+      <div class="active-name" id="panel-name">—</div>
+      <div class="active-role" id="panel-role">—</div>
+      <div class="panel-bar">
+        <span class="panel-bar-label">HP</span>
+        <div class="panel-bar-track"><div class="panel-bar-fill panel-hp" id="panel-hp-fill" style="width:100%"></div></div>
+        <span class="panel-val" id="panel-hp-val">—</span>
+      </div>
+      <div class="panel-bar">
+        <span class="panel-bar-label">PR</span>
+        <div class="panel-bar-track"><div class="panel-bar-fill panel-pr" id="panel-pr-fill" style="width:0%"></div></div>
+        <span class="panel-val" id="panel-pr-val">0</span>
+      </div>
+    </div>
+    <div class="ability-bar" id="ability-bar">
+      <button class="abl-btn" data-abl="0"><span class="abl-icon">⚔️</span><span class="abl-name">Strike</span><div class="abl-cd"></div></button>
+      <button class="abl-btn" data-abl="1"><span class="abl-icon">🌑</span><span class="abl-name">Shadow</span><div class="abl-cd"></div></button>
+      <button class="abl-btn" data-abl="2"><span class="abl-icon">✨</span><span class="abl-name">Vanish</span><div class="abl-cd"></div></button>
+      <button class="abl-btn" data-abl="3"><span class="abl-icon">☠️</span><span class="abl-name">Mark</span><div class="abl-cd"></div></button>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btn-auto">AUTO</button>
+      <button class="ctrl-btn" id="btn-speed">1×</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+const IDLE_FRAMES   = 81;
+const ATTACK_FRAMES = 21;
+const HURT_FRAMES   = 11;
+const DIE_FRAMES    = 51;
+const IDLE_FPS   = 14;
+const ATTACK_FPS = 18;
+const HURT_FPS   = 18;
+const DIE_FPS    = 16;
+const IDLE_BASE   = '/app/static/battle-assets/characters/dark-assassin/idle/character%20for%20spine-idle_';
+const ATTACK_BASE = '/app/static/battle-assets/characters/dark-assassin/attack/character%20for%20spine-Attack_';
+const HURT_BASE   = '/app/static/battle-assets/characters/dark-assassin/hurt/character%20for%20spine-hurt_';
+const DIE_BASE    = '/app/static/battle-assets/characters/dark-assassin/die/character%20for%20spine-die_';
+
+const STAGE_CODE_TO_BG = {
+  'legacy_server_room':     'cof/bg-server-closet.svg',
+  'first_outage':           'cof/bg-noc.svg',
+  'onboarding_day':         'cof/bg-openoffice.svg',
+  'quarterly_audit':        'cof/bg-bossoffice.svg',
+  'ceos_one_on_one':        'cof/bg-bossoffice.svg',
+  'resistance_server_room': 'cof/bg-itcorner.svg',
+};
+
+const BUST_BASE = '/app/static/heroes/busts/';
+
+// ─── Demo roster ─────────────────────────────────────────────────────────────
+const DEMO_ALLIES = [
+  { uid:'a0', name:'Shadow Hacker',  role:'ATK', emoji:'🗡️', hp:820,  maxHp:820,  prot:0,   maxProt:0,   useSprite:true },
+  { uid:'a1', name:'Iron Sysadmin',  role:'DEF', emoji:'🪖', hp:1100, maxHp:1100, prot:200, maxProt:200, useSprite:true },
+  { uid:'a2', name:'Support Lead',   role:'SUP', emoji:'✨', hp:780,  maxHp:780,  prot:100, maxProt:100, useSprite:true },
+];
+const DEMO_ENEMIES = [
+  { uid:'e0', name:'Ticket Gremlin', role:'ATK', emoji:'💀', hp:700,  maxHp:700,  prot:0,   maxProt:0,   useSprite:true },
+  { uid:'e1', name:'Legacy Colossus',role:'DEF', emoji:'👹', hp:1200, maxHp:1200, prot:300, maxProt:300, useSprite:true },
+  { uid:'e2', name:'Chaos Monkey',   role:'SUP', emoji:'⚔️', hp:650,  maxHp:650,  prot:50,  maxProt:50,  useSprite:true },
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let units = {};           // uid → unit data
+let turnOrder = [];       // array of uids
+let isAutoMode = false;
+let speedMult = 1;
+let isReplayMode = false;
+let awaitingTarget = false;
+let activeAbility = 0;
+let battleOver = false;
+let spriteState = {};     // uid → { frame, timer, mode:'idle'|'attack', onDone }
+
+// ─── DOM helpers ─────────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if(cls) e.className=cls; if(html) e.innerHTML=html; return e; };
+const pad2 = n => String(n).padStart(2,'0');
+const delay = ms => new Promise(r => setTimeout(r, ms / speedMult));
+
+// ─── Sprite animation ─────────────────────────────────────────────────────────
+function initSprite(uid, imgEl) {
+  spriteState[uid] = { frame:0, timer:null, mode:'idle', imgEl, onDone:null };
+  tickIdle(uid);
+}
+
+function tickIdle(uid) {
+  const s = spriteState[uid];
+  if(!s) return;
+  s.mode = 'idle';
+  const src = IDLE_BASE + pad2(s.frame) + '.png';
+  if(s.imgEl.src !== location.origin + src) s.imgEl.src = src;
+  s.frame = (s.frame + 1) % IDLE_FRAMES;
+  s.timer = setTimeout(() => tickIdle(uid), 1000 / IDLE_FPS);
+}
+
+function playAttackAnim(uid, onDone) {
+  const s = spriteState[uid];
+  if(!s) { if(onDone) onDone(); return; }
+  if(s.mode === 'die') return; // dead units don't attack
+  clearTimeout(s.timer);
+  s.mode = 'attack';
+  s.frame = 0;
+  s.onDone = onDone;
+  tickAttack(uid);
+}
+
+function tickAttack(uid) {
+  const s = spriteState[uid];
+  if(!s || s.mode !== 'attack') return;
+  const src = ATTACK_BASE + pad2(s.frame) + '.png';
+  s.imgEl.src = src;
+  s.frame++;
+  if(s.frame >= ATTACK_FRAMES) {
+    s.mode = 'idle';
+    s.frame = 0;
+    const cb = s.onDone;
+    s.onDone = null;
+    if(cb) cb();
+    tickIdle(uid);
+  } else {
+    s.timer = setTimeout(() => tickAttack(uid), 1000 / ATTACK_FPS);
+  }
+}
+
+function playHurtAnim(uid, onDone) {
+  const s = spriteState[uid];
+  if(!s) { if(onDone) onDone(); return; }
+  if(s.mode === 'die') { if(onDone) onDone(); return; }
+  clearTimeout(s.timer);
+  s.mode = 'hurt';
+  s.frame = 0;
+  s.onDone = onDone;
+  tickHurt(uid);
+}
+
+function tickHurt(uid) {
+  const s = spriteState[uid];
+  if(!s || s.mode !== 'hurt') return;
+  s.imgEl.src = HURT_BASE + pad2(s.frame) + '.png';
+  s.frame++;
+  if(s.frame >= HURT_FRAMES) {
+    const cb = s.onDone;
+    s.onDone = null;
+    if(cb) cb();
+    s.mode = 'idle';
+    s.frame = 0;
+    tickIdle(uid);
+  } else {
+    s.timer = setTimeout(() => tickHurt(uid), 1000 / HURT_FPS);
+  }
+}
+
+function playDieAnim(uid) {
+  const s = spriteState[uid];
+  if(!s) return;
+  clearTimeout(s.timer);
+  s.mode = 'die';
+  s.frame = 0;
+  s.onDone = null;
+  tickDie(uid);
+}
+
+function tickDie(uid) {
+  const s = spriteState[uid];
+  if(!s || s.mode !== 'die') return;
+  s.imgEl.src = DIE_BASE + pad2(s.frame) + '.png';
+  if(s.frame < DIE_FRAMES - 1) {
+    s.frame++;
+    s.timer = setTimeout(() => tickDie(uid), 1000 / DIE_FPS);
+  }
+  // hold last frame — don't loop back
+}
+
+// ─── Unit DOM ─────────────────────────────────────────────────────────────────
+function getUnitEl(uid) {
+  const u = units[uid];
+  if(!u) return null;
+  return document.getElementById('unit-' + (u.side === 'ally' ? 'a' : 'e') + u.slot);
+}
+
+function renderUnit(uid) {
+  const u = units[uid];
+  if(!u) return;
+  const divEl = getUnitEl(uid);
+  if(!divEl) return;
+
+  // name
+  divEl.querySelector('.unit-name').textContent = u.name;
+
+  // hp bar
+  const hpPct = Math.max(0, u.hp / u.maxHp * 100);
+  const hpFill = divEl.querySelector('.hp-bar-fill.hp');
+  hpFill.style.width = hpPct + '%';
+  hpFill.className = 'hp-bar-fill hp' + (hpPct < 25 ? ' low' : hpPct < 55 ? ' mid' : '');
+
+  // prot bar
+  const protPct = u.maxProt > 0 ? Math.max(0, u.prot / u.maxProt * 100) : 0;
+  divEl.querySelector('.hp-bar-fill.prot').style.width = protPct + '%';
+
+  // hp val text
+  divEl.querySelector('.hp-val').textContent = u.hp + ' / ' + u.maxHp + (u.prot > 0 ? '  [' + u.prot + ' PR]' : '');
+
+  // dead
+  if(u.hp <= 0) divEl.classList.add('dead'); else divEl.classList.remove('dead');
+}
+
+function setUnitSprite(uid) {
+  const u = units[uid];
+  if(!u) return;
+  const divEl = getUnitEl(uid);
+  if(!divEl) return;
+  // apply role class for glow tint
+  divEl.classList.remove('role-atk','role-def','role-sup');
+  if(u.role === 'ATK') divEl.classList.add('role-atk');
+  else if(u.role === 'DEF') divEl.classList.add('role-def');
+  else if(u.role === 'SUP') divEl.classList.add('role-sup');
+  const wrap = divEl.querySelector('.unit-sprite-wrap');
+  wrap.innerHTML = '';
+  if(u.useSprite) {
+    const img = document.createElement('img');
+    img.className = 'sprite-img';
+    img.src = IDLE_BASE + '00.png';
+    wrap.appendChild(img);
+    initSprite(uid, img);
+  } else if(u.bustUrl) {
+    const img = document.createElement('img');
+    img.className = 'bust-img';
+    img.src = u.bustUrl;
+    img.onerror = () => {
+      wrap.innerHTML = '';
+      const ph = document.createElement('div');
+      ph.className = 'sprite-placeholder';
+      ph.textContent = u.emoji || '?';
+      wrap.appendChild(ph);
+    };
+    wrap.appendChild(img);
+  } else {
+    const ph = document.createElement('div');
+    ph.className = 'sprite-placeholder';
+    ph.textContent = u.emoji || '?';
+    wrap.appendChild(ph);
+  }
+}
+
+// ─── Team strip ──────────────────────────────────────────────────────────────
+function renderStrips() {
+  const allyStrip = $('ally-strip');
+  const enemyStrip = $('enemy-strip');
+  allyStrip.innerHTML = '';
+  enemyStrip.innerHTML = '';
+
+  Object.values(units).forEach(u => {
+    const strip = u.side === 'ally' ? allyStrip : enemyStrip;
+    const card = el('div', 'team-port-card' + (u.hp <= 0 ? ' dead-card' : ''));
+    card.id = 'strip-' + u.uid;
+    const hpPct = Math.max(0, u.hp / u.maxHp * 100);
+    const fillCls = hpPct < 25 ? 'mini-fill red' : hpPct < 55 ? 'mini-fill orange' : 'mini-fill green';
+    const portHtml = u.bustUrl
+      ? `<img src="${u.bustUrl}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.outerHTML='<span class=\\'team-port-img\\'>${u.emoji||'?'}</span>'">`
+      : `<span class="team-port-img">${u.emoji || '?'}</span>`;
+    card.innerHTML = `${portHtml}
+      <div>
+        <div class="team-port-name">${u.name}</div>
+        <div class="mini-bar"><div class="${fillCls}" style="width:${hpPct}%"></div></div>
+      </div>`;
+    strip.appendChild(card);
+  });
+}
+
+function updateStripCard(uid) {
+  const u = units[uid];
+  if(!u) return;
+  const card = document.getElementById('strip-' + uid);
+  if(!card) return;
+  const hpPct = Math.max(0, u.hp / u.maxHp * 100);
+  const fillCls = hpPct < 25 ? 'mini-fill red' : hpPct < 55 ? 'mini-fill orange' : 'mini-fill green';
+  const fill = card.querySelector('.mini-fill');
+  if(fill) { fill.className = fillCls; fill.style.width = hpPct + '%'; }
+  card.classList.toggle('dead-card', u.hp <= 0);
+  card.classList.toggle('active-card', false);
+}
+
+// ─── Turn order bar ───────────────────────────────────────────────────────────
+function renderTurnOrder() {
+  const bar = $('turn-order');
+  bar.innerHTML = '';
+  turnOrder.forEach((uid, i) => {
+    const u = units[uid];
+    if(!u) return;
+    const port = el('div', 'turn-portrait ' + u.side + (i === 0 ? ' active' : '') + (u.hp <= 0 ? ' dead' : ''));
+    if(u.bustUrl) {
+      const img = document.createElement('img');
+      img.src = u.bustUrl;
+      img.onerror = () => { port.textContent = u.emoji || '?'; };
+      port.appendChild(img);
+    } else {
+      port.textContent = u.emoji || '?';
+    }
+    bar.appendChild(port);
+  });
+}
+
+function advanceTurn() {
+  // move current actor to end
+  const done = turnOrder.shift();
+  turnOrder.push(done);
+  // skip dead units
+  let safety = turnOrder.length;
+  while(safety-- > 0 && units[turnOrder[0]] && units[turnOrder[0]].hp <= 0) {
+    turnOrder.push(turnOrder.shift());
+  }
+  renderTurnOrder();
+  updateTurnIndicator();
+  updateActivePanel();
+  updateActiveHighlight();
+}
+
+function updateTurnIndicator() {
+  const ind = $('turn-indicator');
+  const uid = turnOrder[0];
+  const u = units[uid];
+  if(!u) return;
+  if(u.side === 'ally') {
+    ind.className = 'turn-indicator ally-turn';
+    ind.textContent = 'ALLY TURN';
+  } else {
+    ind.className = 'turn-indicator enemy-turn';
+    ind.textContent = 'ENEMY TURN';
+  }
+}
+
+function updateActiveHighlight() {
+  // clear all
+  Object.values(units).forEach(u => {
+    const divEl = getUnitEl(u.uid);
+    if(divEl) divEl.classList.remove('active');
+    const card = document.getElementById('strip-' + u.uid);
+    if(card) card.classList.remove('active-card');
+  });
+  // set active
+  const uid = turnOrder[0];
+  const divEl = getUnitEl(uid);
+  if(divEl) divEl.classList.add('active');
+  const card = document.getElementById('strip-' + uid);
+  if(card) card.classList.add('active-card');
+}
+
+function updateActivePanel() {
+  const uid = turnOrder[0];
+  const u = units[uid];
+  if(!u) return;
+  const portrait = $('panel-portrait');
+  portrait.innerHTML = '';
+  if(u.bustUrl) {
+    const img = document.createElement('img');
+    img.src = u.bustUrl;
+    img.onerror = () => { portrait.textContent = u.emoji || '?'; };
+    portrait.appendChild(img);
+  } else {
+    portrait.textContent = u.emoji || '?';
+  }
+  $('panel-name').textContent = u.name;
+  $('panel-role').textContent = u.role + '  •  Lv ' + (u.level || 1);
+  const hpPct = Math.max(0, u.hp / u.maxHp * 100);
+  $('panel-hp-fill').style.width = hpPct + '%';
+  $('panel-hp-val').textContent = u.hp + ' / ' + u.maxHp;
+  const protPct = u.maxProt > 0 ? Math.max(0, u.prot / u.maxProt * 100) : 0;
+  $('panel-pr-fill').style.width = protPct + '%';
+  $('panel-pr-val').textContent = u.prot || 0;
+}
+
+// ─── VFX ─────────────────────────────────────────────────────────────────────
+function spawnDmgFloat(x, y, text, type) {
+  const c = $('dmg-container');
+  const d = el('div', 'dmg-float ' + type, text);
+  d.style.left = x + 'px';
+  d.style.top  = y + 'px';
+  c.appendChild(d);
+  setTimeout(() => d.remove(), 1300);
+}
+
+function spawnSlash(x, y) {
+  const v = $('vfx-layer');
+  const s = el('div', 'vfx-slash', '💥');
+  s.style.left = (x - 14) + 'px';
+  s.style.top  = (y - 14) + 'px';
+  v.appendChild(s);
+  setTimeout(() => s.remove(), 500);
+}
+
+function spawnCritText(x, y) {
+  const v = $('vfx-layer');
+  const s = el('div', 'vfx-crit-text', 'CRIT!');
+  s.style.left = (x - 20) + 'px';
+  s.style.top  = (y - 30) + 'px';
+  v.appendChild(s);
+  setTimeout(() => s.remove(), 800);
+}
+
+function spawnParticles(x, y, color, count) {
+  const v = $('vfx-layer');
+  for(let i = 0; i < count; i++) {
+    const p = el('div', 'particle');
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 30 + Math.random() * 50;
+    p.style.cssText = `left:${x}px;top:${y}px;width:5px;height:5px;background:${color};--tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;--dur:${0.3+Math.random()*0.4}s;`;
+    v.appendChild(p);
+    setTimeout(() => p.remove(), 800);
+  }
+}
+
+function flashScreen(color) {
+  const f = $('flash-overlay');
+  f.style.background = color;
+  f.classList.add('active');
+  setTimeout(() => f.classList.remove('active'), 80);
+}
+
+function shakeStage() {
+  const s = $('stage');
+  s.classList.remove('shake');
+  void s.offsetWidth;
+  s.classList.add('shake');
+  setTimeout(() => s.classList.remove('shake'), 420);
+}
+
+function getUnitCenter(uid) {
+  const divEl = getUnitEl(uid);
+  if(!divEl) return { x: window.innerWidth/2, y: window.innerHeight/2 };
+  const r = divEl.getBoundingClientRect();
+  return { x: r.left + r.width/2, y: r.top + r.height/3 };
+}
+
+// ─── Log ─────────────────────────────────────────────────────────────────────
+function addLog(text, type) {
+  const log = $('replay-log');
+  const entry = el('div', 'log-entry ' + (type||''), text);
+  log.prepend(entry);
+  // keep max 5 visible
+  while(log.children.length > 5) log.removeChild(log.lastChild);
+}
+
+// ─── Combat engine ────────────────────────────────────────────────────────────
+async function animateAttack(attackerUid, targetUid, amount, crit) {
+  const atkEl = getUnitEl(attackerUid);
+  const defEl = getUnitEl(targetUid);
+  const atkU  = units[attackerUid];
+  const center = getUnitCenter(targetUid);
+
+  // attacker lunge
+  if(atkEl) {
+    atkEl.classList.add('attacking');
+    if(atkU && atkU.useSprite) {
+      playAttackAnim(attackerUid, null);
+    }
+    setTimeout(() => atkEl.classList.remove('attacking'), 520);
+  }
+
+  await delay(200);
+
+  // impact
+  const defU = units[targetUid];
+  if(defEl) {
+    if(defU && defU.useSprite) {
+      playHurtAnim(targetUid, null);
+    } else {
+      defEl.classList.add('hit');
+      setTimeout(() => defEl.classList.remove('hit'), 400);
+    }
+  }
+  spawnSlash(center.x, center.y);
+  if(crit) {
+    flashScreen('rgba(255,50,50,0.25)');
+    shakeStage();
+    spawnCritText(center.x, center.y - 20);
+    spawnParticles(center.x, center.y, '#ff4444', 10);
+  } else {
+    flashScreen('rgba(255,255,255,0.08)');
+    spawnParticles(center.x, center.y, '#ffffff', 5);
+  }
+
+  // damage float
+  spawnDmgFloat(center.x - 20, center.y - 40,
+    (crit ? '💥 ' : '') + amount,
+    crit ? 'crit' : 'hit');
+}
+
+async function animateHeal(targetUid, amount) {
+  const center = getUnitCenter(targetUid);
+  spawnDmgFloat(center.x - 15, center.y - 40, '+' + amount + ' HP', 'heal');
+  spawnParticles(center.x, center.y, '#6dd39a', 6);
+}
+
+function applyDamage(uid, amount) {
+  const u = units[uid];
+  if(!u) return;
+  // hit prot first
+  if(u.prot > 0) {
+    const absorbed = Math.min(u.prot, amount);
+    u.prot -= absorbed;
+    amount -= absorbed;
+  }
+  u.hp = Math.max(0, u.hp - amount);
+  renderUnit(uid);
+  updateStripCard(uid);
+  if(uid === turnOrder[0]) updateActivePanel();
+}
+
+function applyHeal(uid, amount) {
+  const u = units[uid];
+  if(!u) return;
+  u.hp = Math.min(u.maxHp, u.hp + amount);
+  renderUnit(uid);
+  updateStripCard(uid);
+  if(uid === turnOrder[0]) updateActivePanel();
+}
+
+function checkDeath(uid) {
+  const u = units[uid];
+  if(!u || u.hp > 0) return false;
+  addLog(u.name + ' has fallen!', 'death');
+  renderUnit(uid);
+  updateStripCard(uid);
+  renderTurnOrder();
+  return true;
+}
+
+function checkBattleOver() {
+  const alliesDead = Object.values(units).filter(u => u.side === 'ally').every(u => u.hp <= 0);
+  const enemiesDead = Object.values(units).filter(u => u.side === 'enemy').every(u => u.hp <= 0);
+  if(alliesDead) { showVictory('DEFEAT'); return true; }
+  if(enemiesDead) { showVictory('VICTORY'); return true; }
+  return false;
+}
+
+function showVictory(result, rewards) {
+  battleOver = true;
+  const isWin = result === 'VICTORY' || result === 'WIN';
+  const ov = el('div', 'victory-overlay');
+  let rewardsHtml = '';
+  if(isWin) {
+    if(rewards && typeof rewards === 'object') {
+      const items = [];
+      if(rewards.xp)     items.push({icon:'✨', label:'XP',    val:'+'+rewards.xp});
+      if(rewards.coins)  items.push({icon:'💰', label:'GOLD',  val:'+'+rewards.coins});
+      if(rewards.shards) items.push({icon:'💎', label:'SHARDS',val:'+'+rewards.shards});
+      if(rewards.gems)   items.push({icon:'🔷', label:'GEMS',  val:'+'+rewards.gems});
+      if(items.length) {
+        rewardsHtml = '<div class="rewards-grid">' +
+          items.map(r => `<div class="reward-item"><div class="reward-icon">${r.icon}</div><div class="reward-label">${r.label}</div><div class="reward-value">${r.val}</div></div>`).join('') +
+          '</div>';
+      }
+    } else {
+      rewardsHtml = `<div class="rewards-grid">
+        <div class="reward-item"><div class="reward-icon">✨</div><div class="reward-label">XP</div><div class="reward-value">+240</div></div>
+        <div class="reward-item"><div class="reward-icon">💰</div><div class="reward-label">GOLD</div><div class="reward-value">+85</div></div>
+      </div>`;
+    }
+  }
+  ov.innerHTML = `
+    <div class="victory-panel ${isWin ? 'win' : 'lose'}">
+      <div class="victory-title">${isWin ? 'VICTORY' : 'DEFEAT'}</div>
+      <div class="victory-subtitle">${isWin ? 'Your team conquered the arena!' : 'Your team was defeated.'}</div>
+      ${rewardsHtml}
+      <button class="victory-btn" onclick="isReplayMode ? history.back() : location.reload()">${isReplayMode ? 'BACK' : 'PLAY AGAIN'}</button>
+    </div>`;
+  $('stage').appendChild(ov);
+}
+
+// ─── Demo mode ────────────────────────────────────────────────────────────────
+function buildDemoUnits() {
+  units = {};
+  DEMO_ALLIES.forEach((d, i) => {
+    units[d.uid] = { ...d, side:'ally', slot:i, level:5 };
+  });
+  DEMO_ENEMIES.forEach((d, i) => {
+    units[d.uid] = { ...d, side:'enemy', slot:i, level:4 };
+  });
+
+  // Build turn order: interleaved
+  turnOrder = ['a0','e0','a1','e1','a2','e2'];
+
+  // Render unit sprites & health
+  Object.keys(units).forEach(uid => {
+    setUnitSprite(uid);
+    renderUnit(uid);
+  });
+
+  renderStrips();
+  renderTurnOrder();
+  updateTurnIndicator();
+  updateActiveHighlight();
+  updateActivePanel();
+  setupDemoAbilities();
+}
+
+function setupDemoAbilities() {
+  const ablBar = $('ability-bar');
+  ablBar.querySelectorAll('.abl-btn').forEach(btn => {
+    btn.disabled = false;
+    btn.addEventListener('click', () => {
+      if(battleOver) return;
+      const uid = turnOrder[0];
+      const u = units[uid];
+      if(!u || u.side !== 'ally') return;
+      const ablIdx = parseInt(btn.dataset.abl);
+      activeAbility = ablIdx;
+      enterTargetMode();
+    });
+  });
+}
+
+function enterTargetMode() {
+  awaitingTarget = true;
+  // highlight enemy units as targetable
+  Object.values(units).filter(u => u.side === 'enemy' && u.hp > 0).forEach(u => {
+    const divEl = getUnitEl(u.uid);
+    if(divEl) divEl.classList.add('targetable');
+  });
+  addLog('Choose a target...', '');
+}
+
+function exitTargetMode() {
+  awaitingTarget = false;
+  Object.values(units).forEach(u => {
+    const divEl = getUnitEl(u.uid);
+    if(divEl) divEl.classList.remove('targetable');
+  });
+}
+
+async function demoPlayerAttack(targetUid) {
+  exitTargetMode();
+  const attackerUid = turnOrder[0];
+  const attacker = units[attackerUid];
+  const target = units[targetUid];
+  if(!attacker || !target) return;
+
+  // disable buttons during animation
+  setAbilityButtonsEnabled(false);
+
+  const ablMults = [1.0, 1.4, 0, 0]; // Vanish/Mark are utility
+  const abl = activeAbility;
+
+  if(abl === 2) {
+    // Vanish — self buff
+    addLog(attacker.name + ' vanishes into shadow!', '');
+    await delay(500);
+  } else if(abl === 3) {
+    // Mark — debuff
+    addLog(attacker.name + ' marks ' + target.name + ' for death!', 'hit');
+    await delay(500);
+  } else {
+    const base = 80 + Math.floor(Math.random() * 60);
+    const mult = ablMults[abl] || 1.0;
+    const crit = Math.random() < 0.2;
+    const amount = Math.floor(base * mult * (crit ? 1.8 : 1));
+    await animateAttack(attackerUid, targetUid, amount, crit);
+    applyDamage(targetUid, amount);
+    const logType = crit ? 'crit' : 'hit';
+    addLog(attacker.name + (abl === 1 ? ' shadow-strikes ' : ' strikes ') + target.name + ' for ' + amount + (crit ? ' (CRIT!)' : '') + '!', logType);
+    await delay(300);
+    if(checkDeath(targetUid)) {
+      if(checkBattleOver()) return;
+    }
+  }
+
+  await delay(200);
+  advanceTurn();
+  await runEnemyTurns();
+  setAbilityButtonsEnabled(true);
+}
+
+async function runEnemyTurns() {
+  // Keep going while top of order is enemy and battle not over
+  while(!battleOver && units[turnOrder[0]] && units[turnOrder[0]].side === 'enemy') {
+    const enemyUid = turnOrder[0];
+    const enemy = units[enemyUid];
+    if(enemy.hp <= 0) { advanceTurn(); continue; }
+
+    await delay(700);
+
+    // pick random live ally
+    const liveAllies = Object.values(units).filter(u => u.side === 'ally' && u.hp > 0);
+    if(liveAllies.length === 0) break;
+    const target = liveAllies[Math.floor(Math.random() * liveAllies.length)];
+
+    const base = 50 + Math.floor(Math.random() * 50);
+    const crit = Math.random() < 0.15;
+    const amount = Math.floor(base * (crit ? 1.8 : 1));
+
+    await animateAttack(enemyUid, target.uid, amount, crit);
+    applyDamage(target.uid, amount);
+    addLog(enemy.name + ' attacks ' + target.name + ' for ' + amount + (crit ? ' (CRIT!)' : '') + '!', crit ? 'crit' : 'hit');
+
+    await delay(300);
+    if(checkDeath(target.uid)) {
+      if(checkBattleOver()) return;
+    }
+
+    await delay(200);
+    advanceTurn();
+  }
+}
+
+async function runAutoMode() {
+  while(isAutoMode && !battleOver) {
+    const uid = turnOrder[0];
+    const u = units[uid];
+    if(!u || u.hp <= 0) { advanceTurn(); continue; }
+
+    if(u.side === 'ally') {
+      const liveEnemies = Object.values(units).filter(e => e.side === 'enemy' && e.hp > 0);
+      if(liveEnemies.length === 0) break;
+      const target = liveEnemies[Math.floor(Math.random() * liveEnemies.length)];
+      const base = 80 + Math.floor(Math.random() * 60);
+      const crit = Math.random() < 0.2;
+      const amount = Math.floor(base * (crit ? 1.8 : 1));
+      await animateAttack(uid, target.uid, amount, crit);
+      applyDamage(target.uid, amount);
+      addLog(u.name + ' attacks ' + target.name + ' for ' + amount + (crit ? ' (CRIT!)' : '') + '!', crit ? 'crit' : 'hit');
+      await delay(300);
+      if(checkDeath(target.uid)) { if(checkBattleOver()) return; }
+      await delay(200);
+    } else {
+      const liveAllies = Object.values(units).filter(a => a.side === 'ally' && a.hp > 0);
+      if(liveAllies.length === 0) break;
+      const target = liveAllies[Math.floor(Math.random() * liveAllies.length)];
+      const base = 50 + Math.floor(Math.random() * 50);
+      const crit = Math.random() < 0.15;
+      const amount = Math.floor(base * (crit ? 1.8 : 1));
+      await animateAttack(uid, target.uid, amount, crit);
+      applyDamage(target.uid, amount);
+      addLog(u.name + ' attacks ' + target.name + ' for ' + amount + (crit ? ' (CRIT!)' : '') + '!', crit ? 'crit' : 'hit');
+      await delay(300);
+      if(checkDeath(target.uid)) { if(checkBattleOver()) return; }
+      await delay(200);
+    }
+
+    advanceTurn();
+    await delay(400);
+  }
+}
+
+function setAbilityButtonsEnabled(enabled) {
+  const uid = turnOrder[0];
+  const u = units[uid];
+  const isAllyTurn = u && u.side === 'ally';
+  $('ability-bar').querySelectorAll('.abl-btn').forEach(btn => {
+    btn.disabled = !enabled || !isAllyTurn || isAutoMode || isReplayMode;
+  });
+}
+
+function startDemo() {
+  buildDemoUnits();
+
+  // Unit click handler for targeting
+  document.querySelectorAll('.unit').forEach(divEl => {
+    divEl.addEventListener('click', () => {
+      if(battleOver) return;
+      const uid = divEl.dataset.uid;
+      const u = units[uid];
+      if(!u) return;
+
+      if(awaitingTarget && u.side === 'enemy' && u.hp > 0) {
+        demoPlayerAttack(uid);
+        return;
+      }
+      // Show info in panel if clicking ally
+      if(!awaitingTarget && u.side === 'ally' && u.hp > 0) {
+        const p2 = $('panel-portrait');
+        p2.innerHTML = '';
+        if(u.bustUrl) { const i2=document.createElement('img'); i2.src=u.bustUrl; i2.onerror=()=>{p2.textContent=u.emoji||'?'}; p2.appendChild(i2); } else { p2.textContent = u.emoji||'?'; }
+        $('panel-name').textContent = u.name;
+        $('panel-role').textContent = u.role + '  •  Lv ' + (u.level || 1);
+        const hpPct = u.hp / u.maxHp * 100;
+        $('panel-hp-fill').style.width = hpPct + '%';
+        $('panel-hp-val').textContent = u.hp + ' / ' + u.maxHp;
+      }
+    });
+  });
+
+  addLog('Battle started! Click an ability, then select a target.', '');
+}
+
+// ─── Replay mode ──────────────────────────────────────────────────────────────
+function buildUnitsFromParticipants(participants) {
+  units = {};
+  const allySlot = { n:0 };
+  const enemySlot = { n:0 };
+
+  const ROLE_EMOJI = { ATK:'⚔️', DEF:'🛡️', SUP:'✨', TAN:'🪖' };
+
+  participants.forEach(p => {
+    const side = p.side === 'A' ? 'ally' : 'enemy';
+    const slot = side === 'ally' ? allySlot.n++ : enemySlot.n++;
+    const emoji = ROLE_EMOJI[p.role] || '?';
+    units[p.uid] = {
+      uid: p.uid,
+      name: p.name,
+      role: p.role || 'ATK',
+      emoji,
+      hp: p.max_hp,
+      maxHp: p.max_hp,
+      prot: 0,
+      maxProt: 0,
+      side,
+      slot,
+      level: p.level || 1,
+      useSprite: true,
+      bustUrl: p.template_code ? BUST_BASE + p.template_code + '.png' : null,
+    };
+  });
+
+  // Build turn order: allies first then enemies
+  const allies = Object.values(units).filter(u => u.side === 'ally').sort((a,b) => a.slot-b.slot);
+  const enemies = Object.values(units).filter(u => u.side === 'enemy').sort((a,b) => a.slot-b.slot);
+  turnOrder = [];
+  const maxLen = Math.max(allies.length, enemies.length);
+  for(let i = 0; i < maxLen; i++) {
+    if(allies[i]) turnOrder.push(allies[i].uid);
+    if(enemies[i]) turnOrder.push(enemies[i].uid);
+  }
+
+  Object.keys(units).forEach(uid => {
+    setUnitSprite(uid);
+    renderUnit(uid);
+  });
+  renderStrips();
+  renderTurnOrder();
+  updateTurnIndicator();
+  updateActiveHighlight();
+  updateActivePanel();
+
+}
+
+async function replayLog(log, outcome, rewards) {
+  for(const event of log) {
+    if(battleOver) break;
+    switch(event.type) {
+      case 'DAMAGE': {
+        const src = event.source;
+        const tgt = event.target;
+        if(!units[src] || !units[tgt]) break;
+        // set active turn to source
+        if(turnOrder[0] !== src) {
+          // find and rotate
+          const idx = turnOrder.indexOf(src);
+          if(idx > -1) { turnOrder.splice(0,0,...turnOrder.splice(idx)); }
+          renderTurnOrder();
+          updateTurnIndicator();
+          updateActiveHighlight();
+          updateActivePanel();
+        }
+        const crit = !!event.crit;
+        const amount = event.amount || 0;
+        await animateAttack(src, tgt, amount, crit);
+        applyDamage(tgt, amount);
+        const uSrc = units[src];
+        const uTgt = units[tgt];
+        addLog((uSrc ? uSrc.name : src) + ' deals ' + amount + ' to ' + (uTgt ? uTgt.name : tgt) + (crit ? ' (CRIT!)' : ''), crit ? 'crit' : 'hit');
+        await delay(350);
+        break;
+      }
+      case 'HEAL': {
+        const tgt = event.target;
+        const amount = event.amount || 0;
+        await animateHeal(tgt, amount);
+        applyHeal(tgt, amount);
+        const uTgt = units[tgt];
+        addLog((uTgt ? uTgt.name : tgt) + ' healed for ' + amount, 'heal');
+        await delay(300);
+        break;
+      }
+      case 'DEATH': {
+        const uid = event.unit;
+        if(units[uid]) units[uid].hp = 0;
+        if(units[uid] && units[uid].useSprite) playDieAnim(uid);
+        renderUnit(uid);
+        updateStripCard(uid);
+        renderTurnOrder();
+        addLog((units[uid] ? units[uid].name : uid) + ' has fallen!', 'death');
+        await delay(900); // extra time to see die anim start
+        checkBattleOver();
+        break;
+      }
+      case 'STATUS_APPLIED':
+        break;
+      case 'WAVE_START':
+        addLog('--- Wave ' + (event.wave || '') + ' ---', '');
+        await delay(400);
+        break;
+      case 'log_truncated':
+        addLog('— battle shortened —', '');
+        await delay(300);
+        break;
+      default:
+        break;
+    }
+
+    // advance turn after each damage event
+    if(event.type === 'DAMAGE') {
+      advanceTurn();
+      await delay(200);
+    }
+  }
+
+  // show outcome if not already ended
+  if(!battleOver) {
+    showVictory(outcome === 'WIN' ? 'VICTORY' : 'DEFEAT', rewards);
+  }
+}
+
+// ─── Stage selector ───────────────────────────────────────────────────────────
+document.querySelectorAll('.stage-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    $('bg-img').src = '/app/static/backgrounds/' + btn.dataset.bg;
+  });
+});
+
+// ─── Controls ─────────────────────────────────────────────────────────────────
+$('btn-auto').addEventListener('click', () => {
+  if(isReplayMode || battleOver) return;
+  isAutoMode = !isAutoMode;
+  $('btn-auto').classList.toggle('on', isAutoMode);
+  exitTargetMode();
+  setAbilityButtonsEnabled(false);
+  if(isAutoMode) runAutoMode();
+});
+
+$('btn-speed').addEventListener('click', () => {
+  speedMult = speedMult === 1 ? 2 : 1;
+  $('btn-speed').textContent = speedMult === 2 ? '2×' : '1×';
+  $('btn-speed').classList.toggle('on', speedMult === 2);
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const params = new URLSearchParams(location.search);
+  const battleId = params.get('battle_id');
+
+  if(battleId) {
+    isReplayMode = true;
+    try {
+      const jwt = localStorage.getItem('heroproto_jwt');
+      const resp = await fetch('/battles/' + battleId, {
+        headers: jwt ? { Authorization: 'Bearer ' + jwt } : {}
+      });
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const battle = await resp.json();
+      $('loading-overlay').style.display = 'none';
+      // Match background to stage
+      const bgFile = STAGE_CODE_TO_BG[battle.stage_code] || 'cof/bg-server-closet.svg';
+      $('bg-img').src = '/app/static/backgrounds/' + bgFile;
+      // Hide stage selector — it's a replay, not a demo
+      $('stage-selector').style.display = 'none';
+      $('replay-badge').style.display = '';
+      $('btn-auto').style.display = 'none';
+      $('ability-bar').style.display = 'none';
+      buildUnitsFromParticipants(battle.participants || []);
+      await delay(600);
+      await replayLog(battle.log || [], battle.outcome || 'LOSS', battle.rewards || null);
+    } catch(err) {
+      $('loading-overlay').querySelector('.loading-text').textContent = 'Failed to load battle: ' + err.message;
+    }
+  } else {
+    // Demo mode
+    $('loading-overlay').style.display = 'none';
+    startDemo();
+  }
+}
+
+init();
+</script>
+</body>
+</html>
