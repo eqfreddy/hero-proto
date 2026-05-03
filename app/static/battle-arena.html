@@ -10,22 +10,20 @@ html,body{width:100%;height:100%;overflow:hidden;}
 body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;color:#fff;}
 .battle-stage{width:100%;height:100%;position:relative;overflow:hidden;}
 .battle-stage::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:5;}
-.battle-bg{position:absolute;top:0;left:0;right:0;bottom:160px;z-index:0;overflow:hidden;}
+.battle-bg{position:absolute;top:0;left:0;right:0;bottom:210px;z-index:0;overflow:hidden;}
 .battle-bg img{width:100%;height:100%;object-fit:cover;}
 .battle-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.35) 0%,rgba(0,0,0,0.08) 40%,rgba(0,0,0,0.55) 75%,rgba(0,0,0,0.97) 100%),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.45) 100%);pointer-events:none;}
-.arena-floor{position:absolute;bottom:160px;left:0;right:0;height:80px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,0.3) 60%,rgba(0,0,0,0.7) 100%);z-index:1;}
-.turn-order{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center;z-index:30;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.08);border-radius:40px;padding:6px 10px;backdrop-filter:blur(12px);}
-.turn-portrait{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.5);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;position:relative;transition:all 0.3s ease;flex-shrink:0;}
+.arena-floor{position:absolute;bottom:210px;left:0;right:0;height:80px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,0.3) 60%,rgba(0,0,0,0.7) 100%);z-index:1;}
+.turn-order{display:flex;gap:4px;align-items:center;overflow:hidden;flex:1;}
+.turn-portrait{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.5);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;position:relative;transition:all 0.3s ease;flex-shrink:0;}
 .turn-portrait.ally{border-color:rgba(80,180,255,0.5);background:rgba(0,20,60,0.6);}
 .turn-portrait.enemy{border-color:rgba(255,80,80,0.5);background:rgba(60,0,0,0.6);}
-.turn-portrait.active{border-color:#ffd700;box-shadow:0 0 20px rgba(255,215,0,0.9),0 0 40px rgba(255,215,0,0.4);transform:scale(1.25);}
-.turn-portrait.dead{opacity:0.25;filter:grayscale(1);}
-.turn-indicator{position:absolute;top:72px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:3px;z-index:30;padding:4px 16px;border-radius:20px;}
+.turn-portrait.active{border-color:#ffd700;box-shadow:0 0 12px rgba(255,215,0,0.9),0 0 24px rgba(255,215,0,0.4);transform:scale(1.2);}
+.turn-portrait.dead{opacity:0.2;filter:grayscale(1);}
+.turn-indicator{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:2px;padding:3px 10px;border-radius:12px;white-space:nowrap;flex-shrink:0;}
 .turn-indicator.ally-turn{color:#60c0ff;background:rgba(0,100,255,0.2);border:1px solid rgba(0,150,255,0.4);}
 .turn-indicator.enemy-turn{color:#ff7070;background:rgba(200,0,0,0.2);border:1px solid rgba(255,80,80,0.4);}
-.team-strip{position:absolute;bottom:165px;z-index:20;display:flex;flex-direction:column;gap:4px;}
-.team-strip.allies{left:8px;}
-.team-strip.enemies{right:8px;}
+.team-strip{display:none;}
 .team-port-card{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px 8px;backdrop-filter:blur(6px);min-width:120px;transition:all 0.2s;}
 .team-strip.enemies .team-port-card{flex-direction:row-reverse;}
 .team-port-card.active-card{border-color:#ffd700;box-shadow:0 0 8px rgba(255,215,0,0.4);}
@@ -53,12 +51,12 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .hp-bar-fill.hp.low{background:linear-gradient(90deg,#ff6b6b,#cc2222);}
 .hp-bar-fill.prot{background:linear-gradient(90deg,#4ea1ff,#2266cc);}
 .hp-val{font-size:9px;color:#999;text-align:center;margin-top:3px;}
-.unit-ally-0{left:12%;bottom:25%;}
-.unit-ally-1{left:4%;bottom:18%;}
-.unit-ally-2{left:20%;bottom:18%;}
-.unit-enemy-0{right:12%;bottom:25%;}
-.unit-enemy-1{right:4%;bottom:18%;}
-.unit-enemy-2{right:20%;bottom:18%;}
+.unit-ally-0{left:12%;bottom:calc(210px + 50px);}
+.unit-ally-1{left:4%;bottom:calc(210px + 100px);}
+.unit-ally-2{left:20%;bottom:calc(210px + 100px);}
+.unit-enemy-0{right:12%;bottom:calc(210px + 50px);}
+.unit-enemy-1{right:4%;bottom:calc(210px + 100px);}
+.unit-enemy-2{right:20%;bottom:calc(210px + 100px);}
 .unit.enemy .unit-sprite-wrap{transform:scaleX(-1);}
 .unit.active .unit-health{border-color:#ffd700;box-shadow:0 0 12px rgba(255,215,0,0.4);}
 .unit.targetable{cursor:crosshair;}
@@ -88,29 +86,45 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .vfx-crit-text{position:absolute;font-size:18px;font-weight:900;color:#ff3333;text-shadow:0 0 20px rgba(255,50,50,0.9);animation:critPop 0.75s ease-out forwards;}
 @keyframes particleFly{0%{transform:translate(0,0);opacity:1}100%{transform:translate(var(--tx),var(--ty));opacity:0}}
 .particle{position:absolute;border-radius:50%;animation:particleFly var(--dur,0.5s) ease-out forwards;}
-.action-panel{position:absolute;bottom:0;left:0;right:0;height:160px;background:linear-gradient(180deg,rgba(0,0,0,0.85) 0%,rgba(8,12,20,0.98) 100%);border-top:1px solid rgba(255,255,255,0.1);z-index:20;display:flex;align-items:center;gap:12px;padding:0 16px;}
-.active-portrait{width:70px;height:70px;border-radius:50%;background:rgba(255,215,0,0.1);border:2px solid #ffd700;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;}
+.action-panel{position:absolute;bottom:0;left:0;right:0;height:210px;background:linear-gradient(180deg,rgba(0,0,0,0.88) 0%,rgba(8,12,20,0.99) 100%);border-top:1px solid rgba(255,255,255,0.1);z-index:20;display:flex;flex-direction:column;}
+.panel-turn-row{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid rgba(255,255,255,0.06);height:48px;flex-shrink:0;overflow:hidden;}
+.panel-main-row{display:flex;align-items:stretch;flex:1;overflow:hidden;}
+.panel-unit-block{display:flex;align-items:center;gap:8px;padding:0 12px;width:175px;flex-shrink:0;border-right:1px solid rgba(255,255,255,0.06);}
+.active-portrait{width:50px;height:50px;border-radius:50%;background:rgba(255,215,0,0.1);border:2px solid #ffd700;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
 .active-info{flex:1;min-width:0;}
-.active-name{font-size:18px;font-weight:800;}
-.active-role{font-size:11px;color:#999;margin-bottom:6px;}
-.panel-bar{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
-.panel-bar-label{font-size:9px;font-weight:800;color:#999;width:14px;}
-.panel-bar-track{flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
-.panel-bar-fill{height:100%;border-radius:3px;transition:width 0.3s ease;}
+.active-name{font-size:13px;font-weight:800;}
+.active-role{font-size:10px;color:#999;margin-bottom:4px;}
+.panel-bar{display:flex;align-items:center;gap:5px;margin-bottom:3px;}
+.panel-bar-label{font-size:8px;font-weight:800;color:#999;width:12px;}
+.panel-bar-track{flex:1;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;}
+.panel-bar-fill{height:100%;border-radius:2px;transition:width 0.3s ease;}
 .panel-hp{background:linear-gradient(90deg,#6dd39a,#3aaa6a);}
 .panel-pr{background:linear-gradient(90deg,#4ea1ff,#2266cc);}
-.panel-val{font-size:10px;color:#999;min-width:50px;text-align:right;}
-.ability-bar{display:flex;gap:8px;flex-shrink:0;}
-.abl-btn{position:relative;width:70px;height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:10px;cursor:pointer;transition:all 0.15s;padding:0;font-family:inherit;color:#fff;}
+.panel-val{font-size:9px;color:#999;min-width:42px;text-align:right;}
+.panel-abilities-block{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px 12px;}
+.ability-bar{display:grid;grid-template-columns:1fr 1fr;gap:5px;width:100%;max-width:250px;}
+.abl-btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;transition:all 0.15s;padding:7px 6px;font-family:inherit;color:#fff;width:100%;}
 .abl-btn:hover:not(:disabled){background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3);}
 .abl-btn:disabled{opacity:0.35;cursor:not-allowed;}
-.abl-icon{font-size:20px;}
+.abl-icon{font-size:17px;}
 .abl-name{font-size:8px;font-weight:700;text-transform:uppercase;text-align:center;line-height:1.2;color:#ccc;}
-.abl-cd{position:absolute;inset:0;background:rgba(0,0,0,0.75);border-radius:10px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#ffd700;}
+.abl-cd{position:absolute;inset:0;background:rgba(0,0,0,0.75);border-radius:8px;display:none;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#ffd700;}
+.abl-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:rgba(5,8,16,0.97);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:5px 9px;font-size:10px;color:#ddd;white-space:nowrap;pointer-events:none;display:none;z-index:200;font-weight:500;}
+.abl-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(5,8,16,0.97);}
+.abl-btn:hover .abl-tooltip{display:block;}
+.special-gauge-row{display:flex;align-items:center;gap:6px;width:100%;max-width:250px;}
+.special-label{font-size:9px;font-weight:800;color:#bb88ff;white-space:nowrap;letter-spacing:1px;}
+.special-gauge-track{flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;}
+.special-gauge-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#7722bb,#cc44ff,#ff88ff);transition:width 0.5s ease;}
+.special-btn{background:rgba(119,34,187,0.2) !important;border-color:rgba(187,136,255,0.3) !important;color:#bb88ff !important;font-size:8px !important;padding:5px 8px !important;white-space:nowrap;letter-spacing:1px;width:auto !important;}
+.special-btn:not(:disabled){background:rgba(119,34,187,0.5) !important;border-color:#cc44ff !important;color:#fff !important;animation:specialPulse 1.2s ease-in-out infinite alternate;}
+@keyframes specialPulse{from{box-shadow:0 0 6px rgba(187,68,255,0.4)}to{box-shadow:0 0 18px rgba(187,68,255,0.9),0 0 32px rgba(119,34,204,0.5)}}
+.panel-controls-block{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 12px;width:70px;flex-shrink:0;border-left:1px solid rgba(255,255,255,0.06);}
 .controls{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
-.ctrl-btn{font-size:11px;font-weight:700;padding:6px 12px;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);cursor:pointer;font-family:inherit;color:#ccc;transition:all 0.15s;white-space:nowrap;}
+.ctrl-btn{font-size:10px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);cursor:pointer;font-family:inherit;color:#ccc;transition:all 0.15s;white-space:nowrap;}
 .ctrl-btn.on{background:rgba(78,161,255,0.2);border-color:#4ea1ff;color:#4ea1ff;}
 .ctrl-btn:hover{border-color:rgba(255,255,255,0.3);}
+.victory-btn-row{display:flex;gap:10px;justify-content:center;}
 .stage-selector{position:absolute;top:14px;right:14px;z-index:30;display:flex;flex-direction:column;gap:3px;}
 .stage-btn{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.1);cursor:pointer;font-family:inherit;color:#999;transition:all 0.15s;text-align:left;}
 .stage-btn.active{background:rgba(78,161,255,0.2);border-color:#4ea1ff;color:#4ea1ff;}
@@ -133,7 +147,7 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .role-atk .sprite-img{filter:drop-shadow(0 0 10px rgba(255,80,80,0.9)) drop-shadow(0 0 22px rgba(255,40,40,0.5));}
 .role-def .sprite-img{filter:drop-shadow(0 0 10px rgba(80,160,255,0.9)) drop-shadow(0 0 22px rgba(40,100,255,0.5)) hue-rotate(160deg) saturate(1.3);}
 .role-sup .sprite-img{filter:drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 0 22px rgba(255,180,0,0.5)) sepia(0.3) saturate(1.4) hue-rotate(30deg);}
-.replay-log{position:absolute;left:50%;bottom:165px;transform:translateX(-50%);max-height:140px;overflow:hidden;z-index:25;pointer-events:none;display:flex;flex-direction:column-reverse;gap:3px;}
+.replay-log{position:absolute;left:50%;bottom:calc(210px + 8px);transform:translateX(-50%);max-height:120px;overflow:hidden;z-index:25;pointer-events:none;display:flex;flex-direction:column-reverse;gap:3px;}
 .log-entry{background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:3px 10px;font-size:11px;color:#ccc;backdrop-filter:blur(4px);white-space:nowrap;animation:fadeIn 0.2s ease;}
 .log-entry.hit{color:#fff;}
 .log-entry.crit{color:#ff7070;font-weight:700;}
@@ -175,10 +189,6 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
   <!-- Damage floats -->
   <div id="dmg-container"></div>
 
-  <!-- Turn order bar -->
-  <div class="turn-order" id="turn-order"></div>
-  <div class="turn-indicator ally-turn" id="turn-indicator">ALLY TURN</div>
-
   <!-- Stage selector -->
   <div class="stage-selector" id="stage-selector">
     <button class="stage-btn active" data-bg="cof/bg-server-closet.svg">Server Closet</button>
@@ -191,10 +201,6 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
     <button class="stage-btn" data-bg="cof/bg-breakroom.svg">Break Room</button>
     <button class="stage-btn" data-bg="cof/bg-storage.svg">Storage</button>
   </div>
-
-  <!-- Team strips -->
-  <div class="team-strip allies" id="ally-strip"></div>
-  <div class="team-strip enemies" id="enemy-strip"></div>
 
   <!-- Unit slots (ally) -->
   <div class="unit ally unit-ally-0" id="unit-a0" data-uid="a0" data-side="ally" data-slot="0">
@@ -265,31 +271,70 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
   <div class="replay-badge" id="replay-badge" style="display:none">⏵ REPLAY</div>
 
   <!-- Action panel -->
-  <div class="action-panel">
-    <div class="active-portrait" id="panel-portrait">?</div>
-    <div class="active-info">
-      <div class="active-name" id="panel-name">—</div>
-      <div class="active-role" id="panel-role">—</div>
-      <div class="panel-bar">
-        <span class="panel-bar-label">HP</span>
-        <div class="panel-bar-track"><div class="panel-bar-fill panel-hp" id="panel-hp-fill" style="width:100%"></div></div>
-        <span class="panel-val" id="panel-hp-val">—</span>
-      </div>
-      <div class="panel-bar">
-        <span class="panel-bar-label">PR</span>
-        <div class="panel-bar-track"><div class="panel-bar-fill panel-pr" id="panel-pr-fill" style="width:0%"></div></div>
-        <span class="panel-val" id="panel-pr-val">0</span>
-      </div>
+  <div class="action-panel" id="action-panel">
+
+    <!-- Top row: turn order (moved from stage top) -->
+    <div class="panel-turn-row">
+      <div class="turn-indicator ally-turn" id="turn-indicator">ALLY TURN</div>
+      <div class="turn-order" id="turn-order"></div>
     </div>
-    <div class="ability-bar" id="ability-bar">
-      <button class="abl-btn" data-abl="0"><span class="abl-icon">⚔️</span><span class="abl-name">Strike</span><div class="abl-cd"></div></button>
-      <button class="abl-btn" data-abl="1"><span class="abl-icon">🌑</span><span class="abl-name">Shadow</span><div class="abl-cd"></div></button>
-      <button class="abl-btn" data-abl="2"><span class="abl-icon">✨</span><span class="abl-name">Vanish</span><div class="abl-cd"></div></button>
-      <button class="abl-btn" data-abl="3"><span class="abl-icon">☠️</span><span class="abl-name">Mark</span><div class="abl-cd"></div></button>
-    </div>
-    <div class="controls">
-      <button class="ctrl-btn" id="btn-auto">AUTO</button>
-      <button class="ctrl-btn" id="btn-speed">1×</button>
+
+    <!-- Main row -->
+    <div class="panel-main-row">
+
+      <!-- Left: active unit info -->
+      <div class="panel-unit-block">
+        <div class="active-portrait" id="panel-portrait">?</div>
+        <div class="active-info">
+          <div class="active-name" id="panel-name">—</div>
+          <div class="active-role" id="panel-role">—</div>
+          <div class="panel-bar">
+            <span class="panel-bar-label">HP</span>
+            <div class="panel-bar-track"><div class="panel-bar-fill panel-hp" id="panel-hp-fill" style="width:100%"></div></div>
+            <span class="panel-val" id="panel-hp-val">—</span>
+          </div>
+          <div class="panel-bar">
+            <span class="panel-bar-label">PR</span>
+            <div class="panel-bar-track"><div class="panel-bar-fill panel-pr" id="panel-pr-fill" style="width:0%"></div></div>
+            <span class="panel-val" id="panel-pr-val">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: ability grid + special gauge -->
+      <div class="panel-abilities-block">
+        <div class="ability-bar" id="ability-bar">
+          <button class="abl-btn" data-abl="0">
+            <span class="abl-icon">⚔️</span><span class="abl-name">Strike</span><div class="abl-cd"></div>
+            <div class="abl-tooltip">Basic attack — 100% ATK damage</div>
+          </button>
+          <button class="abl-btn" data-abl="1">
+            <span class="abl-icon">🌑</span><span class="abl-name">Shadow</span><div class="abl-cd"></div>
+            <div class="abl-tooltip">Heavy strike — 140% ATK damage</div>
+          </button>
+          <button class="abl-btn" data-abl="2">
+            <span class="abl-icon">✨</span><span class="abl-name">Vanish</span><div class="abl-cd"></div>
+            <div class="abl-tooltip">Self-buff — +30% dodge for 2 turns</div>
+          </button>
+          <button class="abl-btn" data-abl="3">
+            <span class="abl-icon">☠️</span><span class="abl-name">Mark</span><div class="abl-cd"></div>
+            <div class="abl-tooltip">Debuff target — +25% damage taken</div>
+          </button>
+        </div>
+        <div class="special-gauge-row">
+          <span class="special-label">⚡ SPECIAL</span>
+          <div class="special-gauge-track"><div class="special-gauge-fill" id="special-gauge-fill" style="width:0%"></div></div>
+          <span class="panel-val" id="special-pct">0%</span>
+          <button class="abl-btn special-btn" id="btn-special" disabled>UNLEASH</button>
+        </div>
+      </div>
+
+      <!-- Right: controls -->
+      <div class="panel-controls-block">
+        <button class="ctrl-btn" id="btn-auto">AUTO</button>
+        <button class="ctrl-btn" id="btn-speed">1×</button>
+      </div>
+
     </div>
   </div>
 
@@ -345,6 +390,59 @@ let awaitingTarget = false;
 let activeAbility = 0;
 let battleOver = false;
 let spriteState = {};     // uid → { frame, timer, mode:'idle'|'attack', onDone }
+
+// ─── Special gauge ────────────────────────────────────────────────────────────
+let specialGauge = Math.min(100, Math.max(0, parseFloat(localStorage.getItem('heroproto_special_gauge') || '0')));
+
+function updateSpecialGaugeUI() {
+  const pct = Math.round(specialGauge);
+  const fill = $('special-gauge-fill');
+  const label = $('special-pct');
+  const btn = $('btn-special');
+  if(fill) fill.style.width = pct + '%';
+  if(label) label.textContent = pct + '%';
+  if(btn) btn.disabled = pct < 100;
+}
+
+function addSpecialProgress(amount) {
+  if(battleOver) return;
+  specialGauge = Math.min(100, specialGauge + amount);
+  localStorage.setItem('heroproto_special_gauge', String(specialGauge));
+  updateSpecialGaugeUI();
+}
+
+function fireSpecialAttack() {
+  if(specialGauge < 100 || battleOver) return;
+  specialGauge = 0;
+  localStorage.setItem('heroproto_special_gauge', '0');
+  updateSpecialGaugeUI();
+  exitTargetMode();
+
+  const attackerUid = turnOrder[0];
+  const attacker = units[attackerUid];
+  if(!attacker || attacker.side !== 'ally') return;
+
+  setAbilityButtonsEnabled(false);
+  const liveEnemies = Object.values(units).filter(u => u.side === 'enemy' && u.hp > 0);
+  if(!liveEnemies.length) { setAbilityButtonsEnabled(true); return; }
+
+  flashScreen('rgba(187,68,255,0.35)');
+  addLog('⚡ ' + attacker.name + ' UNLEASHES a special attack!', 'crit');
+
+  (async () => {
+    for(const target of liveEnemies) {
+      const amount = Math.floor((120 + Math.random() * 80));
+      await animateAttack(attackerUid, target.uid, amount, true);
+      applyDamage(target.uid, amount);
+      await delay(180);
+      if(checkDeath(target.uid)) { if(checkBattleOver()) return; }
+    }
+    await delay(300);
+    advanceTurn();
+    await runEnemyTurns();
+    setAbilityButtonsEnabled(true);
+  })();
+}
 
 // ─── DOM helpers ─────────────────────────────────────────────────────────────
 const $  = id => document.getElementById(id);
@@ -518,42 +616,12 @@ function setUnitSprite(uid) {
 }
 
 // ─── Team strip ──────────────────────────────────────────────────────────────
-function renderStrips() {
-  const allyStrip = $('ally-strip');
-  const enemyStrip = $('enemy-strip');
-  allyStrip.innerHTML = '';
-  enemyStrip.innerHTML = '';
-
-  Object.values(units).forEach(u => {
-    const strip = u.side === 'ally' ? allyStrip : enemyStrip;
-    const card = el('div', 'team-port-card' + (u.hp <= 0 ? ' dead-card' : ''));
-    card.id = 'strip-' + u.uid;
-    const hpPct = Math.max(0, u.hp / u.maxHp * 100);
-    const fillCls = hpPct < 25 ? 'mini-fill red' : hpPct < 55 ? 'mini-fill orange' : 'mini-fill green';
-    const portHtml = u.bustUrl
-      ? `<img src="${u.bustUrl}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.outerHTML='<span class=\\'team-port-img\\'>${u.emoji||'?'}</span>'">`
-      : `<span class="team-port-img">${u.emoji || '?'}</span>`;
-    card.innerHTML = `${portHtml}
-      <div>
-        <div class="team-port-name">${u.name}</div>
-        <div class="mini-bar"><div class="${fillCls}" style="width:${hpPct}%"></div></div>
-      </div>`;
-    strip.appendChild(card);
-  });
-}
+function renderStrips() { /* team strips removed — turn order bar is the live roster */ }
 
 function updateStripCard(uid) {
-  const u = units[uid];
-  if(!u) return;
-  const card = document.getElementById('strip-' + uid);
-  if(!card) return;
-  const hpPct = Math.max(0, u.hp / u.maxHp * 100);
-  const fillCls = hpPct < 25 ? 'mini-fill red' : hpPct < 55 ? 'mini-fill orange' : 'mini-fill green';
-  const fill = card.querySelector('.mini-fill');
-  if(fill) { fill.className = fillCls; fill.style.width = hpPct + '%'; }
-  card.classList.toggle('dead-card', u.hp <= 0);
-  card.classList.toggle('active-card', false);
+  // no-op: strip cards removed
 }
+function updateStripCard(uid) { /* no-op */ }
 
 // ─── Turn order bar ───────────────────────────────────────────────────────────
 function renderTurnOrder() {
@@ -749,6 +817,8 @@ async function animateAttack(attackerUid, targetUid, amount, crit) {
     shakeStage();
     spawnCritText(center.x, center.y - 20);
     spawnParticles(center.x, center.y, '#ff4444', 10);
+    // fill special gauge on ally crits
+    if(atkU && atkU.side === 'ally') addSpecialProgress(25);
   } else {
     flashScreen('rgba(255,255,255,0.08)');
     spawnParticles(center.x, center.y, '#ffffff', 5);
@@ -837,7 +907,10 @@ function showVictory(result, rewards) {
       <div class="victory-title">${isWin ? 'VICTORY' : 'DEFEAT'}</div>
       <div class="victory-subtitle">${isWin ? 'Your team conquered the arena!' : 'Your team was defeated.'}</div>
       ${rewardsHtml}
-      <button class="victory-btn" onclick="isReplayMode ? history.back() : location.reload()">${isReplayMode ? 'BACK' : 'PLAY AGAIN'}</button>
+      <div class="victory-btn-row">
+        ${isWin ? `<button class="victory-btn" style="background:#2266cc;color:#fff;" onclick="history.length > 1 ? history.back() : (window.location.href='/app/stages')">📦 COLLECT LOOT</button>` : ''}
+        <button class="victory-btn" onclick="isReplayMode ? history.back() : location.reload()">${isReplayMode ? 'BACK' : 'PLAY AGAIN'}</button>
+      </div>
     </div>`;
   $('stage').appendChild(ov);
 }
@@ -883,6 +956,16 @@ function setupDemoAbilities() {
       enterTargetMode();
     });
   });
+  const specialBtn = $('btn-special');
+  if(specialBtn) {
+    specialBtn.addEventListener('click', () => {
+      const uid = turnOrder[0];
+      const u = units[uid];
+      if(!u || u.side !== 'ally' || isAutoMode || isReplayMode) return;
+      fireSpecialAttack();
+    });
+  }
+  updateSpecialGaugeUI();
 }
 
 function enterTargetMode() {
@@ -1023,6 +1106,8 @@ function setAbilityButtonsEnabled(enabled) {
   $('ability-bar').querySelectorAll('.abl-btn').forEach(btn => {
     btn.disabled = !enabled || !isAllyTurn || isAutoMode || isReplayMode;
   });
+  const specialBtn = $('btn-special');
+  if(specialBtn) specialBtn.disabled = !enabled || !isAllyTurn || isAutoMode || isReplayMode || specialGauge < 100;
 }
 
 function startDemo() {
