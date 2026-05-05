@@ -99,6 +99,9 @@ class MeOut(BaseModel):
     cosmetic_frames: list[str] = []
     # Currently-equipped frame code from cosmetic_frames; empty = no frame.
     active_cosmetic_frame: str = ""
+    arena_rating: int = 1000
+    arena_wins: int = 0
+    arena_losses: int = 0
     hero_slot_cap: int = 50
     gear_slot_cap: int = 200
     is_admin: bool = False

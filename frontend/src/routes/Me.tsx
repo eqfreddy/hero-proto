@@ -221,10 +221,8 @@ function OpsPanel() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, height: '100%' }}>
-      {/* Left: command matrix + status */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', paddingRight: 4 }}>
-        {/* Player strip */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflowY: 'auto' }}>
+      {/* Player strip */}
         <div style={{
           background: 'var(--panel-2)', border: '1px solid rgba(0,255,224,0.06)',
           borderRadius: 8, padding: '14px 16px',
@@ -334,10 +332,9 @@ function OpsPanel() {
             </div>
           </div>
         )}
-      </div>
 
-      {/* Right: daily quests + login bonus */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+      {/* Daily row: login bonus + ops side by side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 12 }}>
         {/* Daily login bonus */}
         <div style={{ background: 'var(--panel-2)', border: '1px solid rgba(200,16,46,0.2)', borderRadius: 8, padding: '14px 16px' }}>
           <div className="label-caps" style={{ marginBottom: 10 }}>🎁 Daily Login</div>
@@ -356,7 +353,7 @@ function OpsPanel() {
 
         {/* Daily ops */}
         {daily && (
-          <div style={{ background: 'var(--panel-2)', border: '1px solid rgba(0,255,224,0.06)', borderRadius: 8, padding: '14px 16px', flex: 1 }}>
+          <div style={{ background: 'var(--panel-2)', border: '1px solid rgba(0,255,224,0.06)', borderRadius: 8, padding: '14px 16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div className="label-caps">📋 Daily Ops</div>
               <span style={{ fontSize: 10, color: 'var(--good)' }}>{claimed}/{total}</span>
