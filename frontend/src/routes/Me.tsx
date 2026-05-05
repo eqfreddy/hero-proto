@@ -11,6 +11,18 @@ import { toast } from '../store/ui'
 import { RootlordSidebar } from '../components/Layout/RootlordSidebar'
 import { RarityPill } from '../components/RarityPill'
 import { useAuthStore } from '../store/auth'
+import type { ShopProduct } from '../types'
+
+const LOG_ENTRIES = [
+  { tag: '[ARENA]',  color: 'var(--good)',        msg: 'WIN vs shadowkill_99 +12'       },
+  { tag: '[SUMMON]', color: 'var(--void-purple)',  msg: 'Pulled: Netrunner [RARE]'       },
+  { tag: '[GUILD]',  color: 'var(--accent)',       msg: 'Guild contribution recorded'    },
+  { tag: '[ARENA]',  color: 'var(--bad)',          msg: 'LOSS vs DevNull404 -8'          },
+  { tag: '[RAID]',   color: 'var(--gold)',         msg: 'Contributed 2,400 dmg to boss'  },
+  { tag: '[QUEST]',  color: 'var(--good)',         msg: 'Daily quest completed'           },
+]
+
+let _logKey = 0
 
 // ── Top bar ──────────────────────────────────────────────────────────────────
 
@@ -110,55 +122,11 @@ const ZONES: { id: Zone; icon: string; label: string }[] = [
   { id: 'raid',   icon: '🐉', label: 'Raid'   },
 ]
 
-// ── Sector: Ops ───────────────────────────────────────────────────────────────
+// ── Action tile ───────────────────────────────────────────────────────────────
 
-function OpsPanel() {
-  const { data: me } = useMe()
-  const { data: heroes } = useHeroes()
-  const { data: daily, refetch: refetchDaily } = useQuery({ queryKey: ['daily'], queryFn: fetchDaily, staleTime: 30_000 })
-  const qc = useQueryClient()
+function ActionTile({ icon, label, path, color, badge }: { icon: string; label: string; path: string; color: string; badge?: string }) {
   const navigate = useNavigate()
-  const [claiming, setClaiming] = useState(false)
-  const [claimingBonus, setClaimingBonus] = useState(false)
-
-  if (!me) return null
-
-  const energyPct = Math.min(100, (me.energy / me.energy_cap) * 100)
-  const energyColor = energyPct > 60 ? 'var(--good)' : energyPct > 25 ? 'var(--warn)' : 'var(--bad)'
-  const pityPct = Math.min(100, (me.pulls_since_epic / 50) * 100)
-  const claimable = (daily ?? []).filter((q) => q.status === 'COMPLETE')
-  const claimed = (daily ?? []).filter((q) => q.status === 'CLAIMED').length
-  const total = daily?.length ?? 0
-
-  const RARITY_ORDER = ['MYTH', 'LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'COMMON']
-  const topHeroes = [...(heroes ?? [])]
-    .sort((a, b) => RARITY_ORDER.indexOf(a.template.rarity) - RARITY_ORDER.indexOf(b.template.rarity) || b.power - a.power)
-    .slice(0, 6)
-
-  async function claimAll() {
-    setClaiming(true)
-    for (const q of claimable) {
-      try { await apiPost(`/daily/${q.id}/claim`, {}) } catch { /* continue */ }
-    }
-    await qc.invalidateQueries({ queryKey: ['daily'] })
-    await qc.invalidateQueries({ queryKey: ['me'] })
-    refetchDaily()
-    toast.success(`Claimed ${claimable.length} reward${claimable.length !== 1 ? 's' : ''}!`)
-    setClaiming(false)
-  }
-
-  async function claimDailyBonus() {
-    setClaimingBonus(true)
-    try {
-      const res = await apiPost<{ reward: Record<string, number> }>('/me/daily-bonus', {})
-      const parts = Object.entries(res.reward).filter(([, v]) => v > 0).map(([k, v]) => `+${v} ${k}`)
-      toast.success(parts.length ? `Daily bonus: ${parts.join(', ')}` : 'Claimed!')
-      qc.invalidateQueries({ queryKey: ['me'] })
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
-    finally { setClaimingBonus(false) }
-  }
-
-  const ActionTile = ({ icon, label, path, color, badge }: { icon: string; label: string; path: string; color: string; badge?: string }) => (
+  return (
     <div
       role="button" tabIndex={0}
       onClick={() => navigate(path)}
@@ -198,6 +166,59 @@ function OpsPanel() {
       <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{label}</div>
     </div>
   )
+}
+
+// ── Sector: Ops ───────────────────────────────────────────────────────────────
+
+function OpsPanel() {
+  const { data: me } = useMe()
+  const { data: heroes } = useHeroes()
+  const { data: daily, refetch: refetchDaily } = useQuery({ queryKey: ['daily'], queryFn: fetchDaily, staleTime: 30_000 })
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const [claiming, setClaiming] = useState(false)
+  const [claimingBonus, setClaimingBonus] = useState(false)
+
+  if (!me) return null
+
+  const energyPct = Math.min(100, (me.energy / me.energy_cap) * 100)
+  const energyColor = energyPct > 60 ? 'var(--good)' : energyPct > 25 ? 'var(--warn)' : 'var(--bad)'
+  const pityPct = Math.min(100, (me.pulls_since_epic / 50) * 100)
+  const claimable = (daily ?? []).filter((q) => q.status === 'COMPLETE')
+  const claimed = (daily ?? []).filter((q) => q.status === 'CLAIMED').length
+  const total = daily?.length ?? 0
+
+  const RARITY_ORDER = ['MYTH', 'LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'COMMON']
+  const topHeroes = [...(heroes ?? [])]
+    .sort((a, b) => RARITY_ORDER.indexOf(a.template.rarity) - RARITY_ORDER.indexOf(b.template.rarity) || b.power - a.power)
+    .slice(0, 6)
+
+  async function claimAll() {
+    setClaiming(true)
+    let successes = 0
+    for (const q of claimable) {
+      try {
+        await apiPost(`/daily/${q.id}/claim`, {})
+        successes++
+      } catch {}
+    }
+    await qc.invalidateQueries({ queryKey: ['daily'] })
+    await qc.invalidateQueries({ queryKey: ['me'] })
+    refetchDaily()
+    if (successes > 0) toast.success(`Claimed ${successes} reward${successes !== 1 ? 's' : ''}!`)
+    setClaiming(false)
+  }
+
+  async function claimDailyBonus() {
+    setClaimingBonus(true)
+    try {
+      const res = await apiPost<{ reward: Record<string, number> }>('/me/daily-bonus', {})
+      const parts = Object.entries(res.reward).filter(([, v]) => v > 0).map(([k, v]) => `+${v} ${k}`)
+      toast.success(parts.length ? `Daily bonus: ${parts.join(', ')}` : 'Claimed!')
+      qc.invalidateQueries({ queryKey: ['me'] })
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
+    finally { setClaimingBonus(false) }
+  }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, height: '100%' }}>
@@ -454,21 +475,12 @@ function RightPanel() {
   const [exchanging, setExchanging] = useState(false)
   const logIdx = useRef(4)
 
-  const LOG_ENTRIES = [
-    { tag: '[ARENA]',  color: 'var(--good)',        msg: 'WIN vs shadowkill_99 +12'       },
-    { tag: '[SUMMON]', color: 'var(--void-purple)',  msg: 'Pulled: Netrunner [RARE]'       },
-    { tag: '[GUILD]',  color: 'var(--accent)',       msg: 'Guild contribution recorded'    },
-    { tag: '[ARENA]',  color: 'var(--bad)',          msg: 'LOSS vs DevNull404 -8'          },
-    { tag: '[RAID]',   color: 'var(--gold)',         msg: 'Contributed 2,400 dmg to boss'  },
-    { tag: '[QUEST]',  color: 'var(--good)',         msg: 'Daily quest completed'           },
-  ]
-  const [logEntries, setLogEntries] = useState(LOG_ENTRIES.slice(0, 4))
+  const [logEntries, setLogEntries] = useState(() => LOG_ENTRIES.slice(0, 4).map(e => ({ ...e, key: _logKey++ })))
 
   useEffect(() => {
     const id = setInterval(() => {
-      const entry = LOG_ENTRIES[logIdx.current % LOG_ENTRIES.length]
+      setLogEntries((prev) => [{ ...LOG_ENTRIES[logIdx.current % LOG_ENTRIES.length], key: _logKey++ }, ...prev].slice(0, 8))
       logIdx.current++
-      setLogEntries((prev) => [entry, ...prev].slice(0, 8))
     }, 9000)
     return () => clearInterval(id)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -591,7 +603,7 @@ function RightPanel() {
         <div className="label-caps">System Log</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {logEntries.map((e, i) => (
-            <div key={i} style={{
+            <div key={e.key} style={{
               fontSize: 9, padding: '4px 6px',
               borderLeft: `2px solid ${i === 0 ? e.color : 'rgba(255,255,255,0.04)'}`,
               color: i === 0 ? 'rgba(200,220,255,0.6)' : 'var(--muted)',
@@ -610,7 +622,7 @@ function RightPanel() {
 }
 
 function ShopItem({ product, onBuy, buying }: {
-  product: { sku: string; title: string; description: string; price_cents: number; kind: string }
+  product: ShopProduct
   onBuy: (sku: string) => void
   buying: string | null
 }) {
