@@ -36,7 +36,12 @@ export async function apiFetch<T = unknown>(
     let message = `HTTP ${res.status}`
     try {
       const body = await res.json()
-      message = body.detail ?? body.message ?? message
+      const raw = body.detail ?? body.message
+      if (Array.isArray(raw)) {
+        message = raw.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join('; ')
+      } else if (raw != null) {
+        message = String(raw)
+      }
     } catch {}
     if (res.status === 401) {
       useAuthStore.getState().clearJwt()

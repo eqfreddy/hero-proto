@@ -168,7 +168,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return request.client.host
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        if request.url.path == "/healthz":
+        if request.url.path == "/healthz" or request.url.path.startswith("/app/static/") or request.url.path.startswith("/placeholder/"):
             return await call_next(request)
         key = self._client_key(request)
         now = time.monotonic()

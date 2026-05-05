@@ -383,15 +383,16 @@ const STAGE_CODE_TO_BG = {
 const BUST_BASE = '/app/static/heroes/busts/';
 
 // ─── Demo roster ─────────────────────────────────────────────────────────────
+const TEMPLATE_SPRITE = { 'dark-assassin': true };
 const DEMO_ALLIES = [
-  { uid:'a0', name:'Shadow Hacker',  role:'ATK', emoji:'🗡️', hp:820,  maxHp:820,  prot:0,   maxProt:0,   useSprite:true },
-  { uid:'a1', name:'Iron Sysadmin',  role:'DEF', emoji:'🪖', hp:1100, maxHp:1100, prot:200, maxProt:200, useSprite:true },
-  { uid:'a2', name:'Support Lead',   role:'SUP', emoji:'✨', hp:780,  maxHp:780,  prot:100, maxProt:100, useSprite:true },
+  { uid:'a0', name:'Dark Assassin',    role:'ATK', emoji:'🗡️', hp:820,  maxHp:820,  prot:0,   maxProt:0,   template_code:'dark-assassin' },
+  { uid:'a1', name:'Keymaster Gary',   role:'DEF', emoji:'🪖', hp:1100, maxHp:1100, prot:200, maxProt:200, template_code:'keymaster_gary' },
+  { uid:'a2', name:'On-Call Warrior',  role:'SUP', emoji:'✨', hp:780,  maxHp:780,  prot:100, maxProt:100, template_code:'oncall_warrior' },
 ];
 const DEMO_ENEMIES = [
-  { uid:'e0', name:'Ticket Gremlin', role:'ATK', emoji:'💀', hp:700,  maxHp:700,  prot:0,   maxProt:0,   useSprite:true },
-  { uid:'e1', name:'Legacy Colossus',role:'DEF', emoji:'👹', hp:1200, maxHp:1200, prot:300, maxProt:300, useSprite:true },
-  { uid:'e2', name:'Chaos Monkey',   role:'SUP', emoji:'⚔️', hp:650,  maxHp:650,  prot:50,  maxProt:50,  useSprite:true },
+  { uid:'e0', name:'Ticket Gremlin',   role:'ATK', emoji:'💀', hp:700,  maxHp:700,  prot:0,   maxProt:0,   template_code:'ticket_gremlin' },
+  { uid:'e1', name:'The Board Member', role:'DEF', emoji:'👹', hp:1200, maxHp:1200, prot:300, maxProt:300, template_code:'the_board_member' },
+  { uid:'e2', name:'Chaos Monkey',     role:'SUP', emoji:'⚔️', hp:650,  maxHp:650,  prot:50,  maxProt:50,  template_code:'chaos_monkey' },
 ];
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -933,10 +934,14 @@ function showVictory(result, rewards) {
 function buildDemoUnits() {
   units = {};
   DEMO_ALLIES.forEach((d, i) => {
-    units[d.uid] = { ...d, side:'ally', slot:i, level:5 };
+    units[d.uid] = { ...d, side:'ally', slot:i, level:5,
+      useSprite: !!(d.template_code && TEMPLATE_SPRITE[d.template_code]),
+      bustUrl: d.template_code ? BUST_BASE + d.template_code + '.png' : null };
   });
   DEMO_ENEMIES.forEach((d, i) => {
-    units[d.uid] = { ...d, side:'enemy', slot:i, level:4 };
+    units[d.uid] = { ...d, side:'enemy', slot:i, level:4,
+      useSprite: !!(d.template_code && TEMPLATE_SPRITE[d.template_code]),
+      bustUrl: d.template_code ? BUST_BASE + d.template_code + '.png' : null };
   });
 
   // Build turn order: interleaved
@@ -1180,7 +1185,7 @@ function buildUnitsFromParticipants(participants) {
       side,
       slot,
       level: p.level || 1,
-      useSprite: true,
+      useSprite: !!(p.template_code && TEMPLATE_SPRITE[p.template_code]),
       bustUrl: p.template_code ? BUST_BASE + p.template_code + '.png' : null,
     };
   });

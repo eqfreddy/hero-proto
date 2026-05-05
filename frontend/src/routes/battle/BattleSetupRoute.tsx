@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '../../api/client'
 import { postBattle, postInteractiveStart } from '../../api/battles'
@@ -16,12 +16,15 @@ function useStages() {
 
 export default function BattleSetupRoute() {
   const navigate = useNavigate()
+  const location = useLocation()
   const addToast = useUiStore(s => s.addToast)
   const { data: heroes = [] } = useHeroes()
   const { data: stages = [] } = useStages()
 
   const [team, setTeam] = useState<(number | null)[]>([null, null, null])
-  const [selectedStageId, setSelectedStageId] = useState<number | null>(null)
+  const [selectedStageId, setSelectedStageId] = useState<number | null>(
+    (location.state as { stageId?: number } | null)?.stageId ?? null
+  )
   const [interactive, setInteractive] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 

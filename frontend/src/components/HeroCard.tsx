@@ -12,7 +12,7 @@ interface Props {
 export function HeroCard({ hero, onClick, selected }: Props) {
   const { template: t } = hero
   const bustUrl = `/app/static/heroes/busts/${t.code}.png`
-  const placeholderUrl = `/placeholder/hero/${t.code}.svg`
+  const placeholderUrl = `/app/placeholder/hero/${t.code}.svg`
 
   return (
     <div
