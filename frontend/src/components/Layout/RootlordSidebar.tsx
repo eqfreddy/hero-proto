@@ -35,19 +35,23 @@ export function RootlordSidebar() {
   const [quote, setQuote] = useState('')
   const [visible, setVisible] = useState(true)
 
-  const unclaimed = (daily ?? []).filter((q: { status: string }) => q.status === 'COMPLETE').length
+  const unclaimed = (daily ?? []).filter((q) => q.status === 'COMPLETE').length
 
   useEffect(() => {
     const next = pickQuote(me, unclaimed)
     setQuote(next)
+    let fadeTimer: ReturnType<typeof setTimeout>
     const id = setInterval(() => {
       setVisible(false)
-      setTimeout(() => {
+      fadeTimer = setTimeout(() => {
         setQuote(pickQuote(me, unclaimed))
         setVisible(true)
       }, 350)
     }, 6000)
-    return () => clearInterval(id)
+    return () => {
+      clearInterval(id)
+      clearTimeout(fadeTimer)
+    }
   }, [me, unclaimed])
 
   return (
@@ -130,7 +134,7 @@ export function RootlordSidebar() {
         <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
           <span style={{ color: 'var(--crimson)' }}>root@void:~$</span>
           {' '}
-          <span style={{
+          <span aria-hidden="true" style={{
             display: 'inline-block',
             width: 7, height: 12,
             background: 'var(--accent)',
