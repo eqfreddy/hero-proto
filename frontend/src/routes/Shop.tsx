@@ -111,37 +111,6 @@ export function ShopRoute() {
         </div>
       )}
 
-      {/* Gem tab: starter bundle */}
-      {tab === 'gems' && shop.starter && (
-        <div
-          className="card"
-          style={{ border: '1px solid var(--r-legendary)', background: 'rgba(255,215,0,0.04)' }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              color: 'var(--r-legendary)',
-              textTransform: 'uppercase',
-              fontWeight: 700,
-              marginBottom: 6,
-            }}
-          >
-            ⭐ Starter Bundle
-          </div>
-          <div style={{ fontWeight: 700 }}>{shop.starter.title}</div>
-          <div className="muted" style={{ fontSize: 12, margin: '4px 0 10px' }}>
-            {shop.starter.description}
-          </div>
-          <button
-            className="primary"
-            onClick={() => buy(shop.starter!.sku)}
-            disabled={!!buying}
-          >
-            {buying === shop.starter.sku ? '…' : `$${(shop.starter.price_cents / 100).toFixed(2)}`}
-          </button>
-        </div>
-      )}
-
       {/* Products grid */}
       {products.length === 0 && (
         <div className="card muted" style={{ textAlign: 'center', padding: 32 }}>
@@ -190,6 +159,37 @@ export function ShopRoute() {
           </div>
         ))}
       </div>
+
+      {/* Gem tab: starter bundle */}
+      {tab === 'gems' && shop.starter && (
+        <div
+          className="card"
+          style={{ border: '1px solid var(--r-legendary)', background: 'rgba(255,215,0,0.04)' }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              color: 'var(--r-legendary)',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              marginBottom: 6,
+            }}
+          >
+            ⭐ Starter Bundle
+          </div>
+          <div style={{ fontWeight: 700 }}>{shop.starter.title}</div>
+          <div className="muted" style={{ fontSize: 12, margin: '4px 0 10px' }}>
+            {shop.starter.description}
+          </div>
+          <button
+            className="primary"
+            onClick={() => buy(shop.starter!.sku)}
+            disabled={!!buying}
+          >
+            {buying === shop.starter.sku ? '…' : `$${(shop.starter.price_cents / 100).toFixed(2)}`}
+          </button>
+        </div>
+      )}
 
       {/* Purchase history */}
       {shop.history.length > 0 && (
