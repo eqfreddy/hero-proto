@@ -39,6 +39,11 @@ class Faction(StrEnum):
     # purely cosmetic; combat synergy treats EXILE like any other faction (so a
     # team of 5 EXILE heroes gets the 5-of-faction synergy bonus).
     EXILE = "EXILE"
+    # Phase 3.5 alignment factions — chosen at level 50, one-time irreversible
+    # (gem-sink reset exists but is discouraged). RESISTANCE takes down the Corp;
+    # CORP_GREED becomes it. Both unlock exclusive epic story chapters + a unique hero.
+    RESISTANCE = "RESISTANCE"
+    CORP_GREED = "CORP_GREED"
 
 
 class Role(StrEnum):
@@ -75,9 +80,13 @@ class BattleOutcome(StrEnum):
 
 class GearSlot(StrEnum):
     WEAPON = "WEAPON"
-    HELMET = "HELMET"
-    ARMOR = "ARMOR"
-    BOOTS = "BOOTS"
+    # Six armor slots — head to toe.
+    HEAD = "HEAD"      # was HELMET
+    CHEST = "CHEST"    # was ARMOR
+    HANDS = "HANDS"    # gloves/gauntlets
+    WRIST = "WRIST"    # bracers/wristbands
+    LEGS = "LEGS"      # greaves/cargo pants
+    FEET = "FEET"      # was BOOTS
     RING = "RING"
     AMULET = "AMULET"
 
@@ -287,6 +296,9 @@ class Account(Base):
     # weight pre-fork; surfaced on the profile + roster header so it reads
     # like an identity choice the player will make later.
     faction: Mapped[Faction] = mapped_column(String(16), default=Faction.EXILE)
+    # Set when the player makes the level-50 alignment choice. NULL = still EXILE.
+    # Used to prevent re-choosing without the gem-sink reset flow.
+    alignment_chosen_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
     # Story state — JSON dict tracking which chapter cutscenes the player has
     # already seen. Keyed by "chapter_code:beat_index" with timestamp values.
@@ -449,9 +461,14 @@ class Gear(Base):
     set_code: Mapped[GearSet] = mapped_column(String(16), default=GearSet.VITAL)
     # Flat-bonus stat map, e.g. {"atk": 30, "hp": 120}.
     stats_json: Mapped[str] = mapped_column(String(512), default="{}")
+    # Optional name + flavor for "named" pieces — story rewards, raid drops,
+    # etc. Regular RNG drops leave both null and the UI shows the slot name.
+    name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    flavor: Mapped[str | None] = mapped_column(String(255), nullable=True)
     hero_instance_id: Mapped[int | None] = mapped_column(
         ForeignKey("hero_instances.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    locked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     obtained_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
     equipped_on: Mapped[HeroInstance | None] = relationship(
@@ -558,6 +575,26 @@ class Notification(Base):
     icon: Mapped[str] = mapped_column(String(8), default="🔔")
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True, index=True)
+
+
+class DeviceToken(Base):
+    """Push-notification device token for a logged-in account.
+
+    One row per (account, token) pair. Platform is 'fcm' (Android/web) or
+    'apns' (iOS). Tokens are upserted on registration and deleted on logout
+    or explicit unregister. Rows older than 90 days are pruned by the worker.
+    """
+
+    __tablename__ = "device_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    token: Mapped[str] = mapped_column(String(512), unique=True, index=True)
+    platform: Mapped[str] = mapped_column(String(16))  # 'fcm' | 'apns'
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
 
 class CraftMaterial(Base):

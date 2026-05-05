@@ -54,6 +54,26 @@ primary_region = "dfw"   # Dallas — change to nearest: ord, iad, lax, sea, lhr
 #   Also set the PUBLIC site key in fly.toml [env] (safe to commit):
 #     HEROPROTO_TURNSTILE_SITE_KEY="<site key from Cloudflare>"
 #
+# ► Push notifications (FCM HTTP v1 + APNs):
+#
+#   # FCM v1 — Firebase console → Project Settings → Service accounts →
+#   # Generate new private key, then base64 the JSON to keep it on one line.
+#   fly secrets set \
+#     FCM_PROJECT_ID="<your-firebase-project-id>" \
+#     FCM_SERVICE_ACCOUNT_JSON="$(cat path/to/serviceAccount.json)"
+#
+#   # APNs — Apple Developer → Certificates, IDs & Profiles → Keys →
+#   # create a new key with APNs enabled, download the .p8.
+#   fly secrets set \
+#     APNS_KEY_ID="<10-char key id>" \
+#     APNS_TEAM_ID="<10-char team id>" \
+#     APNS_BUNDLE_ID="com.heroproto.app" \
+#     APNS_AUTH_KEY_PEM="$(cat AuthKey_XXXXXXXXXX.p8)"
+#
+#   Verify after deploy: GET /admin/push/status (admin auth required) →
+#   should report fcm: true and apns: true. Then POST /admin/push/test
+#   to fire a real push to your own registered device.
+#
 # ► Optional analytics:
 #
 #   fly secrets set \

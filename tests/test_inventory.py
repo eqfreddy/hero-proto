@@ -129,7 +129,7 @@ def test_mailbox_claim_blocked_when_full(client) -> None:
                         rarity=GearRarity.COMMON, set_code=GearSet.VITAL,
                         stats_json="{}"))
         # Queue another in mailbox.
-        queue_mailbox(a, "gear", {"slot": "ARMOR", "rarity": "RARE",
+        queue_mailbox(a, "gear", {"slot": "CHEST", "rarity": "RARE",
                                    "set_code": "LIFESTEAL", "stats": {}})
         db.commit()
 
@@ -178,7 +178,7 @@ def test_gear_usage_reflects_cap_full(client) -> None:
         a.gear_slot_cap = 2
         db.add(Gear(account_id=acct_id, slot=GearSlot.WEAPON,
                     rarity=GearRarity.COMMON, set_code=GearSet.VITAL, stats_json="{}"))
-        db.add(Gear(account_id=acct_id, slot=GearSlot.ARMOR,
+        db.add(Gear(account_id=acct_id, slot=GearSlot.CHEST,
                     rarity=GearRarity.COMMON, set_code=GearSet.VITAL, stats_json="{}"))
         db.commit()
         usage = gear_usage(db, a)

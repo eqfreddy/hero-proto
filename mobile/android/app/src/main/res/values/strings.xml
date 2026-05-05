@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hero Proto</string>
+    <string name="title_activity_main">Hero Proto</string>
+    <string name="package_name">com.heroproto.app</string>
+    <string name="custom_url_scheme">com.heroproto.app</string>
+</resources>

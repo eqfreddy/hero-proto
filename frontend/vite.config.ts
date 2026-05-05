@@ -2,8 +2,21 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execSync } from 'node:child_process'
+
+function gitShort(): string {
+  try { return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() }
+  catch { return 'dev' }
+}
+
+const BUILD_VERSION = process.env.VITE_APP_VERSION ?? gitShort()
+const BUILD_TIME = process.env.VITE_APP_BUILD_TIME ?? new Date().toISOString().replace('T', ' ').slice(0, 19) + 'Z'
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(BUILD_VERSION),
+    __APP_BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
   plugins: [
     react(),
     VitePWA({

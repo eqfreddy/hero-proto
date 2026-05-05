@@ -195,6 +195,13 @@ from app import stripe_ext as _stripe_ext
 app.include_router(_stripe_ext.router)
 
 
+@app.get("/version")
+def version() -> dict:
+    """Build/release identity. Public — safe to expose."""
+    from app.version import VERSION_INFO
+    return VERSION_INFO
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     payload: dict = {"status": "ok", "env": settings.environment}

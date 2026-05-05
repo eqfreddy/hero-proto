@@ -28,13 +28,16 @@ export function BellButton() {
         aria-label="Notifications"
         aria-haspopup="dialog"
         aria-expanded={open}
-        style={{ position: 'relative', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', padding: '4px 8px', borderRadius: 4, fontSize: 14 }}>
+        className="icon-btn"
+        style={{ fontSize: 14 }}
+      >
         🔔
         {unread > 0 && (
           <span style={{
-            position: 'absolute', top: -4, right: -4,
+            position: 'absolute', top: -2, right: -2,
             background: 'var(--bad)', color: 'white',
-            fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8, minWidth: 14, textAlign: 'center',
+            fontSize: 10, fontWeight: 800, padding: '1px 5px', borderRadius: 10, minWidth: 16, textAlign: 'center',
+            boxShadow: '0 0 0 2px var(--panel)',
           }}>
             {unread > 99 ? '99+' : unread}
           </span>

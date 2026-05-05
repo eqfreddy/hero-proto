@@ -516,6 +516,61 @@ HERO_SEEDS: list[dict] = [
         },
         "special_cooldown": 4,
     },
+    # --- Phase 3.5 alignment-exclusive heroes -----------------------------------
+    # These are NOT in the standard summon pool. They are granted automatically
+    # on completing the alignment-specific epic chapter. Seeded here so combat
+    # stats and specials are queryable; the summon router ignores RESISTANCE /
+    # CORP_GREED factions the same way it ignores MYTH.
+    {
+        "code": "the_whistleblower",
+        "name": "The Whistleblower",
+        "rarity": Rarity.EPIC, "faction": Faction.RESISTANCE, "role": Role.SUP,
+        # Tanky support — high HP keeps them alive to enable the team.
+        "base_hp": 2100, "base_atk": 140, "base_def": 165, "base_spd": 120,
+        "basic_mult": 0.85,
+        "special": {
+            # Leak The Memo: AOE buff to all allies + AOE DEF_DOWN on all enemies.
+            # Turns the whole fight tempo in one cast — burst windows open immediately.
+            "name": "Leak The Memo", "type": "AOE_BUFF",
+            "effect": {"kind": "ATK_UP", "turns": 3, "value": 0.35},
+            "debuff": {"kind": "DEF_DOWN", "turns": 2, "value": 0.30},
+        },
+        "special_cooldown": 5,
+    },
+    {
+        "code": "the_successor",
+        "name": "The Successor",
+        "rarity": Rarity.EPIC, "faction": Faction.CORP_GREED, "role": Role.ATK,
+        # Glass-cannon burst — trades HP for the highest ATK in the EPIC tier.
+        "base_hp": 1850, "base_atk": 285, "base_def": 120, "base_spd": 145,
+        "basic_mult": 1.1,
+        "special": {
+            # Hostile Takeover: heavy AOE strike + self ATK_UP + enemy HEAL_BLOCK.
+            # Punishes sustain comps while ramping own damage ceiling.
+            "name": "Hostile Takeover", "type": "AOE_DAMAGE",
+            "mult": 2.0,
+            "effect": {"kind": "HEAL_BLOCK", "turns": 2, "value": 1.0},
+            "self_effect": {"kind": "ATK_UP", "turns": 3, "value": 0.45},
+        },
+        "special_cooldown": 5,
+    },
+    {
+        # Summer Slowdown 2026 event hero (July 4th / Canada Day week).
+        # The one poor soul whose pager went off during the BBQ. MYTH DEF —
+        # tanky frontline who puts the whole team into Incident Response mode.
+        "code": "on_call_martyr",
+        "name": "The On-Call Martyr",
+        "rarity": Rarity.MYTH, "faction": Faction.HELPDESK, "role": Role.DEF,
+        "base_hp": 2800, "base_atk": 140, "base_def": 260, "base_spd": 120,
+        "basic_mult": 0.85,
+        "special": {
+            # Emergency Change Window: slaps REFLECT on every ally for 2 turns.
+            # Attackers who pile on during the holiday weekend pay for it.
+            "name": "Emergency Change Window", "type": "AOE_BUFF",
+            "effect": {"kind": "REFLECT", "turns": 2, "value": 0.30},
+        },
+        "special_cooldown": 4,
+    },
     {
         # MYTH support pair to TBFAM. Mother's Day 2026 event hero.
         # Card art is intentionally inverted — that's a stylistic choice for the
@@ -786,6 +841,152 @@ STAGE_SEEDS: list[dict] = [
             _wave([("the_board_member", 33), ("the_founder", 33), ("vp_of_vibes", 33)]),
             _wave([("raidboss_legacy_colossus", 33), ("raidboss_chaos_dragon", 33), ("raidboss_c_suite_hydra", 33)]),
             _wave([("the_founder", 35), ("raidboss_c_suite_hydra", 35), ("the_board_member", 35)]),
+        ],
+    },
+    # --- Phase 3.5: RESISTANCE alignment chapter — "The Infiltration" (orders 50-54)
+    # Only accessible after choosing RESISTANCE at level 50. Enemies are Corp
+    # enforcers (EXECUTIVE / ROGUE_IT) who protect the performance metrics server.
+    {
+        "code": "resistance_breach",
+        "name": "Breach — Through the Lobby",
+        "order": 50,
+        "energy_cost": 18,
+        "recommended_power": 4200,
+        "coin_reward": 3500,
+        "first_clear_gems": 400,
+        "first_clear_shards": 12,
+        "waves": [
+            _wave([("compliance_officer", 36), ("security_auditor", 36), ("agile_coach", 36)]),
+            _wave([("the_consultant", 37), ("vp_of_vibes", 37), ("compliance_officer", 37)]),
+        ],
+    },
+    {
+        "code": "resistance_server_room",
+        "name": "The Metrics Server",
+        "order": 51,
+        "energy_cost": 19,
+        "recommended_power": 4600,
+        "coin_reward": 3900,
+        "first_clear_gems": 450,
+        "first_clear_shards": 13,
+        "waves": [
+            _wave([("the_board_member", 37), ("shadow_it_operator", 37), ("midnight_pager", 37)]),
+            _wave([("raidboss_legacy_colossus", 36), ("the_board_member", 38)]),
+        ],
+    },
+    {
+        "code": "resistance_boardroom",
+        "name": "Storm the Boardroom",
+        "order": 52,
+        "energy_cost": 20,
+        "recommended_power": 5000,
+        "coin_reward": 4300,
+        "first_clear_gems": 500,
+        "first_clear_shards": 14,
+        "waves": [
+            _wave([("the_founder", 38), ("agile_coach", 38), ("the_consultant", 38)]),
+            _wave([("the_founder", 40), ("raidboss_c_suite_hydra", 37), ("vp_of_vibes", 39)]),
+        ],
+    },
+    {
+        "code": "resistance_coup",
+        "name": "Topple the Corp",
+        "order": 53,
+        "energy_cost": 20,
+        "recommended_power": 5400,
+        "coin_reward": 4800,
+        "first_clear_gems": 550,
+        "first_clear_shards": 15,
+        "waves": [
+            _wave([("raidboss_c_suite_hydra", 38), ("the_board_member", 40), ("the_founder", 40)]),
+            _wave([("raidboss_legacy_colossus", 38), ("raidboss_c_suite_hydra", 38)]),
+        ],
+    },
+    {
+        "code": "resistance_aftermath",
+        "name": "The Whistleblower Speaks",
+        "order": 54,
+        "energy_cost": 22,
+        "recommended_power": 5800,
+        "coin_reward": 5500,
+        "first_clear_gems": 600,
+        "first_clear_shards": 20,
+        "waves": [
+            _wave([("the_founder", 42), ("raidboss_legacy_colossus", 40), ("raidboss_c_suite_hydra", 40)]),
+            _wave([("the_founder", 45), ("raidboss_c_suite_hydra", 42), ("raidboss_chaos_dragon", 40)]),
+        ],
+    },
+    # --- Phase 3.5: CORP_GREED alignment chapter — "The Ascension" (orders 60-64)
+    # Only accessible after choosing CORP_GREED at level 50. Enemies are the
+    # existing Resistance and rogue operators who stand between the player and the board.
+    {
+        "code": "corpgreed_first_move",
+        "name": "The Power Play",
+        "order": 60,
+        "energy_cost": 18,
+        "recommended_power": 4200,
+        "coin_reward": 3500,
+        "first_clear_gems": 400,
+        "first_clear_shards": 12,
+        "waves": [
+            _wave([("rogue_dba", 36), ("shadow_it_operator", 36), ("oncall_warrior", 36)]),
+            _wave([("build_engineer", 37), ("helpdesk_veteran", 37), ("rogue_dba", 37)]),
+        ],
+    },
+    {
+        "code": "corpgreed_acquisition",
+        "name": "Hostile Acquisition",
+        "order": 61,
+        "energy_cost": 19,
+        "recommended_power": 4600,
+        "coin_reward": 3900,
+        "first_clear_gems": 450,
+        "first_clear_shards": 13,
+        "waves": [
+            _wave([("retired_mainframe_guru", 37), ("blue_team_lead", 37), ("build_engineer", 37)]),
+            _wave([("raidboss_chaos_dragon", 36), ("oncall_warrior", 38)]),
+        ],
+    },
+    {
+        "code": "corpgreed_boardroom",
+        "name": "A Seat at the Table",
+        "order": 62,
+        "energy_cost": 20,
+        "recommended_power": 5000,
+        "coin_reward": 4300,
+        "first_clear_gems": 500,
+        "first_clear_shards": 14,
+        "waves": [
+            _wave([("helpdesk_veteran", 38), ("oncall_warrior", 38), ("build_engineer", 38)]),
+            _wave([("raidboss_chaos_dragon", 37), ("rogue_dba", 40), ("build_engineer", 39)]),
+        ],
+    },
+    {
+        "code": "corpgreed_saas",
+        "name": "Monetize Everything",
+        "order": 63,
+        "energy_cost": 20,
+        "recommended_power": 5400,
+        "coin_reward": 4800,
+        "first_clear_gems": 550,
+        "first_clear_shards": 15,
+        "waves": [
+            _wave([("raidboss_chaos_dragon", 38), ("blue_team_lead", 40), ("rogue_dba", 40)]),
+            _wave([("raidboss_legacy_colossus", 38), ("raidboss_chaos_dragon", 38)]),
+        ],
+    },
+    {
+        "code": "corpgreed_apotheosis",
+        "name": "Become the Corp",
+        "order": 64,
+        "energy_cost": 22,
+        "recommended_power": 5800,
+        "coin_reward": 5500,
+        "first_clear_gems": 600,
+        "first_clear_shards": 20,
+        "waves": [
+            _wave([("helpdesk_veteran", 42), ("raidboss_chaos_dragon", 40), ("raidboss_legacy_colossus", 40)]),
+            _wave([("raidboss_chaos_dragon", 42), ("raidboss_legacy_colossus", 42), ("raidboss_c_suite_hydra", 40)]),
         ],
     },
 ]

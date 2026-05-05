@@ -7,6 +7,18 @@ export class ApiError extends Error {
   }
 }
 
+// When the SPA is served from file:// (Capacitor mobile prod build) relative
+// URLs have no host. Builds for that target must set VITE_API_BASE_URL to the
+// absolute API root, e.g. "https://hero-proto.fly.dev". Web/dev builds leave
+// it unset so relative paths hit the same origin.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+
+function resolveUrl(path: string): string {
+  if (!API_BASE) return path
+  if (/^https?:\/\//i.test(path)) return path
+  return API_BASE + (path.startsWith('/') ? path : '/' + path)
+}
+
 export async function apiFetch<T = unknown>(
   url: string,
   options: RequestInit = {}
@@ -18,7 +30,7 @@ export async function apiFetch<T = unknown>(
   }
   if (jwt) headers['Authorization'] = `Bearer ${jwt}`
 
-  const res = await fetch(url, { ...options, headers })
+  const res = await fetch(resolveUrl(url), { ...options, headers })
 
   if (!res.ok) {
     let message = `HTTP ${res.status}`
@@ -26,6 +38,11 @@ export async function apiFetch<T = unknown>(
       const body = await res.json()
       message = body.detail ?? body.message ?? message
     } catch {}
+    if (res.status === 401) {
+      useAuthStore.getState().clearJwt()
+      // Let the caller throw; the component's error boundary or query will
+      // surface the error while auth state is already wiped.
+    }
     throw new ApiError(res.status, message)
   }
 

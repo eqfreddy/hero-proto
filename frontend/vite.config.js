@@ -1,8 +1,24 @@
+var _a, _b;
 // frontend/vite.config.ts
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
+function gitShort() {
+    try {
+        return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    }
+    catch (_a) {
+        return 'dev';
+    }
+}
+var BUILD_VERSION = (_a = process.env.VITE_APP_VERSION) !== null && _a !== void 0 ? _a : gitShort();
+var BUILD_TIME = (_b = process.env.VITE_APP_BUILD_TIME) !== null && _b !== void 0 ? _b : new Date().toISOString().replace('T', ' ').slice(0, 19) + 'Z';
 export default defineConfig({
+    define: {
+        __APP_VERSION__: JSON.stringify(BUILD_VERSION),
+        __APP_BUILD_TIME__: JSON.stringify(BUILD_TIME),
+    },
     plugins: [
         react(),
         VitePWA({

@@ -7,6 +7,7 @@ const me: Me = {
   pulls_since_epic: 0, stages_cleared: [], arena_rating: 1000,
   arena_wins: 0, arena_losses: 0, account_level: 1, account_xp: 0,
   qol_unlocks: {}, active_cosmetic_frame: '',
+  faction: 'EXILE', alignment_chosen_at: null, email_verified: true, totp_enabled: false, is_admin: false,
 }
 
 const tmpl: HeroTemplate = {

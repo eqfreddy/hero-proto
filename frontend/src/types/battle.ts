@@ -30,11 +30,13 @@ export interface InteractivePending {
 
 export interface InteractiveStateOut {
   session_id: string
+  status?: string
   team_a: CombatUnit[]
   team_b: CombatUnit[]
   pending: InteractivePending | null
   rewards?: Record<string, number>
   done?: boolean
+  battle_id?: number
 }
 
 export interface PostBattlePayload {

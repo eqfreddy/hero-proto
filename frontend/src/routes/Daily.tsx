@@ -7,7 +7,7 @@ import { EmptyState } from '../components/EmptyState'
 export function DailyRoute() {
   const qc = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ['daily'], queryFn: fetchDaily })
-  const quests = data?.quests ?? []
+  const quests = data ?? []
 
   if (isLoading) return <SkeletonGrid count={4} height={70} />
   if (!quests.length) return <EmptyState icon="📋" message="Daily quests reset at midnight UTC." />

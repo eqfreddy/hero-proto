@@ -21,6 +21,7 @@ dependencies = [
     "sentry-sdk[fastapi]>=2.0.0",
     "uvicorn[standard]>=0.45.0",
     "markdown>=3.10.2",
+    "h2>=4.3.0",
 ]
 
 [project.optional-dependencies]

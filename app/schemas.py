@@ -91,6 +91,7 @@ class MeOut(BaseModel):
     # Narrative faction. EXILE for new players ("not yet aligned"); flips to
     # RESISTANCE / CORP_GREED at the level-50 alignment fork (Phase 3).
     faction: Faction = Faction.EXILE
+    alignment_chosen_at: datetime | None = None
     # Phase 2.4 — owned QoL unlocks (auto-battle, extra-presets, etc.) and
     # cosmetic frame codes. UI uses these to gate the auto-battle button +
     # render the right card frame. List/dict shapes match what /shop grants.
@@ -101,6 +102,8 @@ class MeOut(BaseModel):
     hero_slot_cap: int = 50
     gear_slot_cap: int = 200
     is_admin: bool = False
+    email_verified: bool = True
+    totp_enabled: bool = False
 
 
 class HeroTemplateOut(BaseModel):
@@ -154,6 +157,9 @@ class GearOut(BaseModel):
     set: GearSet
     stats: dict[str, int]
     equipped_on: int | None
+    locked: bool = False
+    name: str | None = None       # set on "named" pieces (story/raid rewards)
+    flavor: str | None = None     # one-line backstory shown on the gear card
 
 
 class AscendIn(BaseModel):
@@ -495,3 +501,4 @@ class InteractiveStateOut(BaseModel):
     outcome: str | None = None
     rewards: dict | None = None
     participants: list[BattleParticipant] = []
+    battle_id: int | None = None

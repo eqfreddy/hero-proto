@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Battle Arena — Size Sandbox</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;}
+body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;color:#fff;}
+
+.battle-stage{width:100%;height:100%;position:relative;overflow:hidden;}
+.battle-stage::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:5;}
+
+.battle-bg{position:absolute;top:0;left:0;right:0;bottom:70px;z-index:0;overflow:hidden;}
+.battle-bg img{width:100%;height:100%;object-fit:cover;}
+.battle-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.35) 0%,rgba(0,0,0,0.08) 40%,rgba(0,0,0,0.55) 75%,rgba(0,0,0,0.97) 100%);pointer-events:none;}
+.arena-floor{position:absolute;bottom:70px;left:0;right:0;height:80px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,0.3) 60%,rgba(0,0,0,0.7) 100%);z-index:1;}
+
+/* Bottom bar */
+.bottom-bar{position:absolute;bottom:0;left:0;right:0;height:70px;background:linear-gradient(180deg,rgba(0,0,0,0.88),rgba(8,12,20,0.99));border-top:1px solid rgba(255,255,255,0.1);z-index:20;display:flex;align-items:center;justify-content:center;gap:16px;padding:0 20px;}
+.stage-btn{font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.1);cursor:pointer;font-family:inherit;color:#999;transition:all 0.15s;}
+.stage-btn.active{background:rgba(78,161,255,0.2);border-color:#4ea1ff;color:#4ea1ff;}
+.sandbox-label{font-size:10px;font-weight:800;color:#ffd700;letter-spacing:2px;text-transform:uppercase;white-space:nowrap;}
+
+/* Units */
+.unit{position:absolute;display:flex;flex-direction:column;align-items:center;z-index:10;}
+.unit-shadow{border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,0.5) 0%,transparent 70%);margin-top:-8px;}
+
+.sprite-wrap{position:relative;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;}
+.sprite-img{image-rendering:pixelated;object-fit:contain;width:100%;height:100%;}
+
+/* Role tints */
+.role-atk .sprite-img{filter:drop-shadow(0 0 10px rgba(255,80,80,0.9)) drop-shadow(0 0 22px rgba(255,40,40,0.5));}
+.role-def .sprite-img{filter:drop-shadow(0 0 10px rgba(80,160,255,0.9)) drop-shadow(0 0 22px rgba(40,100,255,0.5)) hue-rotate(160deg) saturate(1.3);}
+.role-sup .sprite-img{filter:drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 0 22px rgba(255,180,0,0.5)) sepia(0.3) saturate(1.4) hue-rotate(30deg);}
+
+/* Size variants */
+.sz-250 .sprite-wrap{width:145px;height:250px;}
+.sz-250 .unit-shadow{width:90px;height:14px;}
+.sz-300 .sprite-wrap{width:174px;height:300px;}
+.sz-300 .unit-shadow{width:110px;height:16px;}
+.sz-350 .sprite-wrap{width:203px;height:350px;}
+.sz-350 .unit-shadow{width:130px;height:18px;}
+
+/* Size label badges */
+.size-badge{margin-top:6px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:900;letter-spacing:2px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.6);}
+.sz-250 .size-badge{color:#60c0ff;border-color:rgba(96,192,255,0.4);}
+.sz-300 .size-badge{color:#ffd700;border-color:rgba(255,215,0,0.4);}
+.sz-350 .size-badge{color:#ff7070;border-color:rgba(255,112,112,0.4);}
+
+/* Positions — bottom anchored above the 70px bar */
+.unit-a{left:15%;bottom:calc(70px + 20px);}
+.unit-b{left:50%;transform:translateX(-50%);bottom:calc(70px + 20px);}
+.unit-c{right:15%;bottom:calc(70px + 20px);}
+
+@keyframes floatIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+</style>
+</head>
+<body>
+<div class="battle-stage" id="stage">
+
+  <div class="battle-bg" id="battle-bg">
+    <img id="bg-img" src="/app/static/backgrounds/cof/bg-server-closet.png" alt="">
+  </div>
+  <div class="arena-floor"></div>
+
+  <!-- 250px unit -->
+  <div class="unit unit-a sz-250 role-atk" id="u250">
+    <div class="sprite-wrap"><img class="sprite-img" id="img250" src="" alt=""></div>
+    <div class="unit-shadow"></div>
+    <div class="size-badge">250 px</div>
+  </div>
+
+  <!-- 300px unit -->
+  <div class="unit unit-b sz-300 role-def" id="u300">
+    <div class="sprite-wrap"><img class="sprite-img" id="img300" src="" alt=""></div>
+    <div class="unit-shadow"></div>
+    <div class="size-badge">300 px</div>
+  </div>
+
+  <!-- 350px unit -->
+  <div class="unit unit-c sz-350 role-sup" id="u350">
+    <div class="sprite-wrap"><img class="sprite-img" id="img350" src="" alt=""></div>
+    <div class="unit-shadow"></div>
+    <div class="size-badge">350 px</div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar">
+    <span class="sandbox-label">Size Sandbox</span>
+    <button class="stage-btn active" data-bg="bg-server-closet.png">Server Closet</button>
+    <button class="stage-btn" data-bg="bg-noc.png">NOC</button>
+    <button class="stage-btn" data-bg="bg-cubicle.svg">Cubicle</button>
+    <button class="stage-btn" data-bg="bg-bossoffice.svg">Boss Office</button>
+    <button class="stage-btn" data-bg="bg-cable-hell.svg">Cable Hell</button>
+    <button class="stage-btn" data-bg="bg-itcorner.svg">IT Corner</button>
+    <button class="stage-btn" data-bg="bg-openoffice.svg">Open Office</button>
+    <button class="stage-btn" data-bg="bg-breakroom.svg">Break Room</button>
+    <button class="stage-btn" data-bg="bg-storage.svg">Storage</button>
+    <button class="stage-btn" data-bg="bg-orientation.png">Orientation</button>
+    <button class="stage-btn" data-bg="bg-innovation-lab.png">Innovation Lab</button>
+    <button class="stage-btn" data-bg="bg-hideout.png">Hideout</button>
+    <button class="stage-btn" data-bg="bg-parking-garage.png">Parking Garage</button>
+    <button class="stage-btn" data-bg="bg-war-room.png">War Room</button>
+    <button class="stage-btn" data-bg="bg-data-center.png">Data Center</button>
+    <button class="stage-btn" data-bg="bg-basement.png">The Basement</button>
+  </div>
+
+</div>
+
+<script>
+const BASE = '/app/static/battle-assets/characters/dark-assassin/idle/';
+const PREFIX = 'character for spine-idle_';
+const TOTAL = 81;
+const FPS = 14;
+
+const imgs = [
+  document.getElementById('img250'),
+  document.getElementById('img300'),
+  document.getElementById('img350'),
+];
+
+// Preload all frames
+const frames = [];
+for (let i = 0; i < TOTAL; i++) {
+  const f = new Image();
+  f.src = BASE + PREFIX + String(i).padStart(2,'0') + '.png';
+  frames.push(f);
+}
+
+let frame = 0;
+let last = 0;
+const interval = 1000 / FPS;
+
+function tick(ts) {
+  if (ts - last >= interval) {
+    last = ts;
+    const src = frames[frame].src;
+    imgs.forEach(img => img.src = src);
+    frame = (frame + 1) % TOTAL;
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// Background switcher
+document.querySelectorAll('.stage-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('bg-img').src =
+      '/app/static/backgrounds/cof/' + btn.dataset.bg;
+  });
+});
+</script>
+</body>
+</html>

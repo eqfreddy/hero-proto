@@ -51,6 +51,7 @@ class RecipeOut(BaseModel):
     coin_cost: int
     gem_cost: int
     output: dict
+    gear_output: dict | None = None
     icon: str
     craftable: bool
     blocking_reason: str | None = None

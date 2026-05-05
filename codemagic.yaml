@@ -1,0 +1,174 @@
+workflows:
+
+  # ── iOS build ─────────────────────────────────────────────────────────────
+  # Triggers: any push to master, or manually from the Codemagic dashboard.
+  # Prerequisites (set in Codemagic App Settings → Environment variables):
+  #   BUNDLE_ID               com.heroproto.app
+  #   APP_STORE_CONNECT_KEY_IDENTIFIER   key ID from App Store Connect API keys
+  #   APP_STORE_CONNECT_ISSUER_ID        issuer ID from App Store Connect
+  #   APP_STORE_CONNECT_PRIVATE_KEY      contents of the .p8 key file
+  # Code signing is configured in Codemagic UI (Team Settings → Code signing).
+  # Place GoogleService-Info.plist in mobile/ios/App/ after platform init.
+
+  ios-release:
+    name: iOS Release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+
+    environment:
+      xcode: latest
+      node: 20
+      cocoapods: default
+      groups:
+        - app_store_connect   # Codemagic built-in group for ASC key vars
+      vars:
+        BUNDLE_ID: com.heroproto.app
+        XCODE_WORKSPACE: ios/App/App.xcworkspace
+        XCODE_SCHEME: App
+
+    scripts:
+      - name: Build SPA
+        working_directory: frontend
+        script: |
+          npm ci
+          npm run build
+
+      - name: Install Capacitor deps
+        working_directory: mobile
+        script: npm ci
+
+      - name: Add iOS platform
+        working_directory: mobile
+        script: npx cap add ios
+
+      - name: Sync web assets
+        working_directory: mobile
+        script: npx cap sync ios
+
+      - name: Install CocoaPods
+        working_directory: mobile/ios/App
+        script: pod install --repo-update
+
+      - name: Set bundle ID
+        working_directory: mobile
+        script: |
+          # Ensures the Xcode project uses the correct bundle ID.
+          npx cap sync ios
+          xcrun agvtool new-marketing-version "$CM_BUILD_NUMBER"
+
+      - name: Build & sign IPA
+        working_directory: mobile
+        script: |
+          xcode-project use-profiles --workspace "$XCODE_WORKSPACE"
+          xcodebuild archive \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -archivePath "$CM_BUILD_DIR/HeroProto.xcarchive" \
+            -allowProvisioningUpdates
+          xcodebuild -exportArchive \
+            -archivePath "$CM_BUILD_DIR/HeroProto.xcarchive" \
+            -exportPath "$CM_BUILD_DIR/export" \
+            -exportOptionsPlist ios-config/ExportOptions.plist
+
+    artifacts:
+      - mobile/$CM_BUILD_DIR/export/*.ipa
+      - mobile/$CM_BUILD_DIR/HeroProto.xcarchive
+
+    publishing:
+      app_store_connect:
+        # Uploads to TestFlight automatically on successful build.
+        # Disable by removing this block.
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+
+  # ── Android build (for symmetry) ──────────────────────────────────────────
+  android-release:
+    name: Android Release
+    instance_type: linux_x2
+    max_build_duration: 45
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - google_play    # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      vars:
+        PACKAGE_NAME: com.heroproto.app
+
+    scripts:
+      - name: Build SPA
+        working_directory: frontend
+        script: |
+          npm ci
+          npm run build
+
+      - name: Install Capacitor deps
+        working_directory: mobile
+        script: npm ci
+
+      - name: Add Android platform
+        working_directory: mobile
+        script: npx cap add android
+
+      - name: Sync web assets
+        working_directory: mobile
+        script: npx cap sync android
+
+      - name: Place google-services.json
+        script: |
+          # Decode the secret into the expected location.
+          # Add GOOGLE_SERVICES_JSON (base64) to your Codemagic env vars.
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > mobile/android/app/google-services.json
+
+      - name: Build APK / AAB
+        working_directory: mobile/android
+        script: |
+          ./gradlew bundleRelease
+
+      - name: Sign AAB
+        working_directory: mobile/android
+        script: |
+          # Requires KEYSTORE_FILE (base64), KEYSTORE_PASSWORD,
+          # KEY_ALIAS, KEY_PASSWORD in Codemagic env vars.
+          echo "$KEYSTORE_FILE" | base64 --decode > release.keystore
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore release.keystore \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            app/build/outputs/bundle/release/app-release.aab \
+            "$KEY_ALIAS"
+
+    artifacts:
+      - mobile/android/app/build/outputs/**/*.aab
+      - mobile/android/app/build/outputs/**/*.apk
+
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true

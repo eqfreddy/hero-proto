@@ -6,12 +6,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import desc, func, select, update
+from sqlalchemy import delete as sa_delete, desc, func, select, update
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_current_account
-from app.models import Account, Notification, utcnow
+from app.models import Account, DeviceToken, Notification, utcnow
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -115,5 +115,63 @@ def clear_all(
 ) -> None:
     """Wipe every notification for the caller. Read or unread."""
     db.query(Notification).filter(Notification.account_id == account.id).delete()
+    db.commit()
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Device-token management (Capacitor push notifications)
+# ---------------------------------------------------------------------------
+
+_VALID_PLATFORMS = {"fcm", "apns"}
+
+
+class DeviceTokenIn(BaseModel):
+    token: str
+    platform: str  # 'fcm' | 'apns'
+
+
+@router.post("/device-token", status_code=status.HTTP_204_NO_CONTENT)
+def register_device_token(
+    body: DeviceTokenIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    """Register or refresh a push-notification device token.
+
+    Call on app foreground after Capacitor's PushNotifications.register()
+    resolves. Upserts by token so duplicate calls are safe.
+    """
+    platform = body.platform.lower()
+    if platform not in _VALID_PLATFORMS:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"platform must be one of {sorted(_VALID_PLATFORMS)}")
+
+    token = body.token.strip()[:512]
+    if not token:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "token must not be empty")
+
+    existing = db.scalar(select(DeviceToken).where(DeviceToken.token == token))
+    if existing:
+        existing.account_id = account.id
+        existing.last_seen_at = utcnow()
+    else:
+        db.add(DeviceToken(account_id=account.id, token=token, platform=platform))
+    db.commit()
+    return None
+
+
+@router.delete("/device-token", status_code=status.HTTP_204_NO_CONTENT)
+def unregister_device_token(
+    body: DeviceTokenIn,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    """Deregister a device token on logout or app uninstall notification."""
+    db.execute(
+        sa_delete(DeviceToken).where(
+            DeviceToken.token == body.token,
+            DeviceToken.account_id == account.id,
+        )
+    )
     db.commit()
     return None

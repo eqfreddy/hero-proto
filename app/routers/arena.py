@@ -139,9 +139,14 @@ def list_opponents(
         )
     )
 
-    chosen: list[int] = []
-    for window in _MATCHMAKING_WINDOWS:
-        base_stmt = (
+    # Soft same-alignment preference: RESISTANCE/CORP_GREED players prefer
+    # opponents of the same faction (lore flavour). EXILE players skip this.
+    # We try the aligned pool first; if too thin, fall back to any faction.
+    my_faction = str(account.faction or "EXILE")
+    same_faction_filter = my_faction not in ("EXILE", "")
+
+    def _build_stmt(window: int | None, faction_filter: bool):
+        stmt = (
             select(DefenseTeam.account_id)
             .join(Account, Account.id == DefenseTeam.account_id)
             .where(
@@ -150,40 +155,37 @@ def list_opponents(
             )
         )
         if window is not None:
-            base_stmt = base_stmt.where(
+            stmt = stmt.where(
                 Account.arena_rating >= my_rating - window,
                 Account.arena_rating <= my_rating + window,
             )
-        # First try with the recent-exclusion. If that empties the pool inside
-        # this window, drop the exclusion (would rather show a repeat opponent
-        # than nothing at all when the server is small).
-        pool_with_exclusion = [
-            aid for aid in db.scalars(base_stmt) if aid not in recent_ids
-        ] if recent_ids else list(db.scalars(base_stmt))
-        if len(pool_with_exclusion) >= OPPONENT_SAMPLE_SIZE or (
-            window is None and pool_with_exclusion
-        ):
-            rng.shuffle(pool_with_exclusion)
-            chosen = pool_with_exclusion[:OPPONENT_SAMPLE_SIZE]
+        if faction_filter:
+            stmt = stmt.where(Account.faction == my_faction)
+        return stmt
+
+    chosen: list[int] = []
+    for window in _MATCHMAKING_WINDOWS:
+        for use_faction in ([True, False] if same_faction_filter else [False]):
+            base_stmt = _build_stmt(window, use_faction)
+            # First try with the recent-exclusion. If that empties the pool inside
+            # this window, drop the exclusion (would rather show a repeat opponent
+            # than nothing at all when the server is small).
+            pool_with_exclusion = [
+                aid for aid in db.scalars(base_stmt) if aid not in recent_ids
+            ] if recent_ids else list(db.scalars(base_stmt))
+            if len(pool_with_exclusion) >= OPPONENT_SAMPLE_SIZE or (
+                window is None and not use_faction and pool_with_exclusion
+            ):
+                rng.shuffle(pool_with_exclusion)
+                chosen = pool_with_exclusion[:OPPONENT_SAMPLE_SIZE]
+                break
+        if chosen:
             break
 
     # Dead-last fallback: ignore the recent-exclusion across all windows.
     if not chosen:
         for window in _MATCHMAKING_WINDOWS:
-            stmt = (
-                select(DefenseTeam.account_id)
-                .join(Account, Account.id == DefenseTeam.account_id)
-                .where(
-                    DefenseTeam.account_id != account.id,
-                    Account.is_banned.is_(False),
-                )
-            )
-            if window is not None:
-                stmt = stmt.where(
-                    Account.arena_rating >= my_rating - window,
-                    Account.arena_rating <= my_rating + window,
-                )
-            pool_ids = list(db.scalars(stmt))
+            pool_ids = list(db.scalars(_build_stmt(window, False)))
             if len(pool_ids) >= OPPONENT_SAMPLE_SIZE or window is None:
                 rng.shuffle(pool_ids)
                 chosen = pool_ids[:OPPONENT_SAMPLE_SIZE]

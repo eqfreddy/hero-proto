@@ -18,7 +18,7 @@ from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Account, CraftLog, CraftMaterial, HeroInstance, HeroTemplate
+from app.models import Account, CraftLog, CraftMaterial, Gear, GearRarity, GearSet, GearSlot, HeroInstance, HeroTemplate
 
 
 # --- Catalog -----------------------------------------------------------------
@@ -50,6 +50,11 @@ class Recipe:
     coin_cost: int = 0
     gem_cost: int = 0
     output: dict = field(default_factory=dict)  # {gems, shards, coins, access_cards, free_summon_credits, hero_template_code}
+    # When set, craft produces a Gear item instead of (or in addition to) currency.
+    # Keys: slot (GearSlot str, optional), rarity (GearRarity str, optional), set_code (GearSet str, optional).
+    # Omitted keys are randomized. Gear output does NOT multiply with the multiplier param
+    # (one piece per craft regardless — costs multiply normally).
+    gear_output: dict = field(default_factory=dict)
     icon: str = "⚒️"
 
 
@@ -115,6 +120,16 @@ RAID_MATERIAL_DROPS: list[MaterialDrop] = [
 ]
 
 
+# Salvage yields — what a player gets when they break down a gear piece.
+# Named gear cannot be salvaged. Equipped gear is auto-unequipped first.
+SALVAGE_YIELDS: dict[GearRarity, dict] = {
+    GearRarity.COMMON:    {"rusted_keyboard_key": 1, "coins": 0},
+    GearRarity.RARE:      {"rusted_keyboard_key": 2, "expired_certificate": 1, "coins": 50},
+    GearRarity.EPIC:      {"expired_certificate": 2, "legacy_punch_card": 1, "coins": 200},
+    GearRarity.LEGENDARY: {"legacy_punch_card": 2, "on_call_token": 1, "coins": 500},
+}
+
+
 # Recipes — keep them small at first; expand once players are trying them out.
 RECIPES: dict[str, Recipe] = {r.code: r for r in [
     Recipe(
@@ -161,6 +176,43 @@ RECIPES: dict[str, Recipe] = {r.code: r for r in [
         coin_cost=2000,
         output={"gems": 500, "shards": 100, "access_cards": 5},
         icon="🛡️",
+    ),
+    # --- Gear-crafting recipes (produce a Gear item) --------------------------
+    Recipe(
+        code="craft_tech_ring",
+        name="Assemble a Tech Ring",
+        description="Something from the supply closet. RARE ring — beats vendor trash.",
+        materials={"rusted_keyboard_key": 5, "expired_certificate": 3},
+        coin_cost=300,
+        gear_output={"slot": "RING", "rarity": "RARE"},
+        icon="💍",
+    ),
+    Recipe(
+        code="craft_epic_amulet",
+        name="Forge an Epic Amulet",
+        description="C-suite bling assembled from legacy cards. EPIC amulet.",
+        materials={"legacy_punch_card": 3, "expired_certificate": 5},
+        coin_cost=1500,
+        gear_output={"slot": "AMULET", "rarity": "EPIC"},
+        icon="📿",
+    ),
+    Recipe(
+        code="craft_legendary_weapon",
+        name="The On-Call Baton",
+        description="Passed down through generations. Whoever holds it owns the weekend. Guaranteed LEGENDARY weapon.",
+        materials={"on_call_token": 3, "ceo_signature": 2},
+        coin_cost=5000,
+        gear_output={"slot": "WEAPON", "rarity": "LEGENDARY"},
+        icon="⚔️",
+    ),
+    Recipe(
+        code="mystery_epic_gear_box",
+        name="Mystery Equipment Box",
+        description="Random EPIC piece. Could be anything. Smells like someone's desk.",
+        materials={"on_call_token": 2, "legacy_punch_card": 3},
+        coin_cost=1500,
+        gear_output={"rarity": "EPIC"},
+        icon="📦",
     ),
 ]}
 
@@ -233,7 +285,7 @@ def roll_raid_drops(rng: random.Random) -> list[tuple[str, int]]:
 # --- Crafting (the actual exchange) -----------------------------------------
 
 
-def _grant_recipe_output(db: Session, account: Account, output: dict) -> dict:
+def _grant_recipe_output(db: Session, account: Account, output: dict, gear_output: dict | None = None) -> dict:
     """Apply a recipe's output dict. Mirrors store.apply_grant but doesn't
     touch the PurchaseLedger (crafting is off-ledger; not a real purchase).
     """
@@ -259,6 +311,29 @@ def _grant_recipe_output(db: Session, account: Account, output: dict) -> dict:
         db.flush()
         granted["hero_instance_id"] = hero.id
         granted["hero_name"] = tmpl.name
+
+    if gear_output:
+        from app.gear_logic import roll_gear_targeted
+        rng = random.Random()
+        forced_slot = GearSlot(gear_output["slot"]) if "slot" in gear_output else None
+        forced_rarity = GearRarity(gear_output["rarity"]) if "rarity" in gear_output else None
+        forced_set = GearSet(gear_output["set_code"]) if "set_code" in gear_output else None
+        slot, rarity, set_code, stats = roll_gear_targeted(
+            rng, slot=forced_slot, rarity=forced_rarity, set_code=forced_set
+        )
+        g = Gear(
+            account_id=account.id,
+            slot=slot,
+            rarity=rarity,
+            set_code=set_code,
+            stats_json=json.dumps(stats),
+        )
+        db.add(g)
+        db.flush()
+        granted["gear_id"] = g.id
+        granted["gear_slot"] = str(slot)
+        granted["gear_rarity"] = str(rarity)
+
     return granted
 
 
@@ -303,15 +378,21 @@ def craft(db: Session, account: Account, recipe_code: str, *, multiplier: int = 
         account.gems -= recipe.gem_cost * multiplier
         spent_inputs["gems"] = recipe.gem_cost * multiplier
 
-    # Grant output (×multiplier).
+    # Grant output (×multiplier). Gear output fires once per craft iteration.
     full_granted: dict = {}
-    for _ in range(multiplier):
-        granted = _grant_recipe_output(db, account, recipe.output)
+    gear_ids: list[int] = []
+    for i in range(multiplier):
+        go = recipe.gear_output if recipe.gear_output else None
+        granted = _grant_recipe_output(db, account, recipe.output, go)
         for k, v in granted.items():
-            if isinstance(v, int):
+            if k == "gear_id":
+                gear_ids.append(v)
+            elif isinstance(v, int):
                 full_granted[k] = full_granted.get(k, 0) + v
             else:
-                full_granted.setdefault(k, []).append(v) if k.endswith("_ids") else full_granted.update({k: v})
+                full_granted.update({k: v})
+    if gear_ids:
+        full_granted["gear_ids"] = gear_ids
 
     # Audit log row.
     summary_bits = [f"+{v} {k}" for k, v in full_granted.items() if isinstance(v, int)]
@@ -338,6 +419,7 @@ def list_recipe_dicts() -> list[dict]:
             "coin_cost": r.coin_cost,
             "gem_cost": r.gem_cost,
             "output": dict(r.output),
+            "gear_output": dict(r.gear_output) if r.gear_output else None,
             "icon": r.icon,
         })
     return out

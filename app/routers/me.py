@@ -61,12 +61,15 @@ def get_me(
         account_xp=account.account_xp or 0,
         account_xp_to_next=_xp_to_next(account.account_level or 1),
         faction=Faction(account.faction) if not isinstance(account.faction, Faction) else account.faction,
+        alignment_chosen_at=account.alignment_chosen_at,
         qol_unlocks=qol_codes,
         cosmetic_frames=frame_codes,
         active_cosmetic_frame=account.active_cosmetic_frame or "",
         hero_slot_cap=account.hero_slot_cap or 50,
         gear_slot_cap=account.gear_slot_cap or 200,
         is_admin=bool(account.is_admin),
+        email_verified=bool(account.email_verified),
+        totp_enabled=bool(account.totp_enabled),
     )
 
 

@@ -25,6 +25,7 @@ from app.models import (
     PurchaseState,
     utcnow,
 )
+from app.push import push_provider_status, send_push_to_account
 from app.store import apply_refund
 
 
@@ -641,3 +642,32 @@ def analytics_overview(
         summons=summons_bucket,
         avg_summons_per_account=avg_summons,
     )
+
+
+# ── Push diagnostics ─────────────────────────────────────────────────────────
+
+class PushTestPayload(BaseModel):
+    title: str = Field(default="hero-proto test", max_length=120)
+    body: str = Field(default="If you see this, push is wired up.", max_length=240)
+
+
+@router.get("/push/status")
+def admin_push_status(
+    _admin: Annotated[Account, Depends(get_current_admin)],
+):
+    """Report which push providers are configured. Useful for verifying secrets after deploy."""
+    return push_provider_status()
+
+
+@router.post("/push/test")
+def admin_push_test(
+    payload: PushTestPayload,
+    db: Annotated[Session, Depends(get_db)],
+    admin: Annotated[Account, Depends(get_current_admin)],
+):
+    """Send a test push to every device registered for the calling admin's account."""
+    sent = send_push_to_account(db, admin.id, title=payload.title, body=payload.body)
+    db.commit()
+    _audit(db, admin, "push_test", admin.id, sent=sent)
+    db.commit()
+    return {"sent": sent, "providers": push_provider_status()}

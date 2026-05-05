@@ -105,7 +105,10 @@ def test_story_catalog_endpoint(client) -> None:
     assert r.status_code == 200
     body = r.json()
     assert body["account_level"] == 1
-    assert len(body["chapters"]) == len(STORY_CHAPTERS)
+    # Alignment chapters are gated by faction; EXILE players (new accounts) see
+    # only the non-alignment chapters.
+    open_chapters = [c for c in STORY_CHAPTERS if c.required_alignment is None]
+    assert len(body["chapters"]) == len(open_chapters)
     # First chapter must be unlocked at level 1.
     ch1 = body["chapters"][0]
     assert ch1["unlocked"] is True

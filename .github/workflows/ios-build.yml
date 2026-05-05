@@ -1,0 +1,159 @@
+name: iOS build
+
+# Trigger manually or on version tags.
+# To build: Actions → "iOS build" → Run workflow, or push a tag like v1.0.0
+on:
+  workflow_dispatch:
+    inputs:
+      export_method:
+        description: 'Export method'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - ad-hoc
+          - app-store
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    env:
+      WORKING_DIR: mobile
+      XCODE_SCHEME: App
+      XCODE_CONFIGURATION: Release
+      XCODE_WORKSPACE: ios/App/App.xcworkspace
+      IPA_OUTPUT_DIR: ios/build
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Select Xcode ──────────────────────────────────────────────────────
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      # ── Build SPA ─────────────────────────────────────────────────────────
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build SPA
+        working-directory: frontend
+        run: npm run build
+
+      # ── Capacitor iOS platform ────────────────────────────────────────────
+      - name: Install Capacitor deps
+        working-directory: ${{ env.WORKING_DIR }}
+        run: npm ci
+
+      - name: Add iOS platform
+        working-directory: ${{ env.WORKING_DIR }}
+        run: npx cap add ios
+
+      - name: Sync web assets → iOS
+        working-directory: ${{ env.WORKING_DIR }}
+        run: npx cap sync ios
+
+      # ── CocoaPods ─────────────────────────────────────────────────────────
+      - name: Install pods
+        working-directory: ${{ env.WORKING_DIR }}/ios/App
+        run: pod install --repo-update
+
+      # ── Code signing ──────────────────────────────────────────────────────
+      # Secrets required (set in GitHub → Settings → Secrets and variables → Actions):
+      #   APPLE_CERTIFICATE_BASE64     base64 of your .p12 distribution cert
+      #   APPLE_CERTIFICATE_PASSWORD   password for the .p12
+      #   APPLE_PROVISIONING_PROFILE   base64 of your .mobileprovision file
+      #   KEYCHAIN_PASSWORD            any random string — used only in this runner
+
+      - name: Install signing certificate
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_PATH=$RUNNER_TEMP/build_cert.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          echo -n "$CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" -A \
+            -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Install provisioning profile
+        env:
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+        run: |
+          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode -o "$PP_PATH"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      # ── Build ──────────────────────────────────────────────────────────────
+      - name: Archive
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          xcodebuild archive \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration "$XCODE_CONFIGURATION" \
+            -archivePath "$RUNNER_TEMP/HeroProto.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            -allowProvisioningUpdates
+
+      - name: Export IPA
+        run: |
+          METHOD=${{ github.event.inputs.export_method || 'app-store' }}
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>$METHOD</string>
+            <key>signingStyle</key><string>manual</string>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/HeroProto.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+      # ── Upload IPA ─────────────────────────────────────────────────────────
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HeroProto-${{ github.ref_name }}.ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          retention-days: 30
+
+      # ── TestFlight (app-store export only) ────────────────────────────────
+      # Uncomment + add secrets APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
+      # - name: Upload to TestFlight
+      #   if: github.event.inputs.export_method == 'app-store' || startsWith(github.ref, 'refs/tags/')
+      #   run: |
+      #     xcrun altool --upload-app \
+      #       --type ios \
+      #       --file "$RUNNER_TEMP/export/HeroProto.ipa" \
+      #       --username "${{ secrets.APPLE_ID }}" \
+      #       --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+
+      # ── Cleanup keychain ───────────────────────────────────────────────────
+      - name: Clean up keychain
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" || true

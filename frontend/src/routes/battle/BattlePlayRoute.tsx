@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useInteractiveSession } from '../../hooks/useInteractiveSession'
 import { BattleHUD } from '../../components/BattleHUD'
@@ -11,6 +12,14 @@ export default function BattlePlayRoute() {
 
   const { state, act, acting, error } = useInteractiveSession(initState)
 
+  const done = state?.status === 'DONE' || state?.done === true
+
+  useEffect(() => {
+    if (done && state?.battle_id) {
+      window.location.replace(`/app/static/battle-arena.html?battle_id=${state.battle_id}`)
+    }
+  }, [done, state?.battle_id])
+
   if (!state) {
     return (
       <div style={{ color: 'var(--color-muted)', padding: 24 }}>
@@ -22,7 +31,6 @@ export default function BattlePlayRoute() {
     )
   }
 
-  const done = state.done ?? false
   const pending = state.pending
   const rewards = state.rewards ?? null
 

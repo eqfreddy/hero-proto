@@ -24,7 +24,8 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('MeRoute', () => {
   it('shows account email', () => {
     render(<MeRoute />, { wrapper })
-    expect(screen.getByText(/player@test\.com/)).toBeInTheDocument()
+    // Email appears in the profile banner and again in the Account card at the bottom.
+    expect(screen.getAllByText(/player@test\.com/).length).toBeGreaterThan(0)
   })
 
   it('shows coins', () => {

@@ -1,0 +1,28 @@
+{
+  "name": "hero-proto-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor wrapper for hero-proto SPA",
+  "scripts": {
+    "build:web": "cd ../frontend && npm run build",
+    "sync:android": "npx cap sync android",
+    "sync:ios": "npx cap sync ios",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios",
+    "add:android": "npx cap add android",
+    "add:ios": "npx cap add ios"
+  },
+  "dependencies": {
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/network": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "typescript": "^6.0.3"
+  }
+}

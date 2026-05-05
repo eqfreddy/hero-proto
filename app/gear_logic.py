@@ -10,11 +10,21 @@ from app.models import GearRarity, GearSet, GearSlot, HeroInstance
 
 
 # Main-stat pool per slot (one of these is always present).
+# Six armor slots split the major stats so a full set rolls every dimension:
+#   HEAD → hp     (you take the calls — survivability)
+#   CHEST → def   (the protective layer)
+#   HANDS → atk   (you make the moves)
+#   WRIST → spd   (mobility / flick of the wrist)
+#   LEGS → hp     (load-bearing)
+#   FEET → spd   (always on the move)
 MAIN_STAT_BY_SLOT: dict[GearSlot, list[str]] = {
     GearSlot.WEAPON: ["atk"],
-    GearSlot.HELMET: ["hp"],
-    GearSlot.ARMOR: ["def"],
-    GearSlot.BOOTS: ["spd"],
+    GearSlot.HEAD: ["hp"],
+    GearSlot.CHEST: ["def"],
+    GearSlot.HANDS: ["atk"],
+    GearSlot.WRIST: ["spd"],
+    GearSlot.LEGS: ["hp"],
+    GearSlot.FEET: ["spd"],
     GearSlot.RING: ["atk", "def", "hp"],
     GearSlot.AMULET: ["atk", "def", "hp"],
 }
@@ -74,6 +84,30 @@ def roll_gear(
     lo, hi = MAIN_FLAT[main_stat][rarity]
     stats: dict[str, int] = {main_stat: rng.randint(lo, hi)}
     # Substat count by rarity.
+    sub_count = {GearRarity.COMMON: 0, GearRarity.RARE: 1, GearRarity.EPIC: 2, GearRarity.LEGENDARY: 3}[rarity]
+    available_subs = [s for s in SUBSTAT_POOL if s != main_stat]
+    rng.shuffle(available_subs)
+    for sub in available_subs[:sub_count]:
+        lo, hi = SUB_FLAT[sub]
+        stats[sub] = stats.get(sub, 0) + rng.randint(lo, hi)
+    return slot, rarity, set_code, stats
+
+
+def roll_gear_targeted(
+    rng: random.Random,
+    *,
+    slot: GearSlot | None = None,
+    rarity: GearRarity | None = None,
+    set_code: GearSet | None = None,
+) -> tuple[GearSlot, GearRarity, GearSet, dict[str, int]]:
+    """Like roll_gear but with optional forced slot / rarity / set.
+    Used by crafting recipes that guarantee specific gear properties."""
+    slot = slot if slot is not None else rng.choice(list(GearSlot))
+    rarity = rarity if rarity is not None else roll_rarity(rng)
+    set_code = set_code if set_code is not None else rng.choice(list(GearSet))
+    main_stat = rng.choice(MAIN_STAT_BY_SLOT[slot])
+    lo, hi = MAIN_FLAT[main_stat][rarity]
+    stats: dict[str, int] = {main_stat: rng.randint(lo, hi)}
     sub_count = {GearRarity.COMMON: 0, GearRarity.RARE: 1, GearRarity.EPIC: 2, GearRarity.LEGENDARY: 3}[rarity]
     available_subs = [s for s in SUBSTAT_POOL if s != main_stat]
     rng.shuffle(available_subs)

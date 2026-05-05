@@ -737,6 +737,7 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
         }
 
     current_team_b = session.wave_teams_b[session.wave_idx]
+    battle_id = rewards.pop("_battle_id", None) if rewards else None
     return InteractiveStateOut(
         session_id=session.session_id,
         status=session.status,
@@ -747,6 +748,7 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
         outcome=str(session.outcome) if session.outcome is not None else None,
         rewards=rewards,
         participants=[BattleParticipant(**p) for p in session.participants],
+        battle_id=battle_id,
     )
 
 
@@ -825,6 +827,8 @@ def _finalize_stage(session: InteractiveSession, account: Account, db: Session) 
     )
     db.add(battle)
     db.commit()
+    db.refresh(battle)
+    rewards_extra["_battle_id"] = battle.id
     return rewards_extra
 
 

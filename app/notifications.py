@@ -19,6 +19,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.models import Account, Notification
+from app.push import send_push_to_account
 
 
 def notify(
@@ -31,7 +32,10 @@ def notify(
     link: str = "",
     icon: str = "🔔",
 ) -> Notification:
-    """Insert a notification row. Caller commits."""
+    """Insert a notification row and fire a push if tokens are registered.
+
+    Caller commits the in-app row; push delivery is fire-and-forget.
+    """
     n = Notification(
         account_id=account.id,
         kind=kind[:32],
@@ -42,4 +46,8 @@ def notify(
     )
     db.add(n)
     db.flush()
+    try:
+        send_push_to_account(db, account.id, title=title[:120], body=body[:256])
+    except Exception:
+        pass  # push failure must never break the in-app notification
     return n

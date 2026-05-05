@@ -12,10 +12,15 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   </QueryClientProvider>
 )
 
-beforeEach(() => useAuthStore.setState({ jwt: null }))
+beforeEach(() => {
+  useAuthStore.setState({ jwt: null })
+  // Pre-confirm age gate so it doesn't intercept render in tests.
+  localStorage.setItem('age_gate_v1', JSON.stringify({ confirmedAt: '2026-04-29T00:00:00Z', birthYear: 1990 }))
+})
 
 describe('Shell', () => {
-  it('renders nav tabs', () => {
+  it('renders nav tabs when logged in', () => {
+    useAuthStore.setState({ jwt: 'tok' })
     render(<Shell />, { wrapper })
     expect(screen.getByText('Roster')).toBeInTheDocument()
     expect(screen.getByText('Stages')).toBeInTheDocument()

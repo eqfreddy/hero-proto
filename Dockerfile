@@ -16,6 +16,15 @@ RUN npm run build -- --outDir /spa-dist
 # ── Stage 2: Python backend ───────────────────────────────────────────────────
 FROM python:3.13-slim AS base
 
+# Bake build identity into the image. Fly forwards FLY_IMAGE_REF / git sha at
+# build time; on local docker builds, pass --build-arg HEROPROTO_BUILD_VERSION=...
+ARG HEROPROTO_BUILD_VERSION=docker
+ARG HEROPROTO_BUILD_TIME
+ARG HEROPROTO_BUILD_BRANCH=docker
+ENV HEROPROTO_BUILD_VERSION=${HEROPROTO_BUILD_VERSION}
+ENV HEROPROTO_BUILD_TIME=${HEROPROTO_BUILD_TIME}
+ENV HEROPROTO_BUILD_BRANCH=${HEROPROTO_BUILD_BRANCH}
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1

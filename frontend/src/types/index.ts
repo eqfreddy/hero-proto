@@ -17,6 +17,11 @@ export interface Me {
   account_xp: number
   qol_unlocks: Record<string, unknown>
   active_cosmetic_frame: string
+  faction: 'RESISTANCE' | 'CORP_GREED' | 'EXILE'
+  alignment_chosen_at: string | null
+  email_verified: boolean
+  totp_enabled: boolean
+  is_admin: boolean
 }
 
 export interface HeroTemplate {

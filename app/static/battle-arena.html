@@ -176,7 +176,7 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 
   <!-- Background -->
   <div class="battle-bg" id="battle-bg">
-    <img id="bg-img" src="/app/static/backgrounds/cof/bg-server-closet.svg" alt="">
+    <img id="bg-img" src="/app/static/backgrounds/cof/bg-server-closet.png" alt="">
   </div>
   <div class="arena-floor"></div>
 
@@ -191,8 +191,8 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 
   <!-- Stage selector -->
   <div class="stage-selector" id="stage-selector">
-    <button class="stage-btn active" data-bg="cof/bg-server-closet.svg">Server Closet</button>
-    <button class="stage-btn" data-bg="cof/bg-noc.svg">NOC</button>
+    <button class="stage-btn active" data-bg="cof/bg-server-closet.png">Server Closet</button>
+    <button class="stage-btn" data-bg="cof/bg-noc.png">NOC</button>
     <button class="stage-btn" data-bg="cof/bg-cubicle.svg">Cubicle Farm</button>
     <button class="stage-btn" data-bg="cof/bg-bossoffice.svg">Boss Office</button>
     <button class="stage-btn" data-bg="cof/bg-cable-hell.svg">Cable Hell</button>
@@ -200,6 +200,13 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
     <button class="stage-btn" data-bg="cof/bg-openoffice.svg">Open Office</button>
     <button class="stage-btn" data-bg="cof/bg-breakroom.svg">Break Room</button>
     <button class="stage-btn" data-bg="cof/bg-storage.svg">Storage</button>
+    <button class="stage-btn" data-bg="cof/bg-orientation.png">Orientation</button>
+    <button class="stage-btn" data-bg="cof/bg-innovation-lab.png">Innovation Lab</button>
+    <button class="stage-btn" data-bg="cof/bg-hideout.png">Hideout</button>
+    <button class="stage-btn" data-bg="cof/bg-parking-garage.png">Parking Garage</button>
+    <button class="stage-btn" data-bg="cof/bg-war-room.png">War Room</button>
+    <button class="stage-btn" data-bg="cof/bg-data-center.png">Data Center</button>
+    <button class="stage-btn" data-bg="cof/bg-basement.png">The Basement</button>
   </div>
 
   <!-- Unit slots (ally) -->
@@ -358,12 +365,19 @@ const HURT_BASE   = '/app/static/battle-assets/characters/dark-assassin/hurt/cha
 const DIE_BASE    = '/app/static/battle-assets/characters/dark-assassin/die/character%20for%20spine-die_';
 
 const STAGE_CODE_TO_BG = {
-  'legacy_server_room':     'cof/bg-server-closet.svg',
-  'first_outage':           'cof/bg-noc.svg',
-  'onboarding_day':         'cof/bg-openoffice.svg',
+  'legacy_server_room':     'cof/bg-server-closet.png',
+  'first_outage':           'cof/bg-noc.png',
+  'onboarding_day':         'cof/bg-orientation.png',
   'quarterly_audit':        'cof/bg-bossoffice.svg',
-  'ceos_one_on_one':        'cof/bg-bossoffice.svg',
-  'resistance_server_room': 'cof/bg-itcorner.svg',
+  'ceos_one_on_one':        'cof/bg-war-room.png',
+  'resistance_server_room': 'cof/bg-hideout.png',
+  'new_employee_orientation': 'cof/bg-orientation.png',
+  'innovation_lab':           'cof/bg-innovation-lab.png',
+  'exile_hideout':            'cof/bg-hideout.png',
+  'parking_garage':           'cof/bg-parking-garage.png',
+  'csuite_war_room':          'cof/bg-war-room.png',
+  'restricted_data_center':   'cof/bg-data-center.png',
+  'the_basement':             'cof/bg-basement.png',
 };
 
 const BUST_BASE = '/app/static/heroes/busts/';

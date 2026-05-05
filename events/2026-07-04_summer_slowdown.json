@@ -5,8 +5,8 @@
   "ends_at":   "2026-07-11T04:00:00Z",
 
   "announcement": {
-    "title": "⚡ Summer Slowdown — gather Sparks all week",
-    "body": "Seven days of laid-back loot. Earn ⚡ Sparks from battles, summons, arena, and raids. Spend them on the new Event Exchange for tiered rewards. Five quests unlock the bigger payouts. Even the pager is on PTO.",
+    "title": "⚡ Summer Slowdown — BBQ, Sparks, and one pager going off",
+    "body": "Seven days of laid-back loot. Earn ⚡ Sparks from battles, summons, arena, and raids. Spend them on the Event Exchange for tiered rewards. Five quests unlock the bigger payouts. New MYTH-tier hero: The On-Call Martyr — the only person who actually answered their pager on July 4th. Team-wide REFLECT on a 4-turn cooldown. Limited banner in the Summon tab. Beach Day Bundle in the Shop.",
     "priority": 60
   },
 
@@ -20,6 +20,15 @@
       "kind": "BONUS_GEAR_DROPS",
       "name": "Summer Drops",
       "payload": {"chance_add": 0.20}
+    },
+    {
+      "kind": "EVENT_BANNER",
+      "name": "Summer Slowdown — On-Call Martyr Banner",
+      "payload": {
+        "hero_template_code": "on_call_martyr",
+        "shard_cost": 8,
+        "per_account_cap": 5
+      }
     }
   ],
 
@@ -27,11 +36,11 @@
     {
       "sku": "summer_slowdown_2026_pack",
       "title": "Beach Day Bundle",
-      "description": "1500 💎 gems, 200 ✦ shards, 10 🎫 access cards, and a 100 ⚡ Sparks head start. One-time per account.",
+      "description": "1500 💎 gems, 200 ✦ shards, 10 🎫 access cards, and 2 free summon credits for the On-Call Martyr banner. One-time per account.",
       "price_cents": 1499,
       "kind": "GEM_PACK",
       "per_account_limit": 1,
-      "contents": {"gems": 1500, "shards": 200, "access_cards": 10}
+      "contents": {"gems": 1500, "shards": 200, "access_cards": 10, "free_summon_credits": 2}
     }
   ],
 
@@ -111,5 +120,5 @@
     }
   ],
 
-  "event_hero_code": null
+  "event_hero_code": "on_call_martyr"
 }

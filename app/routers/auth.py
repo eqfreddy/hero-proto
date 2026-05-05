@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -485,6 +486,37 @@ def verify_email(
     row.used_at = now
     db.commit()
     return VerifyEmailOut(email=account.email)
+
+
+@router.get("/verify-email")
+def verify_email_get(
+    token: str = Query(min_length=16, max_length=128),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    """GET handler for email verification links. Runs the same logic as the POST
+    endpoint, then redirects the browser to the app with a status flag."""
+    base = settings.public_base_url.rstrip("/")
+    row = db.scalar(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token_hash == _hash_token(token),
+        )
+    )
+    if row is None or row.expires_at <= utcnow():
+        return RedirectResponse(f"{base}/app/login?verified=invalid", status_code=302)
+    if row.used_at is not None:
+        return RedirectResponse(f"{base}/app/login?verified=already", status_code=302)
+
+    account = db.get(Account, row.account_id)
+    if account is None:
+        return RedirectResponse(f"{base}/app/login?verified=invalid", status_code=302)
+
+    now = utcnow()
+    if not account.email_verified:
+        account.email_verified = True
+        account.email_verified_at = now
+    row.used_at = now
+    db.commit()
+    return RedirectResponse(f"{base}/app/login?verified=1", status_code=302)
 
 
 from app.deps import get_current_account_verified_only as get_current_account_verified_only  # re-export for backward compat

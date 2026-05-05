@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models import Account
+from app.models import Account, Faction
 
 
 # --- XP curve --------------------------------------------------------------
@@ -132,6 +132,7 @@ class Chapter:
     unlock_level: int          # account level required to start
     icon: str
     stages: list[StoryStage]
+    required_alignment: str | None = None  # Faction value; None = open to everyone
 
 
 # Three opening chapters. Each has 5 stages; cutscenes use existing seeded
@@ -205,7 +206,8 @@ STORY_CHAPTERS: list[Chapter] = [
                 ),
                 cutscene_outro=Cutscene(
                     speaker="Narrator",
-                    text="Chapter 1 closes. You've passed orientation. Most of your hairline made it. The Corp logs another successful onboarding. You haven't seen the Corp yet — but it's already seen you.",
+                    text="Chapter 1 closes. You've passed orientation. Most of your hairline made it. The Corp logs another successful onboarding. You haven't seen the Corp yet — but it's already seen you. The departing senior tosses you a Help Desk Headset on the way out. \"You'll need it more than I do.\"",
+                    icon="🎧",
                 ),
             ),
         ],
@@ -280,7 +282,8 @@ STORY_CHAPTERS: list[Chapter] = [
                 ),
                 cutscene_outro=Cutscene(
                     speaker="Narrator",
-                    text="Chapter 2 closes. The Corp is no longer abstract — it has shareholders, an org chart, and a seven-figure consulting bill. You've started recognizing names.",
+                    text="Chapter 2 closes. The Corp is no longer abstract — it has shareholders, an org chart, and a seven-figure consulting bill. You've started recognizing names. HR sends over a Power-Suit Jacket with a sticky note: \"You'll need to look the part for the all-hands.\" The shoulder pads remember every reorg.",
+                    icon="🧥",
                 ),
             ),
         ],
@@ -349,7 +352,162 @@ STORY_CHAPTERS: list[Chapter] = [
                 ),
                 cutscene_outro=Cutscene(
                     speaker="Narrator",
-                    text="Chapter 3 closes. You're approaching the executive floor. The view is incredible. The smell of new carpet is overpowering. The Corp has noticed you. It has plans.",
+                    text="Chapter 3 closes. You're approaching the executive floor. The view is incredible. The smell of new carpet is overpowering. The Corp has noticed you. It has plans. A pair of All-Terrain Loafers waits in your office, no card attached. Italian leather, German soles. You'll need them — the hallways up here are longer than they look.",
+                    icon="👞",
+                ),
+            ),
+        ],
+    ),
+
+    Chapter(
+        code="resistance_arc",
+        title="Chapter 4 — The Infiltration",
+        blurb="You chose the signal over the salary. The Resistance is real. So are the consequences.",
+        unlock_level=50,
+        icon="📡",
+        required_alignment=Faction.RESISTANCE,
+        stages=[
+            StoryStage(
+                code="resistance_breach",
+                name="The Breach",
+                cutscene_intro=Cutscene(
+                    speaker="Signal Handler",
+                    text="Welcome to the underground. We don't have standing desks or kombucha on tap. We have a VPN that actually routes through three countries and a shared Raspberry Pi cluster named after dead sysadmins.",
+                    icon="📡",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="Narrator",
+                    text="The firewall logs show nothing. That's either because you're very good or because the Corp isn't looking yet.",
+                ),
+            ),
+            StoryStage(
+                code="resistance_server_room",
+                name="The Cold Server Room",
+                cutscene_intro=Cutscene(
+                    speaker="The Whistleblower",
+                    text="Third floor. HVAC closet B. Behind the patch panel. There's a drive taped to the back of a decommissioned SAN. Everything they said was decommissioned is on it.",
+                    icon="💿",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="Narrator",
+                    text="The data is real. Seven years of it. Labeled 'Project Landfill.' You copy the drive. You do not sleep.",
+                ),
+            ),
+            StoryStage(
+                code="resistance_boardroom",
+                name="Counter-Proposal",
+                cutscene_intro=Cutscene(
+                    speaker="Signal Handler",
+                    text="We're not blowing this up. We're making them answer for it. Publicly. Legally. With receipts. Pull the thread — but in the right order or it unravels us instead.",
+                    icon="🗂️",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="Narrator",
+                    text="The motion carries. Two board members resign by morning. The Corp issues a statement. The statement does not mention the drive.",
+                ),
+            ),
+            StoryStage(
+                code="resistance_coup",
+                name="The Override",
+                cutscene_intro=Cutscene(
+                    speaker="The Corp",
+                    text="We are aware of the situation. We are managing the situation. We have lawyers who have lawyers. You should consider your position carefully.",
+                    icon="⚖️",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="Signal Handler",
+                    text="They blinked. They actually blinked. Don't celebrate yet — they're not done. They are never done. But tonight we have the room.",
+                ),
+            ),
+            StoryStage(
+                code="resistance_aftermath",
+                name="The Aftermath",
+                cutscene_intro=Cutscene(
+                    speaker="Narrator",
+                    text="The story breaks at 6 AM. By 8 AM your inbox is full. Half of it is hate mail. The other half is people who've been holding their own drives for years, waiting for someone to go first.",
+                    icon="🌅",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="The Whistleblower",
+                    text="Chapter 4 closes. The Corp still stands — these things don't fall in a day. But something has shifted. The signal is louder now. They can't unhear it. The Signal Handler hands you a fresh Burner Phone Wristband. \"Ninety-day rotation. Welcome to the long game.\"",
+                    icon="📡",
+                ),
+            ),
+        ],
+    ),
+
+    Chapter(
+        code="corpgreed_arc",
+        title="Chapter 4 — The Ascension",
+        blurb="You took the deal. Now you are the deal. Welcome to the top floor. The view has a price.",
+        unlock_level=50,
+        icon="📈",
+        required_alignment=Faction.CORP_GREED,
+        stages=[
+            StoryStage(
+                code="corpgreed_first_move",
+                name="The First Move",
+                cutscene_intro=Cutscene(
+                    speaker="The Corp",
+                    text="You showed potential. Not loyalty — we have tools for loyalty — but potential. That's rarer. Here is an NDA, a title, and a number. Sign before you read the number.",
+                    icon="✍️",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="Narrator",
+                    text="You signed. The number was worth it. The NDA is longer than your first apartment lease. You do not think about this for very long.",
+                ),
+            ),
+            StoryStage(
+                code="corpgreed_acquisition",
+                name="The Acquisition",
+                cutscene_intro=Cutscene(
+                    speaker="The Successor",
+                    text="We don't acquire companies. We acquire outcomes. The people are incidental — they'll either map to a role or they won't. Legal is very efficient at the mapping.",
+                    icon="📦",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="Narrator",
+                    text="Two hundred and forty employees. Forty map to roles. The announcement calls it 'a strategic integration of complementary talent pipelines.'",
+                ),
+            ),
+            StoryStage(
+                code="corpgreed_boardroom",
+                name="The Boardroom",
+                cutscene_intro=Cutscene(
+                    speaker="The Founder",
+                    text="They said I'd never sit at this table. I said I'd buy the table. I bought the table. I also bought the building. And the company that made the chairs.",
+                    icon="🏛️",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="Narrator",
+                    text="The vote is unanimous. Motions pass faster when the dissenters have all been 'strategically transitioned.' You note the efficiency. You do not note anything else.",
+                ),
+            ),
+            StoryStage(
+                code="corpgreed_saas",
+                name="The SaaS Pivot",
+                cutscene_intro=Cutscene(
+                    speaker="VP of Recurring Revenue",
+                    text="Everything becomes a subscription. The product. The support. The documentation. The documentation that tells you how to cancel the subscription. Especially that.",
+                    icon="💳",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="Narrator",
+                    text="MRR is up 340%. Three engineers filed an internal ethics complaint. The complaint was routed to Legal. Legal was acquired in Q2.",
+                ),
+            ),
+            StoryStage(
+                code="corpgreed_apotheosis",
+                name="The Apotheosis",
+                cutscene_intro=Cutscene(
+                    speaker="The Corp",
+                    text="You are the Corp now. There is no distinction. There was never a distinction — only a phase you hadn't reached yet. Congratulations. You have reached it.",
+                    icon="👑",
+                ),
+                cutscene_outro=Cutscene(
+                    speaker="The Successor",
+                    text="Chapter 4 closes. The Corp is ascendant. You are ascendant. From up here the signal-senders look very small. You wonder sometimes if you can still hear them. You decide not to check. A bespoke pair of Signing Gauntlets is laid out on your desk — hand-stitched from boardroom upholstery. The right one has a custom signet for fast NDAs.",
+                    icon="🥊",
                 ),
             ),
         ],
@@ -418,7 +576,59 @@ CHAPTER_END_REWARDS: dict[str, dict] = {
     "exec_floor_arc": {
         "gems": 800, "shards": 200, "access_cards": 5, "free_summon_credits": 5,
     },
+    # Alignment chapters: big payout + exclusive hero grant (handled separately)
+    "resistance_arc": {
+        "gems": 1200, "shards": 300, "access_cards": 8, "free_summon_credits": 8,
+    },
+    "corpgreed_arc": {
+        "gems": 1200, "shards": 300, "access_cards": 8, "free_summon_credits": 8,
+    },
 }
+
+# Maps alignment chapter code → exclusive hero template code granted on completion.
+ALIGNMENT_CHAPTER_HERO: dict[str, str] = {
+    "resistance_arc": "the_whistleblower",
+    "corpgreed_arc": "the_successor",
+}
+
+# ── Chapter-end named gear (Phase 4 — Veteran IT armor set) ────────────────
+# Each chapter grants a single legendary piece of the head-to-toe armor set.
+# Catalog lives in app/named_gear.py — these are just the references.
+
+CHAPTER_END_NAMED_GEAR: dict[str, str] = {
+    "onboarding_arc":          "help_desk_headset",         # HEAD
+    "middle_management_arc":   "power_suit_jacket",         # CHEST
+    "exec_floor_arc":          "all_terrain_loafers",       # FEET
+    "resistance_arc":          "burner_phone_wristband",    # WRIST
+    "corpgreed_arc":           "signing_gauntlets",         # HANDS
+    # LEGS ("cargo_pants_of_many_tabs") is granted at the level-50 alignment
+    # fork — see app/routers/story.py::POST /story/alignment so EVERY player
+    # gets it the moment they pick a side, regardless of which side.
+}
+
+
+def _grant_alignment_hero(db: Session, account: Account, hero_code: str) -> bool:
+    """Create a HeroInstance of `hero_code` for `account` if they don't already
+    have one. Returns True if a new instance was created."""
+    from app.models import HeroTemplate, HeroInstance
+    template = db.query(HeroTemplate).filter(HeroTemplate.code == hero_code).first()
+    if template is None:
+        return False
+    already = (
+        db.query(HeroInstance)
+        .filter(HeroInstance.account_id == account.id, HeroInstance.template_id == template.id)
+        .first()
+    )
+    if already is not None:
+        return False
+    hero = HeroInstance(
+        account_id=account.id,
+        template_id=template.id,
+        level=1,
+        xp=0,
+    )
+    db.add(hero)
+    return True
 
 
 def _chapter_rewards_claimed(account: Account) -> set[str]:
@@ -468,6 +678,28 @@ def maybe_grant_chapter_reward(
     reward = CHAPTER_END_REWARDS.get(chapter.code, {})
     granted = _apply_reward(account, reward)
 
+    # Alignment chapters: also grant the exclusive hero.
+    hero_granted: str | None = None
+    hero_code = ALIGNMENT_CHAPTER_HERO.get(chapter.code)
+    if hero_code and _grant_alignment_hero(db, account, hero_code):
+        hero_granted = hero_code
+
+    # Phase 4 — named legendary armor piece for the chapter.
+    gear_granted: dict | None = None
+    gear_code = CHAPTER_END_NAMED_GEAR.get(chapter.code)
+    if gear_code:
+        from app.named_gear import grant_named_gear, by_code as named_by_code
+        if grant_named_gear(db, account, gear_code):
+            spec = named_by_code(gear_code)
+            if spec is not None:
+                gear_granted = {
+                    "code": spec.code,
+                    "name": spec.name,
+                    "icon": spec.icon,
+                    "slot": str(spec.slot),
+                    "rarity": str(spec.rarity),
+                }
+
     # Persist the claim flag.
     s = _state(account)
     arr = s.get("chapter_rewards_claimed") or []
@@ -481,6 +713,10 @@ def maybe_grant_chapter_reward(
     # see in the UI.
     from app.notifications import notify as _notify
     bits = [f"+{v} {k.replace('_', ' ')}" for k, v in granted.items() if isinstance(v, int) and v > 0]
+    if hero_granted:
+        bits.append(f"Hero unlocked: {hero_granted}")
+    if gear_granted:
+        bits.append(f"{gear_granted['icon']} {gear_granted['name']}")
     _notify(
         db, account,
         kind="chapter_complete",
@@ -494,6 +730,8 @@ def maybe_grant_chapter_reward(
         "chapter_code": chapter.code,
         "chapter_title": chapter.title,
         "granted": granted,
+        "hero_granted": hero_granted,
+        "gear_granted": gear_granted,
     }
 
 
@@ -504,7 +742,12 @@ def chapter_status_for_account(account: Account) -> list[dict]:
     cleared = set(json.loads(account.stages_cleared_json or "[]") if isinstance(account.stages_cleared_json, str) else [])
     out = []
     level = int(account.account_level or 1)
+    account_faction = str(account.faction or Faction.EXILE)
     for ch in STORY_CHAPTERS:
+        # Alignment-gated chapters: only show to the matching faction.
+        # EXILE players see neither fork until they choose.
+        if ch.required_alignment is not None and ch.required_alignment != account_faction:
+            continue
         unlocked = level >= ch.unlock_level
         stages = []
         prev_cleared = True  # gate sequentially within a chapter
@@ -532,11 +775,13 @@ def chapter_status_for_account(account: Account) -> list[dict]:
             "blurb": ch.blurb,
             "icon": ch.icon,
             "unlock_level": ch.unlock_level,
+            "required_alignment": ch.required_alignment,
             "unlocked": unlocked,
             "stages": stages,
             "completion_pct": int(round(100 * sum(1 for s in stages if s["cleared"]) / max(1, len(stages)))),
             "completed": completed,
             "reward_claimed": ch.code in _chapter_rewards_claimed(account),
             "end_reward": CHAPTER_END_REWARDS.get(ch.code, {}),
+            "alignment_hero": ALIGNMENT_CHAPTER_HERO.get(ch.code),
         })
     return out

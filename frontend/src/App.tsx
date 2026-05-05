@@ -23,6 +23,8 @@ import { AchievementsRoute } from './routes/Achievements'
 import { EventRoute } from './routes/Event'
 import { CraftingRoute } from './routes/Crafting'
 import { AccountRoute } from './routes/Account'
+import { InventoryRoute } from './routes/Inventory'
+import { PrivacyRoute, TermsRoute } from './routes/Legal'
 import BattleSetupRoute from './routes/battle/BattleSetupRoute'
 import BattleReplayRoute from './routes/battle/BattleReplayRoute'
 import BattlePlayRoute from './routes/battle/BattlePlayRoute'
@@ -46,6 +48,7 @@ const router = createBrowserRouter([
       ]},
       { path: 'summon', element: <SummonRoute /> },
       { path: 'crafting', element: <CraftingRoute /> },
+      { path: 'inventory', element: <InventoryRoute /> },
       { path: 'stages', element: <StagesRoute /> },
       { path: 'daily', element: <DailyRoute /> },
       { path: 'story', element: <StoryRoute /> },
@@ -65,6 +68,8 @@ const router = createBrowserRouter([
       { path: 'shop', element: <ShopRoute /> },
       { path: 'account', element: <AccountRoute /> },
       { path: 'event', element: <EventRoute /> },
+      { path: 'privacy', element: <PrivacyRoute /> },
+      { path: 'terms', element: <TermsRoute /> },
     ],
   },
   {
