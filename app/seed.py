@@ -1057,6 +1057,35 @@ SHOP_SEEDS: list[dict] = [
         "kind": ShopProductKind.ACCESS_CARD_PACK, "price_cents": 999, "sort_order": 300,
         "contents": {"access_cards": 15},
     },
+    # Coin packs — soft premium currency for the in-game economy.
+    {
+        "sku": "coin_sack_daily", "title": "Coin Sack",
+        "description": "5,000 coins. Free once per day.",
+        "kind": ShopProductKind.COIN_PACK, "price_cents": 0, "sort_order": 50,
+        "per_account_limit": 1,
+        "contents": {"coins": 5000},
+    },
+    {
+        "sku": "coin_chest", "title": "Coin Chest",
+        "description": "25,000 coins. Classic IT salary move.",
+        "kind": ShopProductKind.COIN_PACK, "price_cents": 99, "sort_order": 51,
+        "per_account_limit": 0,
+        "contents": {"coins": 25000},
+    },
+    {
+        "sku": "coin_vault", "title": "Coin Vault",
+        "description": "100,000 coins. Senior dev territory.",
+        "kind": ShopProductKind.COIN_PACK, "price_cents": 199, "sort_order": 52,
+        "per_account_limit": 0,
+        "contents": {"coins": 100000},
+    },
+    {
+        "sku": "devs_stash", "title": "Dev's Stash",
+        "description": "500,000 coins. The Rootlord's personal reserve.",
+        "kind": ShopProductKind.COIN_PACK, "price_cents": 499, "sort_order": 53,
+        "per_account_limit": 0,
+        "contents": {"coins": 500000},
+    },
     # Weekly bundle — mixed-currency good-value offer. Timed window seeded separately.
     {
         "sku": "weekly_bundle", "title": "Weekly Ops Kit",
