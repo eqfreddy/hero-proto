@@ -1,41 +1,49 @@
 /* frontend/src/styles/tokens.css */
 :root {
-  /* Base palette */
-  --bg: #0b0d10;
-  --bg-inset: #0f1520;
-  --panel: #14202b;
-  --panel-2: #1a2535;
-  --border: #2a3447;
-  --text: #e8edf4;
-  --muted: #6b7a8d;
-  --accent: #4ea1ff;
+  /* ── Dark cyberpunk base ── */
+  --bg:        #04060c;
+  --bg-inset:  #080d18;
+  --panel:     #0c101a;
+  --panel-2:   #10141f;
+  --border:    rgba(0, 255, 224, 0.08);
+  --text:      #dde4f0;
+  --muted:     #4a5a72;
 
-  /* Semantic */
-  --good: #6dd39a;
-  --bad: #ff6b6b;
-  --warn: #ffd86b;
+  /* ── Cyberpunk accents ── */
+  --accent:    #00ffe0;
+  --magenta:   #ff2d78;
 
-  /* Rarity */
-  --r-common: #9ca7b3;
-  --r-uncommon: #6dd39a;
-  --r-rare: #59a0ff;
-  --r-epic: #c97aff;
-  --r-legendary: #ffd86b;
-  --r-myth: #ff9ecd;
+  /* ── Dark fantasy (character / rarity) ── */
+  --crimson:   #c8102e;
+  --gold:      #ffd700;
+  --void-purple: #9b30ff;
 
-  /* Faction */
-  --faction-resistance: #6dd39a;
-  --faction-corp-greed: #c97aff;
-  --faction-exile: #ffd86b;
-  --faction-neutral: #9ca7b3;
+  /* ── Semantic ── */
+  --good:  #22c55e;
+  --bad:   #ef4444;
+  --warn:  #f59e0b;
 
-  /* Role */
-  --role-atk: #ff7a59;
-  --role-def: #59a0ff;
-  --role-sup: #6dd39a;
+  /* ── Rarity ── */
+  --r-common:    #9ca7b3;
+  --r-uncommon:  #22c55e;
+  --r-rare:      #00ffe0;
+  --r-epic:      #9b30ff;
+  --r-legendary: #ffd700;
+  --r-myth:      #c8102e;
 
-  /* Spacing */
-  --radius: 6px;
+  /* ── Faction ── */
+  --faction-resistance: #22c55e;
+  --faction-corp-greed: #9b30ff;
+  --faction-exile:      #ffd700;
+  --faction-neutral:    #9ca7b3;
+
+  /* ── Role ── */
+  --role-atk: #ff2d78;
+  --role-def: #00ffe0;
+  --role-sup: #22c55e;
+
+  /* ── Spacing ── */
+  --radius:    6px;
   --radius-sm: 4px;
   --radius-lg: 10px;
 }

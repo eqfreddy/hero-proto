@@ -12,6 +12,21 @@ body {
   line-height: 1.5;
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 224, 0.012) 2px,
+    rgba(0, 255, 224, 0.012) 3px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
 button {
   cursor: pointer;
   border: 1px solid var(--border);
@@ -117,16 +132,22 @@ a:hover { text-decoration: underline; }
 }
 .nav-tab:active { transform: translateY(1px); }
 .nav-tab.is-active {
-  background: linear-gradient(180deg, var(--accent), #3a8ee6);
-  color: #0b0d10;
+  background: rgba(0, 255, 224, 0.1);
+  color: var(--accent);
   font-weight: 700;
-  border-color: var(--accent);
-  box-shadow: 0 2px 10px -2px rgba(78, 161, 255, 0.6);
+  border-color: rgba(0, 255, 224, 0.4);
+  box-shadow: 0 0 12px rgba(0, 255, 224, 0.15);
+  text-shadow: 0 0 8px rgba(0, 255, 224, 0.5);
 }
 .nav-tab.is-active:hover {
-  background: linear-gradient(180deg, #6bb8ff, var(--accent));
-  border-color: var(--accent);
-  color: #0b0d10;
+  background: rgba(0, 255, 224, 0.14);
+  border-color: rgba(0, 255, 224, 0.5);
+  color: var(--accent);
+}
+.nav-tab.is-active .nav-tab-badge {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 0 2px rgba(0, 255, 224, 0.3);
 }
 .nav-tab-icon {
   display: inline-flex;
@@ -152,11 +173,6 @@ a:hover { text-decoration: underline; }
   font-weight: 800;
   margin-left: 2px;
   box-shadow: 0 0 0 2px var(--panel);
-}
-.nav-tab.is-active .nav-tab-badge {
-  background: #0b0d10;
-  color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent);
 }
 .nav-tab-dot {
   width: 7px;
@@ -361,3 +377,27 @@ a:hover { text-decoration: underline; }
 .empty-state-icon { font-size: 36px; opacity: 0.6; }
 .empty-state-msg { font-size: 14px; font-weight: 600; color: var(--text); }
 .empty-state-hint { font-size: 12px; max-width: 360px; }
+
+/* ── Lobby utilities ── */
+.teal-glow   { text-shadow: 0 0 8px rgba(0, 255, 224, 0.6); }
+.crimson-glow { text-shadow: 0 0 10px rgba(200, 16, 46, 0.7); }
+.label-caps {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.meter-bar {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+@keyframes cursor-blink {
+  50% { opacity: 0; }
+}
