@@ -176,6 +176,8 @@ def join_guild(
         raise HTTPException(status.HTTP_409_CONFLICT, "guild is full")
     db.add(GuildMember(account_id=account.id, guild_id=guild_id, role=GuildRole.MEMBER))
     _update_guild_achievement(db, guild_id, "members_joined", 1)
+    from app.quest_service import record_event as _rq
+    _rq(db, account, "GUILD_JOINED")
     db.commit()
     return _detail(db, guild_id)  # type: ignore[return-value]
 
@@ -500,6 +502,10 @@ def accept_application(
     ):
         other.status = GuildApplicationStatus.REJECTED
         other.reviewed_at = utcnow()
+    applicant_account = db.get(Account, a.account_id)
+    if applicant_account is not None:
+        from app.quest_service import record_event as _rq
+        _rq(db, applicant_account, "GUILD_JOINED")
     db.commit()
     return _detail(db, a.guild_id)  # type: ignore[return-value]
 
@@ -700,6 +706,8 @@ def accept_invite(
     ):
         other.status = GuildApplicationStatus.REJECTED
         other.decided_at = utcnow()
+    from app.quest_service import record_event as _rq
+    _rq(db, account, "GUILD_JOINED")
     db.commit()
     return _detail(db, inv.guild_id)  # type: ignore[return-value]
 

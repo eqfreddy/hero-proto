@@ -122,6 +122,8 @@ def choose_alignment(
     # piece of the Veteran IT armor set, regardless of which side they pick.
     from app.named_gear import grant_named_gear, by_code as named_by_code
     legs_granted = grant_named_gear(db, account, "cargo_pants_of_many_tabs")
+    from app.quest_service import record_event as _rq
+    _rq(db, account, "FACTION_CHOSEN")
     db.commit()
 
     from app.notifications import notify as _notify

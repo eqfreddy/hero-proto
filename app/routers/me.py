@@ -180,7 +180,11 @@ def daily_bonus_claim(
         )
     result = apply_claim(account)
     from app.account_level import XP_PER_DAILY_BONUS, grant_xp as _gxp
-    _gxp(db, account, XP_PER_DAILY_BONUS)
+    levelups = _gxp(db, account, XP_PER_DAILY_BONUS)
+    if levelups:
+        from app.quest_service import record_event as _rq
+        for lu in levelups:
+            _rq(db, account, "ACCOUNT_LEVEL_REACHED", {"level": lu["level"]})
     db.commit()
     from app.analytics import track as _track
     _track("daily_bonus_claim", account.id, {

@@ -201,6 +201,14 @@ def fight(
         liveops_multiplier=reward_multiplier(db),
     )
 
+    # Hero level-up quest hook: fire HERO_LEVELED for each hero that leveled to >= 5.
+    if rewards.level_ups:
+        from app.quest_service import record_event as _qevent_hl
+        for hero_id in rewards.level_ups:
+            hero_obj = db.get(HeroInstance, hero_id)
+            if hero_obj and hero_obj.level >= 5:
+                _qevent_hl(db, account, "HERO_LEVELED", {"level": hero_obj.level})
+
     # Tutorial completion reward: grant one free summon token on the first
     # successful clear of the tutorial stage. Gated by tutorial_reward_granted
     # so delete+re-register loops don't re-award it.
@@ -267,6 +275,9 @@ def fight(
         )
         if levelups:
             rewards_extra["account_levelups"] = levelups
+            from app.quest_service import record_event as _qevent_lu
+            for lu in levelups:
+                _qevent_lu(db, account, "ACCOUNT_LEVEL_REACHED", {"level": lu["level"]})
 
         # Phase 2.5 — chapter-end rewards. Only fires on first_clear of the
         # final stage in a chapter (idempotent via story_state_json).
@@ -274,6 +285,11 @@ def fight(
             ch_reward = _chapter_reward(db, account, stage.code)
             if ch_reward is not None:
                 rewards_extra["chapter_reward"] = ch_reward
+                _ARC_CODES = {"onboarding_arc", "middle_management_arc", "exec_floor_arc", "resistance_arc", "corpgreed_arc"}
+                from app.quest_service import record_event as _qevent_ch
+                _qevent_ch(db, account, "STORY_CHAPTER_CLEARED")
+                if ch_reward.get("chapter_code") in _ARC_CODES:
+                    _qevent_ch(db, account, "STORY_ARC_CLEARED")
 
     # Crafting material drops on win — independent of gear drops.
     if outcome == BattleOutcome.WIN:
@@ -343,9 +359,15 @@ def fight(
 
     # Quest progression: every completed battle fires BATTLE_COMPLETE; wins also fire BATTLE_WIN.
     from app.quest_service import record_event as _qevent
+    from app.models import StageDifficulty as _SD
     _qevent(db, account, "BATTLE_COMPLETE")
     if outcome == BattleOutcome.WIN:
         _qevent(db, account, "BATTLE_WIN")
+        _qevent(db, account, "STAGE_CLEARED")
+        if stage.difficulty_tier == _SD.HARD:
+            _qevent(db, account, "HARD_STAGE_CLEARED")
+        if str(stage.difficulty_tier) == "LEGENDARY":
+            _qevent(db, account, "LEGENDARY_STAGE_CLEARED")
 
     db.commit()
     db.refresh(battle)

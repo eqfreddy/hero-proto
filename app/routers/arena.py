@@ -306,6 +306,9 @@ def attack(
         participants_json=json.dumps(participants),
     )
     db.add(match)
+    if result.outcome == BattleOutcome.WIN:
+        from app.quest_service import record_event as _rq
+        _rq(db, account, "ARENA_WIN")
     db.commit()
     db.refresh(match)
 

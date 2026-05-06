@@ -39,6 +39,8 @@ def claim(
     account.shards += q.reward_shards
     q.status = DailyQuestStatus.CLAIMED
     q.claimed_at = utcnow()
+    from app.quest_service import record_event as _rq
+    _rq(db, account, "DAILY_QUEST_COMPLETE")
     db.commit()
     db.refresh(q)
     return q

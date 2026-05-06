@@ -84,6 +84,8 @@ def equip(
         existing_in_slot.hero_instance_id = None
 
     g.hero_instance_id = hero.id
+    from app.quest_service import record_event as _rq
+    _rq(db, account, "GEAR_EQUIPPED")
     db.commit()
     db.refresh(g)
     return gear_out(g)

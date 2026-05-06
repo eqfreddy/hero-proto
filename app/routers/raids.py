@@ -364,6 +364,9 @@ def attack_raid(
         defeated = True
         _uga(db, membership.guild_id, "raids_completed", 1)
         rewards_payload = _distribute_rewards(db, raid)
+
+    from app.quest_service import record_event as _rq
+    _rq(db, account, "RAID_CONTRIBUTED")
     db.commit()
 
     # Suppress unused-var lint.

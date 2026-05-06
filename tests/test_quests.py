@@ -56,3 +56,38 @@ def test_dismiss_hides_quest(client):
     assert r.status_code == 200
     r = client.get("/quests/active", headers=_headers(token))
     assert r.json() == []
+
+
+def test_summon_advances_summon_task(client):
+    token = _register(client, "summon_quest@example.com")
+    r = client.post("/summon/x1", headers=_headers(token))
+    assert r.status_code == 201
+    r = client.get("/quests/active", headers=_headers(token))
+    quest = r.json()[0]
+    task = next(t for t in quest["tasks"] if t["event"] == "SUMMON_COMPLETE")
+    assert task["current"] >= 1
+
+
+def test_gear_equip_advances_task(client):
+    token = _register(client, "gear_quest@example.com")
+    # Summon to get heroes and a gear drop via battle
+    client.post("/summon/x10", headers=_headers(token))
+    heroes = sorted(client.get("/heroes/mine", headers=_headers(token)).json(),
+                    key=lambda h: h["power"], reverse=True)
+    team = [h["id"] for h in heroes[:3]]
+    stages = client.get("/stages").json()
+    stage1 = next(s for s in stages if s["order"] == 1)
+    client.post("/battles", json={"stage_id": stage1["id"], "team": team},
+                headers=_headers(token))
+    gear_list = client.get("/gear/mine", headers=_headers(token)).json()
+    if not gear_list:
+        return  # gear drop RNG; skip if none dropped
+    gear_id = gear_list[0]["id"]
+    hero_id = heroes[0]["id"]
+    r = client.post(f"/gear/{gear_id}/equip",
+                    json={"hero_instance_id": hero_id}, headers=_headers(token))
+    assert r.status_code == 200
+    r = client.get("/quests/active", headers=_headers(token))
+    quest = r.json()[0]
+    task = next(t for t in quest["tasks"] if t["event"] == "GEAR_EQUIPPED")
+    assert task["current"] >= 1
