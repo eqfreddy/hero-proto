@@ -10,6 +10,7 @@ import { fetchCrafting } from '../api/crafting'
 import { useHeroes } from '../hooks/useHeroes'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
+import { CoachMark } from '../components/CoachMark'
 import { toast } from '../store/ui'
 
 const RARITY_ORDER: GearRarity[] = ['LEGENDARY', 'EPIC', 'RARE', 'COMMON']
@@ -127,6 +128,11 @@ export function InventoryRoute() {
           ) : (
             <>
               <FilterRow value={slotFilter} onChange={setSlotFilter} totalNamed={namedCount} />
+              <CoachMark
+                screenId="inventory"
+                tooltip="Drag gear onto a hero slot to boost their stats."
+                side="left"
+              >
               <div style={{
                 display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12,
               }}>
@@ -147,6 +153,7 @@ export function InventoryRoute() {
                   </div>
                 )}
               </div>
+              </CoachMark>
             </>
           )}
         </>

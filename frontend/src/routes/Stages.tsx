@@ -4,6 +4,7 @@ import { useStages, useTeamPower } from '../hooks/useStages'
 import { useMe } from '../hooks/useMe'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
+import { CoachMark } from '../components/CoachMark'
 import type { Stage } from '../types'
 
 const TIER_LABELS = { NORMAL: 'Normal', HARD: 'Hard', NIGHTMARE: 'Nightmare' }
@@ -50,9 +51,19 @@ export function StagesRoute() {
       </div>
 
       <div className="stack" style={{ gap: 8 }}>
-        {byTier.map((stage) => {
+        {byTier.map((stage, index) => {
           const powerRatio = teamPower > 0 ? teamPower / stage.recommended_power : 0
           const powerColor = powerRatio >= 1.2 ? 'var(--good)' : powerRatio >= 0.8 ? 'var(--warn)' : 'var(--bad)'
+          const battleBtn = (
+            <button
+              className="primary"
+              disabled={stage.locked || (me?.energy ?? 0) < stage.energy_cost}
+              onClick={() => startBattle(stage)}
+              style={{ fontSize: 12 }}
+            >
+              {stage.locked ? '🔒' : 'Battle'}
+            </button>
+          )
           return (
             <div key={stage.id} className="card" style={{ padding: '12px 16px', opacity: stage.locked ? 0.5 : 1 }}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -70,14 +81,15 @@ export function StagesRoute() {
                   </div>
                 </div>
                 <div className="row" style={{ gap: 6 }}>
-                  <button
-                    className="primary"
-                    disabled={stage.locked || (me?.energy ?? 0) < stage.energy_cost}
-                    onClick={() => startBattle(stage)}
-                    style={{ fontSize: 12 }}
-                  >
-                    {stage.locked ? '🔒' : 'Battle'}
-                  </button>
+                  {index === 0 ? (
+                    <CoachMark
+                      screenId="stages"
+                      tooltip="Tap Battle to fight a stage. Energy refills over time."
+                      side="left"
+                    >
+                      {battleBtn}
+                    </CoachMark>
+                  ) : battleBtn}
                 </div>
               </div>
             </div>

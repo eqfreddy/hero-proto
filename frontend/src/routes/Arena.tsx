@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from '../store/ui'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
+import { CoachMark } from '../components/CoachMark'
 import { useState } from 'react'
 
 export function ArenaRoute() {
@@ -34,16 +35,29 @@ export function ArenaRoute() {
         <h3 style={{ marginTop: 0 }}>Available Opponents</h3>
         {!data?.opponents?.length
           ? <EmptyState icon="⚔️" message="No opponents available." />
-          : data.opponents.map((o) => (
+          : data.opponents.map((o, index) => (
             <div key={o.account_id} className="row" style={{ justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
               <div>
                 <span style={{ fontWeight: 600 }}>{o.name}</span>
                 <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>⚡ {o.defense_power} · ⚔️ {o.arena_rating}</span>
               </div>
-              <button className="primary" style={{ fontSize: 12 }}
-                disabled={!!attacking} onClick={() => attack(o.account_id)}>
-                {attacking === o.account_id ? '…' : 'Attack'}
-              </button>
+              {index === 0 ? (
+                <CoachMark
+                  screenId="arena"
+                  tooltip="Challenge players near your rating. Wins raise your rank."
+                  side="left"
+                >
+                  <button className="primary" style={{ fontSize: 12 }}
+                    disabled={!!attacking} onClick={() => attack(o.account_id)}>
+                    {attacking === o.account_id ? '…' : 'Attack'}
+                  </button>
+                </CoachMark>
+              ) : (
+                <button className="primary" style={{ fontSize: 12 }}
+                  disabled={!!attacking} onClick={() => attack(o.account_id)}>
+                  {attacking === o.account_id ? '…' : 'Attack'}
+                </button>
+              )}
             </div>
           ))
         }

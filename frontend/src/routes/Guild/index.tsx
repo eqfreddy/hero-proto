@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { applyToGuild, createGuild, fetchAllGuilds, leaveGuild } from '../../api/guild'
 import { toast } from '../../store/ui'
 import { SkeletonGrid } from '../../components/SkeletonGrid'
+import { CoachMark } from '../../components/CoachMark'
 import { useState } from 'react'
 import type { Guild } from '../../types'
 
@@ -64,19 +65,35 @@ function GuildJoinCreate() {
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Join a Guild</h3>
           <div className="stack" style={{ gap: 6 }}>
-            {allGuilds.map(g => (
+            {allGuilds.map((g, index) => (
               <div key={g.id} className="row" style={{ justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                 <div>
                   <span style={{ fontWeight: 700 }}>[{g.tag}] {g.name}</span>
                   <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>{g.member_count} members</span>
                 </div>
-                <button style={{ fontSize: 12 }} onClick={async () => {
-                  try {
-                    await applyToGuild(g.id, '')
-                    toast.success('Application sent!')
-                    qc.invalidateQueries({ queryKey: ['guild'] })
-                  } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
-                }}>Apply</button>
+                {index === 0 ? (
+                  <CoachMark
+                    screenId="guild"
+                    tooltip="Join a guild to access raids and guild chat."
+                    side="left"
+                  >
+                    <button style={{ fontSize: 12 }} onClick={async () => {
+                      try {
+                        await applyToGuild(g.id, '')
+                        toast.success('Application sent!')
+                        qc.invalidateQueries({ queryKey: ['guild'] })
+                      } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
+                    }}>Apply</button>
+                  </CoachMark>
+                ) : (
+                  <button style={{ fontSize: 12 }} onClick={async () => {
+                    try {
+                      await applyToGuild(g.id, '')
+                      toast.success('Application sent!')
+                      qc.invalidateQueries({ queryKey: ['guild'] })
+                    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
+                  }}>Apply</button>
+                )}
               </div>
             ))}
           </div>

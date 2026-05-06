@@ -2,6 +2,7 @@ import { useHeroes } from '../../hooks/useHeroes'
 import { HeroCard } from '../../components/HeroCard'
 import { SkeletonGrid } from '../../components/SkeletonGrid'
 import { EmptyState } from '../../components/EmptyState'
+import { CoachMark } from '../../components/CoachMark'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import type { HeroTemplate } from '../../types'
@@ -45,13 +46,25 @@ export function RosterRoute() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
-        {filtered.map((hero) => (
-          <HeroCard
-            key={hero.id}
-            hero={hero}
-            onClick={() => navigate(`/app/roster/${hero.id}`)}
-          />
-        ))}
+        {filtered.map((hero, index) => {
+          const card = (
+            <HeroCard
+              key={hero.id}
+              hero={hero}
+              onClick={() => navigate(`/app/roster/${hero.id}`)}
+            />
+          )
+          return index === 0 ? (
+            <CoachMark
+              key={hero.id}
+              screenId="roster"
+              tooltip="Tap a hero to level up, ascend, or equip gear."
+              side="right"
+            >
+              {card}
+            </CoachMark>
+          ) : card
+        })}
       </div>
     </div>
   )

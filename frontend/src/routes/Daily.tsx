@@ -3,6 +3,7 @@ import { fetchDaily, claimQuest } from '../api/daily'
 import { toast } from '../store/ui'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
+import { CoachMark } from '../components/CoachMark'
 
 export function DailyRoute() {
   const qc = useQueryClient()
@@ -15,6 +16,12 @@ export function DailyRoute() {
   return (
     <div className="stack">
       <h2 style={{ margin: 0 }}>Daily Quests</h2>
+      <CoachMark
+        screenId="daily"
+        tooltip="Complete daily quests to earn coins and shards. Resets at midnight."
+        side="right"
+      >
+      <div className="stack" style={{ gap: 0 }}>
       {quests.map((q) => (
         <div key={q.id} className="card" style={{ padding: '12px 14px' }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -45,6 +52,8 @@ export function DailyRoute() {
           </div>
         </div>
       ))}
+      </div>
+      </CoachMark>
     </div>
   )
 }

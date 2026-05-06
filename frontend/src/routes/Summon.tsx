@@ -6,6 +6,7 @@ import { pullStandard } from '../api/summon'
 import { toast } from '../store/ui'
 import { HeroCard } from '../components/HeroCard'
 import { SkeletonGrid } from '../components/SkeletonGrid'
+import { CoachMark } from '../components/CoachMark'
 import type { Hero } from '../types'
 
 const PITY_CAP = 50
@@ -69,9 +70,15 @@ export function SummonRoute() {
           Wallet: ✦ {me?.shards ?? 0} shards · 🎟️ {me?.free_summon_credits ?? 0} free
         </div>
         <div className="row" style={{ gap: 8 }}>
-          <button className="primary" onClick={() => pull(1)} disabled={pulling}>
-            {pulling ? '…' : 'Pull ×1 (1 shard)'}
-          </button>
+          <CoachMark
+            screenId="summon"
+            tooltip="Spend shards to summon heroes. Pity guarantees an Epic at 50 pulls."
+            side="left"
+          >
+            <button className="primary" onClick={() => pull(1)} disabled={pulling}>
+              {pulling ? '…' : 'Pull ×1 (1 shard)'}
+            </button>
+          </CoachMark>
           <button className="primary" onClick={() => pull(10)} disabled={pulling}>
             {pulling ? '…' : 'Pull ×10 (10 shards)'}
           </button>
