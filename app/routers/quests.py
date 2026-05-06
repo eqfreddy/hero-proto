@@ -8,15 +8,17 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Annotated
+import random
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_current_account
-from app.models import Account, AccountQuest, Quest, utcnow
+from app.models import Account, AccountQuest, GachaRecord, HeroInstance, HeroTemplate, Quest, Rarity, utcnow
 
 router = APIRouter(prefix="/quests", tags=["quests"])
 log = logging.getLogger(__name__)
@@ -86,7 +88,7 @@ def active_quests(
 
 
 class ClaimIn(BaseModel):
-    choice: str  # "epic" | "gems"
+    choice: Literal["epic", "gems"]
 
 
 @router.post("/{quest_id}/claim")
@@ -97,9 +99,11 @@ def claim_quest(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     aq = (
-        db.query(AccountQuest)
-        .filter_by(account_id=account.id, quest_id=quest_id)
-        .first()
+        db.execute(
+            select(AccountQuest)
+            .filter_by(account_id=account.id, quest_id=quest_id)
+            .with_for_update()
+        ).scalar_one_or_none()
     )
     if aq is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "quest not found")
@@ -107,8 +111,6 @@ def claim_quest(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "quest not complete")
     if aq.claimed_at is not None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "already claimed")
-    if body.choice not in ("epic", "gems"):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "choice must be 'epic' or 'gems'")
 
     quest = db.get(Quest, quest_id)
     reward = json.loads(quest.reward_json) if quest else {}
@@ -129,28 +131,27 @@ def claim_quest(
         account.gems = (account.gems or 0) + 500
         granted["gems"] = 500
     elif body.choice == "epic":
-        # Trigger one guaranteed Epic summon using existing gacha machinery.
-        from app.models import GachaRecord, HeroInstance, HeroTemplate, Rarity
-        import random
         rng = random.SystemRandom()
         pool = list(db.query(HeroTemplate).filter(HeroTemplate.rarity == Rarity.EPIC).all())
-        if pool:
-            template = rng.choice(pool)
-            hero = HeroInstance(
-                account_id=account.id,
-                template_id=template.id,
-                level=1,
-                xp=0,
-            )
-            db.add(hero)
-            db.flush()
-            db.add(GachaRecord(
-                account_id=account.id,
-                template_id=template.id,
-                rarity=str(Rarity.EPIC),
-                pity_before=account.pulls_since_epic or 0,
-            ))
-            granted["epic_hero"] = {"template_id": template.id, "name": template.name}
+        if not pool:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "no epic heroes available; try again later")
+        template = rng.choice(pool)
+        hero = HeroInstance(
+            account_id=account.id,
+            template_id=template.id,
+            level=1,
+            xp=0,
+        )
+        db.add(hero)
+        db.flush()
+        db.add(GachaRecord(
+            account_id=account.id,
+            template_id=template.id,
+            rarity=str(Rarity.EPIC),
+            pity_before=account.pulls_since_epic or 0,
+        ))
+        account.pulls_since_epic = 0  # reset pity counter after Epic grant
+        granted["epic_hero"] = {"template_id": template.id, "name": template.name}
 
     aq.claimed_at = utcnow()
     aq.claim_choice = body.choice

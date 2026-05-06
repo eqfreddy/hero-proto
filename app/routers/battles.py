@@ -341,15 +341,14 @@ def fight(
         if membership is not None:
             _uga(db, membership.guild_id, "battles_won", 1)
 
-    db.commit()
-    db.refresh(battle)
-
     # Quest progression: every completed battle fires BATTLE_COMPLETE; wins also fire BATTLE_WIN.
     from app.quest_service import record_event as _qevent
     _qevent(db, account, "BATTLE_COMPLETE")
     if outcome == BattleOutcome.WIN:
         _qevent(db, account, "BATTLE_WIN")
+
     db.commit()
+    db.refresh(battle)
 
     # stage_clear / first_clear: fire on every battle that resolved (regardless
     # of WIN/LOSS), with `won` so funnels can scope. Separate first_clear event
