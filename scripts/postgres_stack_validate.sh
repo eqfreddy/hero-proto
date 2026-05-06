@@ -24,6 +24,7 @@ echo "==> Bringing up postgres-backed stack (project=${PROJECT})..."
 HEROPROTO_DATABASE_URL="postgresql+psycopg://hero:heropw@postgres:5432/heroproto" \
 HEROPROTO_RATE_LIMIT_DISABLED=1 \
 HEROPROTO_MOCK_PAYMENTS_ENABLED=1 \
+HEROPROTO_ENVIRONMENT=test \
   docker compose -p "${PROJECT}" --profile postgres up -d --build
 
 cleanup() {

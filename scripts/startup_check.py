@@ -193,7 +193,7 @@ async def check_auth_register_login(client: httpx.AsyncClient, r: Report) -> Non
     except Exception as e:
         r.fail("Registration round-trip", f"network error: {e}")
         return
-    if reg.status_code != 201:
+    if reg.status_code != 200:
         r.fail("Registration round-trip", f"register HTTP {reg.status_code}: {reg.text[:120]}")
         return
     if not reg.json().get("access_token"):

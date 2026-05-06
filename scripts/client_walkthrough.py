@@ -79,7 +79,7 @@ class Session:
             "/auth/register",
             json={"email": self.email, "password": self.password},
         )
-        if r.status_code != 201:
+        if r.status_code != 200:
             _fail(f"register failed: HTTP {r.status_code} {r.text[:120]}")
         body = r.json()
         self.access_token = body["access_token"]

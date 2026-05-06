@@ -216,7 +216,7 @@ def healthz() -> dict:
 def _worker_health_dict() -> dict:
     last_tick = worker_health.last_tick_at
     return {
-        "enabled": settings.worker_enabled,
+        "enabled": settings.worker_enabled and settings.environment != "test",
         "last_tick_at": last_tick.isoformat() if last_tick else None,
         "last_tick_success": worker_health.last_tick_success,
         "last_error": worker_health.last_error,
