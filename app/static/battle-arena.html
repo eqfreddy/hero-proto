@@ -351,18 +351,18 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 'use strict';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const IDLE_FRAMES   = 81;
-const ATTACK_FRAMES = 21;
-const HURT_FRAMES   = 11;
-const DIE_FRAMES    = 51;
-const IDLE_FPS   = 14;
+const IDLE_FRAMES   = 10;
+const ATTACK_FRAMES = 9;
+const HURT_FRAMES   = 8;
+const DIE_FRAMES    = 17;
+const IDLE_FPS   = 12;
 const ATTACK_FPS = 18;
 const HURT_FPS   = 18;
-const DIE_FPS    = 16;
-const IDLE_BASE   = '/app/static/battle-assets/characters/dark-assassin/idle/character%20for%20spine-idle_';
-const ATTACK_BASE = '/app/static/battle-assets/characters/dark-assassin/attack/character%20for%20spine-Attack_';
-const HURT_BASE   = '/app/static/battle-assets/characters/dark-assassin/hurt/character%20for%20spine-hurt_';
-const DIE_BASE    = '/app/static/battle-assets/characters/dark-assassin/die/character%20for%20spine-die_';
+const DIE_FPS    = 12;
+const IDLE_BASE   = '/app/static/battle-assets/characters/stick-figure/idle/gary-idle_';
+const ATTACK_BASE = '/app/static/battle-assets/characters/stick-figure/attack/gary-attack_';
+const HURT_BASE   = '/app/static/battle-assets/characters/stick-figure/hurt/gary-hurt_';
+const DIE_BASE    = '/app/static/battle-assets/characters/stick-figure/die/gary-die_';
 
 const STAGE_CODE_TO_BG = {
   'legacy_server_room':     'cof/bg-server-closet.png',
@@ -383,7 +383,8 @@ const STAGE_CODE_TO_BG = {
 const BUST_BASE = '/app/static/heroes/busts/';
 
 // ─── Demo roster ─────────────────────────────────────────────────────────────
-const TEMPLATE_SPRITE = { 'dark-assassin': true };
+// All units use stick-figure sprites
+const TEMPLATE_SPRITE = new Proxy({}, { get: () => true });
 const DEMO_ALLIES = [
   { uid:'a0', name:'Dark Assassin',    role:'ATK', emoji:'🗡️', hp:820,  maxHp:820,  prot:0,   maxProt:0,   template_code:'dark-assassin' },
   { uid:'a1', name:'Keymaster Gary',   role:'DEF', emoji:'🪖', hp:1100, maxHp:1100, prot:200, maxProt:200, template_code:'keymaster_gary' },
