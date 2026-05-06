@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -14,6 +14,27 @@ from app.schemas import LoginIn, RegisterIn, RegisterOut, TokenOut
 from app.security import hash_password, issue_token, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+def _queue_email(
+    background_tasks: BackgroundTasks,
+    to_email: str,
+    subject: str,
+    body_text: str,
+    body_html: str | None = None,
+) -> None:
+    """Queue an SMTP send to run after the response is returned.
+    Caller never blocks on the network round-trip."""
+    import logging as _logging
+    from app.email_sender import get_sender as _gs
+    _qlog = _logging.getLogger("auth.email")
+
+    def _send() -> None:
+        try:
+            _gs().send(to_email=to_email, subject=subject, body_text=body_text, body_html=body_html)
+        except Exception:
+            _qlog.exception("background email send failed to=%s subject=%r", to_email, subject)
+
+    background_tasks.add_task(_send)
 
 
 def _maybe_promote_admin(account: Account) -> None:
@@ -61,6 +82,7 @@ def _grant_starter_team(db: Session, account: Account) -> None:
 def register(
     body: RegisterIn,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
 ) -> RegisterOut:
     from app.captcha import verify_turnstile
@@ -71,13 +93,9 @@ def register(
     if existing is not None:
         # Enumeration-safe: always 200. Notify the real owner so they know
         # someone tried to register with their address.
-        try:
-            from app.email_render import render_account_exists
-            from app.email_sender import get_sender as _get_sender
-            subject, text, html = render_account_exists(email=body.email)
-            _get_sender().send(to_email=body.email, subject=subject, body_text=text, body_html=html)
-        except Exception:
-            _log.exception("account-exists email failed for %s", body.email)
+        from app.email_render import render_account_exists
+        subject, text, html = render_account_exists(email=body.email)
+        _queue_email(background_tasks, body.email, subject, text, html)
         return RegisterOut()
 
     account = Account(
@@ -98,14 +116,10 @@ def register(
     _verify_row, verify_raw = _issue_email_verification(db, account)
     db.commit()
     db.refresh(account)
-    try:
-        from app.email_render import render_verify_email
-        from app.email_sender import get_sender as _get_sender
-        verify_url = f"{settings.public_base_url.rstrip('/')}/auth/verify-email?token={verify_raw}"
-        subj, vtxt, vhtml = render_verify_email(verify_url=verify_url, ttl_hours=EMAIL_VERIFY_TTL_HOURS)
-        _get_sender().send(to_email=account.email, subject=subj, body_text=vtxt, body_html=vhtml)
-    except Exception:
-        _log.exception("welcome verification email failed for %s", account.email)
+    from app.email_render import render_verify_email
+    verify_url = f"{settings.public_base_url.rstrip('/')}/auth/verify-email?token={verify_raw}"
+    subj, vtxt, vhtml = render_verify_email(verify_url=verify_url, ttl_hours=EMAIL_VERIFY_TTL_HOURS)
+    _queue_email(background_tasks, account.email, subj, vtxt, vhtml)
     from app.analytics import track as _track
     _track("register", account.id, {"email_domain": body.email.split("@")[-1]})
     return RegisterOut(
@@ -162,6 +176,7 @@ def _is_new_ip(db, account_id: int, current_ip: str | None) -> bool:
 def login(
     body: LoginIn,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     """Password login. Returns a challenge token when TOTP is enabled or when the
@@ -189,18 +204,14 @@ def login(
                 from datetime import timedelta as _td
                 account.login_locked_until = utcnow() + _td(minutes=settings.login_lockout_minutes)
                 db.commit()
-                try:
-                    from app.email_render import render_login_locked
-                    from app.email_sender import get_sender as _lock_sender
-                    reset_url = f"{settings.public_base_url.rstrip('/')}/reset-password"
-                    subj, ltxt, lhtml = render_login_locked(
-                        attempts=account.login_failed_attempts,
-                        lockout_minutes=settings.login_lockout_minutes,
-                        reset_url=reset_url,
-                    )
-                    _lock_sender().send(to_email=account.email, subject=subj, body_text=ltxt, body_html=lhtml)
-                except Exception:
-                    _log.exception("login-locked email failed for account %s", account.id)
+                from app.email_render import render_login_locked
+                reset_url = f"{settings.public_base_url.rstrip('/')}/reset-password"
+                subj, ltxt, lhtml = render_login_locked(
+                    attempts=account.login_failed_attempts,
+                    lockout_minutes=settings.login_lockout_minutes,
+                    reset_url=reset_url,
+                )
+                _queue_email(background_tasks, account.email, subj, ltxt, lhtml)
             else:
                 db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
@@ -238,18 +249,14 @@ def login(
         db.add(challenge)
         db.commit()
         approve_url = f"{settings.public_base_url.rstrip('/')}/auth/approve-login?token={raw}"
-        try:
-            from app.email_render import render_location_challenge
-            from app.email_sender import get_sender as _loc_sender
-            subj, ltxt, lhtml = render_location_challenge(
-                approve_url=approve_url,
-                login_ip=ip,
-                user_agent=_client_ua(request),
-                ttl_minutes=LOCATION_CHALLENGE_TTL_MINUTES,
-            )
-            _loc_sender().send(to_email=account.email, subject=subj, body_text=ltxt, body_html=lhtml)
-        except Exception:
-            _log.exception("location challenge email failed for account %s", account.id)
+        from app.email_render import render_location_challenge
+        subj, ltxt, lhtml = render_location_challenge(
+            approve_url=approve_url,
+            login_ip=ip,
+            user_agent=_client_ua(request),
+            ttl_minutes=LOCATION_CHALLENGE_TTL_MINUTES,
+        )
+        _queue_email(background_tasks, account.email, subj, ltxt, lhtml)
         from app.analytics import track as _track
         _track("login", account.id, {"method": "password", "stage": "location_challenge", "ip": ip})
         return LocationChallengeOut().model_dump()
@@ -304,6 +311,7 @@ class PasswordResetStartedOut(BaseModel):
 @router.post("/forgot-password", response_model=PasswordResetStartedOut)
 def forgot_password(
     body: ForgotPasswordIn,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
 ) -> PasswordResetStartedOut:
     """Start a password reset. Returns 200 regardless of whether the email
@@ -327,24 +335,11 @@ def forgot_password(
         # Email the reset link via the configured sender. In non-prod we also
         # return the URL directly so clients can skip the mailbox step.
         from app.email_render import render_password_reset
-        from app.email_sender import get_sender as _get_sender
-        # The reset link points at the HTML page (which then POSTs the token
-        # to /auth/reset-password). Keep the API endpoint and the user-facing
-        # page on different URLs so the latter can stay GET-friendly.
         full_url = f"{settings.public_base_url.rstrip('/')}/reset-password?token={raw}"
-        try:
-            subject, text_body, html_body = render_password_reset(
-                reset_url=full_url, ttl_hours=PASSWORD_RESET_TTL_HOURS,
-            )
-            _get_sender().send(
-                to_email=account.email,
-                subject=subject,
-                body_text=text_body,
-                body_html=html_body,
-            )
-        except Exception:
-            # Failures are non-fatal for the request (attacker enumeration resistance).
-            _log.exception("password reset email delivery failed for %s", account.email)
+        subject, text_body, html_body = render_password_reset(
+            reset_url=full_url, ttl_hours=PASSWORD_RESET_TTL_HOURS,
+        )
+        _queue_email(background_tasks, account.email, subject, text_body, html_body)
         if settings.environment.lower() != "prod":
             dev_url = f"/reset-password?token={raw}"
             _log.info("password reset requested for %s — dev url: %s", account.email, dev_url)
@@ -424,6 +419,7 @@ class VerifyEmailOut(BaseModel):
 @router.post("/send-verification", response_model=VerifyRequestOut)
 def send_verification(
     account: Annotated[Account, Depends(get_current_account)],
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
 ) -> VerifyRequestOut:
     """Issue a fresh verification token for the currently-signed-in account.
@@ -434,20 +430,11 @@ def send_verification(
     _row, raw = _issue_email_verification(db, account)
     db.commit()
     from app.email_render import render_verify_email
-    from app.email_sender import get_sender as _get_sender
     full_url = f"{settings.public_base_url.rstrip('/')}/auth/verify-email?token={raw}"
-    try:
-        subject, text_body, html_body = render_verify_email(
-            verify_url=full_url, ttl_hours=EMAIL_VERIFY_TTL_HOURS,
-        )
-        _get_sender().send(
-            to_email=account.email,
-            subject=subject,
-            body_text=text_body,
-            body_html=html_body,
-        )
-    except Exception:
-        _log.exception("email verification delivery failed for %s", account.email)
+    subject, text_body, html_body = render_verify_email(
+        verify_url=full_url, ttl_hours=EMAIL_VERIFY_TTL_HOURS,
+    )
+    _queue_email(background_tasks, account.email, subject, text_body, html_body)
     dev_url = None
     if settings.environment.lower() != "prod":
         dev_url = f"/auth/verify-email?token={raw}"
