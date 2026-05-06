@@ -6,6 +6,7 @@ import { CurrencyBar } from './CurrencyBar'
 import { ToastContainer } from '../Toast'
 import { AgeGate } from '../AgeGate'
 import { VersionTag } from '../VersionTag'
+import { QuestWidget } from '../QuestWidget'
 import { useAuthStore } from '../../store/auth'
 import { initPush } from '../../api/push'
 
@@ -49,6 +50,7 @@ export function Shell() {
           <Outlet />
         </main>
         <ToastContainer />
+        <QuestWidget />
         <VersionTag />
       </div>
     </AgeGate>
