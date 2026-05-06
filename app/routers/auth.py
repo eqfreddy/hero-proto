@@ -116,6 +116,9 @@ def register(
     _verify_row, verify_raw = _issue_email_verification(db, account)
     db.commit()
     db.refresh(account)
+    from app.quests import auto_enroll as _auto_enroll
+    _auto_enroll(db, account)
+    db.commit()
     from app.email_render import render_verify_email
     verify_url = f"{settings.public_base_url.rstrip('/')}/auth/verify-email?token={verify_raw}"
     subj, vtxt, vhtml = render_verify_email(verify_url=verify_url, ttl_hours=EMAIL_VERIFY_TTL_HOURS)

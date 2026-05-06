@@ -68,6 +68,10 @@ def _run_migrations() -> None:
 async def lifespan(_: FastAPI):
     _check_secrets()
     _run_migrations()
+    from app.quests import seed_quests as _seed_quests
+    from app.db import SessionLocal as _SL
+    with _SL() as _db:
+        _seed_quests(_db)
     log.info("startup complete (env=%s)", settings.environment)
 
     worker_task: asyncio.Task | None = None
