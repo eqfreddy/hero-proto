@@ -52,8 +52,22 @@ One row per account per active quest.
 ]
 ```
 
+### Stage difficulty tiers
+
+| Tier | Internal name | Display name |
+|---|---|---|
+| 1 | `NORMAL` | Floppy |
+| 2 | `HARD` | Hard Disk |
+| 3 | `LEGENDARY` | Legen'waitforit'dary |
+
+**Legendary v1 (ship first):** Random modifier stacking — each run rolls 2-3 negative modifiers (enemy enrage at 50% HP, healer silence, escalating ATK, etc.). Same stage, different feel each attempt. Low build cost, high replayability.
+
+**Legendary v2+ (future Legend Events):**
+- **Team comp locks** — faction-only, max hero count, element restrictions. Drives roster depth; players chase heroes that unlock more stages.
+- **Endless waves + leaderboard** — how far can you get? Floor milestones grant escalating rewards; floor 100 earns a cosmetic. Async competition, no real-time PvP infra required.
+
 ### Event types
-`BATTLE_COMPLETE`, `BATTLE_WIN`, `SUMMON_COMPLETE`, `GEAR_EQUIPPED`, `FACTION_CHOSEN`, `ARENA_WIN`, `GUILD_JOINED`, `DAILY_QUEST_COMPLETE`, `RAID_CONTRIBUTED`, `HERO_LEVELED`, `STAGE_CLEARED`, `HARD_STAGE_CLEARED`, `STORY_CHAPTER_CLEARED`, `ACCOUNT_LEVEL_REACHED`
+`BATTLE_COMPLETE`, `BATTLE_WIN`, `SUMMON_COMPLETE`, `GEAR_EQUIPPED`, `FACTION_CHOSEN`, `ARENA_WIN`, `GUILD_JOINED`, `DAILY_QUEST_COMPLETE`, `RAID_CONTRIBUTED`, `HERO_LEVELED`, `STAGE_CLEARED`, `HARD_STAGE_CLEARED`, `LEGENDARY_STAGE_CLEARED`, `STORY_CHAPTER_CLEARED`, `ACCOUNT_LEVEL_REACHED`
 
 ---
 
@@ -83,6 +97,7 @@ One row per account per active quest.
 | 16 | Win 10 arena matches total | `ARENA_WIN` | 10 | 6–7 |
 | 17 | Complete 3 story chapters | `STORY_CHAPTER_CLEARED` | 3 | 6–7 |
 | 18 | Complete the first story arc | `STORY_ARC_CLEARED` | 1 | 6–7 |
+| 19 | Clear a Legendary stage | `LEGENDARY_STAGE_CLEARED` | 1 | 6–7 |
 
 **Note on task 4 (faction):** Faction choice is currently locked to level 50. For onboarding, trigger `FACTION_CHOSEN` when the player first visits the faction alignment screen, or lower the unlock to level 5 for new accounts.
 
@@ -122,7 +137,7 @@ def record_event(db: Session, account: Account, event: str, payload: dict) -> No
 ```
 
 Called from:
-- `app/routers/battles.py` → `BATTLE_COMPLETE`, `BATTLE_WIN`, `HARD_STAGE_CLEARED`, `STAGE_CLEARED`
+- `app/routers/battles.py` → `BATTLE_COMPLETE`, `BATTLE_WIN`, `STAGE_CLEARED`, `HARD_STAGE_CLEARED`, `LEGENDARY_STAGE_CLEARED`
 - `app/routers/summon.py` → `SUMMON_COMPLETE`
 - `app/routers/gear.py` → `GEAR_EQUIPPED`
 - `app/routers/me.py` → `ACCOUNT_LEVEL_REACHED` (on level-up events)
