@@ -108,6 +108,20 @@ async def tour_auth(s: Session) -> None:
     await s.register("walk")
     _ok(f"registered {s.email} (id={s.account_id})")
 
+    # Verify email immediately so downstream endpoints (summon, etc.) aren't gated.
+    r = await s.client.post("/auth/send-verification", headers=s.auth)
+    if r.status_code != 200:
+        _fail(f"send-verification HTTP {r.status_code}")
+    dev_url = r.json().get("dev_verify_url")
+    if dev_url:
+        token = dev_url.split("token=")[1]
+        r2 = await s.client.post("/auth/verify-email", json={"token": token})
+        if r2.status_code != 200:
+            _fail(f"verify-email HTTP {r2.status_code}")
+        _ok("email verified (dev token)")
+    else:
+        _warn("no dev_verify_url — email gate may block summons on this env")
+
     # Fresh login produces a different set of tokens.
     r = await s.client.post(
         "/auth/login", json={"email": s.email, "password": s.password},
