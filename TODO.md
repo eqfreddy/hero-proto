@@ -2,7 +2,7 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-05-03 (battle viewer shipped — DragonBones dropped, Dark Assassin sprite engine live).
+Last updated: 2026-05-05 (lobby overhaul shipped; email background send; postgres smoke green).
 
 ---
 
@@ -119,7 +119,7 @@ Last updated: 2026-05-03 (battle viewer shipped — DragonBones dropped, Dark As
 
 ### Known papercuts still open
 
-- **Postgres compose-stack smoke: PASSED 2026-04-27.** Full image build + 17-section walkthrough green against postgres:16-alpine. Docker Desktop v29.4.0 / Compose v5.1.2 installed but the Linux engine is not started (confirmed 2026-04-26). uv 0.11.6 on PATH, port 8000 clear, compose file and script are both correct. Unblock: start Docker Desktop, then re-run `bash scripts/postgres_stack_validate.sh` from the project root.
+- **Postgres compose-stack smoke: PASSED 2026-05-05.** STARTUP CHECK OK (3 warn/expected, 6 ok) + CLIENT WALKTHROUGH PASSED (34 sections) against postgres:16-alpine. Fixed three script bugs in the process: register expected 201 (returns 200), env was `dev` so email-verify gate blocked summons (now `test`), worker reported `enabled:true` in test mode when task wasn't started (now `false`). Run: start Docker Desktop, then `bash scripts/postgres_stack_validate.sh`.
 - **Production rigs** — DragonBones Mecha is the Plan B placeholder until ATK/DEF/SUP rigs ship from Moho or the DragonBones editor.
 - **SPA shipped ✅** — React SPA is the primary client. Vanilla-JS shell still exists at `/app/partials/*` and the admin panel; those are not yet ported to React. Next: Event tab missing from SPA nav (no nav tab for `/app/event`, only appears when event is active via the event query). Admin panel is still vanilla-JS.
 
@@ -317,12 +317,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] Account data export (GDPR art. 20) — `GET /me/export`, e2d2ff5
 - [x] Login history / active sessions list — `GET /me/sessions` + revoke endpoints, e2d2ff5
 - [x] Device fingerprinting for refresh-token anomaly detection — `fingerprint_hash` (sha256 of UA|IP) on RefreshToken, compared on rotation. Mismatch logs `auth.refresh` warning + bumps `refresh_token_anomaly_total` Prometheus counter; never auto-revokes (legit users roam, browsers update). 4 new tests cover persist + match + mismatch + null-legacy paths.
-- [ ] **Speed up email delivery (forgot-password, verification).** Currently slow on Fly — emails arrive but minutes after the trigger. Options to investigate:
-  1. Switch SMTP provider to Postmark transactional (sub-5-sec inbox in their SLA) — only requires changing `HEROPROTO_EMAIL_SMTP_*` secrets, no code change.
-  2. Verify the `HEROPROTO_EMAIL_FROM_ADDRESS` domain (SPF + DKIM) so Gmail doesn't deprioritize.
-  3. Check if any queueing layer is in front (e.g. `app/email_sender.py` runs in the worker — is the worker tick interval the bottleneck?). Confirm via `fly logs | grep email`.
-  4. Add "didn't get the email?" resend link in the SPA forgot-password screen so users aren't stuck waiting.
-  Not urgent — mail arrives eventually; tracker for when it bites a real user.
+- [x] **Speed up email delivery (forgot-password, verification).** Root cause was SMTP send blocking the HTTP response (1-5s round-trip on Fly). Fixed 2026-05-05: all auth email sends now use FastAPI `BackgroundTasks` — email is rendered inline (fast), response goes out immediately, SMTP fires after. Remaining ops steps if inbox latency is still noticeable: (1) switch to Postmark (`HEROPROTO_EMAIL_SMTP_*` secrets only, no code change), (2) verify SPF + DKIM on `HEROPROTO_EMAIL_FROM_ADDRESS` domain.
 
 ### Guilds
 - [x] Promote / transfer endpoints — `/guilds/{id}/{promote,demote,transfer,kick}/{account_id}` already shipped
@@ -352,7 +347,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] Combat log pruning — `trim_combat_log()` already in place at 200-entry cap
 
 ### Infrastructure
-- [ ] Postgres end-to-end smoke (Sprint C) — **BLOCKER 2026-04-26: Docker Desktop daemon not running; start it and run `bash scripts/postgres_stack_validate.sh`**
+- [x] Postgres end-to-end smoke (Sprint C) — PASSED 2026-05-05. STARTUP CHECK OK + CLIENT WALKTHROUGH PASSED (34 sections). Run anytime: start Docker Desktop, then `bash scripts/postgres_stack_validate.sh`.
 - [x] Docker image build + push to a registry — Fly.io builds + stores the image on every `fly deploy`
 - [x] Automated daily DB backup — `scripts/backup_db.sh` (see Sprint C above)
 - [x] Graceful shutdown — worker cancels + in-flight battles finish (lifespan handles it; documented in RUNBOOK with uvicorn flag recommendations)
