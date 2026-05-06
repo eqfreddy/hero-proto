@@ -224,3 +224,37 @@ The `Quest` table supports future quest types with zero schema changes:
 - **Achievement-style quests** — permanent progression milestones
 
 The `record_event` service is the single integration point — adding a new quest type only requires a new quest definition and no endpoint changes.
+
+---
+
+## 9. Progression Mechanics (backburner — review before Phase 4)
+
+> Identified from level test (2026-05-06): account reached level 20 via 1,575 runs on Stage 1 at 12 XP/win. No incentive to attempt harder content. Three systems to design and implement together.
+
+### XP scaling by difficulty
+
+| Tier | Display name | XP per win |
+|---|---|---|
+| Normal | Floppy | 12 |
+| Hard | Hard Disk | 28 |
+| Legendary | Legen'waitforit'dary | 60 |
+
+### Bottlenecks (intentional gates)
+
+- **Stage tier lock** — Hard variant of a stage unlocks only after clearing its Normal version; Legendary unlocks after Hard. Per-stage, not per-account.
+- **Power floor** — Legendary stages reject teams below a minimum power threshold (value TBD during balancing).
+- Account-level chapter gates already exist (lvl 1 / 10 / 20 / 50) — keep as-is.
+
+### Pity mechanics (all three ship together)
+
+**1. Fail pity on hard stages**
+Tracked per `(account_id, stage_id, tier)`. Consecutive losses increment a counter. At 3 consecutive losses: enemy HP reduced 10% for the next attempt only. Counter resets on any win. Stored in a new `stage_pity_json` column on `accounts` (or a separate `stage_pity` table). Never shown to the player as a number — just "the stage felt slightly easier."
+
+**2. Rest XP**
+Offline time accumulates a 2× XP multiplier, capped at 12 hours of offline time (= 1 full session worth of bonus). Burns off over the next session at 2× rate until exhausted. Stored as `rest_xp_banked` (int) + `rest_xp_last_tick_at` (datetime) on `accounts`. UI shows a small "rested" badge on the XP bar when active. Rewards returning players; softly discourages marathon grinding.
+
+**3. Guaranteed drop meter (per stage)**
+Each run on a stage fills a per-stage meter. At cap, the next run guarantees a rare+ gear drop regardless of RNG, then resets. Cap and meter stored in `stage_drop_pity_json` on `accounts`. Meter value and cap shown in stage UI ("Guaranteed drop in 4 runs"). Makes dry streaks feel like progress.
+
+### Implementation note
+All three share a `grant_xp` call path — rest XP multiplier applies there. Pity meter and drop meter need hooks in the battles router alongside the existing `record_event` calls. Schema additions are additive (new JSON columns or a new table), no breaking migrations.
