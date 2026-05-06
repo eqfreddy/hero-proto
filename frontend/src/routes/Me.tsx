@@ -46,62 +46,35 @@ function TopBar() {
   }
 
   return (
-    <div style={{
-      height: 44,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 16,
-      padding: '0 16px',
-      background: 'rgba(4,6,12,0.95)',
-      borderBottom: '1px solid rgba(0,255,224,0.06)',
-      flexShrink: 0,
-      zIndex: 10,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{
-          width: 6, height: 6, borderRadius: '50%',
-          background: 'var(--good)',
-          boxShadow: '0 0 6px var(--good)',
-          animation: 'cursor-blink 2s infinite',
-        }} />
-        <span style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
-          color: 'var(--accent)',
-          textShadow: '0 0 10px rgba(0,255,224,0.6)',
-          fontFamily: 'Consolas, monospace',
-        }}>
+    <div className="topbar">
+      <div className="row">
+        <div className="status-dot online" />
+        <span className="mono text-sm fw-bold text-accent teal-glow" style={{ letterSpacing: '0.12em' }}>
           SYSTEM::HERO-PROTO
         </span>
       </div>
 
       {me && (
-        <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'Consolas, monospace', letterSpacing: '0.06em' }}>
-          USER <span style={{ color: 'rgba(0,255,224,0.6)' }}>{me.email.split('@')[0]}</span>
-          {' | '}LVL <span style={{ color: 'var(--accent)' }}>{me.account_level}</span>
+        <span className="mono text-xs text-muted hide-mobile" style={{ letterSpacing: '0.06em' }}>
+          USER <span className="text-accent" style={{ opacity: 0.6 }}>{me.email.split('@')[0]}</span>
+          {' | '}LVL <span className="text-accent">{me.account_level}</span>
           {' | '}{me.faction === 'RESISTANCE' ? '📡' : me.faction === 'CORP_GREED' ? '📈' : '🌑'} {me.faction}
         </span>
       )}
 
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="row" style={{ marginLeft: 'auto', gap: 12 }}>
         {me && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, fontWeight: 700 }}>
-            <span style={{ color: 'var(--accent)' }}>💎 {me.gems.toLocaleString()}</span>
-            <span style={{ color: 'var(--gold)' }}>🪙 {me.coins.toLocaleString()}</span>
-            <span style={{ color: 'var(--void-purple)' }}>✦ {me.shards.toLocaleString()}</span>
-            <span style={{ color: 'var(--good)' }}>⚡ {me.energy}/{me.energy_cap}</span>
+          <div className="currency-row hide-mobile">
+            <span className="gem">💎 {me.gems.toLocaleString()}</span>
+            <span className="coin">🪙 {me.coins.toLocaleString()}</span>
+            <span className="shard">✦ {me.shards.toLocaleString()}</span>
+            <span className="energy">⚡ {me.energy}/{me.energy_cap}</span>
           </div>
         )}
-        <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'Consolas, monospace', paddingLeft: 12, borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+        <span className="mono text-xs text-muted" style={{ paddingLeft: 12, borderLeft: '1px solid var(--border-subtle)' }}>
           {clock}
         </span>
-        <button
-          onClick={logout}
-          style={{
-            fontSize: 11, padding: '4px 10px', borderRadius: 4,
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-            color: 'var(--muted)', cursor: 'pointer', fontWeight: 600,
-          }}
-        >
+        <button onClick={logout} className="text-muted text-sm fw-bold" style={{ padding: '4px 10px' }}>
           ⏻
         </button>
       </div>
