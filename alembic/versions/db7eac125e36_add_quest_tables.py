@@ -31,7 +31,7 @@ def upgrade() -> None:
     op.create_table(
         'account_quests',
         sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column('account_id', sa.Integer(), sa.ForeignKey('accounts.id'), nullable=False),
+        sa.Column('account_id', sa.Integer(), sa.ForeignKey('accounts.id', ondelete='CASCADE'), nullable=False),
         sa.Column('quest_id', sa.String(64), sa.ForeignKey('quests.id'), nullable=False),
         sa.Column('progress_json', sa.String(4096), nullable=False, server_default='{}'),
         sa.Column('completed_at', sa.DateTime(), nullable=True),

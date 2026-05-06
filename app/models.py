@@ -1118,10 +1118,10 @@ class Quest(Base):
 
 class AccountQuest(Base):
     __tablename__ = "account_quests"
-    __table_args__ = (UniqueConstraint("account_id", "quest_id"),)
+    __table_args__ = (UniqueConstraint("account_id", "quest_id", name="uq_account_quests_account_quest"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    account_id: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), index=True)
+    account_id: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
     quest_id: Mapped[str] = mapped_column(String(64), ForeignKey("quests.id"))
     progress_json: Mapped[str] = mapped_column(String(4096), default="{}")
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
