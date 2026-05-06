@@ -77,12 +77,17 @@ def seed_quests(db: Session) -> None:
         existing.description = _QUEST_DEF["description"]
         existing.tasks_json = json.dumps(_QUEST_DEF["tasks"])
         existing.reward_json = json.dumps(_QUEST_DEF["reward"])
+        existing.sort_order = _QUEST_DEF["sort_order"]
     db.commit()
     log.info("quest seed complete")
 
 
 def auto_enroll(db: Session, account: Account) -> None:
-    """Enroll a new account in the onboarding quest. Idempotent."""
+    """Enroll a new account in the onboarding quest. Idempotent.
+    Flushes but does NOT commit — caller is responsible for the transaction."""
+    if db.get(Quest, ONBOARDING_QUEST_ID) is None:
+        log.warning("auto_enroll skipped — quest %s not seeded yet", ONBOARDING_QUEST_ID)
+        return
     existing = (
         db.query(AccountQuest)
         .filter_by(account_id=account.id, quest_id=ONBOARDING_QUEST_ID)
