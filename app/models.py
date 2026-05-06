@@ -1105,6 +1105,32 @@ class PurchaseLedger(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
 
 
+class Quest(Base):
+    __tablename__ = "quests"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    description: Mapped[str] = mapped_column(String(512), default="")
+    tasks_json: Mapped[str] = mapped_column(String(8192), default="[]")
+    reward_json: Mapped[str] = mapped_column(String(2048), default="{}")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class AccountQuest(Base):
+    __tablename__ = "account_quests"
+    __table_args__ = (UniqueConstraint("account_id", "quest_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), index=True)
+    quest_id: Mapped[str] = mapped_column(String(64), ForeignKey("quests.id"))
+    progress_json: Mapped[str] = mapped_column(String(4096), default="{}")
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    claim_choice: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
 class GuildAchievement(Base):
     """Definition row for a guild achievement. Seeded once; not user-created.
 
