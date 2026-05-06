@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.types import Receive, Scope, Send
 
 from app.config import settings
 from app.db import get_db
@@ -24,6 +25,31 @@ _SYSTEM = (
     "Use corporate IT jargon, passive-aggressive tone, and understated Gen X humor. "
     "Keep it to exactly 2-3 sentences. No markdown. No bullet points. Plain text only."
 )
+
+
+class _DirectStreamingResponse(StreamingResponse):
+    """StreamingResponse that skips Starlette's task-group disconnect detection.
+
+    Starlette 1.0.0 wraps streaming in a task group and calls the middleware-
+    supplied receive() to detect client disconnects. BaseHTTPMiddleware's receive
+    raises StopAsyncIteration immediately for GET requests (no body), which cancels
+    the stream task before any bytes are sent. This subclass overrides __call__ to
+    send the response linearly without invoking receive at all.
+    """
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": self.status_code,
+                "headers": self.raw_headers,
+            }
+        )
+        async for chunk in self.body_iterator:
+            if not isinstance(chunk, bytes):
+                chunk = chunk.encode(self.charset)
+            await send({"type": "http.response.body", "body": chunk, "more_body": True})
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
 
 
 def _build_prompt(battle: Battle) -> str:
@@ -43,7 +69,6 @@ def _build_prompt(battle: Battle) -> str:
     hero_names = ", ".join(p.get("name", "Unknown") for p in heroes) or "Unknown team"
     enemy_names = ", ".join(p.get("name", "Unknown") for p in enemies) or "Unknown opposition"
 
-    # Pick a few notable events from the log (KOs, specials)
     notable = []
     for entry in log:
         msg = entry.get("msg", "")
@@ -68,17 +93,20 @@ def _build_prompt(battle: Battle) -> str:
 
 
 async def _stream_narration(prompt: str) -> AsyncIterator[str]:
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    async with client.messages.stream(
-        model="claude-opus-4-7",
-        max_tokens=256,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    ) as stream:
-        async for text in stream.text_stream:
-            # SSE format: data: <chunk>\n\n
-            yield f"data: {text}\n\n"
-    yield "data: [DONE]\n\n"
+    try:
+        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        async with client.messages.stream(
+            model="claude-opus-4-7",
+            max_tokens=256,
+            system=_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        ) as stream:
+            async for text in stream.text_stream:
+                yield f"data: {text}\n\n"
+        yield "data: [DONE]\n\n"
+    except Exception as e:
+        _log.exception("narration stream error")
+        yield f"data: [ERROR] {type(e).__name__}: {e}\n\n"
 
 
 @router.get("/{battle_id}/narration")
@@ -98,7 +126,7 @@ async def get_battle_narration(
 
     prompt = _build_prompt(battle)
 
-    return StreamingResponse(
+    return _DirectStreamingResponse(
         _stream_narration(prompt),
         media_type="text/event-stream",
         headers={
