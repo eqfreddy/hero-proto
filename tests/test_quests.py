@@ -1,6 +1,7 @@
 """Tests for the quest progression engine."""
 from __future__ import annotations
 import json
+import pytest
 from tests.conftest import *  # noqa
 
 
@@ -81,7 +82,7 @@ def test_gear_equip_advances_task(client):
                 headers=_headers(token))
     gear_list = client.get("/gear/mine", headers=_headers(token)).json()
     if not gear_list:
-        return  # gear drop RNG; skip if none dropped
+        pytest.skip("gear drop RNG miss — no gear dropped")
     gear_id = gear_list[0]["id"]
     hero_id = heroes[0]["id"]
     r = client.post(f"/gear/{gear_id}/equip",

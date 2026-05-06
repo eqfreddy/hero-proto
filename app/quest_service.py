@@ -52,7 +52,6 @@ def _record_event(db: Session, account: Account, event: str, payload: dict) -> N
         .filter(
             AccountQuest.account_id == account.id,
             AccountQuest.claimed_at.is_(None),
-            AccountQuest.dismissed.is_(False),
             AccountQuest.completed_at.is_(None),
         )
         .all()
@@ -88,8 +87,15 @@ def _record_event(db: Session, account: Account, event: str, payload: dict) -> N
                 current = int(progress.get(task_id, 0))
                 if current >= target:
                     continue
-                progress[task_id] = current + 1
-                changed = True
+                # Threshold events use payload value; counter events increment by 1
+                if task["event"] == "ACCOUNT_LEVEL_REACHED":
+                    level = int(payload.get("level", 0))
+                    if level >= target:
+                        progress[task_id] = target
+                        changed = True
+                else:
+                    progress[task_id] = current + 1
+                    changed = True
 
         if not changed:
             continue
