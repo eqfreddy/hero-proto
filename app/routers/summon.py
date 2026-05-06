@@ -305,6 +305,8 @@ def summon_event_banner(
     event_on_activity(db, account, "summon_pull", quest_kinds=QUEST_KINDS_SUMMON)
     from app.account_level import XP_PER_SUMMON_PULL, grant_xp as _gxp
     _gxp(db, account, XP_PER_SUMMON_PULL)
+    from app.quest_service import record_event as _rq
+    _rq(db, account, "SUMMON_COMPLETE")
     db.commit()
 
     from app.analytics import track as _track
