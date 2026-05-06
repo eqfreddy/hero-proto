@@ -201,12 +201,14 @@ def fight(
         liveops_multiplier=reward_multiplier(db),
     )
 
-    # Hero level-up quest hook: fire HERO_LEVELED for each hero that leveled to >= 5.
+    # Hero level-up quest hook: fire HERO_LEVELED exactly when a hero first reaches level 5.
+    # Using == 5 (not >= 5) so the event fires once at the crossing point, not on every
+    # subsequent level-up above 5. Paired with target=1 in quests.py.
     if rewards.level_ups:
         from app.quest_service import record_event as _qevent_hl
         for hero_id in rewards.level_ups:
             hero_obj = db.get(HeroInstance, hero_id)
-            if hero_obj and hero_obj.level >= 5:
+            if hero_obj and hero_obj.level == 5:   # exactly level 5, not >= 5
                 _qevent_hl(db, account, "HERO_LEVELED", {"level": hero_obj.level})
 
     # Tutorial completion reward: grant one free summon token on the first
@@ -285,6 +287,13 @@ def fight(
             ch_reward = _chapter_reward(db, account, stage.code)
             if ch_reward is not None:
                 rewards_extra["chapter_reward"] = ch_reward
+                # In the current story model each arc is exactly one chapter — the arc
+                # code IS the chapter code (e.g. "onboarding_arc"). _ARC_CODES lists only
+                # the five valid arc/chapter codes, so STORY_ARC_CLEARED fires at most once
+                # per arc, only when the player clears the LAST stage of that arc (gated
+                # upstream by maybe_grant_chapter_reward). It will NOT fire for individual
+                # mid-arc stages. If arcs are later subdivided into multiple chapters,
+                # update _ARC_CODES to contain only the final-chapter codes.
                 _ARC_CODES = {"onboarding_arc", "middle_management_arc", "exec_floor_arc", "resistance_arc", "corpgreed_arc"}
                 from app.quest_service import record_event as _qevent_ch
                 _qevent_ch(db, account, "STORY_CHAPTER_CLEARED")
@@ -366,6 +375,8 @@ def fight(
         _qevent(db, account, "STAGE_CLEARED")
         if stage.difficulty_tier == _SD.HARD:
             _qevent(db, account, "HARD_STAGE_CLEARED")
+        # LEGENDARY tier is not yet in StageDifficulty enum (only NORMAL/HARD/NIGHTMARE exist).
+        # This string compare is forward-looking: it will activate when the enum is extended.
         if str(stage.difficulty_tier) == "LEGENDARY":
             _qevent(db, account, "LEGENDARY_STAGE_CLEARED")
 

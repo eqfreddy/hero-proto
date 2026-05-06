@@ -32,7 +32,7 @@ _TASKS = [
     {"id": "first_daily",        "label": "Complete a daily quest",                   "event": "DAILY_QUEST_COMPLETE",   "target": 1},
     {"id": "raid_contributed",   "label": "Contribute to a guild raid",               "event": "RAID_CONTRIBUTED",       "target": 1},
     {"id": "hard_stage",         "label": "Clear a Hard difficulty stage",            "event": "HARD_STAGE_CLEARED",     "target": 1},
-    {"id": "hero_level_5",       "label": "Level a hero to level 5",                 "event": "HERO_LEVELED",           "target": 5},
+    {"id": "hero_level_5",       "label": "Level a hero to level 5",                 "event": "HERO_LEVELED",           "target": 1},
     {"id": "daily_3_days",       "label": "Complete daily quests on 3 separate days", "event": "DAILY_QUEST_COMPLETE",  "target": 3},
     {"id": "account_level_10",   "label": "Reach account level 10",                  "event": "ACCOUNT_LEVEL_REACHED",  "target": 10},
     {"id": "win_10_arena",       "label": "Win 10 arena matches total",               "event": "ARENA_WIN",              "target": 10},
