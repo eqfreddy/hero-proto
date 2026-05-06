@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchActiveQuests, dismissQuest, type ActiveQuest } from '../../api/quests'
 import { ClaimModal } from './ClaimModal'
 import { useAuthStore } from '../../store/auth'
+import { toast } from '../../store/ui'
 
 export function QuestWidget() {
   const jwt = useAuthStore(s => s.jwt)
@@ -10,6 +11,7 @@ export function QuestWidget() {
   const [expanded, setExpanded] = useState(false)
   const [showClaim, setShowClaim] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const [dismissing, setDismissing] = useState(false)
 
   const { data } = useQuery({
     queryKey: ['quests', 'active'],
@@ -27,9 +29,17 @@ export function QuestWidget() {
   const nextTask = quest.tasks.find(t => !t.done)
 
   async function handleDismiss() {
-    await dismissQuest(quest!.quest_id)
-    setDismissed(true)
-    qc.invalidateQueries({ queryKey: ['quests'] })
+    if (!quest) return
+    setDismissing(true)
+    try {
+      await dismissQuest(quest.quest_id)
+      setDismissed(true)
+      qc.invalidateQueries({ queryKey: ['quests'] })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to dismiss')
+    } finally {
+      setDismissing(false)
+    }
   }
 
   return (
@@ -110,10 +120,11 @@ export function QuestWidget() {
                 </button>
               ) : null}
               <button
-                style={{ fontSize: 10, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                disabled={dismissing}
+                style={{ fontSize: 10, color: 'var(--danger)', background: 'none', border: 'none', cursor: dismissing ? 'default' : 'pointer', padding: 0, opacity: dismissing ? 0.5 : 1 }}
                 onClick={handleDismiss}
               >
-                ✕ dismiss
+                {dismissing ? '...' : '✕ dismiss'}
               </button>
             </div>
           </div>
