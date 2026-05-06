@@ -344,6 +344,13 @@ def fight(
     db.commit()
     db.refresh(battle)
 
+    # Quest progression: every completed battle fires BATTLE_COMPLETE; wins also fire BATTLE_WIN.
+    from app.quest_service import record_event as _qevent
+    _qevent(db, account, "BATTLE_COMPLETE")
+    if outcome == BattleOutcome.WIN:
+        _qevent(db, account, "BATTLE_WIN")
+    db.commit()
+
     # stage_clear / first_clear: fire on every battle that resolved (regardless
     # of WIN/LOSS), with `won` so funnels can scope. Separate first_clear event
     # only when this run was the actual first clear (not a re-run).
