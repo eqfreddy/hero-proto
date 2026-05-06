@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trial 3 — Void Terminal</title>
+<style>
+  :root {
+    --bg:      #04060c;
+    --panel:   #080d18;
+    --p2:      #0d1428;
+    --border:  rgba(0,255,224,0.08);
+    --teal:    #00ffe0;
+    --mag:     #ff2d78;
+    --gold:    #ffd700;
+    --crim:    #c8102e;
+    --purp:    #9b30ff;
+    --text:    #c8d8f0;
+    --muted:   #3a4a62;
+    --good:    #22c55e;
+    --warn:    #f59e0b;
+    --bad:     #ef4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Consolas', 'Courier New', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+
+  /* scanline + vignette */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,20,10,0.3) 2px, rgba(0,20,10,0.3) 3px),
+      radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(200,16,46,0.07) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0,255,224,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ══ TOP BAR ══ */
+  .topbar {
+    position: relative;
+    z-index: 50;
+    background: rgba(4,6,12,0.95);
+    border-bottom: 1px solid rgba(0,255,224,0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    height: 44px;
+    gap: 20px;
+  }
+
+  .sys-id {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--teal);
+    text-shadow: 0 0 10px rgba(0,255,224,0.7);
+  }
+
+  .sys-id span { color: var(--muted); }
+
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--good);
+    box-shadow: 0 0 6px var(--good);
+    animation: blink 2s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .top-resources {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+    align-items: center;
+  }
+
+  .res {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .res .r-icon { margin-right: 4px; }
+
+  .top-time {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    border-left: 1px solid rgba(255,255,255,0.05);
+    padding-left: 16px;
+  }
+
+  /* ══ MAIN GRID ══ */
+  .workspace {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 220px 1fr 280px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ══ LEFT COLUMN — ROOTLORD ══ */
+  .left-col {
+    position: relative;
+    border-right: 1px solid rgba(200,16,46,0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(200,16,46,0.05) 0%, transparent 50%);
+  }
+
+  .left-col::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(200,16,46,0.5), rgba(0,255,224,0.2), transparent);
+  }
+
+  .rl-frame {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .rl-frame img {
+    width: 100%;
+    display: block;
+    mask-image: linear-gradient(180deg, black 50%, transparent 88%);
+    -webkit-mask-image: linear-gradient(180deg, black 50%, transparent 88%);
+    filter:
+      drop-shadow(0 0 30px rgba(200,16,46,0.6))
+      drop-shadow(0 0 60px rgba(200,16,46,0.2));
+  }
+
+  .rl-frame .rl-ph {
+    width: 100%;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 80px;
+    color: var(--crim);
+    filter: drop-shadow(0 0 20px rgba(200,16,46,0.7));
+  }
+
+  /* terminal-style output under rootlord */
+  .rl-terminal {
+    padding: 12px 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .term-line {
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  .term-line.active {
+    color: #8a7a60;
+    font-style: italic;
+  }
+
+  .term-line .prompt { color: var(--crim); margin-right: 4px; }
+  .term-line .cmd { color: rgba(0,255,224,0.6); }
+  .term-line .out { color: #8a7a60; font-style: italic; }
+
+  .cursor {
+    display: inline-block;
+    width: 7px; height: 12px;
+    background: var(--teal);
+    vertical-align: middle;
+    animation: cursor-blink 1s step-start infinite;
+    margin-left: 2px;
+    box-shadow: 0 0 6px var(--teal);
+  }
+
+  @keyframes cursor-blink { 50% { opacity: 0; } }
+
+  /* ══ CENTER — MAIN HUB ══ */
+  .center-col {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+  }
+
+  /* Player strip */
+  .player-strip {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(8,13,24,0.9);
+    flex-shrink: 0;
+  }
+
+  .ps-avatar {
+    width: 40px; height: 40px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, rgba(0,255,224,0.2), rgba(155,48,255,0.2));
+    border: 1px solid rgba(0,255,224,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 900;
+    color: var(--teal);
+    letter-spacing: 0.04em;
+    box-shadow: 0 0 12px rgba(0,255,224,0.2);
+    flex-shrink: 0;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  .ps-info { flex: 1; }
+  .ps-name { font-size: 15px; font-weight: 700; font-family: 'Segoe UI', sans-serif; color: var(--text); }
+  .ps-meta { font-size: 10px; color: var(--muted); margin-top: 2px; letter-spacing: 0.04em; }
+
+  .ps-xp { flex: 0 0 200px; }
+  .ps-xp-top { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+  .ps-xp-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .ps-xp-fill { height: 100%; width: 68%; background: linear-gradient(90deg, var(--teal), var(--purp)); box-shadow: 0 0 6px rgba(0,255,224,0.4); }
+
+  /* Sector nav */
+  .sector-nav {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: rgba(4,6,12,0.8);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .sector-nav::-webkit-scrollbar { display: none; }
+
+  .sector {
+    padding: 0 20px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  .sector:hover { color: var(--text); }
+
+  .sector.active {
+    color: var(--teal);
+    border-bottom-color: var(--teal);
+    background: rgba(0,255,224,0.03);
+  }
+
+  .sector .s-badge {
+    background: var(--mag);
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    color: #fff;
+  }
+
+  /* Center body */
+  .center-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .center-body::-webkit-scrollbar { width: 3px; }
+  .center-body::-webkit-scrollbar-thumb { background: rgba(0,255,224,0.15); }
+
+  /* action matrix */
+  .action-matrix {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .am-cell {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .am-cell::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: var(--ac, var(--teal));
+    opacity: 0.4;
+    transition: opacity 0.2s;
+  }
+
+  .am-cell:hover::before { opacity: 1; }
+  .am-cell:hover {
+    background: var(--p2);
+    border-color: var(--ac, var(--teal));
+    box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.5);
+  }
+
+  .amc-icon { font-size: 24px; }
+  .amc-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: 'Segoe UI', sans-serif;
+    color: var(--text);
+  }
+  .amc-sub { font-size: 9px; color: var(--muted); font-family: 'Segoe UI', sans-serif; }
+  .amc-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--ac, var(--mag));
+    font-size: 8px;
+    font-weight: 900;
+    padding: 1px 5px;
+    border-radius: 2px;
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  /* data rows */
+  .data-section { }
+  .ds-header {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ds-header::after { content:''; flex:1; height:1px; background:rgba(0,255,224,0.06); }
+
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table td {
+    padding: 7px 8px;
+    font-size: 11px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .data-table td:first-child { color: var(--muted); width: 40%; }
+  .data-table td:last-child { font-weight: 700; text-align: right; }
+  .data-table tr:last-child td { border-bottom: none; }
+
+  /* quest table */
+  .q-table { width: 100%; border-collapse: collapse; }
+  .q-table td { padding: 6px 8px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.03); font-family:'Segoe UI',sans-serif; }
+  .q-table tr:last-child td { border-bottom: none; }
+  .q-table .q-dot { width: 20px; }
+
+  /* ══ RIGHT COL — SHOP + LOG ══ */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .right-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .right-panel::-webkit-scrollbar { width: 3px; }
+  .right-panel::-webkit-scrollbar-thumb { background: rgba(0,255,224,0.1); }
+
+  /* Shop in right col */
+  .shop-selector {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .ss-btn {
+    flex: 1;
+    padding: 6px 4px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  .ss-btn.active {
+    background: rgba(0,255,224,0.08);
+    border-color: rgba(0,255,224,0.3);
+    color: var(--teal);
+  }
+
+  .shop-items { display: flex; flex-direction: column; gap: 6px; }
+
+  .si {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .si:hover { border-color: rgba(0,255,224,0.2); background: var(--p2); }
+  .si-ico { font-size: 20px; flex-shrink: 0; }
+  .si-body { flex: 1; min-width: 0; }
+  .si-title { font-size: 11px; font-weight: 700; font-family: 'Segoe UI', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .si-desc { font-size: 9px; color: var(--muted); font-family: 'Segoe UI', sans-serif; }
+  .si-price { font-size: 10px; font-weight: 700; font-family: 'Segoe UI', sans-serif; white-space: nowrap; }
+
+  /* event log */
+  .event-log { display: flex; flex-direction: column; gap: 4px; }
+
+  .ev {
+    font-size: 9px;
+    color: var(--muted);
+    padding: 4px 6px;
+    border-left: 2px solid rgba(255,255,255,0.04);
+    font-family: 'Consolas', monospace;
+    line-height: 1.5;
+    transition: border-color 0.3s;
+  }
+
+  .ev.ev-new { border-left-color: var(--teal); color: rgba(0,255,224,0.5); animation: ev-fade 4s forwards; }
+  .ev .ev-time { color: rgba(255,255,255,0.15); margin-right: 6px; }
+  .ev .ev-tag { margin-right: 6px; }
+
+  @keyframes ev-fade { 0%,20%{border-left-color:var(--teal);color:rgba(0,255,224,0.5)} 100%{border-left-color:rgba(255,255,255,0.04);color:var(--muted)} }
+
+  /* section label for right col */
+  .rc-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sep { height: 1px; background: var(--border); margin: 6px 0; }
+
+  /* energy bar right col */
+  .energy-mini { }
+  .em-top { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 4px; font-family: 'Segoe UI', sans-serif; }
+  .em-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .em-fill { height: 100%; border-radius: 2px; }
+
+  /* section panels in center */
+  .center-panel {
+    display: none;
+  }
+  .center-panel.visible { display: contents; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="status-dot"></div>
+  <div class="sys-id">SYSTEM<span>::</span>HERO-PROTO <span>// SESSION ACTIVE</span></div>
+  <div style="font-size:10px;color:var(--muted);letter-spacing:0.06em;">USER<span style="color:rgba(0,255,224,0.5)"> ridler69</span> <span style="margin:0 8px">|</span> LVL <span style="color:var(--teal)">42</span> <span style="margin:0 8px">|</span> 🌑 EXILE</div>
+  <div class="top-resources">
+    <div class="res"><span class="r-icon">💎</span><span style="color:var(--teal)">1,247</span></div>
+    <div class="res"><span class="r-icon">🪙</span><span style="color:var(--gold)">84,320</span></div>
+    <div class="res"><span class="r-icon">✦</span><span style="color:var(--purp)">156</span></div>
+    <div class="res"><span class="r-icon">⚡</span><span style="color:var(--good)">78/120</span></div>
+  </div>
+  <div class="top-time" id="clock">--:--:--</div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- LEFT — ROOTLORD TERMINAL -->
+  <div class="left-col">
+    <div class="rl-frame">
+      <img src="file:///C:/Users/User/Pictures/hpports/The_Man_The_Dev.png"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+           alt="The Rootlord">
+      <div class="rl-ph" style="display:none">💀</div>
+    </div>
+    <div class="rl-terminal">
+      <div class="term-line"><span class="prompt">root@void:~$</span><span class="cmd">status --user ridler69</span></div>
+      <div class="term-line"><span class="out" id="rl-out">The ticket queue never sleeps.</span></div>
+      <div class="term-line" style="margin-top:6px;"><span class="prompt">root@void:~$</span><span class="cursor"></span></div>
+      <div class="term-line" style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.04); padding-top:10px;">
+        <span style="color:rgba(200,16,46,0.6)">◈</span> THE ROOTLORD
+      </div>
+      <div class="term-line" style="font-style:italic; color:rgba(138,122,96,0.7)">MYTH // ROGUE_IT // DEVOPS</div>
+      <div class="term-line" style="margin-top:4px; color:rgba(100,100,120,0.5)">He doesn't follow best practices.</div>
+      <div class="term-line" style="color:rgba(100,100,120,0.5)">He deletes them.</div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="center-col">
+    <div class="player-strip">
+      <div class="ps-avatar">RI</div>
+      <div class="ps-info">
+        <div class="ps-name">ridler69</div>
+        <div class="ps-meta">ARENA 2,847 · WIN RATE 70% · HEROES 23 · STAGES 47</div>
+      </div>
+      <div class="ps-xp">
+        <div class="ps-xp-top"><span>Lv 42 · 21,340 xp</span><span>→ 25,000</span></div>
+        <div class="ps-xp-bar"><div class="ps-xp-fill"></div></div>
+      </div>
+    </div>
+
+    <div class="sector-nav">
+      <div class="sector active" onclick="setSector('ops',this)">⬡ Ops</div>
+      <div class="sector" onclick="setSector('combat',this)">⚔ Combat</div>
+      <div class="sector" onclick="setSector('summon',this)">🌀 Summon</div>
+      <div class="sector" onclick="setSector('story',this)">📖 Story</div>
+      <div class="sector" onclick="setSector('guild',this)">🛡 Guild</div>
+      <div class="sector" onclick="setSector('raid',this)">🐉 Raid <span class="s-badge">!</span></div>
+    </div>
+
+    <div class="center-body">
+
+      <!-- OPS SECTOR -->
+      <div class="center-panel visible" id="sec-ops">
+        <div class="data-section">
+          <div class="ds-header">Command Matrix</div>
+          <div class="action-matrix">
+            <div class="am-cell" style="--ac:var(--bad)">
+              <div class="amc-icon">⚔️</div>
+              <div class="amc-name">Battle</div>
+              <div class="amc-sub">47 stages cleared</div>
+              <div class="amc-badge" style="background:var(--bad)">2 new</div>
+            </div>
+            <div class="am-cell" style="--ac:var(--purp)">
+              <div class="amc-icon">🌀</div>
+              <div class="amc-name">Summon</div>
+              <div class="amc-sub">3 free credits</div>
+            </div>
+            <div class="am-cell" style="--ac:var(--warn)">
+              <div class="amc-icon">🏟️</div>
+              <div class="amc-name">Arena</div>
+              <div class="amc-sub">5 daily fights left</div>
+            </div>
+            <div class="am-cell" style="--ac:var(--gold)">
+              <div class="amc-icon">🐉</div>
+              <div class="amc-name">Raid</div>
+              <div class="amc-sub">Boss 40% HP left</div>
+              <div class="amc-badge" style="background:var(--warn)">live</div>
+            </div>
+            <div class="am-cell" style="--ac:var(--teal)">
+              <div class="amc-icon">🤝</div>
+              <div class="amc-name">Guild</div>
+              <div class="amc-sub">24 members online</div>
+            </div>
+            <div class="am-cell" style="--ac:var(--good)">
+              <div class="amc-icon">📖</div>
+              <div class="amc-name">Story</div>
+              <div class="amc-sub">Chapter 4 / Stage 3</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="data-section">
+          <div class="ds-header">Daily Ops</div>
+          <table class="q-table">
+            <tr>
+              <td class="q-dot"><span style="color:var(--good)">●</span></td>
+              <td>Win 5 Arena matches</td>
+              <td style="color:var(--good);text-align:right;font-weight:700">5/5</td>
+              <td style="text-align:right;color:var(--teal);font-weight:700;font-size:10px">💎 10</td>
+            </tr>
+            <tr>
+              <td class="q-dot"><span style="color:var(--good)">●</span></td>
+              <td>Complete 3 story stages</td>
+              <td style="color:var(--good);text-align:right;font-weight:700">3/3</td>
+              <td style="text-align:right;color:var(--gold);font-weight:700;font-size:10px">🪙 500</td>
+            </tr>
+            <tr>
+              <td class="q-dot"><span style="color:var(--warn)">●</span></td>
+              <td>Summon 3 heroes</td>
+              <td style="color:var(--warn);text-align:right;font-weight:700">2/3</td>
+              <td style="text-align:right;color:var(--purp);font-weight:700;font-size:10px">✦ 20</td>
+            </tr>
+            <tr>
+              <td class="q-dot"><span style="color:var(--muted)">○</span></td>
+              <td style="color:var(--muted)">Upgrade any hero</td>
+              <td style="color:var(--muted);text-align:right;font-weight:700">0/1</td>
+              <td style="text-align:right;color:var(--teal);font-weight:700;font-size:10px">💎 5</td>
+            </tr>
+          </table>
+          <button onclick="" style="margin-top:8px;width:100%;padding:7px;border:none;border-radius:3px;background:var(--teal);color:#000;font-weight:900;font-size:10px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;font-family:'Segoe UI',sans-serif;">
+            EXECUTE CLAIM // 2 READY
+          </button>
+        </div>
+      </div>
+
+      <!-- COMBAT SECTOR -->
+      <div class="center-panel" id="sec-combat">
+        <div class="data-section">
+          <div class="ds-header">Combat Status</div>
+          <table class="data-table">
+            <tr><td>Arena Rating</td><td style="color:var(--warn)">2,847</td></tr>
+            <tr><td>Win Rate</td><td style="color:var(--good)">70%</td></tr>
+            <tr><td>Wins</td><td>142</td></tr>
+            <tr><td>Losses</td><td style="color:var(--bad)">61</td></tr>
+            <tr><td>Stages Cleared</td><td>47</td></tr>
+            <tr><td>Raid Contributions</td><td style="color:var(--purp)">12</td></tr>
+          </table>
+          <button onclick="" style="margin-top:10px;width:100%;padding:8px;border:1px solid rgba(245,158,11,0.3);border-radius:3px;background:rgba(245,158,11,0.1);color:var(--warn);font-weight:900;font-size:10px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;font-family:'Segoe UI',sans-serif;">
+            ⚔ ENTER ARENA
+          </button>
+        </div>
+      </div>
+
+      <!-- SUMMON SECTOR -->
+      <div class="center-panel" id="sec-summon">
+        <div class="data-section">
+          <div class="ds-header">Summon Array</div>
+          <table class="data-table">
+            <tr><td>Free Credits</td><td style="color:var(--good)">3</td></tr>
+            <tr><td>Access Cards</td><td>12</td></tr>
+            <tr><td>Pity Counter</td><td style="color:var(--purp)">34 / 50</td></tr>
+            <tr><td>Gems Available</td><td style="color:var(--teal)">1,247</td></tr>
+          </table>
+          <button onclick="" style="margin-top:10px;width:100%;padding:8px;border:1px solid rgba(155,48,255,0.4);border-radius:3px;background:rgba(155,48,255,0.1);color:var(--purp);font-weight:900;font-size:10px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;font-family:'Segoe UI',sans-serif;">
+            🌀 INITIATE SUMMON
+          </button>
+        </div>
+      </div>
+
+      <!-- STORY SECTOR -->
+      <div class="center-panel" id="sec-story">
+        <div class="data-section">
+          <div class="ds-header">Story Progress</div>
+          <table class="data-table">
+            <tr><td>Current Chapter</td><td>4 — Signal Break</td></tr>
+            <tr><td>Current Stage</td><td>3 / 8</td></tr>
+            <tr><td>Alignment</td><td style="color:var(--muted)">Not chosen</td></tr>
+            <tr><td>Total Completed</td><td>27 stages</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- GUILD SECTOR -->
+      <div class="center-panel" id="sec-guild">
+        <div class="data-section">
+          <div class="ds-header">Guild: The Sysadmins</div>
+          <table class="data-table">
+            <tr><td>Members</td><td>24 / 30</td></tr>
+            <tr><td>Your Rank</td><td style="color:var(--teal)">Officer</td></tr>
+            <tr><td>Guild Level</td><td>7</td></tr>
+            <tr><td>Weekly Contribution</td><td style="color:var(--gold)">4,200</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- RAID SECTOR -->
+      <div class="center-panel" id="sec-raid">
+        <div class="data-section">
+          <div class="ds-header">Active Raid // KERNEL_BEAST</div>
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px;font-family:'Segoe UI',sans-serif;">
+              <span>Boss HP</span><span style="color:var(--bad)">40% remaining</span>
+            </div>
+            <div style="height:8px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+              <div style="width:40%;height:100%;background:linear-gradient(90deg,var(--bad),var(--warn));box-shadow:0 0 8px rgba(239,68,68,0.5);border-radius:3px;"></div>
+            </div>
+          </div>
+          <button style="width:100%;padding:8px;border:1px solid rgba(200,16,46,0.4);border-radius:3px;background:rgba(200,16,46,0.1);color:var(--crim);font-weight:900;font-size:10px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;font-family:'Segoe UI',sans-serif;">
+            🐉 JOIN RAID
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /center-body -->
+  </div><!-- /center-col -->
+
+  <!-- RIGHT — SHOP + EVENT LOG -->
+  <div class="right-col">
+    <div class="right-panel">
+
+      <!-- Energy -->
+      <div class="energy-mini">
+        <div class="em-top">
+          <span style="font-family:'Segoe UI',sans-serif;color:var(--muted)">⚡ Energy</span>
+          <span style="font-family:'Segoe UI',sans-serif;color:var(--good);font-weight:700">78 / 120</span>
+        </div>
+        <div class="em-bar"><div class="em-fill" style="width:65%;background:var(--good);box-shadow:0 0 4px rgba(34,197,94,0.4)"></div></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- Shop -->
+      <div class="rc-label">Shop <span style="color:var(--teal);cursor:pointer;font-size:8px">expand →</span></div>
+      <div class="shop-selector">
+        <div class="ss-btn active" onclick="setShop('coins',this)">🪙 Coins</div>
+        <div class="ss-btn" onclick="setShop('gems',this)">💎 Gems</div>
+        <div class="ss-btn" onclick="setShop('qol',this)">⚙️ QoL</div>
+      </div>
+
+      <div class="shop-items" id="shop-coins">
+        <div class="si"><span class="si-ico">💰</span><div class="si-body"><div class="si-title">Coin Sack</div><div class="si-desc">5,000 coins</div></div><div class="si-price" style="color:var(--good)">FREE</div></div>
+        <div class="si"><span class="si-ico">🏦</span><div class="si-body"><div class="si-title">Coin Chest</div><div class="si-desc">25,000 coins</div></div><div class="si-price" style="color:var(--teal)">💎 50</div></div>
+        <div class="si"><span class="si-ico">🏛️</span><div class="si-body"><div class="si-title">Coin Vault</div><div class="si-desc">100,000 coins</div></div><div class="si-price" style="color:var(--teal)">💎 180</div></div>
+        <div class="si" style="border-color:rgba(200,16,46,0.3)"><span class="si-ico">☠️</span><div class="si-body"><div class="si-title">Dev's Stash</div><div class="si-desc">500,000 coins</div></div><div class="si-price" style="color:var(--gold)">$4.99</div></div>
+      </div>
+
+      <div class="shop-items" id="shop-gems" style="display:none">
+        <div class="si"><span class="si-ico">💎</span><div class="si-body"><div class="si-title">Gem Pouch</div><div class="si-desc">100 gems</div></div><div class="si-price" style="color:var(--gold)">$0.99</div></div>
+        <div class="si"><span class="si-ico">💎</span><div class="si-body"><div class="si-title">Gem Cache</div><div class="si-desc">500 + 50 bonus</div></div><div class="si-price" style="color:var(--gold)">$4.99</div></div>
+        <div class="si"><span class="si-ico">💎</span><div class="si-body"><div class="si-title">Gem Vault</div><div class="si-desc">1,200 + 200 bonus</div></div><div class="si-price" style="color:var(--gold)">$9.99</div></div>
+        <div class="si" style="border-color:rgba(200,16,46,0.3)"><span class="si-ico">👑</span><div class="si-body"><div class="si-title">GODMODE Bundle</div><div class="si-desc">3,000 + 800 + EPIC</div></div><div class="si-price" style="color:var(--gold)">$24.99</div></div>
+      </div>
+
+      <div class="shop-items" id="shop-qol" style="display:none">
+        <div class="si"><span class="si-ico">⚡</span><div class="si-body"><div class="si-title">Energy Refill</div><div class="si-desc">Full restore</div></div><div class="si-price" style="color:var(--teal)">💎 50</div></div>
+        <div class="si"><span class="si-ico">📈</span><div class="si-body"><div class="si-title">XP Booster 24h</div><div class="si-desc">+50% XP</div></div><div class="si-price" style="color:var(--teal)">💎 80</div></div>
+        <div class="si"><span class="si-ico">🔮</span><div class="si-body"><div class="si-title">Shard Converter</div><div class="si-desc">100💎 → 150✦</div></div><div class="si-price" style="color:var(--teal)">💎 100</div></div>
+        <div class="si"><span class="si-ico">🤖</span><div class="si-body"><div class="si-title">Auto-Battle 7d</div><div class="si-desc">Like a cron job</div></div><div class="si-price" style="color:var(--gold)">$2.99</div></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- Event log -->
+      <div class="rc-label">System Log</div>
+      <div class="event-log" id="ev-log">
+        <div class="ev ev-new"><span class="ev-time">now</span><span class="ev-tag" style="color:var(--teal)">[SESSION]</span>ridler69 connected</div>
+        <div class="ev"><span class="ev-time">02:14</span><span class="ev-tag" style="color:var(--good)">[ARENA]</span>WIN vs shadowkill_99 +12</div>
+        <div class="ev"><span class="ev-time">01:47</span><span class="ev-tag" style="color:var(--bad)">[ARENA]</span>LOSS vs DevNull404 -8</div>
+        <div class="ev"><span class="ev-time">01:23</span><span class="ev-tag" style="color:var(--purp)">[SUMMON]</span>Pulled: Netrunner [RARE]</div>
+        <div class="ev"><span class="ev-time">00:58</span><span class="ev-tag" style="color:var(--gold)">[RAID]</span>Contributed 2,400 dmg</div>
+        <div class="ev"><span class="ev-time">00:31</span><span class="ev-tag" style="color:var(--good)">[QUEST]</span>Daily quest completed</div>
+        <div class="ev"><span class="ev-time">00:00</span><span class="ev-tag" style="color:var(--muted)">[SYSTEM]</span>Daily reset executed</div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /workspace -->
+
+<script>
+  // clock
+  function tick() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toTimeString().slice(0,8);
+  }
+  tick(); setInterval(tick, 1000);
+
+  // rootlord quotes
+  const quotes = [
+    "The ticket queue never sleeps.",
+    "sudo rm -rf /your-excuses",
+    "Arena rating: acceptable. Don't push it.",
+    "34 pulls. The pity system bends to no one.",
+    "Daily ops incomplete. This is how incidents start.",
+    "GODMODE isn't a cheat code. It's a career.",
+    "Change request denied. Reality can't be reverted.",
+    "I break things so you understand what's worth keeping.",
+  ];
+  let qi = 0;
+  const qEl = document.getElementById('rl-out');
+  qEl.style.transition = 'opacity 0.3s';
+  setInterval(() => {
+    qEl.style.opacity = 0;
+    setTimeout(() => { qi = (qi+1)%quotes.length; qEl.textContent = quotes[qi]; qEl.style.opacity = 1; }, 300);
+  }, 6000);
+
+  // sector nav
+  function setSector(id, el) {
+    document.querySelectorAll('.sector').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.center-panel').forEach(p => p.classList.remove('visible'));
+    el.classList.add('active');
+    const panel = document.getElementById('sec-' + id);
+    if (panel) panel.classList.add('visible');
+  }
+
+  // shop
+  function setShop(tab, el) {
+    document.querySelectorAll('.ss-btn').forEach(b => b.classList.remove('active'));
+    ['coins','gems','qol'].forEach(t => {
+      const el = document.getElementById('shop-' + t);
+      if (el) el.style.display = 'none';
+    });
+    el.classList.add('active');
+    document.getElementById('shop-' + tab).style.display = 'flex';
+    document.getElementById('shop-' + tab).style.flexDirection = 'column';
+  }
+
+  // live log feed
+  const logEntries = [
+    { tag:'[ARENA]', cls:'good', msg:'WIN vs t1cket_g0d +11' },
+    { tag:'[GUILD]', cls:'teal', msg:'Guild raid contribution recorded' },
+    { tag:'[SUMMON]', cls:'purp', msg:'Access card credited' },
+    { tag:'[ARENA]', cls:'bad',  msg:'LOSS vs root_n_roll -9' },
+    { tag:'[SYSTEM]', cls:'muted', msg:'Energy regenerated: +5' },
+  ];
+  let li = 0;
+  setInterval(() => {
+    const log = document.getElementById('ev-log');
+    const e = logEntries[li % logEntries.length]; li++;
+    const div = document.createElement('div');
+    div.className = 'ev ev-new';
+    const colors = { good:'var(--good)', teal:'var(--teal)', bad:'var(--bad)', purp:'var(--purp)', muted:'var(--muted)' };
+    div.innerHTML = `<span class="ev-time">now</span><span class="ev-tag" style="color:${colors[e.cls]}">${e.tag}</span>${e.msg}`;
+    log.insertBefore(div, log.firstChild);
+    if (log.children.length > 10) log.removeChild(log.lastChild);
+  }, 8000);
+</script>
+</body>
+</html>

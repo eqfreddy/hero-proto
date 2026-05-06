@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trial 2 — War Zones</title>
+<style>
+  :root {
+    --bg:      #060810;
+    --panel:   #0c101a;
+    --panel2:  #10141f;
+    --border:  rgba(0,255,224,0.1);
+    --teal:    #00ffe0;
+    --magenta: #ff2d78;
+    --gold:    #ffd700;
+    --crimson: #c8102e;
+    --purple:  #9b30ff;
+    --text:    #dde4f0;
+    --muted:   #4a5a72;
+    --good:    #22c55e;
+    --warn:    #f59e0b;
+    --bad:     #ef4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,255,224,0.012) 3px, rgba(0,255,224,0.012) 4px),
+      radial-gradient(ellipse at 50% 0%, rgba(200,16,46,0.08) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    position: relative;
+    z-index: 10;
+    background: linear-gradient(180deg, #08020c 0%, var(--bg) 100%);
+    border-bottom: 1px solid rgba(200,16,46,0.2);
+    overflow: hidden;
+  }
+
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200,16,46,0.6), rgba(0,255,224,0.4), transparent);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Rootlord in header */
+  .rl-header-wrap {
+    position: relative;
+    width: 200px;
+    flex-shrink: 0;
+    margin-bottom: -2px;
+  }
+
+  .rl-header-wrap img {
+    width: 100%;
+    display: block;
+    mask-image: linear-gradient(180deg, black 40%, transparent 90%);
+    -webkit-mask-image: linear-gradient(180deg, black 40%, transparent 90%);
+    filter: drop-shadow(0 0 20px rgba(200,16,46,0.5));
+  }
+
+  .rl-placeholder-header {
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 80px;
+    filter: drop-shadow(0 0 20px rgba(200,16,46,0.5));
+  }
+
+  .header-right {
+    flex: 1;
+    padding: 20px 0 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .header-top-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .player-block { }
+
+  .player-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .player-name {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    color: var(--text);
+  }
+
+  .myth-badge {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 3px;
+    background: linear-gradient(135deg, rgba(200,16,46,0.3), rgba(155,48,255,0.3));
+    border: 1px solid rgba(200,16,46,0.5);
+    color: var(--gold);
+  }
+
+  .rl-quote {
+    font-size: 13px;
+    font-style: italic;
+    color: #8a7a60;
+    margin-top: 2px;
+    max-width: 420px;
+    line-height: 1.4;
+    transition: opacity 0.4s;
+  }
+
+  .xp-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .lvl-badge {
+    background: rgba(0,255,224,0.1);
+    border: 1px solid rgba(0,255,224,0.3);
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--teal);
+    text-shadow: 0 0 8px rgba(0,255,224,0.5);
+    white-space: nowrap;
+  }
+
+  .xp-bar-outer {
+    flex: 1;
+    max-width: 300px;
+  }
+
+  .xp-bar-track { height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+  .xp-bar-fill  { height: 100%; width: 68%; background: linear-gradient(90deg, var(--teal), var(--purple)); }
+
+  .currencies-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .cur-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .cur-chip .icon { font-size: 16px; }
+
+  /* ── ZONE TABS ── */
+  .zone-tabs {
+    display: flex;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 0 24px;
+  }
+
+  .zone-tab {
+    padding: 14px 24px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+  }
+
+  .zone-tab:hover { color: var(--text); }
+
+  .zone-tab.active {
+    color: var(--teal);
+    border-bottom-color: var(--teal);
+    text-shadow: 0 0 8px rgba(0,255,224,0.4);
+  }
+
+  .zone-tab .tab-badge {
+    background: var(--magenta);
+    color: #fff;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 99px;
+  }
+
+  /* ── SECTIONS ── */
+  .sections { position: relative; z-index: 1; }
+
+  .zone-section {
+    display: none;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .zone-section.active { display: block; }
+
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── MISSION CONTROL (home) ── */
+  .mc-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+  }
+
+  .mc-left { display: flex; flex-direction: column; gap: 16px; }
+  .mc-right { display: flex; flex-direction: column; gap: 16px; }
+
+  /* big action tiles */
+  .big-tile-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .big-tile {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .big-tile::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--tc, var(--teal));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .big-tile:hover::before { opacity: 0.07; }
+  .big-tile:hover {
+    border-color: var(--tc, var(--teal));
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5), 0 0 0 1px var(--tc, var(--teal));
+  }
+
+  .bt-icon { font-size: 36px; margin-bottom: 8px; position: relative; z-index: 1; }
+  .bt-name { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); position: relative; z-index: 1; }
+  .bt-badge {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--magenta);
+    font-size: 9px;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 99px;
+    color: #fff;
+    z-index: 1;
+  }
+
+  /* card panel */
+  .panel-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+
+  .panel-title {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* status meters */
+  .meters { display: flex; flex-direction: column; gap: 12px; }
+
+  .meter-row { display: flex; flex-direction: column; gap: 5px; }
+  .meter-label-row { display: flex; justify-content: space-between; font-size: 12px; }
+  .meter-name { color: var(--muted); }
+  .meter-val { font-weight: 700; }
+  .meter-bar { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+  .meter-fill { height: 100%; border-radius: 3px; }
+
+  /* quest list */
+  .quest-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .quest-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--panel);
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.04);
+    font-size: 12px;
+  }
+
+  .qi-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .qi-name { flex: 1; }
+  .qi-prog { color: var(--muted); font-size: 11px; }
+  .qi-reward { font-weight: 700; font-size: 11px; }
+
+  /* roster strip */
+  .roster-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .roster-strip::-webkit-scrollbar { height: 3px; }
+  .roster-strip::-webkit-scrollbar-thumb { background: rgba(0,255,224,0.2); }
+
+  .hero-chip {
+    flex-shrink: 0;
+    width: 52px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  .hero-chip:hover { transform: translateY(-3px); }
+
+  .hero-avatar {
+    width: 52px; height: 52px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--panel), var(--panel2));
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 4px;
+    overflow: hidden;
+  }
+
+  .hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-name { font-size: 9px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── ARSENAL ── */
+  .arsenal-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ── SHOP ── */
+  .shop-layout { display: flex; flex-direction: column; gap: 16px; }
+
+  .shop-tab-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .stab {
+    flex: 1;
+    padding: 14px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .stab .stab-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+  .stab .stab-name { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  .stab.active {
+    border-color: var(--teal);
+    background: rgba(0,255,224,0.06);
+    box-shadow: 0 0 20px rgba(0,255,224,0.1);
+  }
+
+  .stab.active .stab-name { color: var(--teal); }
+
+  .shop-items-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .shop-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .shop-card:hover {
+    border-color: rgba(0,255,224,0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  }
+
+  .sc-icon { font-size: 32px; margin-bottom: 8px; }
+  .sc-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+  .sc-desc { font-size: 11px; color: var(--muted); margin-bottom: 10px; line-height: 1.4; }
+  .sc-price { font-size: 12px; font-weight: 700; }
+  .sc-btn {
+    margin-top: 8px;
+    width: 100%;
+    padding: 7px;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    background: var(--teal);
+    color: #000;
+    text-transform: uppercase;
+    transition: filter 0.15s;
+  }
+  .sc-btn:hover { filter: brightness(1.1); }
+
+  /* ── ARENA ── */
+  .arena-layout {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 20px;
+  }
+
+  /* stat big */
+  .stat-big {
+    font-size: 48px;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .match-log {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .match-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-radius: 6px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .match-result {
+    font-size: 10px;
+    font-weight: 900;
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+
+  .win { background: rgba(34,197,94,0.15); color: var(--good); }
+  .loss { background: rgba(239,68,68,0.15); color: var(--bad); }
+
+  /* responsive util */
+  @keyframes pulse-crimson {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(200,16,46,0.3); }
+    50% { box-shadow: 0 0 0 6px rgba(200,16,46,0); }
+  }
+
+  .pulse-c { animation: pulse-crimson 3s infinite; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<div class="header">
+  <div class="header-inner">
+    <div class="rl-header-wrap">
+      <img src="file:///C:/Users/User/Pictures/hpports/The_Man_The_Dev.png"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+           alt="The Rootlord" />
+      <div class="rl-placeholder-header" style="display:none">💀</div>
+    </div>
+
+    <div class="header-right">
+      <div class="header-top-row">
+        <div class="player-block">
+          <div class="player-name-row">
+            <div class="player-name">ridler69</div>
+            <div class="myth-badge">⚡ MYTH TIER</div>
+          </div>
+          <div class="rl-quote" id="rl-quote">The ticket queue never sleeps. Neither do I.</div>
+        </div>
+
+        <div class="currencies-row">
+          <div class="cur-chip"><span class="icon">💎</span> <span style="color:var(--teal)">1,247</span></div>
+          <div class="cur-chip"><span class="icon">🪙</span> <span style="color:var(--gold)">84,320</span></div>
+          <div class="cur-chip"><span class="icon">✦</span> <span style="color:var(--purple)">156</span></div>
+          <div class="cur-chip"><span class="icon">⚡</span> <span style="color:var(--good)">78/120</span></div>
+        </div>
+      </div>
+
+      <div class="xp-block">
+        <div class="lvl-badge">Lv 42</div>
+        <div class="xp-bar-outer">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px;">
+            <span>21,340 XP</span><span>25,000 XP next</span>
+          </div>
+          <div class="xp-bar-track"><div class="xp-bar-fill"></div></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">🌑 EXILE · 🏟️ 2,847</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ZONE TABS ══ -->
+<div class="zone-tabs">
+  <div class="zone-tab active" onclick="setZone('home', this)">🏠 Mission Control</div>
+  <div class="zone-tab" onclick="setZone('shop', this)">🛒 Shop <span class="tab-badge">3</span></div>
+  <div class="zone-tab" onclick="setZone('arena', this)">🏟️ Arena</div>
+  <div class="zone-tab" onclick="setZone('arsenal', this)">⚔️ Arsenal</div>
+  <div class="zone-tab" onclick="setZone('intel', this)">📡 Intel</div>
+</div>
+
+<!-- ══ SECTIONS ══ -->
+<div class="sections">
+
+  <!-- MISSION CONTROL -->
+  <div class="zone-section active" id="zone-home">
+    <div class="mc-grid">
+      <div class="mc-left">
+
+        <!-- Big action tiles -->
+        <div class="panel-card" style="padding:20px;">
+          <div class="panel-title">Command Deck</div>
+          <div class="big-tile-row">
+            <div class="big-tile" style="--tc:var(--bad)">
+              <div class="bt-badge">2 new</div>
+              <div class="bt-icon">⚔️</div>
+              <div class="bt-name">Battle</div>
+            </div>
+            <div class="big-tile" style="--tc:var(--purple)">
+              <div class="bt-icon">🌀</div>
+              <div class="bt-name">Summon</div>
+            </div>
+            <div class="big-tile" style="--tc:var(--gold)">
+              <div class="bt-badge">!</div>
+              <div class="bt-icon">🐉</div>
+              <div class="bt-name">Raid</div>
+            </div>
+            <div class="big-tile" style="--tc:var(--teal)">
+              <div class="bt-icon">📖</div>
+              <div class="bt-name">Story</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status meters -->
+        <div class="panel-card">
+          <div class="panel-title">System Status</div>
+          <div class="meters">
+            <div class="meter-row">
+              <div class="meter-label-row">
+                <span class="meter-name">⚡ Energy</span>
+                <span class="meter-val" style="color:var(--good)">78 / 120</span>
+              </div>
+              <div class="meter-bar"><div class="meter-fill" style="width:65%;background:var(--good);box-shadow:0 0 6px rgba(34,197,94,0.4)"></div></div>
+            </div>
+            <div class="meter-row">
+              <div class="meter-label-row">
+                <span class="meter-name">🌀 Pity Counter</span>
+                <span class="meter-val" style="color:var(--purple)">34 / 50</span>
+              </div>
+              <div class="meter-bar"><div class="meter-fill" style="width:68%;background:linear-gradient(90deg,var(--purple),var(--magenta));box-shadow:0 0 6px rgba(155,48,255,0.4)"></div></div>
+            </div>
+            <div class="meter-row">
+              <div class="meter-label-row">
+                <span class="meter-name">🏟️ Arena Rating</span>
+                <span class="meter-val" style="color:var(--warn)">2,847</span>
+              </div>
+              <div class="meter-bar"><div class="meter-fill" style="width:71%;background:var(--warn);box-shadow:0 0 6px rgba(245,158,11,0.4)"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero roster -->
+        <div class="panel-card">
+          <div class="panel-title">Top Heroes <span style="font-size:10px;color:var(--teal);cursor:pointer">View All →</span></div>
+          <div class="roster-strip">
+            <div class="hero-chip"><div class="hero-avatar" style="border-color:var(--gold)">💀</div><div class="hero-name">Rootlord</div></div>
+            <div class="hero-chip"><div class="hero-avatar" style="border-color:var(--purple)">🔮</div><div class="hero-name">Voidweaver</div></div>
+            <div class="hero-chip"><div class="hero-avatar" style="border-color:var(--bad)">🗡️</div><div class="hero-name">Dark Asn</div></div>
+            <div class="hero-chip"><div class="hero-avatar" style="border-color:var(--teal)">⚡</div><div class="hero-name">Netrunner</div></div>
+            <div class="hero-chip"><div class="hero-avatar">🛡️</div><div class="hero-name">Iron Wall</div></div>
+            <div class="hero-chip"><div class="hero-avatar">🌿</div><div class="hero-name">Healer</div></div>
+            <div class="hero-chip"><div class="hero-avatar">🔥</div><div class="hero-name">Pyromancer</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mc-right">
+        <!-- Daily quests -->
+        <div class="panel-card">
+          <div class="panel-title">📋 Daily Ops <span style="color:var(--good)">3 / 5 done</span></div>
+          <div class="quest-list">
+            <div class="quest-item">
+              <div class="qi-dot" style="background:var(--good)"></div>
+              <div class="qi-name">Win 5 Arena matches</div>
+              <div class="qi-prog" style="color:var(--good)">5/5</div>
+              <div class="qi-reward" style="color:var(--teal)">💎 10</div>
+            </div>
+            <div class="quest-item">
+              <div class="qi-dot" style="background:var(--good)"></div>
+              <div class="qi-name">Complete 3 story stages</div>
+              <div class="qi-prog" style="color:var(--good)">3/3</div>
+              <div class="qi-reward" style="color:var(--gold)">🪙 500</div>
+            </div>
+            <div class="quest-item">
+              <div class="qi-dot" style="background:var(--warn)"></div>
+              <div class="qi-name">Summon 3 heroes</div>
+              <div class="qi-prog">2/3</div>
+              <div class="qi-reward" style="color:var(--purple)">✦ 20</div>
+            </div>
+            <div class="quest-item">
+              <div class="qi-dot" style="background:var(--muted)"></div>
+              <div class="qi-name">Upgrade any hero</div>
+              <div class="qi-prog">0/1</div>
+              <div class="qi-reward" style="color:var(--teal)">💎 5</div>
+            </div>
+            <div class="quest-item">
+              <div class="qi-dot" style="background:var(--muted)"></div>
+              <div class="qi-name">Participate in Raid</div>
+              <div class="qi-prog">0/1</div>
+              <div class="qi-reward" style="color:var(--gold)">🪙 1,000</div>
+            </div>
+          </div>
+          <button style="margin-top:12px;width:100%;padding:9px;border:none;border-radius:5px;background:var(--teal);color:#000;font-weight:900;font-size:11px;letter-spacing:.08em;cursor:pointer;text-transform:uppercase;">
+            Claim 2 Ready Rewards
+          </button>
+        </div>
+
+        <!-- Wallet -->
+        <div class="panel-card">
+          <div class="panel-title">💰 Resource Bank</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="background:var(--panel);border-radius:6px;padding:10px;border:1px solid rgba(0,255,224,0.1);">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">💎 Gems</div>
+              <div style="font-size:20px;font-weight:800;color:var(--teal)">1,247</div>
+            </div>
+            <div style="background:var(--panel);border-radius:6px;padding:10px;border:1px solid rgba(255,215,0,0.1);">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">🪙 Coins</div>
+              <div style="font-size:20px;font-weight:800;color:var(--gold)">84,320</div>
+            </div>
+            <div style="background:var(--panel);border-radius:6px;padding:10px;border:1px solid rgba(155,48,255,0.15);">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">✦ Shards</div>
+              <div style="font-size:20px;font-weight:800;color:var(--purple)">156</div>
+            </div>
+            <div style="background:var(--panel);border-radius:6px;padding:10px;border:1px solid var(--border);">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">🎫 Access Cards</div>
+              <div style="font-size:20px;font-weight:800;">12</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Daily login -->
+        <div class="panel-card" style="border-color:rgba(200,16,46,0.3);">
+          <div class="panel-title">🎁 Daily Login</div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <div style="flex:1;text-align:center;padding:8px 4px;background:var(--good);border-radius:4px;opacity:0.7;font-size:20px;">🪙</div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:var(--good);border-radius:4px;opacity:0.7;font-size:20px;">💎</div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:rgba(0,255,224,0.15);border:2px solid var(--teal);border-radius:4px;font-size:20px;animation:pulse-crimson 2s infinite;">🌀</div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:var(--panel);border-radius:4px;font-size:20px;opacity:0.4;">✦</div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:var(--panel);border-radius:4px;font-size:20px;opacity:0.4;">🎫</div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:var(--panel);border-radius:4px;font-size:20px;opacity:0.4;">💎</div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:var(--panel);border-radius:4px;font-size:20px;opacity:0.4;">👑</div>
+          </div>
+          <button style="width:100%;padding:9px;border:1px solid var(--crimson);border-radius:5px;background:rgba(200,16,46,0.15);color:var(--crimson);font-weight:900;font-size:11px;letter-spacing:.08em;cursor:pointer;text-transform:uppercase;">
+            Claim Day 3 Reward
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div class="zone-section" id="zone-shop">
+    <div class="shop-layout">
+      <div class="shop-tab-row" id="shop-tabs">
+        <div class="stab active" onclick="setShopTab('coins',this)">
+          <span class="stab-icon">🪙</span>
+          <span class="stab-name">Coin Shop</span>
+        </div>
+        <div class="stab" onclick="setShopTab('gems',this)">
+          <span class="stab-icon">💎</span>
+          <span class="stab-name">Gem Shop</span>
+        </div>
+        <div class="stab" onclick="setShopTab('qol',this)">
+          <span class="stab-icon">⚙️</span>
+          <span class="stab-name">QoL Shop</span>
+        </div>
+      </div>
+
+      <div id="shop-coins" class="shop-section">
+        <div class="shop-items-grid">
+          <div class="shop-card"><div class="sc-icon">💰</div><div class="sc-title">Coin Sack</div><div class="sc-desc">5,000 coins instantly delivered to your account.</div><div class="sc-price" style="color:var(--good)">🆓 Free daily</div><button class="sc-btn">Collect</button></div>
+          <div class="shop-card"><div class="sc-icon">🏦</div><div class="sc-title">Coin Chest</div><div class="sc-desc">25,000 coins. Classic IT salary move.</div><div class="sc-price" style="color:var(--teal)">💎 50</div><button class="sc-btn">Buy</button></div>
+          <div class="shop-card"><div class="sc-icon">🏛️</div><div class="sc-title">Coin Vault</div><div class="sc-desc">100,000 coins. Senior dev territory.</div><div class="sc-price" style="color:var(--teal)">💎 180</div><button class="sc-btn">Buy</button></div>
+          <div class="shop-card" style="border-color:rgba(200,16,46,0.4);"><div class="sc-icon">☠️</div><div class="sc-title">Dev's Stash</div><div class="sc-desc">500,000 coins. The Rootlord's personal reserve.</div><div class="sc-price" style="color:var(--gold)">💰 $4.99</div><button class="sc-btn" style="background:var(--crimson);color:#fff">Buy</button></div>
+        </div>
+      </div>
+
+      <div id="shop-gems" class="shop-section" style="display:none">
+        <div class="shop-items-grid">
+          <div class="shop-card"><div class="sc-icon">💎</div><div class="sc-title">Gem Pouch</div><div class="sc-desc">100 gems. Enough to question your decisions.</div><div class="sc-price" style="color:var(--gold)">💰 $0.99</div><button class="sc-btn">Buy</button></div>
+          <div class="shop-card"><div class="sc-icon">💎</div><div class="sc-title">Gem Cache</div><div class="sc-desc">500 + 50 bonus gems. Budget approved.</div><div class="sc-price" style="color:var(--gold)">💰 $4.99</div><button class="sc-btn">Buy</button></div>
+          <div class="shop-card"><div class="sc-icon">💎</div><div class="sc-title">Gem Vault</div><div class="sc-desc">1,200 + 200 bonus gems. Power move.</div><div class="sc-price" style="color:var(--gold)">💰 $9.99</div><button class="sc-btn">Buy</button></div>
+          <div class="shop-card" style="border-color:rgba(200,16,46,0.4);"><div class="sc-icon">👑</div><div class="sc-title">GODMODE Bundle</div><div class="sc-desc">3,000 + 800 bonus gems + guaranteed EPIC summon.</div><div class="sc-price" style="color:var(--gold)">💰 $24.99</div><button class="sc-btn" style="background:var(--crimson);color:#fff">Buy</button></div>
+        </div>
+      </div>
+
+      <div id="shop-qol" class="shop-section" style="display:none">
+        <div class="shop-items-grid">
+          <div class="shop-card"><div class="sc-icon">⚡</div><div class="sc-title">Energy Refill</div><div class="sc-desc">Full energy restore. No reboot required.</div><div class="sc-price" style="color:var(--teal)">💎 50</div><button class="sc-btn">Buy</button></div>
+          <div class="shop-card"><div class="sc-icon">📈</div><div class="sc-title">XP Booster</div><div class="sc-desc">+50% XP for 24 hours. Unauthorized optimization.</div><div class="sc-price" style="color:var(--teal)">💎 80</div><button class="sc-btn">Buy</button></div>
+          <div class="shop-card"><div class="sc-icon">🔮</div><div class="sc-title">Shard Converter</div><div class="sc-desc">100 gems → 150 shards. Black market rates.</div><div class="sc-price" style="color:var(--teal)">💎 100</div><button class="sc-btn">Buy</button></div>
+          <div class="shop-card"><div class="sc-icon">🤖</div><div class="sc-title">Auto-Battle Pass</div><div class="sc-desc">7 days of automated stage clearing. Like a cron job, but for violence.</div><div class="sc-price" style="color:var(--gold)">💰 $2.99</div><button class="sc-btn">Buy</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARENA -->
+  <div class="zone-section" id="zone-arena">
+    <div class="arena-layout">
+      <div class="panel-card">
+        <div class="panel-title">🏟️ Combat Record</div>
+        <div class="stat-big" style="color:var(--warn)">2,847</div>
+        <div class="stat-sub">Arena Rating · Top 12%</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="text-align:center;padding:12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:6px;">
+            <div style="font-size:28px;font-weight:800;color:var(--good)">142</div>
+            <div style="font-size:10px;color:var(--muted)">Wins</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;">
+            <div style="font-size:28px;font-weight:800;color:var(--bad)">61</div>
+            <div style="font-size:10px;color:var(--muted)">Losses</div>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--muted)">Win Rate: <strong style="color:var(--good)">70%</strong></div>
+        <button style="margin-top:16px;width:100%;padding:10px;border:none;border-radius:5px;background:var(--warn);color:#000;font-weight:900;font-size:12px;cursor:pointer;text-transform:uppercase;letter-spacing:.08em;">⚔️ Enter Arena</button>
+      </div>
+      <div class="panel-card">
+        <div class="panel-title">Recent Matches</div>
+        <div class="match-log">
+          <div class="match-row"><span>vs. shadowkill_99</span><span style="color:var(--muted);font-size:11px;">Rating 2,830</span><span class="match-result win">WIN +12</span></div>
+          <div class="match-row"><span>vs. DevNull404</span><span style="color:var(--muted);font-size:11px;">Rating 2,901</span><span class="match-result loss">LOSS -8</span></div>
+          <div class="match-row"><span>vs. t1cket_g0d</span><span style="color:var(--muted);font-size:11px;">Rating 2,812</span><span class="match-result win">WIN +11</span></div>
+          <div class="match-row"><span>vs. KubernetesKlaus</span><span style="color:var(--muted);font-size:11px;">Rating 2,798</span><span class="match-result win">WIN +10</span></div>
+          <div class="match-row"><span>vs. root_n_roll</span><span style="color:var(--muted);font-size:11px;">Rating 2,955</span><span class="match-result loss">LOSS -11</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARSENAL -->
+  <div class="zone-section" id="zone-arsenal">
+    <div class="arsenal-layout">
+      <div class="panel-card"><div class="panel-title">⚔️ Roster</div><div style="color:var(--muted);font-size:13px;">23 heroes collected</div></div>
+      <div class="panel-card"><div class="panel-title">🏅 Gear</div><div style="color:var(--muted);font-size:13px;">Veteran IT Set: 4/6</div></div>
+      <div class="panel-card"><div class="panel-title">🔧 Crafting</div><div style="color:var(--muted);font-size:13px;">3 blueprints available</div></div>
+    </div>
+  </div>
+
+  <!-- INTEL -->
+  <div class="zone-section" id="zone-intel">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="panel-card"><div class="panel-title">📖 Story</div><div style="color:var(--muted);font-size:13px;">Chapter 4 in progress</div></div>
+      <div class="panel-card"><div class="panel-title">🤝 Guild</div><div style="color:var(--muted);font-size:13px;">The Sysadmins · 24 members</div></div>
+    </div>
+  </div>
+
+</div><!-- /sections -->
+
+<script>
+  const quotes = [
+    "The ticket queue never sleeps. Neither do I.",
+    "sudo rm -rf /your-excuses --no-preserve-root",
+    "Arena rating holding. Don't ruin it.",
+    "34 pulls and no EPIC. Expected. The system fears you.",
+    "Daily ops incomplete. This is how incidents start.",
+    "GODMODE isn't a cheat code. It's a career choice.",
+    "I break things so you understand what's worth keeping.",
+    "Change request denied. Reality can't be reverted.",
+    "Monitoring is for the weak. I depend on chaos.",
+  ];
+
+  let qi = 0;
+  const qEl = document.getElementById('rl-quote');
+  qEl.style.transition = 'opacity 0.4s';
+  setInterval(() => {
+    qEl.style.opacity = 0;
+    setTimeout(() => { qi = (qi+1)%quotes.length; qEl.textContent = quotes[qi]; qEl.style.opacity = 1; }, 400);
+  }, 6000);
+
+  function setZone(id, el) {
+    document.querySelectorAll('.zone-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.zone-section').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('zone-' + id).classList.add('active');
+  }
+
+  function setShopTab(tab, el) {
+    document.querySelectorAll('#shop-tabs .stab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.shop-section').forEach(s => s.style.display = 'none');
+    el.classList.add('active');
+    document.getElementById('shop-' + tab).style.display = 'block';
+  }
+</script>
+</body>
+</html>

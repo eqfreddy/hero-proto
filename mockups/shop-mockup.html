@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shop Mockup</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#04060c;--panel:#0c101a;--panel-2:#10141f;
+  --border:rgba(0,255,224,0.08);--text:#dde4f0;--muted:#4a5a72;
+  --accent:#00ffe0;--gold:#ffd700;--void-purple:#9b30ff;
+  --good:#22c55e;--bad:#ef4444;--warn:#f59e0b;
+}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;font-size:14px;padding:32px;}
+
+.page-header{margin-bottom:28px;}
+.page-title{font-size:22px;font-weight:900;letter-spacing:-0.5px;margin-bottom:4px;}
+.page-sub{font-size:12px;color:var(--muted);}
+
+/* currency bar */
+.currency-bar{
+  display:flex;gap:10px;align-items:center;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;padding:10px 16px;margin-bottom:24px;
+}
+.cb-item{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;}
+.cb-item .icon{font-size:16px;}
+.cb-item.gems{color:var(--accent);}
+.cb-item.coins{color:var(--gold);}
+.cb-item.shards{color:var(--void-purple);}
+.cb-sep{width:1px;height:20px;background:var(--border);}
+
+/* section headings */
+.section{margin-bottom:32px;}
+.section-header{
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  padding-bottom:10px;border-bottom:1px solid var(--border);
+}
+.section-title{font-size:13px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;}
+.section-badge{
+  font-size:9px;font-weight:800;letter-spacing:0.1em;
+  padding:2px 8px;border-radius:10px;
+}
+.badge-featured{background:rgba(255,215,0,0.12);color:var(--gold);border:1px solid rgba(255,215,0,0.25);}
+.badge-qol{background:rgba(0,255,224,0.08);color:var(--accent);border:1px solid rgba(0,255,224,0.2);}
+.badge-cosmetic{background:rgba(155,48,255,0.1);color:var(--void-purple);border:1px solid rgba(155,48,255,0.25);}
+
+/* card grid */
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.shop-grid.qol-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));}
+
+/* shop card */
+.shop-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;cursor:pointer;position:relative;
+  transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s;
+}
+.shop-card:hover{transform:translateY(-3px);border-color:rgba(0,255,224,0.25);box-shadow:0 8px 28px rgba(0,0,0,0.5);}
+.shop-card.featured{border-color:rgba(255,215,0,0.2);background:linear-gradient(160deg,#141006,var(--panel));}
+.shop-card.featured:hover{border-color:rgba(255,215,0,0.5);box-shadow:0 8px 28px rgba(255,215,0,0.12);}
+.shop-card.best-value::after{
+  content:'BEST VALUE';position:absolute;top:10px;right:-24px;
+  font-size:8px;font-weight:900;letter-spacing:0.12em;
+  background:var(--gold);color:#000;padding:3px 28px;transform:rotate(45deg);
+}
+.shop-card.popular::after{
+  content:'POPULAR';position:absolute;top:10px;right:-20px;
+  font-size:8px;font-weight:900;letter-spacing:0.12em;
+  background:var(--accent);color:#000;padding:3px 26px;transform:rotate(45deg);
+}
+
+.card-visual{
+  height:110px;display:flex;align-items:center;justify-content:center;
+  font-size:52px;background:var(--panel-2);position:relative;overflow:hidden;
+}
+.shop-card.featured .card-visual{background:linear-gradient(135deg,#201800,#0c101a);}
+.card-visual .glow{
+  position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 60%, rgba(0,255,224,0.1) 0%, transparent 70%);
+}
+.shop-card.featured .glow{background:radial-gradient(circle at 50% 60%, rgba(255,215,0,0.12) 0%, transparent 70%);}
+
+.card-info{padding:12px 14px;}
+.card-name{font-size:13px;font-weight:700;margin-bottom:3px;}
+.card-desc{font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+.card-contents{
+  background:var(--panel-2);border:1px solid var(--border);border-radius:6px;
+  padding:6px 10px;margin-bottom:10px;font-size:10px;
+}
+.card-contents .item{display:flex;justify-content:space-between;padding:2px 0;}
+.card-contents .item .qty{font-weight:700;}
+.card-contents .item .label{color:var(--muted);}
+
+.card-price-row{display:flex;align-items:center;justify-content:space-between;}
+.price{font-size:16px;font-weight:900;}
+.price.gems{color:var(--accent);}
+.price.usd{color:var(--gold);}
+.price.free{color:var(--good);}
+.old-price{font-size:10px;color:var(--muted);text-decoration:line-through;margin-right:4px;}
+.buy-btn{
+  font-size:11px;font-weight:800;letter-spacing:0.06em;
+  padding:6px 14px;border-radius:6px;border:none;cursor:pointer;
+  background:var(--accent);color:#0b0d10;
+}
+.buy-btn.gold{background:var(--gold);color:#0b0d10;}
+.buy-btn.owned{background:var(--panel-2);color:var(--muted);border:1px solid var(--border);cursor:default;}
+
+/* QoL unlock cards (smaller, horizontal) */
+.qol-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:14px;cursor:pointer;position:relative;
+  transition:transform 0.15s,border-color 0.15s;
+}
+.qol-card:hover{transform:translateY(-2px);border-color:rgba(0,255,224,0.2);}
+.qol-card.owned{border-color:rgba(34,197,94,0.2);background:linear-gradient(135deg,rgba(34,197,94,0.04),var(--panel));}
+.qol-icon{font-size:28px;margin-bottom:8px;}
+.qol-name{font-size:12px;font-weight:700;margin-bottom:3px;}
+.qol-desc{font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+.qol-footer{display:flex;align-items:center;justify-content:space-between;}
+.owned-badge{font-size:10px;font-weight:700;color:var(--good);}
+
+/* Cosmetic frames */
+.frame-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+.frame-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;cursor:pointer;text-align:center;
+  transition:transform 0.15s,border-color 0.15s;
+}
+.frame-card:hover{transform:translateY(-2px);}
+.frame-preview{
+  height:90px;display:flex;align-items:center;justify-content:center;
+  font-size:36px;background:var(--panel-2);
+}
+.frame-name{font-size:11px;font-weight:700;padding:8px 8px 4px;}
+.frame-price{font-size:10px;color:var(--void-purple);padding-bottom:8px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-title">🛒 Shop</div>
+  <div class="page-sub">Cosmetics & QoL — no pay-to-win. Ever.</div>
+</div>
+
+<div class="currency-bar">
+  <div class="cb-item gems"><span class="icon">💎</span> 2,400</div>
+  <div class="cb-sep"></div>
+  <div class="cb-item coins"><span class="icon">🪙</span> 18,500</div>
+  <div class="cb-sep"></div>
+  <div class="cb-item shards"><span class="icon">✦</span> 340</div>
+</div>
+
+<!-- ── Gem packs ── -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">💎 Gem Packs</span>
+    <span class="section-badge badge-featured">FEATURED</span>
+  </div>
+  <div class="shop-grid">
+
+    <div class="shop-card">
+      <div class="card-visual"><div class="glow"></div>💎</div>
+      <div class="card-info">
+        <div class="card-name">Starter Pack</div>
+        <div class="card-desc">A handful of gems to get started. One-time only.</div>
+        <div class="card-contents">
+          <div class="item"><span class="label">💎 Gems</span><span class="qty">+400</span></div>
+          <div class="item"><span class="label">🃏 Summon credits</span><span class="qty">+2</span></div>
+        </div>
+        <div class="card-price-row">
+          <span class="price usd">$1.99</span>
+          <button class="buy-btn gold">Buy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="shop-card popular">
+      <div class="card-visual"><div class="glow"></div>💎💎</div>
+      <div class="card-info">
+        <div class="card-name">Gem Pouch</div>
+        <div class="card-desc">A solid boost for summons and energy refills.</div>
+        <div class="card-contents">
+          <div class="item"><span class="label">💎 Gems</span><span class="qty">+1,200</span></div>
+        </div>
+        <div class="card-price-row">
+          <span class="price usd">$4.99</span>
+          <button class="buy-btn gold">Buy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="shop-card featured best-value">
+      <div class="card-visual"><div class="glow"></div>💎💎💎</div>
+      <div class="card-info">
+        <div class="card-name">Gem Vault</div>
+        <div class="card-desc">The biggest pack. Best per-gem rate.</div>
+        <div class="card-contents">
+          <div class="item"><span class="label">💎 Gems</span><span class="qty">+6,500</span></div>
+          <div class="item"><span class="label">🪙 Bonus coins</span><span class="qty">+5,000</span></div>
+        </div>
+        <div class="card-price-row">
+          <div><span class="old-price">$24.99</span><span class="price usd">$19.99</span></div>
+          <button class="buy-btn gold">Buy</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── QoL unlocks ── -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">⚙️ Quality of Life</span>
+    <span class="section-badge badge-qol">PERMANENT</span>
+  </div>
+  <div class="shop-grid qol-grid">
+
+    <div class="qol-card owned">
+      <div class="qol-icon">⚡</div>
+      <div class="qol-name">Auto-Battle</div>
+      <div class="qol-desc">Let your team fight unattended. You can still watch.</div>
+      <div class="qol-footer">
+        <span class="owned-badge">✓ Owned</span>
+      </div>
+    </div>
+
+    <div class="qol-card">
+      <div class="qol-icon">📋</div>
+      <div class="qol-name">Extra Team Presets</div>
+      <div class="qol-desc">Doubles your saved team slots from 5 to 10.</div>
+      <div class="qol-footer">
+        <span class="price gems">💎 800</span>
+        <button class="buy-btn">Buy</button>
+      </div>
+    </div>
+
+    <div class="qol-card">
+      <div class="qol-icon">🌀</div>
+      <div class="qol-name">Quick Summon</div>
+      <div class="qol-desc">Skip animations on the ×10 pull screen.</div>
+      <div class="qol-footer">
+        <span class="price gems">💎 400</span>
+        <button class="buy-btn">Buy</button>
+      </div>
+    </div>
+
+    <div class="qol-card">
+      <div class="qol-icon">📊</div>
+      <div class="qol-name">Advanced Sort</div>
+      <div class="qol-desc">Sort roster by power, stars, dupes, or faction.</div>
+      <div class="qol-footer">
+        <span class="price gems">💎 300</span>
+        <button class="buy-btn">Buy</button>
+      </div>
+    </div>
+
+    <div class="qol-card">
+      <div class="qol-icon">📦</div>
+      <div class="qol-name">Extra Roster Slots</div>
+      <div class="qol-desc">+25 hero slots per purchase. Stackable.</div>
+      <div class="qol-footer">
+        <span class="price gems">💎 500</span>
+        <button class="buy-btn">Buy</button>
+      </div>
+    </div>
+
+    <div class="qol-card">
+      <div class="qol-icon">🎒</div>
+      <div class="qol-name">Gear Storage +100</div>
+      <div class="qol-desc">+100 gear slots. Stackable.</div>
+      <div class="qol-footer">
+        <span class="price gems">💎 400</span>
+        <button class="buy-btn">Buy</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Cosmetic frames ── -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">🖼️ Cosmetic Frames</span>
+    <span class="section-badge badge-cosmetic">COSMETIC</span>
+  </div>
+  <div class="frame-grid">
+
+    <div class="frame-card" style="border-color:rgba(0,255,224,0.25)">
+      <div class="frame-preview" style="background:linear-gradient(135deg,#001a18,#0c101a)">🟦</div>
+      <div class="frame-name">Teal Circuit</div>
+      <div class="frame-price">💎 200</div>
+    </div>
+
+    <div class="frame-card" style="border-color:rgba(155,48,255,0.25)">
+      <div class="frame-preview" style="background:linear-gradient(135deg,#0d0020,#0c101a)">🟪</div>
+      <div class="frame-name">Void Pulse</div>
+      <div class="frame-price">💎 200</div>
+    </div>
+
+    <div class="frame-card" style="border-color:rgba(255,215,0,0.25)">
+      <div class="frame-preview" style="background:linear-gradient(135deg,#1a1200,#0c101a)">🟨</div>
+      <div class="frame-name">Gold Tier</div>
+      <div class="frame-price">💎 350</div>
+    </div>
+
+    <div class="frame-card" style="border-color:rgba(200,16,46,0.3)">
+      <div class="frame-preview" style="background:linear-gradient(135deg,#1a0005,#0c101a)">🟥</div>
+      <div class="frame-name">Crimson Myth</div>
+      <div class="frame-price">💎 500</div>
+    </div>
+
+    <div class="frame-card">
+      <div class="frame-preview" style="background:var(--panel-2)">🔒</div>
+      <div class="frame-name" style="color:var(--muted)">Season Frame</div>
+      <div class="frame-price" style="color:var(--muted)">Event only</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roster Card Mockup</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#04060c;--panel:#0c101a;--panel-2:#10141f;
+  --border:rgba(0,255,224,0.08);--text:#dde4f0;--muted:#4a5a72;
+  --accent:#00ffe0;--gold:#ffd700;--void-purple:#9b30ff;
+  --good:#22c55e;--bad:#ef4444;
+  --r-common:#9ca7b3;--r-uncommon:#22c55e;--r-rare:#00ffe0;
+  --r-epic:#9b30ff;--r-legendary:#ffd700;--r-myth:#c8102e;
+  --role-atk:#ff2d78;--role-def:#00ffe0;--role-sup:#22c55e;
+}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;font-size:14px;padding:32px;}
+
+h2{font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+
+/* ── Rarity tabs ── */
+.tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;}
+.tab{padding:5px 14px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--panel);cursor:pointer;color:var(--muted);}
+.tab.active{color:var(--accent);border-color:var(--accent);background:rgba(0,255,224,0.08);}
+.tab[data-r="COMMON"].active{color:var(--r-common);border-color:var(--r-common);background:rgba(156,167,179,0.08);}
+.tab[data-r="UNCOMMON"].active{color:var(--r-uncommon);border-color:var(--r-uncommon);background:rgba(34,197,94,0.08);}
+.tab[data-r="RARE"].active{color:var(--r-rare);border-color:var(--r-rare);background:rgba(0,255,224,0.08);}
+.tab[data-r="EPIC"].active{color:var(--r-epic);border-color:var(--r-epic);background:rgba(155,48,255,0.1);}
+.tab[data-r="LEGENDARY"].active{color:var(--r-legendary);border-color:var(--r-legendary);background:rgba(255,215,0,0.08);}
+.tab[data-r="MYTH"].active{color:var(--r-myth);border-color:var(--r-myth);background:rgba(200,16,46,0.1);}
+
+/* ── Card grid ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;max-width:900px;}
+
+/* ── Hero card ── */
+.hero-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s;
+  position:relative;
+}
+.hero-card:hover{transform:translateY(-3px);border-color:rgba(0,255,224,0.3);box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+
+/* rarity left-edge accent */
+.hero-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:10px 0 0 10px;
+}
+.hero-card[data-r="COMMON"]::before   { background:var(--r-common); }
+.hero-card[data-r="UNCOMMON"]::before { background:var(--r-uncommon); }
+.hero-card[data-r="RARE"]::before     { background:var(--r-rare); box-shadow:0 0 8px var(--r-rare); }
+.hero-card[data-r="EPIC"]::before     { background:var(--r-epic); box-shadow:0 0 8px var(--r-epic); }
+.hero-card[data-r="LEGENDARY"]::before{ background:var(--r-legendary); box-shadow:0 0 10px var(--r-legendary); }
+.hero-card[data-r="MYTH"]::before     { background:var(--r-myth); box-shadow:0 0 12px var(--r-myth); }
+
+.card-portrait{
+  width:100%;aspect-ratio:1/1;
+  display:flex;align-items:center;justify-content:center;
+  font-size:48px;
+  background:var(--panel-2);
+  position:relative;overflow:hidden;
+}
+/* rarity shimmer on portrait bg */
+.hero-card[data-r="LEGENDARY"] .card-portrait{background:linear-gradient(135deg,#1a1200,#0c101a 60%);}
+.hero-card[data-r="MYTH"]      .card-portrait{background:linear-gradient(135deg,#1a0005,#0c101a 60%);}
+.hero-card[data-r="EPIC"]      .card-portrait{background:linear-gradient(135deg,#120820,#0c101a 60%);}
+
+.card-portrait .role-badge{
+  position:absolute;top:6px;right:6px;
+  font-size:9px;font-weight:800;letter-spacing:0.1em;
+  padding:2px 6px;border-radius:4px;
+}
+.role-badge[data-role="ATK"]{background:rgba(255,45,120,0.2);color:var(--role-atk);border:1px solid rgba(255,45,120,0.35);}
+.role-badge[data-role="DEF"]{background:rgba(0,255,224,0.12);color:var(--role-def);border:1px solid rgba(0,255,224,0.25);}
+.role-badge[data-role="SUP"]{background:rgba(34,197,94,0.15);color:var(--role-sup);border:1px solid rgba(34,197,94,0.3);}
+
+.dupe-badge{
+  position:absolute;bottom:6px;left:6px;
+  font-size:9px;font-weight:800;
+  background:rgba(0,0,0,0.7);border:1px solid var(--border);
+  padding:2px 6px;border-radius:4px;color:var(--muted);
+}
+.dupe-badge.has-dupes{color:var(--good);border-color:rgba(34,197,94,0.3);}
+
+.card-body{padding:10px 10px 10px 13px;}
+.card-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;}
+.card-sub{display:flex;align-items:center;gap:5px;margin-bottom:8px;}
+.rarity-label{font-size:9px;font-weight:700;}
+.hero-card[data-r="COMMON"]   .rarity-label{color:var(--r-common);}
+.hero-card[data-r="UNCOMMON"] .rarity-label{color:var(--r-uncommon);}
+.hero-card[data-r="RARE"]     .rarity-label{color:var(--r-rare);}
+.hero-card[data-r="EPIC"]     .rarity-label{color:var(--r-epic);}
+.hero-card[data-r="LEGENDARY"].rarity-label{color:var(--r-legendary);}
+.hero-card[data-r="MYTH"]     .rarity-label{color:var(--r-myth);}
+.level-label{font-size:9px;color:var(--muted);}
+
+/* power bar */
+.power-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.power-bar-wrap{flex:1;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;}
+.power-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--void-purple));}
+.power-val{font-size:9px;color:var(--muted);min-width:28px;text-align:right;}
+
+/* star row */
+.stars{font-size:10px;letter-spacing:1px;color:var(--gold);margin-bottom:6px;}
+.stars .empty{color:rgba(255,215,0,0.2);}
+
+/* upgrade teaser */
+.upgrade-teaser{
+  font-size:9px;color:var(--accent);
+  background:rgba(0,255,224,0.06);
+  border:1px solid rgba(0,255,224,0.12);
+  border-radius:4px;padding:3px 6px;
+  display:inline-block;
+}
+.upgrade-teaser.locked{color:var(--muted);background:rgba(255,255,255,0.03);border-color:var(--border);}
+
+/* ── Section label ── */
+.section-note{font-size:10px;color:var(--muted);margin-bottom:12px;font-style:italic;}
+</style>
+</head>
+<body>
+
+<h2>Roster — Hero Cards (Redesign Mockup)</h2>
+<p class="section-note">Rarity-tabbed grid · Left-edge accent · Role badge · Power bar · Star tier · Upgrade teaser</p>
+
+<div class="tabs">
+  <div class="tab" data-r="ALL">All</div>
+  <div class="tab active" data-r="LEGENDARY">⭐ Legendary</div>
+  <div class="tab" data-r="EPIC">Epic</div>
+  <div class="tab" data-r="RARE">Rare</div>
+  <div class="tab" data-r="UNCOMMON">Uncommon</div>
+  <div class="tab" data-r="COMMON">Common</div>
+  <div class="tab" data-r="MYTH">🔴 Myth</div>
+</div>
+
+<div class="grid">
+
+  <!-- LEGENDARY -->
+  <div class="hero-card" data-r="LEGENDARY">
+    <div class="card-portrait">
+      🗡️
+      <div class="role-badge" data-role="ATK">ATK</div>
+      <div class="dupe-badge has-dupes">×3</div>
+    </div>
+    <div class="card-body">
+      <div class="card-name">Dark Assassin</div>
+      <div class="card-sub">
+        <span class="rarity-label">LEGENDARY</span>
+        <span class="level-label">Lv 42</span>
+      </div>
+      <div class="power-row">
+        <div class="power-bar-wrap"><div class="power-bar-fill" style="width:82%"></div></div>
+        <span class="power-val">4,120</span>
+      </div>
+      <div class="stars">★★★★<span class="empty">★</span></div>
+      <span class="upgrade-teaser">↑ Star-up ready</span>
+    </div>
+  </div>
+
+  <div class="hero-card" data-r="LEGENDARY">
+    <div class="card-portrait">
+      🛡️
+      <div class="role-badge" data-role="DEF">DEF</div>
+      <div class="dupe-badge">×0</div>
+    </div>
+    <div class="card-body">
+      <div class="card-name">Keymaster Gary</div>
+      <div class="card-sub">
+        <span class="rarity-label">LEGENDARY</span>
+        <span class="level-label">Lv 38</span>
+      </div>
+      <div class="power-row">
+        <div class="power-bar-wrap"><div class="power-bar-fill" style="width:74%"></div></div>
+        <span class="power-val">3,740</span>
+      </div>
+      <div class="stars">★★★<span class="empty">★★</span></div>
+      <span class="upgrade-teaser locked">Need 2 dupes</span>
+    </div>
+  </div>
+
+  <div class="hero-card" data-r="LEGENDARY">
+    <div class="card-portrait">
+      ✨
+      <div class="role-badge" data-role="SUP">SUP</div>
+      <div class="dupe-badge has-dupes">×1</div>
+    </div>
+    <div class="card-body">
+      <div class="card-name">On-Call Warrior</div>
+      <div class="card-sub">
+        <span class="rarity-label">LEGENDARY</span>
+        <span class="level-label">Lv 50</span>
+      </div>
+      <div class="power-row">
+        <div class="power-bar-wrap"><div class="power-bar-fill" style="width:91%"></div></div>
+        <span class="power-val">4,580</span>
+      </div>
+      <div class="stars">★★★★★</div>
+      <span class="upgrade-teaser">↑ Skill-up ready</span>
+    </div>
+  </div>
+
+  <div class="hero-card" data-r="LEGENDARY">
+    <div class="card-portrait">
+      🔥
+      <div class="role-badge" data-role="ATK">ATK</div>
+      <div class="dupe-badge">×0</div>
+    </div>
+    <div class="card-body">
+      <div class="card-name">The Sysadmin</div>
+      <div class="card-sub">
+        <span class="rarity-label">LEGENDARY</span>
+        <span class="level-label">Lv 20</span>
+      </div>
+      <div class="power-row">
+        <div class="power-bar-wrap"><div class="power-bar-fill" style="width:48%"></div></div>
+        <span class="power-val">2,410</span>
+      </div>
+      <div class="stars">★★<span class="empty">★★★</span></div>
+      <span class="upgrade-teaser locked">Level up first</span>
+    </div>
+  </div>
+
+  <div class="hero-card" data-r="LEGENDARY">
+    <div class="card-portrait">
+      💡
+      <div class="role-badge" data-role="SUP">SUP</div>
+      <div class="dupe-badge has-dupes">×5</div>
+    </div>
+    <div class="card-body">
+      <div class="card-name">The Consultant</div>
+      <div class="card-sub">
+        <span class="rarity-label">LEGENDARY</span>
+        <span class="level-label">Lv 50</span>
+      </div>
+      <div class="power-row">
+        <div class="power-bar-wrap"><div class="power-bar-fill" style="width:88%"></div></div>
+        <span class="power-val">4,420</span>
+      </div>
+      <div class="stars">★★★★★</div>
+      <span class="upgrade-teaser">↑ Max — spec upgrade</span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
