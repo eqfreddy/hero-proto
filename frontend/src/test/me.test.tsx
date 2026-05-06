@@ -22,19 +22,20 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 )
 
 describe('MeRoute', () => {
-  it('shows account email', () => {
+  it('shows account email username', () => {
     render(<MeRoute />, { wrapper })
-    // Email appears in the profile banner and again in the Account card at the bottom.
-    expect(screen.getAllByText(/player@test\.com/).length).toBeGreaterThan(0)
+    // Component shows email.split('@')[0] — full address is never rendered
+    expect(screen.getAllByText(/player/).length).toBeGreaterThan(0)
   })
 
   it('shows coins', () => {
     render(<MeRoute />, { wrapper })
-    expect(screen.getByText(/1,000/)).toBeInTheDocument()
+    expect(screen.getAllByText(/1,000/).length).toBeGreaterThan(0)
   })
 
   it('shows account level', () => {
     render(<MeRoute />, { wrapper })
-    expect(screen.getByText(/Level 4/)).toBeInTheDocument()
+    // Profile banner renders "Lv {level} · {xp} XP" as a single text block
+    expect(screen.getByText(/Lv\s+4/)).toBeInTheDocument()
   })
 })

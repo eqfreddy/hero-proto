@@ -22,9 +22,10 @@ describe('Shell', () => {
   it('renders nav tabs when logged in', () => {
     useAuthStore.setState({ jwt: 'tok' })
     render(<Shell />, { wrapper })
-    expect(screen.getByText('Roster')).toBeInTheDocument()
-    expect(screen.getByText('Stages')).toBeInTheDocument()
-    expect(screen.getByText('Shop')).toBeInTheDocument()
+    // NavBar renders tabs in both desktop strip and mobile drawer — use getAllByText
+    expect(screen.getAllByText('Roster').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Stages').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Shop').length).toBeGreaterThan(0)
   })
 
   it('hides currency bar when not logged in', () => {

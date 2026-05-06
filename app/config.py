@@ -182,6 +182,9 @@ class Settings(BaseSettings):
     # unsupported. Ops can set HEROPROTO_DEFAULT_LOCALE=es for regional deploys.
     default_locale: str = "en"
 
+    # Claude AI — battle narration. Empty = feature disabled (returns 503).
+    anthropic_api_key: str = ""
+
     # Worker: when False, the in-process background tick doesn't start.
     # Useful for running a dedicated worker instance separately from web
     # (run one instance with worker_enabled=True, the rest False).

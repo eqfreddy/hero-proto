@@ -20,7 +20,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import achievements, admin, announcements, arena, auth, battles, crafting, daily, events, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, notifications, raids, shop, stages, story, summon, ui
+from app.routers import achievements, admin, ai, announcements, arena, auth, battles, crafting, daily, events, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, notifications, raids, shop, stages, story, summon, ui
 from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -167,6 +167,7 @@ app.add_api_route("/app/manifest.webmanifest", _serve_manifest, methods=["GET"],
 
 app.include_router(auth.router)
 app.include_router(me.router)
+app.include_router(ai.router)
 app.include_router(heroes.router)
 app.include_router(summon.router)
 app.include_router(stages.router)

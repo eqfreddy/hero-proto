@@ -143,6 +143,11 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .reward-label{font-size:10px;color:#999;margin-bottom:4px;}
 .reward-value{font-size:20px;font-weight:800;color:#fff;}
 .victory-btn{background:#ffd700;color:#000;border:none;font-weight:900;font-size:14px;padding:12px 32px;border-radius:8px;cursor:pointer;font-family:inherit;letter-spacing:1px;}
+.incident-report{margin:16px 0 20px;background:rgba(0,255,224,0.04);border:1px solid rgba(0,255,224,0.15);border-radius:8px;padding:12px 14px;text-align:left;}
+.incident-report-label{font-size:9px;font-weight:800;letter-spacing:0.12em;color:rgba(0,255,224,0.5);text-transform:uppercase;margin-bottom:6px;}
+.incident-report-text{font-size:12px;line-height:1.6;color:#a0b0c0;font-family:monospace;min-height:18px;}
+.incident-report-text.loading::after{content:'▋';animation:blink 0.8s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 .sprite-placeholder{width:70px;height:120px;display:flex;align-items:center;justify-content:center;font-size:60px;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));animation:floatIdle 2.5s ease-in-out infinite;}
 .role-atk .sprite-img{filter:drop-shadow(0 0 10px rgba(255,80,80,0.9)) drop-shadow(0 0 22px rgba(255,40,40,0.5));}
 .role-def .sprite-img{filter:drop-shadow(0 0 10px rgba(80,160,255,0.9)) drop-shadow(0 0 22px rgba(40,100,255,0.5)) hue-rotate(160deg) saturate(1.3);}
@@ -402,6 +407,7 @@ let turnOrder = [];       // array of uids
 let isAutoMode = false;
 let speedMult = 1;
 let isReplayMode = false;
+let currentBattleId = null;
 let awaitingTarget = false;
 let activeAbility = 0;
 let battleOver = false;
@@ -918,17 +924,25 @@ function showVictory(result, rewards) {
       </div>`;
     }
   }
+  const narrationId = 'incident-text-' + Date.now();
+  const narrationHtml = currentBattleId ? `
+    <div class="incident-report">
+      <div class="incident-report-label">📄 Incident Report</div>
+      <div class="incident-report-text loading" id="${narrationId}"></div>
+    </div>` : '';
   ov.innerHTML = `
     <div class="victory-panel ${isWin ? 'win' : 'lose'}">
       <div class="victory-title">${isWin ? 'VICTORY' : 'DEFEAT'}</div>
       <div class="victory-subtitle">${isWin ? 'Your team conquered the arena!' : 'Your team was defeated.'}</div>
       ${rewardsHtml}
+      ${narrationHtml}
       <div class="victory-btn-row">
         ${isWin ? `<button class="victory-btn" style="background:#2266cc;color:#fff;" onclick="history.length > 1 ? history.back() : (window.location.href='/app/stages')">📦 COLLECT LOOT</button>` : ''}
         <button class="victory-btn" onclick="isReplayMode ? history.back() : location.reload()">${isReplayMode ? 'BACK' : 'PLAY AGAIN'}</button>
       </div>
     </div>`;
   $('stage').appendChild(ov);
+  if(currentBattleId) streamNarration(currentBattleId, narrationId);
 }
 
 // ─── Demo mode ────────────────────────────────────────────────────────────────
@@ -1315,6 +1329,39 @@ $('btn-speed').addEventListener('click', () => {
   $('btn-speed').classList.toggle('on', speedMult === 2);
 });
 
+// ─── Battle narration (Claude) ────────────────────────────────────────────────
+async function streamNarration(battleId, elId) {
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const jwt = localStorage.getItem('heroproto_jwt');
+  try {
+    const resp = await fetch('/battles/' + battleId + '/narration', {
+      headers: jwt ? { Authorization: 'Bearer ' + jwt } : {}
+    });
+    if(!resp.ok) { el.classList.remove('loading'); el.textContent = ''; return; }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while(true) {
+      const { done, value } = await reader.read();
+      if(done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for(const line of lines) {
+        if(!line.startsWith('data: ')) continue;
+        const chunk = line.slice(6);
+        if(chunk === '[DONE]') { el.classList.remove('loading'); return; }
+        el.textContent += chunk;
+      }
+    }
+    el.classList.remove('loading');
+  } catch(e) {
+    el.classList.remove('loading');
+    el.textContent = '';
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
   const params = new URLSearchParams(location.search);
@@ -1322,6 +1369,7 @@ async function init() {
 
   if(battleId) {
     isReplayMode = true;
+    currentBattleId = battleId;
     try {
       const jwt = localStorage.getItem('heroproto_jwt');
       const resp = await fetch('/battles/' + battleId, {
