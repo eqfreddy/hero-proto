@@ -387,6 +387,13 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] PWA offline shell — manifest + service worker exist in SPA build
 - [x] Native iOS / Android wrapper (Capacitor) — Android running on emulator; iOS via cloud CI
 
+### Onboarding quest system
+- [ ] **Write implementation plan** — spec at `docs/superpowers/specs/2026-05-06-onboarding-quest-design.md`; use `writing-plans` skill. Lock down Legendary modifier list during planning.
+- [ ] Implement backend: `Quest` + `AccountQuest` models, `quest_service.record_event()`, `/quests/active` + `/quests/{id}/claim` + `/quests/{id}/dismiss` endpoints, seed `onboarding_week_one` on startup, auto-enroll on registration
+- [ ] Wire `record_event` hooks into battles, summon, gear, arena, guilds, daily, story, me routers
+- [ ] Implement frontend: floating bottom-right widget (collapsed pill ↔ expanded task list), gold pulse on completion, claim modal with Epic/gems choice, confetti + auto-hide
+- [ ] Implement coach marks: `<CoachMark>` overlay component, `localStorage` tracking, 7 screens wired up
+
 ---
 
 ## 🧪 Test matrix — coverage
