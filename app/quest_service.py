@@ -13,7 +13,7 @@ Task definition shape (stored in Quest.tasks_json):
 ]
 
 Task 14 (DAILY_QUEST_COMPLETE with target=3) tracks unique calendar days,
-not raw count. progress_json stores {"daily_quest_complete": 2, ...} for
+not raw count. progress_json stores {"daily_3_days": 2, ...} for
 simple counters and {"daily_quest_days": ["2026-05-06", ...]} for day-sets.
 """
 from __future__ import annotations
@@ -32,6 +32,8 @@ log = logging.getLogger(__name__)
 # The task id that triggers this behaviour is identified by checking
 # task["id"] == DAY_TRACKING_TASK_ID.
 DAY_TRACKING_TASK_ID = "daily_3_days"
+# DAY_TRACKING_EVENT is the expected event for the day-tracking task.
+# The outer loop already filters by event, so the inner branch keys on task_id only.
 DAY_TRACKING_EVENT = "DAILY_QUEST_COMPLETE"
 DAY_TRACKING_PROGRESS_KEY = "daily_quest_days"
 
@@ -79,9 +81,9 @@ def _record_event(db: Session, account: Account, event: str, payload: dict) -> N
                 if today not in days:
                     days.append(today)
                     progress[DAY_TRACKING_PROGRESS_KEY] = days
+                    # current = unique day count
+                    progress[task_id] = len(days)
                     changed = True
-                # current = unique day count
-                progress[task_id] = len(days)
             else:
                 current = int(progress.get(task_id, 0))
                 if current >= target:

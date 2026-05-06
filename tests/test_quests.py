@@ -24,8 +24,6 @@ def test_new_account_enrolled_in_onboarding(client):
 
 
 def test_battle_complete_advances_quest(client):
-    from app.db import SessionLocal
-    from app.models import AccountQuest
     token = _register(client, "battle_quest@example.com")
     # Trigger a battle via existing full_loop approach
     r = client.post("/summon/x10", headers=_headers(token))
