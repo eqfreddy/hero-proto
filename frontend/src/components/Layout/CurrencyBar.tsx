@@ -7,6 +7,11 @@ export function CurrencyBar() {
   const jwt = useAuthStore((s) => s.jwt)
   const { data: me } = useMe()
   const navigate = useNavigate()
+  // Hooks MUST run unconditionally on every render — call them before any early
+  // return. Pass 0 when data isn't loaded yet; the timer just shows 0:00 until
+  // the next /me refetch flushes the real value through.
+  const energyTimer = useCountdown(me?.energy_next_tick_in ?? 0)
+  const ticketTimer = useCountdown(me?.arena_tickets_next_tick_in ?? 0)
 
   if (!jwt) return null
 
@@ -16,8 +21,6 @@ export function CurrencyBar() {
 
   const energyPct = Math.min(100, (me.energy / me.energy_cap) * 100)
   const energyColor = energyPct > 60 ? 'var(--good)' : energyPct > 25 ? 'var(--warn)' : 'var(--bad)'
-  const energyTimer = useCountdown(me.energy_next_tick_in)
-  const ticketTimer = useCountdown(me.arena_tickets_next_tick_in)
   const showEnergyTimer = me.energy < me.energy_cap
   const ticketsAtCap = me.arena_tickets >= me.arena_tickets_cap
 
