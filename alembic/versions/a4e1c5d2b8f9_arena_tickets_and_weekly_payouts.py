@@ -20,9 +20,17 @@ def upgrade() -> None:
         'accounts',
         sa.Column('arena_tickets_stored', sa.Integer(), nullable=False, server_default='5'),
     )
+    # SQLite forbids non-constant defaults on ALTER ADD; Postgres needs unquoted
+    # CURRENT_TIMESTAMP. Cross-DB safe path: add nullable, backfill via UPDATE.
+    # Stays nullable in schema; Python `default=utcnow` on the model keeps new
+    # rows populated. Existing rows get backfilled to NOW() at migration time.
     op.add_column(
         'accounts',
-        sa.Column('arena_tickets_last_tick_at', sa.DateTime(), nullable=False, server_default='CURRENT_TIMESTAMP'),
+        sa.Column('arena_tickets_last_tick_at', sa.DateTime(), nullable=True),
+    )
+    op.execute(
+        "UPDATE accounts SET arena_tickets_last_tick_at = CURRENT_TIMESTAMP "
+        "WHERE arena_tickets_last_tick_at IS NULL"
     )
     op.add_column(
         'accounts',
@@ -40,7 +48,7 @@ def upgrade() -> None:
         sa.Column('rank', sa.Integer(), nullable=False),
         sa.Column('gems', sa.Integer(), nullable=False),
         sa.Column('eligible_wins', sa.Integer(), nullable=False),
-        sa.Column('granted_at', sa.DateTime(), nullable=False, server_default='CURRENT_TIMESTAMP'),
+        sa.Column('granted_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column('acknowledged_at', sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(['account_id'], ['accounts.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('week_key', 'account_id'),
