@@ -6,16 +6,23 @@ import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
 import { CoachMark } from '../components/CoachMark'
 import { useState } from 'react'
+import { TicketHeader } from '../components/Arena/TicketHeader'
+import { useMe } from '../hooks/useMe'
 
 export function ArenaRoute() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { data, isLoading } = useQuery({ queryKey: ['arena'], queryFn: fetchArena })
+  const { data: me } = useMe()
   const [attacking, setAttacking] = useState<number | null>(null)
 
   if (isLoading) return <SkeletonGrid />
 
   async function attack(defenderId: number) {
+    if ((me?.arena_tickets ?? 0) <= 0) {
+      toast.error('Out of arena tickets — wait for regen')
+      return
+    }
     setAttacking(defenderId)
     try {
       const res = await attackArena(defenderId, [])
@@ -30,6 +37,7 @@ export function ArenaRoute() {
   return (
     <div className="stack">
       <h2 style={{ margin: 0 }}>Arena</h2>
+      {me && <TicketHeader me={me} />}
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Available Opponents</h3>
@@ -48,13 +56,17 @@ export function ArenaRoute() {
                   side="left"
                 >
                   <button className="primary" style={{ fontSize: 12 }}
-                    disabled={!!attacking} onClick={() => attack(o.account_id)}>
+                    disabled={!!attacking || (me?.arena_tickets ?? 0) <= 0}
+                    title={(me?.arena_tickets ?? 0) <= 0 ? 'Out of tickets — wait for regen' : undefined}
+                    onClick={() => attack(o.account_id)}>
                     {attacking === o.account_id ? '…' : 'Attack'}
                   </button>
                 </CoachMark>
               ) : (
                 <button className="primary" style={{ fontSize: 12 }}
-                  disabled={!!attacking} onClick={() => attack(o.account_id)}>
+                  disabled={!!attacking || (me?.arena_tickets ?? 0) <= 0}
+                  title={(me?.arena_tickets ?? 0) <= 0 ? 'Out of tickets — wait for regen' : undefined}
+                  onClick={() => attack(o.account_id)}>
                   {attacking === o.account_id ? '…' : 'Attack'}
                 </button>
               )}
