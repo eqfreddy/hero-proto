@@ -19,3 +19,6 @@ export const fetchArena = (): Promise<{ opponents: ArenaOpponent[]; leaderboard:
   ]).then(([opponents, leaderboard, recent]) => ({ opponents, leaderboard, recent }))
 export const attackArena = (defender_id: number, hero_ids: number[]) =>
   apiPost<ArenaAttackResponse>('/arena/attack', { defender_id, hero_ids })
+
+export const acknowledgeWeeklyRewards = (): Promise<{ acknowledged: number }> =>
+  apiPost<{ acknowledged: number }>('/arena/weekly/acknowledge', {})

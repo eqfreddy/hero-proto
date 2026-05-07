@@ -7,6 +7,7 @@ import { ToastContainer } from '../Toast'
 import { AgeGate } from '../AgeGate'
 import { VersionTag } from '../VersionTag'
 import { QuestWidget } from '../QuestWidget'
+import { PendingArenaReward } from '../PendingArenaReward'
 import { useAuthStore } from '../../store/auth'
 import { initPush } from '../../api/push'
 
@@ -51,6 +52,7 @@ export function Shell() {
         </main>
         <ToastContainer />
         <QuestWidget />
+        <PendingArenaReward />
         <VersionTag />
       </div>
     </AgeGate>
