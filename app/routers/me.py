@@ -15,8 +15,15 @@ from app.daily_bonus import (
 )
 from app.db import get_db
 from app.deps import enforce_data_export_rate_limit, get_current_account
-from app.economy import compute_arena_tickets, compute_energy, load_cleared, seconds_until_next_ticket
-from app.models import Account, Battle, Faction, Guild, GuildMember, GuildRole, HeroInstance, Purchase
+from app.economy import (
+    compute_arena_tickets,
+    compute_energy,
+    load_cleared,
+    seconds_until_next_energy,
+    seconds_until_next_ticket,
+)
+from app.arena_payout import distribute_pending, reset_weekly_counter_if_stale
+from app.models import Account, ArenaWeeklyPayout, Battle, Faction, Guild, GuildMember, GuildRole, HeroInstance, Purchase
 from app.schemas import MeOut
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -28,6 +35,11 @@ def get_me(
     db: Annotated[Session, Depends(get_db)],
 ) -> MeOut:
     import json as _json
+    # Side effects on every /me hit (cheap):
+    #   1. Reset per-account weekly counter if the ISO week rolled over.
+    #   2. Run the global distributor — idempotent on (week_key) PK.
+    reset_weekly_counter_if_stale(account)
+    distribute_pending(db)
     cleared = load_cleared(account)
     has_summoned = db.query(HeroInstance).filter_by(account_id=account.id).limit(1).first() is not None
     has_battled = db.query(Battle).filter_by(account_id=account.id).limit(1).first() is not None
@@ -42,6 +54,14 @@ def get_me(
         frame_codes = [str(f) for f in frames] if isinstance(frames, list) else []
     except _json.JSONDecodeError:
         frame_codes = []
+    pending_payouts = db.query(ArenaWeeklyPayout).filter(
+        ArenaWeeklyPayout.account_id == account.id,
+        ArenaWeeklyPayout.acknowledged_at.is_(None),
+    ).all()
+    pending_out = [
+        {"week_key": p.week_key, "rank": p.rank, "gems": p.gems}
+        for p in pending_payouts
+    ]
     return MeOut(
         id=account.id,
         email=account.email,
@@ -52,6 +72,7 @@ def get_me(
         free_summon_credits=account.free_summon_credits or 0,
         energy=compute_energy(account),
         energy_cap=settings.energy_cap,
+        energy_next_tick_in=seconds_until_next_energy(account),
         pulls_since_epic=account.pulls_since_epic,
         stages_cleared=sorted(cleared),
         tutorial_cleared="tutorial_first_ticket" in cleared,
@@ -71,6 +92,8 @@ def get_me(
         arena_tickets=compute_arena_tickets(account),
         arena_tickets_cap=settings.arena_tickets_cap,
         arena_tickets_next_tick_in=seconds_until_next_ticket(account),
+        arena_weekly_wins=account.arena_weekly_wins or 0,
+        pending_arena_rewards=pending_out,
         hero_slot_cap=account.hero_slot_cap or 50,
         gear_slot_cap=account.gear_slot_cap or 200,
         is_admin=bool(account.is_admin),
