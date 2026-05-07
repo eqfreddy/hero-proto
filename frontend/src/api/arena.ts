@@ -4,6 +4,13 @@ export interface ArenaOpponent { account_id: number; name: string; defense_power
 export interface ArenaLeaderEntry { account_id: number; name: string; arena_rating: number; wins: number; losses: number }
 export interface ArenaMatch { id: number; outcome: string; rating_delta: number; created_at: string; role: string; opponent_name: string }
 
+export interface ArenaAttackResponse {
+  outcome: string
+  rating_delta: number
+  battle_id: number
+  rewards: { coins: number; shards: number; gems: number }
+}
+
 export const fetchArena = (): Promise<{ opponents: ArenaOpponent[]; leaderboard: ArenaLeaderEntry[]; recent: ArenaMatch[] }> =>
   Promise.all([
     apiFetch<ArenaOpponent[]>('/arena/opponents'),
@@ -11,4 +18,4 @@ export const fetchArena = (): Promise<{ opponents: ArenaOpponent[]; leaderboard:
     Promise.resolve([] as ArenaMatch[]),  // recent matches not yet exposed via API
   ]).then(([opponents, leaderboard, recent]) => ({ opponents, leaderboard, recent }))
 export const attackArena = (defender_id: number, hero_ids: number[]) =>
-  apiPost<{ outcome: string; rating_delta: number; battle_id: number }>('/arena/attack', { defender_id, hero_ids })
+  apiPost<ArenaAttackResponse>('/arena/attack', { defender_id, hero_ids })

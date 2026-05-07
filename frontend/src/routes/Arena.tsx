@@ -26,7 +26,13 @@ export function ArenaRoute() {
     setAttacking(defenderId)
     try {
       const res = await attackArena(defenderId, [])
-      toast.success(`${res.outcome === 'WIN' ? '⚔️ Victory' : '💀 Defeat'}! Rating ${res.rating_delta >= 0 ? '+' : ''}${res.rating_delta}`)
+      const r = res.rewards ?? { coins: 0, shards: 0, gems: 0 }
+      const rewardParts: string[] = []
+      if (r.coins > 0) rewardParts.push(`+${r.coins} 🪙`)
+      if (r.shards > 0) rewardParts.push(`+${r.shards} ✦`)
+      if (r.gems > 0) rewardParts.push(`+${r.gems} 💎`)
+      const rewardLine = rewardParts.length ? ` · ${rewardParts.join(' ')}` : ''
+      toast.success(`${res.outcome === 'WIN' ? '⚔️ Victory' : '💀 Defeat'}! Rating ${res.rating_delta >= 0 ? '+' : ''}${res.rating_delta}${rewardLine}`)
       qc.invalidateQueries({ queryKey: ['arena'] })
       qc.invalidateQueries({ queryKey: ['me'] })
       navigate(`/battle/${res.battle_id}/replay`)
