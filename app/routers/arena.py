@@ -6,8 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
+from app.arena_constants import ARENA_REWARDS, ARENA_REWARD_JITTER
+from app.arena_payout import reset_weekly_counter_if_stale
 from app.combat import power_rating, scale_stat, simulate, trim_combat_log
 from app.daily import on_arena_attack
+from app.economy import consume_arena_ticket, seconds_until_next_ticket
 from app.event_state import QUEST_KINDS_ARENA, on_activity as event_on_activity
 from app.db import get_db
 from app.deps import enforce_arena_rate_limit, get_current_account
@@ -239,6 +242,15 @@ def attack(
     if dt is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "defender has no defense team set")
 
+    # Ticket gate — game economy resource (separate from anti-spam rate limit).
+    if not consume_arena_ticket(account):
+        retry_after = max(1, seconds_until_next_ticket(account))
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"out of arena tickets — next in {retry_after}s",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     attackers = _load_heroes(db, account, body.team)
     try:
         def_ids = json.loads(dt.hero_ids_json)
@@ -292,6 +304,28 @@ def attack(
     account.arena_rating = max(MIN_RATING, account.arena_rating + delta)
     defender.arena_rating = max(MIN_RATING, defender.arena_rating - delta)
 
+    # Drip rewards — outcome-driven, ±20% jitter on coins only.
+    outcome_key = (
+        "win" if result.outcome == BattleOutcome.WIN
+        else "loss" if result.outcome == BattleOutcome.LOSS
+        else "draw"
+    )
+    reward_set = ARENA_REWARDS[outcome_key]
+    jitter_mult = 1.0 + rng.uniform(-ARENA_REWARD_JITTER, ARENA_REWARD_JITTER)
+    coins = max(1, int(round(reward_set["coins"] * jitter_mult)))
+    shards = reward_set["shards"]
+    gems = reward_set["gems"]
+    account.coins = (account.coins or 0) + coins
+    account.shards = (account.shards or 0) + shards
+    account.gems = (account.gems or 0) + gems
+    rewards_out = {"coins": coins, "shards": shards, "gems": gems}
+
+    # Weekly counter — increment only on wins, after stale-key reset so the
+    # increment lands on the current week's bucket.
+    if result.outcome == BattleOutcome.WIN:
+        reset_weekly_counter_if_stale(account)
+        account.arena_weekly_wins = (account.arena_weekly_wins or 0) + 1
+
     on_arena_attack(db, account)
     event_on_activity(db, account, "arena_attack", quest_kinds=QUEST_KINDS_ARENA)
 
@@ -331,6 +365,7 @@ def attack(
         log=result.log,
         participants=[BattleParticipant(**p) for p in participants],
         created_at=match.created_at,
+        rewards=rewards_out,
     )
 
 

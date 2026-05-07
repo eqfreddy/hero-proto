@@ -15,7 +15,7 @@ from app.daily_bonus import (
 )
 from app.db import get_db
 from app.deps import enforce_data_export_rate_limit, get_current_account
-from app.economy import compute_energy, load_cleared
+from app.economy import compute_arena_tickets, compute_energy, load_cleared, seconds_until_next_ticket
 from app.models import Account, Battle, Faction, Guild, GuildMember, GuildRole, HeroInstance, Purchase
 from app.schemas import MeOut
 
@@ -68,6 +68,9 @@ def get_me(
         arena_rating=account.arena_rating or 1000,
         arena_wins=account.arena_wins or 0,
         arena_losses=account.arena_losses or 0,
+        arena_tickets=compute_arena_tickets(account),
+        arena_tickets_cap=settings.arena_tickets_cap,
+        arena_tickets_next_tick_in=seconds_until_next_ticket(account),
         hero_slot_cap=account.hero_slot_cap or 50,
         gear_slot_cap=account.gear_slot_cap or 200,
         is_admin=bool(account.is_admin),

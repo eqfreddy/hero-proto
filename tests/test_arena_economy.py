@@ -85,3 +85,100 @@ def test_seconds_until_next_energy_at_cap_is_zero():
         energy_last_tick_at=utcnow(),
     )
     assert seconds_until_next_energy(a) == 0
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — ticket gate + drip rewards on /arena/attack
+# ---------------------------------------------------------------------------
+
+
+def _register(client, email):
+    r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def _setup_attacker_and_defender(client, prefix):
+    """Returns (atk_hdr, def_id, atk_team)."""
+    import random
+    def_email = f"{prefix}-def-{random.randint(100000, 999999)}@example.com"
+    def_hdr = _register(client, def_email)
+    client.post("/summon/x10", headers=def_hdr)
+    def_roster = sorted(
+        client.get("/heroes/mine", headers=def_hdr).json(),
+        key=lambda h: h["power"], reverse=True,
+    )
+    def_team = [h["id"] for h in def_roster[:3]]
+    def_id = client.get("/me", headers=def_hdr).json()["id"]
+    client.put("/arena/defense", json={"team": def_team}, headers=def_hdr)
+
+    atk_email = f"{prefix}-atk-{random.randint(100000, 999999)}@example.com"
+    atk_hdr = _register(client, atk_email)
+    client.post("/summon/x10", headers=atk_hdr)
+    atk_roster = sorted(
+        client.get("/heroes/mine", headers=atk_hdr).json(),
+        key=lambda h: h["power"], reverse=True,
+    )
+    atk_team = [h["id"] for h in atk_roster[:3]]
+    return atk_hdr, def_id, atk_team
+
+
+def test_arena_attack_returns_429_when_no_tickets(client):
+    from app.db import SessionLocal
+    from app.models import Account
+    atk_hdr, def_id, atk_team = _setup_attacker_and_defender(client, "tix")
+    me = client.get("/me", headers=atk_hdr).json()
+
+    # Drain tickets directly via DB.
+    db = SessionLocal()
+    try:
+        a = db.get(Account, me["id"])
+        a.arena_tickets_stored = 0
+        a.arena_tickets_last_tick_at = utcnow()
+        db.commit()
+    finally:
+        db.close()
+
+    r = client.post(
+        "/arena/attack",
+        json={"defender_account_id": def_id, "team": atk_team},
+        headers=atk_hdr,
+    )
+    assert r.status_code == 429, r.text
+    assert "Retry-After" in r.headers
+
+
+def test_arena_attack_drips_rewards(client):
+    """Attacker receives coins/shards/gems based on outcome."""
+    atk_hdr, def_id, atk_team = _setup_attacker_and_defender(client, "drip")
+    me_before = client.get("/me", headers=atk_hdr).json()
+
+    r = client.post(
+        "/arena/attack",
+        json={"defender_account_id": def_id, "team": atk_team},
+        headers=atk_hdr,
+    )
+    assert r.status_code == 201
+    match = r.json()
+    assert "rewards" in match
+    assert match["rewards"]["coins"] >= 20  # loss=25 ±20%, win=75 ±20% — both above 20
+
+    me_after = client.get("/me", headers=atk_hdr).json()
+    assert me_after["coins"] >= me_before["coins"] + match["rewards"]["coins"]
+    assert me_after["shards"] >= me_before["shards"] + match["rewards"]["shards"]
+    assert me_after["gems"] >= me_before["gems"] + match["rewards"]["gems"]
+
+
+def test_arena_attack_decrements_tickets(client):
+    atk_hdr, def_id, atk_team = _setup_attacker_and_defender(client, "decr")
+    before = client.get("/me", headers=atk_hdr).json()["arena_tickets"]
+
+    r = client.post(
+        "/arena/attack",
+        json={"defender_account_id": def_id, "team": atk_team},
+        headers=atk_hdr,
+    )
+    assert r.status_code == 201
+
+    after = client.get("/me", headers=atk_hdr).json()["arena_tickets"]
+    assert after == before - 1
