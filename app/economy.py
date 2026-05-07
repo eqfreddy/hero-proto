@@ -145,6 +145,71 @@ def award_rewards(
     )
 
 
+# --- Arena tickets ----------------------------------------------------------
+
+
+def compute_arena_tickets(account: Account, now: datetime | None = None) -> int:
+    """Mirror of compute_energy: flushes regen, returns current ticket count.
+
+    Read-only by intent — does NOT mutate the account. Use consume_arena_ticket
+    when actually spending one (it flushes + spends + persists the new
+    last_tick_at).
+    """
+    now = now or utcnow()
+    elapsed = (now - account.arena_tickets_last_tick_at).total_seconds()
+    if elapsed < 0:
+        elapsed = 0
+    gained = int(elapsed // settings.arena_tickets_regen_seconds)
+    if account.arena_tickets_stored >= settings.arena_tickets_cap:
+        return account.arena_tickets_stored
+    return min(settings.arena_tickets_cap, account.arena_tickets_stored + gained)
+
+
+def consume_arena_ticket(account: Account, now: datetime | None = None) -> bool:
+    """Atomically flush regen + spend 1 ticket. Returns False if at 0.
+
+    On success, also realigns last_tick_at so partial-regen accumulation
+    isn't lost when we drop below cap.
+    """
+    now = now or utcnow()
+    current = compute_arena_tickets(account, now)
+    if current <= 0:
+        # Refresh the snapshot so phantom tickets don't accumulate later.
+        account.arena_tickets_stored = current
+        account.arena_tickets_last_tick_at = now
+        return False
+    account.arena_tickets_stored = current - 1
+    # Snap last_tick_at to now so the next regen interval is full-length.
+    # This is intentional: spending mid-regen costs the partial accumulation,
+    # same way energy works.
+    account.arena_tickets_last_tick_at = now
+    return True
+
+
+def seconds_until_next_energy(account: Account, now: datetime | None = None) -> int:
+    """Seconds remaining until the next +1 energy tick. Returns 0 at cap."""
+    now = now or utcnow()
+    if compute_energy(account, now) >= settings.energy_cap:
+        return 0
+    elapsed = (now - account.energy_last_tick_at).total_seconds()
+    if elapsed < 0:
+        elapsed = 0
+    remainder = elapsed % settings.energy_regen_seconds
+    return max(0, int(settings.energy_regen_seconds - remainder))
+
+
+def seconds_until_next_ticket(account: Account, now: datetime | None = None) -> int:
+    """Seconds remaining until the next +1 arena ticket. Returns 0 at cap."""
+    now = now or utcnow()
+    if compute_arena_tickets(account, now) >= settings.arena_tickets_cap:
+        return 0
+    elapsed = (now - account.arena_tickets_last_tick_at).total_seconds()
+    if elapsed < 0:
+        elapsed = 0
+    remainder = elapsed % settings.arena_tickets_regen_seconds
+    return max(0, round(settings.arena_tickets_regen_seconds - remainder))
+
+
 # --- Stage clear tracking ---------------------------------------------------
 
 
