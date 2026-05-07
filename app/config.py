@@ -193,6 +193,8 @@ class Settings(BaseSettings):
     # Economy
     energy_cap: int = 100
     energy_regen_seconds: int = 360
+    arena_tickets_cap: int = 5
+    arena_tickets_regen_seconds: int = 14400  # 4 hours
     energy_per_battle: int = 5
     # Gem-for-energy refill — first premium-currency sink in the game. Capped per
     # day so whales can't trivialize the energy loop.
