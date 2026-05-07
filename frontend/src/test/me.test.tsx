@@ -6,9 +6,12 @@ import { MeRoute } from '../routes/Me'
 const mockMe = {
   id: 1, email: 'player@test.com', coins: 1000, gems: 50, shards: 20,
   access_cards: 5, free_summon_credits: 3, energy: 45, energy_cap: 60,
+  energy_next_tick_in: 0, arena_tickets: 5, arena_tickets_cap: 5,
+  arena_tickets_next_tick_in: 0, arena_weekly_wins: 0, pending_arena_rewards: [],
   pulls_since_epic: 12, stages_cleared: ['tutorial_first_ticket'],
   arena_rating: 1050, arena_wins: 5, arena_losses: 3,
   account_level: 4, account_xp: 350, qol_unlocks: {}, active_cosmetic_frame: '',
+  faction: 'EXILE' as const, alignment_chosen_at: null, email_verified: true, totp_enabled: false, is_admin: false,
 }
 
 vi.mock('../hooks/useMe', () => ({

@@ -4,6 +4,8 @@ import type { Me, Hero, HeroTemplate, Stage, Guild, Notification } from '../type
 const me: Me = {
   id: 1, email: 'a@b.com', coins: 0, gems: 0, shards: 0,
   access_cards: 0, free_summon_credits: 0, energy: 60, energy_cap: 60,
+  energy_next_tick_in: 0, arena_tickets: 5, arena_tickets_cap: 5,
+  arena_tickets_next_tick_in: 0, arena_weekly_wins: 0, pending_arena_rewards: [],
   pulls_since_epic: 0, stages_cleared: [], arena_rating: 1000,
   arena_wins: 0, arena_losses: 0, account_level: 1, account_xp: 0,
   qol_unlocks: {}, active_cosmetic_frame: '',

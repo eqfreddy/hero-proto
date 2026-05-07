@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useMe } from '../../hooks/useMe'
 import { useAuthStore } from '../../store/auth'
+import { useCountdown } from '../../hooks/useCountdown'
 
 export function CurrencyBar() {
   const jwt = useAuthStore((s) => s.jwt)
@@ -15,6 +16,10 @@ export function CurrencyBar() {
 
   const energyPct = Math.min(100, (me.energy / me.energy_cap) * 100)
   const energyColor = energyPct > 60 ? 'var(--good)' : energyPct > 25 ? 'var(--warn)' : 'var(--bad)'
+  const energyTimer = useCountdown(me.energy_next_tick_in)
+  const ticketTimer = useCountdown(me.arena_tickets_next_tick_in)
+  const showEnergyTimer = me.energy < me.energy_cap
+  const ticketsAtCap = me.arena_tickets >= me.arena_tickets_cap
 
   return (
     <div
@@ -66,7 +71,26 @@ export function CurrencyBar() {
             pointerEvents: 'none',
           }}
         />
-        <span style={{ position: 'relative' }}>⚡ {me.energy}/{me.energy_cap}</span>
+        <span style={{ position: 'relative' }}>
+          ⚡ {me.energy}/{me.energy_cap}
+          {showEnergyTimer && (
+            <span style={{ marginLeft: 6, color: 'var(--muted)', fontSize: 10, fontWeight: 400 }}>
+              +1 in {energyTimer}
+            </span>
+          )}
+        </span>
+      </span>
+      <span
+        className="cb-pill"
+        style={{ color: ticketsAtCap ? 'var(--good)' : 'var(--accent)' }}
+        title={`${me.arena_tickets} of ${me.arena_tickets_cap} arena tickets`}
+      >
+        🎯 {me.arena_tickets}/{me.arena_tickets_cap}
+        {!ticketsAtCap && (
+          <span style={{ marginLeft: 6, color: 'var(--muted)', fontSize: 10, fontWeight: 400 }}>
+            +1 in {ticketTimer}
+          </span>
+        )}
       </span>
       {me.free_summon_credits > 0 && (
         <span className="cb-pill" style={{ color: 'var(--r-epic)' }}>

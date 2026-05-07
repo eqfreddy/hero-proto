@@ -8,6 +8,12 @@ export interface Me {
   free_summon_credits: number
   energy: number
   energy_cap: number
+  energy_next_tick_in: number
+  arena_tickets: number
+  arena_tickets_cap: number
+  arena_tickets_next_tick_in: number
+  arena_weekly_wins: number
+  pending_arena_rewards: PendingArenaReward[]
   pulls_since_epic: number
   stages_cleared: string[]
   arena_rating: number
@@ -166,4 +172,10 @@ export interface Raid {
   max_hp: number
   status: string
   guild_id: number
+}
+
+export interface PendingArenaReward {
+  week_key: string
+  rank: number
+  gems: number
 }
