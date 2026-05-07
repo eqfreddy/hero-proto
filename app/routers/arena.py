@@ -18,6 +18,7 @@ from app.gear_logic import gear_bonus_for
 from app.models import (
     Account,
     ArenaMatch,
+    ArenaWeeklyPayout,
     BattleOutcome,
     DefenseTeam,
     HeroInstance,
@@ -415,3 +416,23 @@ def leaderboard(db: Annotated[Session, Depends(get_db)]) -> list[ArenaLeaderboar
         )
         for r in rows
     ]
+
+
+@router.post("/weekly/acknowledge", response_model=dict)
+def acknowledge_weekly_rewards(
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """Mark all unacknowledged weekly arena payouts for this account as seen.
+
+    Idempotent — re-calling with no pending rows returns {acknowledged: 0}.
+    """
+    rows = db.query(ArenaWeeklyPayout).filter(
+        ArenaWeeklyPayout.account_id == account.id,
+        ArenaWeeklyPayout.acknowledged_at.is_(None),
+    ).all()
+    now = utcnow()
+    for r in rows:
+        r.acknowledged_at = now
+    db.commit()
+    return {"acknowledged": len(rows)}

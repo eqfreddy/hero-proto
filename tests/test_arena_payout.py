@@ -156,3 +156,49 @@ def test_distribute_pending_grants_champion_frame_to_rank_1(client):
         assert ARENA_CHAMPION_FRAME not in a2_frames
     finally:
         db.close()
+
+
+def test_acknowledge_marks_all_pending(client):
+    """POST /arena/weekly/acknowledge sets acknowledged_at on unacknowledged rows."""
+    from app.db import SessionLocal
+    from app.models import ArenaWeeklyPayout
+
+    # Register an account, then write a pending payout for it directly.
+    r = client.post("/auth/register", json={"email": "ack@example.com", "password": "hunter22"})
+    hdr = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    me_id = client.get("/me", headers=hdr).json()["id"]
+
+    db = SessionLocal()
+    try:
+        db.add(ArenaWeeklyPayout(
+            week_key="2026-W19",
+            account_id=me_id,
+            rank=3,
+            gems=250,
+            eligible_wins=4,
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    # Acknowledge endpoint marks them.
+    r = client.post("/arena/weekly/acknowledge", headers=hdr)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["acknowledged"] == 1
+
+    # Verify acknowledged_at is set.
+    db = SessionLocal()
+    try:
+        p = db.query(ArenaWeeklyPayout).filter(
+            ArenaWeeklyPayout.account_id == me_id,
+            ArenaWeeklyPayout.week_key == "2026-W19",
+        ).first()
+        assert p.acknowledged_at is not None
+    finally:
+        db.close()
+
+    # Idempotent — second call returns 0.
+    r2 = client.post("/arena/weekly/acknowledge", headers=hdr)
+    assert r2.status_code == 200
+    assert r2.json()["acknowledged"] == 0
