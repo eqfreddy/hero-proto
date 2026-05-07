@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Character Roster — All Sliced Rigs</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0d12;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;color:#fff;padding:20px;min-height:100vh;}
+h1{font-size:24px;font-weight:800;letter-spacing:1px;margin-bottom:6px;}
+.sub{color:#7a8696;font-size:13px;margin-bottom:20px;}
+.controls{display:flex;gap:14px;align-items:center;margin-bottom:20px;flex-wrap:wrap;}
+.controls label{font-size:12px;color:#9aa6b4;display:flex;align-items:center;gap:6px;}
+.controls select,.controls button{background:#1a2030;color:#fff;border:1px solid #2c3548;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.tile{background:linear-gradient(180deg,#11161f 0%,#0a0d12 100%);border:1px solid #1f2735;border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;}
+.tile-anim{width:200px;height:200px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;}
+.tile-anim img{width:200px;height:200px;image-rendering:pixelated;object-fit:contain;}
+.tile-name{font-size:13px;font-weight:700;margin-top:6px;color:#cfd8e3;text-align:center;}
+.tile-meta{font-size:10px;color:#5d6776;margin-top:2px;}
+.tile.role-atk img{filter:drop-shadow(0 0 8px rgba(255,80,80,0.7));}
+.tile.role-def img{filter:drop-shadow(0 0 8px rgba(80,160,255,0.7));}
+.tile.role-sup img{filter:drop-shadow(0 0 8px rgba(255,215,0,0.7));}
+</style>
+</head>
+<body>
+<h1>Character Roster</h1>
+<div class="sub" id="sub">Loading…</div>
+<div class="controls">
+  <label>Animation:
+    <select id="anim-select">
+      <option value="idle" selected>idle</option>
+      <option value="attack">attack</option>
+      <option value="hurt">hurt</option>
+      <option value="die">die</option>
+      <option value="run">run</option>
+    </select>
+  </label>
+  <label>Glow tint:
+    <select id="tint-select">
+      <option value="none" selected>none</option>
+      <option value="atk">red (ATK)</option>
+      <option value="def">blue (DEF)</option>
+      <option value="sup">gold (SUP)</option>
+    </select>
+  </label>
+</div>
+<div id="grid" class="grid"></div>
+
+<script>
+// All sliced characters with their per-animation frame counts.
+// (Generated from the slicer output — keep in sync.)
+const CHARACTERS = [
+  { slug: 'black-werewolf',   flat: 'blackwerewolf',   frames: { idle:8,  attack:6,  hurt:2, die:2, run:9  } },
+  { slug: 'red-werewolf',     flat: 'redwerewolf',     frames: { idle:8,  attack:6,  hurt:2, die:2, run:9  } },
+  { slug: 'white-werewolf',   flat: 'whitewerewolf',   frames: { idle:8,  attack:6,  hurt:2, die:2, run:9  } },
+  { slug: 'fire-wizard',      flat: 'firewizard',      frames: { idle:7,  attack:4,  hurt:3, die:6, run:8  } },
+  { slug: 'lightning-mage',   flat: 'lightningmage',   frames: { idle:7,  attack:10, hurt:3, die:5, run:8  } },
+  { slug: 'wanderer-magican', flat: 'wanderermagican', frames: { idle:8,  attack:7,  hurt:4, die:4, run:8  } },
+  { slug: 'gorgon-1',         flat: 'gorgon1',         frames: { idle:7,  attack:16, hurt:3, die:3, run:7  } },
+  { slug: 'gorgon-2',         flat: 'gorgon2',         frames: { idle:7,  attack:16, hurt:3, die:3, run:7  } },
+  { slug: 'gorgon-3',         flat: 'gorgon3',         frames: { idle:7,  attack:16, hurt:3, die:3, run:7  } },
+  { slug: 'karasu-tengu',     flat: 'karasutengu',     frames: { idle:6,  attack:6,  hurt:3, die:6, run:8  } },
+  { slug: 'kitsune',          flat: 'kitsune',         frames: { idle:8,  attack:10, hurt:2, die:10, run:8 } },
+  { slug: 'yamabushi-tengu',  flat: 'yamabushitengu',  frames: { idle:6,  attack:3,  hurt:3, die:6, run:8  } },
+  { slug: 'knight-1',         flat: 'knight1',         frames: { idle:4,  attack:5,  hurt:2, die:6, run:7  } },
+  { slug: 'knight-2',         flat: 'knight2',         frames: { idle:4,  attack:5,  hurt:2, die:6, run:7  } },
+  { slug: 'knight-3',         flat: 'knight3',         frames: { idle:4,  attack:5,  hurt:2, die:6, run:7  } },
+  { slug: 'kunoichi',         flat: 'kunoichi',        frames: { idle:9,  attack:6,  hurt:2, die:5, run:8  } },
+  { slug: 'ninja-monk',       flat: 'ninjamonk',       frames: { idle:6,  attack:6,  hurt:2, die:5, run:8  } },
+  { slug: 'ninja-peasant',    flat: 'ninjapeasant',    frames: { idle:6,  attack:6,  hurt:2, die:5, run:8  } },
+  { slug: 'minotaur-1',       flat: 'minotaur1',       frames: { idle:10, attack:5,  hurt:3, die:5, run:12 } },
+  { slug: 'minotaur-2',       flat: 'minotaur2',       frames: { idle:10, attack:5,  hurt:3, die:5, run:12 } },
+  { slug: 'minotaur-3',       flat: 'minotaur3',       frames: { idle:10, attack:4,  hurt:3, die:5, run:12 } },
+  { slug: 'satyr-1',          flat: 'satyr1',          frames: { idle:7,  attack:4,  hurt:4, die:4, run:12 } },
+  { slug: 'satyr-2',          flat: 'satyr2',          frames: { idle:7,  attack:8,  hurt:4, die:4, run:12 } },
+  { slug: 'satyr-3',          flat: 'satyr3',          frames: { idle:6,  attack:9,  hurt:4, die:4, run:12 } },
+];
+
+const FPS = { idle: 8, attack: 12, hurt: 12, die: 8, run: 14 };
+const ASSET_ROOT = '/app/static/battle-assets/characters';
+
+const grid = document.getElementById('grid');
+const animSel = document.getElementById('anim-select');
+const tintSel = document.getElementById('tint-select');
+const sub = document.getElementById('sub');
+
+const tiles = [];
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function render() {
+  grid.innerHTML = '';
+  tiles.length = 0;
+  const anim = animSel.value;
+  for (const c of CHARACTERS) {
+    const frameCount = c.frames[anim];
+    if (!frameCount) continue;
+    const div = document.createElement('div');
+    div.className = 'tile';
+    const tint = tintSel.value;
+    if (tint !== 'none') div.classList.add('role-' + tint);
+    const wrap = document.createElement('div');
+    wrap.className = 'tile-anim';
+    const img = document.createElement('img');
+    img.src = `${ASSET_ROOT}/${c.slug}/${anim}/${c.flat}-${anim}_00.png`;
+    wrap.appendChild(img);
+    const name = document.createElement('div');
+    name.className = 'tile-name';
+    name.textContent = c.slug;
+    const meta = document.createElement('div');
+    meta.className = 'tile-meta';
+    meta.textContent = `${anim} · ${frameCount} frames`;
+    div.appendChild(wrap);
+    div.appendChild(name);
+    div.appendChild(meta);
+    grid.appendChild(div);
+    tiles.push({ img, slug: c.slug, flat: c.flat, anim, frameCount, frame: 0, looping: anim !== 'die' });
+  }
+  sub.textContent = `${CHARACTERS.length} characters · click "die" to play once and hold last frame`;
+}
+
+function tick() {
+  for (const t of tiles) {
+    if (!t.looping && t.frame >= t.frameCount - 1) continue;
+    t.img.src = `${ASSET_ROOT}/${t.slug}/${t.anim}/${t.flat}-${t.anim}_${pad2(t.frame)}.png`;
+    t.frame = t.looping ? (t.frame + 1) % t.frameCount : Math.min(t.frame + 1, t.frameCount - 1);
+  }
+}
+
+let timer = null;
+function startTimer() {
+  if (timer) clearInterval(timer);
+  const fps = FPS[animSel.value] || 10;
+  timer = setInterval(tick, 1000 / fps);
+}
+
+animSel.addEventListener('change', () => { render(); startTimer(); });
+tintSel.addEventListener('change', () => render());
+
+render();
+startTimer();
+</script>
+</body>
+</html>

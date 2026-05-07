@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Battle Arena</title>
+<title>Battle Arena — Knights Demo</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;overflow:hidden;}
@@ -125,7 +125,7 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .ctrl-btn.on{background:rgba(78,161,255,0.2);border-color:#4ea1ff;color:#4ea1ff;}
 .ctrl-btn:hover{border-color:rgba(255,255,255,0.3);}
 .victory-btn-row{display:flex;gap:10px;justify-content:center;}
-.stage-selector{position:absolute;top:14px;right:14px;z-index:30;display:flex;flex-direction:column;gap:3px;}
+.stage-selector{display:none;}
 .stage-btn{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.1);cursor:pointer;font-family:inherit;color:#999;transition:all 0.15s;text-align:left;}
 .stage-btn.active{background:rgba(78,161,255,0.2);border-color:#4ea1ff;color:#4ea1ff;}
 .victory-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(8px);animation:fadeIn 0.5s ease;}
@@ -178,6 +178,9 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 
   <!-- Back button -->
   <button class="back-btn" id="back-btn" onclick="history.length > 1 ? history.back() : (window.location.href='/app/stages')">← Back</button>
+
+  <!-- Reroll roster button -->
+  <button class="back-btn" id="reroll-btn" style="left:auto;right:12px;top:12px;" onclick="location.href = location.pathname + '?seed=' + Math.random().toString(36).slice(2,8)">🎲 Reroll</button>
 
   <!-- Background -->
   <div class="battle-bg" id="battle-bg">
@@ -356,9 +359,10 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 'use strict';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-// ─── Rig catalog (CraftPix + OG sprites) ────────────────────────────────────
+// All 24 CraftPix-sliced rigs. Frame counts come from the slicer output.
 const STD_FPS = { idle: 8, attack: 14, hurt: 14, die: 8 };
-function _rigPaths(slug, flat) {
+
+function rigPaths(slug, flat) {
   const root = `/app/static/battle-assets/characters/${slug}`;
   return {
     idle:   `${root}/idle/${flat}-idle_`,
@@ -367,8 +371,12 @@ function _rigPaths(slug, flat) {
     die:    `${root}/die/${flat}-die_`,
   };
 }
-function _makeRig(slug, flat, frames) { return { paths: _rigPaths(slug, flat), frames, fps: STD_FPS }; }
-function _customRig(slug, prefixes, frames) {
+function makeRig(slug, flat, frames) {
+  return { paths: rigPaths(slug, flat), frames, fps: STD_FPS };
+}
+// Custom path-builder for rigs whose source files have non-standard names
+// (e.g. dark-assassin uses 'character for spine-Attack_' with capital A and a space).
+function customRig(slug, prefixes, frames) {
   const root = `/app/static/battle-assets/characters/${slug}`;
   return {
     paths: {
@@ -377,90 +385,82 @@ function _customRig(slug, prefixes, frames) {
       hurt:   `${root}/hurt/${prefixes.hurt}`,
       die:    `${root}/die/${prefixes.die}`,
     },
-    frames, fps: STD_FPS,
+    frames,
+    fps: STD_FPS,
   };
 }
 const RIGS = {
-  'stick-figure':     _customRig('stick-figure',
+  // Original Gary stick-figure (CoF pipeline)
+  'stick-figure': customRig('stick-figure',
     { idle: 'gary-idle_', attack: 'gary-attack_', hurt: 'gary-hurt_', die: 'gary-die_' },
     { idle: 10, attack: 9, hurt: 8, die: 17 }),
-  'dark-assassin':    _customRig('dark-assassin',
-    { idle: 'character for spine-idle_', attack: 'character for spine-Attack_',
-      hurt: 'character for spine-hurt_', die: 'character for spine-die_' },
+  // Original Dark Assassin (Spine 3.8 pre-rendered)
+  'dark-assassin': customRig('dark-assassin',
+    {
+      idle:   'character for spine-idle_',
+      attack: 'character for spine-Attack_',
+      hurt:   'character for spine-hurt_',
+      die:    'character for spine-die_',
+    },
     { idle: 81, attack: 21, hurt: 11, die: 51 }),
-  'knight-1':         _makeRig('knight-1',         'knight1',         { idle:4,  attack:5,  hurt:2, die:6  }),
-  'knight-2':         _makeRig('knight-2',         'knight2',         { idle:4,  attack:5,  hurt:2, die:6  }),
-  'knight-3':         _makeRig('knight-3',         'knight3',         { idle:4,  attack:5,  hurt:2, die:6  }),
-  'black-werewolf':   _makeRig('black-werewolf',   'blackwerewolf',   { idle:8,  attack:6,  hurt:2, die:2  }),
-  'red-werewolf':     _makeRig('red-werewolf',     'redwerewolf',     { idle:8,  attack:6,  hurt:2, die:2  }),
-  'white-werewolf':   _makeRig('white-werewolf',   'whitewerewolf',   { idle:8,  attack:6,  hurt:2, die:2  }),
-  'fire-wizard':      _makeRig('fire-wizard',      'firewizard',      { idle:7,  attack:4,  hurt:3, die:6  }),
-  'lightning-mage':   _makeRig('lightning-mage',   'lightningmage',   { idle:7,  attack:10, hurt:3, die:5  }),
-  'wanderer-magican': _makeRig('wanderer-magican', 'wanderermagican', { idle:8,  attack:7,  hurt:4, die:4  }),
-  'gorgon-1':         _makeRig('gorgon-1',         'gorgon1',         { idle:7,  attack:16, hurt:3, die:3  }),
-  'gorgon-2':         _makeRig('gorgon-2',         'gorgon2',         { idle:7,  attack:16, hurt:3, die:3  }),
-  'gorgon-3':         _makeRig('gorgon-3',         'gorgon3',         { idle:7,  attack:16, hurt:3, die:3  }),
-  'karasu-tengu':     _makeRig('karasu-tengu',     'karasutengu',     { idle:6,  attack:6,  hurt:3, die:6  }),
-  'kitsune':          _makeRig('kitsune',          'kitsune',         { idle:8,  attack:10, hurt:2, die:10 }),
-  'yamabushi-tengu':  _makeRig('yamabushi-tengu',  'yamabushitengu',  { idle:6,  attack:3,  hurt:3, die:6  }),
-  'kunoichi':         _makeRig('kunoichi',         'kunoichi',        { idle:9,  attack:6,  hurt:2, die:5  }),
-  'ninja-monk':       _makeRig('ninja-monk',       'ninjamonk',       { idle:6,  attack:6,  hurt:2, die:5  }),
-  'ninja-peasant':    _makeRig('ninja-peasant',    'ninjapeasant',    { idle:6,  attack:6,  hurt:2, die:5  }),
-  'minotaur-1':       _makeRig('minotaur-1',       'minotaur1',       { idle:10, attack:5,  hurt:3, die:5  }),
-  'minotaur-2':       _makeRig('minotaur-2',       'minotaur2',       { idle:10, attack:5,  hurt:3, die:5  }),
-  'minotaur-3':       _makeRig('minotaur-3',       'minotaur3',       { idle:10, attack:4,  hurt:3, die:5  }),
-  'satyr-1':          _makeRig('satyr-1',          'satyr1',          { idle:7,  attack:4,  hurt:4, die:4  }),
-  'satyr-2':          _makeRig('satyr-2',          'satyr2',          { idle:7,  attack:8,  hurt:4, die:4  }),
-  'satyr-3':          _makeRig('satyr-3',          'satyr3',          { idle:6,  attack:9,  hurt:4, die:4  }),
+  'knight-1':         makeRig('knight-1',         'knight1',         { idle:4,  attack:5,  hurt:2, die:6  }),
+  'knight-2':         makeRig('knight-2',         'knight2',         { idle:4,  attack:5,  hurt:2, die:6  }),
+  'knight-3':         makeRig('knight-3',         'knight3',         { idle:4,  attack:5,  hurt:2, die:6  }),
+  'black-werewolf':   makeRig('black-werewolf',   'blackwerewolf',   { idle:8,  attack:6,  hurt:2, die:2  }),
+  'red-werewolf':     makeRig('red-werewolf',     'redwerewolf',     { idle:8,  attack:6,  hurt:2, die:2  }),
+  'white-werewolf':   makeRig('white-werewolf',   'whitewerewolf',   { idle:8,  attack:6,  hurt:2, die:2  }),
+  'fire-wizard':      makeRig('fire-wizard',      'firewizard',      { idle:7,  attack:4,  hurt:3, die:6  }),
+  'lightning-mage':   makeRig('lightning-mage',   'lightningmage',   { idle:7,  attack:10, hurt:3, die:5  }),
+  'wanderer-magican': makeRig('wanderer-magican', 'wanderermagican', { idle:8,  attack:7,  hurt:4, die:4  }),
+  'gorgon-1':         makeRig('gorgon-1',         'gorgon1',         { idle:7,  attack:16, hurt:3, die:3  }),
+  'gorgon-2':         makeRig('gorgon-2',         'gorgon2',         { idle:7,  attack:16, hurt:3, die:3  }),
+  'gorgon-3':         makeRig('gorgon-3',         'gorgon3',         { idle:7,  attack:16, hurt:3, die:3  }),
+  'karasu-tengu':     makeRig('karasu-tengu',     'karasutengu',     { idle:6,  attack:6,  hurt:3, die:6  }),
+  'kitsune':          makeRig('kitsune',          'kitsune',         { idle:8,  attack:10, hurt:2, die:10 }),
+  'yamabushi-tengu':  makeRig('yamabushi-tengu',  'yamabushitengu',  { idle:6,  attack:3,  hurt:3, die:6  }),
+  'kunoichi':         makeRig('kunoichi',         'kunoichi',        { idle:9,  attack:6,  hurt:2, die:5  }),
+  'ninja-monk':       makeRig('ninja-monk',       'ninjamonk',       { idle:6,  attack:6,  hurt:2, die:5  }),
+  'ninja-peasant':    makeRig('ninja-peasant',    'ninjapeasant',    { idle:6,  attack:6,  hurt:2, die:5  }),
+  'minotaur-1':       makeRig('minotaur-1',       'minotaur1',       { idle:10, attack:5,  hurt:3, die:5  }),
+  'minotaur-2':       makeRig('minotaur-2',       'minotaur2',       { idle:10, attack:5,  hurt:3, die:5  }),
+  'minotaur-3':       makeRig('minotaur-3',       'minotaur3',       { idle:10, attack:4,  hurt:3, die:5  }),
+  'satyr-1':          makeRig('satyr-1',          'satyr1',          { idle:7,  attack:4,  hurt:4, die:4  }),
+  'satyr-2':          makeRig('satyr-2',          'satyr2',          { idle:7,  attack:8,  hurt:4, die:4  }),
+  'satyr-3':          makeRig('satyr-3',          'satyr3',          { idle:6,  attack:9,  hurt:4, die:4  }),
 };
-const DEFAULT_RIG = 'stick-figure';
+const DEFAULT_RIG = 'knight-1';
+const ALL_RIGS = Object.keys(RIGS);
 
-// Hero template_code → rig assignment. Heroes not listed fall back to DEFAULT_RIG.
-// Kept in JS for now (zero backend churn); migrate to HeroTemplate.rig column later if desired.
-const TEMPLATE_TO_RIG = {
-  'dark-assassin':          'dark-assassin',
-  ticket_gremlin:           'kunoichi',
-  printer_whisperer:        'wanderer-magican',
-  overnight_janitor:        'ninja-monk',
-  jaded_intern:             'satyr-1',
-  sre_on_call:              'fire-wizard',
-  midnight_pager:           'karasu-tengu',
-  helpdesk_veteran:         'knight-1',
-  the_sysadmin:             'lightning-mage',
-  the_consultant:           'gorgon-1',
-  the_founder:              'minotaur-1',
-  the_board_member:         'minotaur-3',
-  chaos_monkey:             'red-werewolf',
-  compliance_officer:       'knight-3',
-  security_auditor:         'knight-2',
-  agile_coach:              'satyr-2',
-  forgotten_contractor:     'ninja-peasant',
-  rogue_dba:                'black-werewolf',
-  keymaster_gary:           'stick-figure',
-  applecrumb:               'kitsune',
-  the_whistleblower:        'dark-assassin',
-  root_access_janitor:      'minotaur-2',
-  shadow_it_operator:       'kunoichi',
-  vp_of_vibes:              'satyr-3',
-  frontline_l1_tech:        'knight-2',
-  build_engineer:           'fire-wizard',
-  devops_apprentice:        'ninja-peasant',
-  on_call_martyr:           'karasu-tengu',
-  oncall_warrior:           'knight-1',
-  cert_collector:           'knight-3',
-  database_archaeologist:   'yamabushi-tengu',
-  blue_team_lead:           'knight-2',
-  office_coffee_hoarder:    'satyr-1',
-  retired_mainframe_guru:   'wanderer-magican',
-  tape_library_ghost:       'yamabushi-tengu',
-  the_post_mortem:          'dark-assassin',
-  the_successor:            'knight-1',
-  raidboss_c_suite_hydra:   'minotaur-3',
-  raidboss_chaos_dragon:    'red-werewolf',
-  raidboss_legacy_colossus: 'minotaur-1',
-  tbfam:                    'gorgon-2',
+// ─── Display-name + role suggestion per rig ─────────────────────────────────
+// Names are flavor-only; role is a sensible default for power-fantasy fit.
+const RIG_META = {
+  'stick-figure':     { name: 'Gary',              role: 'SUP' },
+  'dark-assassin':    { name: 'Dark Assassin',     role: 'ATK' },
+  'knight-1':         { name: 'Sir Lancer',        role: 'ATK' },
+  'knight-2':         { name: 'Dame Aegis',        role: 'DEF' },
+  'knight-3':         { name: 'Squire Bright',     role: 'SUP' },
+  'black-werewolf':   { name: 'Black Werewolf',    role: 'ATK' },
+  'red-werewolf':     { name: 'Crimson Lycan',     role: 'ATK' },
+  'white-werewolf':   { name: 'Pale Howler',       role: 'DEF' },
+  'fire-wizard':      { name: 'Pyromancer',        role: 'ATK' },
+  'lightning-mage':   { name: 'Storm Caller',      role: 'ATK' },
+  'wanderer-magican': { name: 'The Wanderer',      role: 'SUP' },
+  'gorgon-1':         { name: 'Stoneglare',        role: 'SUP' },
+  'gorgon-2':         { name: 'Viperqueen',        role: 'ATK' },
+  'gorgon-3':         { name: 'Coilshade',         role: 'DEF' },
+  'karasu-tengu':     { name: 'Karasu Tengu',      role: 'ATK' },
+  'kitsune':          { name: 'Kitsune',           role: 'SUP' },
+  'yamabushi-tengu':  { name: 'Yamabushi',         role: 'DEF' },
+  'kunoichi':         { name: 'Kunoichi',          role: 'ATK' },
+  'ninja-monk':       { name: 'Ninja Monk',        role: 'SUP' },
+  'ninja-peasant':    { name: 'Shadow Peasant',    role: 'ATK' },
+  'minotaur-1':       { name: 'Bull of Iron',      role: 'DEF' },
+  'minotaur-2':       { name: 'Horned Tyrant',     role: 'ATK' },
+  'minotaur-3':       { name: 'Forge Beast',       role: 'DEF' },
+  'satyr-1':          { name: 'Hoofed Trickster',  role: 'SUP' },
+  'satyr-2':          { name: 'Wild Reveler',      role: 'ATK' },
+  'satyr-3':          { name: 'Old Goat',          role: 'SUP' },
 };
-function rigForTemplate(tc) { return RIGS[TEMPLATE_TO_RIG[tc] || DEFAULT_RIG] || RIGS[DEFAULT_RIG]; }
 
 const STAGE_CODE_TO_BG = {
   'legacy_server_room':     'cof/bg-server-closet.png',
@@ -481,18 +481,108 @@ const STAGE_CODE_TO_BG = {
 const BUST_BASE = '/app/static/heroes/busts/';
 
 // ─── Demo roster ─────────────────────────────────────────────────────────────
-// All units use stick-figure sprites
+// Random 6-rig draw on every page load. Reroll button re-picks without reloading.
 const TEMPLATE_SPRITE = new Proxy({}, { get: () => true });
-const DEMO_ALLIES = [
-  { uid:'a0', name:'Dark Assassin',    role:'ATK', emoji:'🗡️', hp:820,  maxHp:820,  prot:0,   maxProt:0,   template_code:'dark-assassin' },
-  { uid:'a1', name:'Keymaster Gary',   role:'DEF', emoji:'🪖', hp:1100, maxHp:1100, prot:200, maxProt:200, template_code:'keymaster_gary' },
-  { uid:'a2', name:'On-Call Warrior',  role:'SUP', emoji:'✨', hp:780,  maxHp:780,  prot:100, maxProt:100, template_code:'oncall_warrior' },
+
+// Hero portraits used in the turn-order strip + active-unit panel.
+// Excludes raid bosses (those are stage-wide encounters, not single units).
+const HERO_BUSTS = [
+  'agile_coach', 'blue_team_lead', 'build_engineer', 'cert_collector',
+  'chaos_monkey', 'compliance_officer', 'database_archaeologist',
+  'devops_apprentice', 'forgotten_contractor', 'frontline_l1_tech',
+  'helpdesk_veteran', 'jaded_intern', 'keymaster_gary', 'midnight_pager',
+  'office_coffee_hoarder', 'on_call_martyr', 'oncall_warrior', 'overnight_janitor',
+  'printer_whisperer', 'retired_mainframe_guru', 'rogue_dba', 'root_access_janitor',
+  'security_auditor', 'shadow_it_operator', 'sre_on_call', 'tape_library_ghost',
+  'the_board_member', 'the_consultant', 'the_founder', 'the_post_mortem',
+  'the_successor', 'the_sysadmin', 'the_whistleblower', 'ticket_gremlin',
+  'vp_of_vibes',
 ];
-const DEMO_ENEMIES = [
-  { uid:'e0', name:'Ticket Gremlin',   role:'ATK', emoji:'💀', hp:700,  maxHp:700,  prot:0,   maxProt:0,   template_code:'ticket_gremlin' },
-  { uid:'e1', name:'The Board Member', role:'DEF', emoji:'👹', hp:1200, maxHp:1200, prot:300, maxProt:300, template_code:'the_board_member' },
-  { uid:'e2', name:'Chaos Monkey',     role:'SUP', emoji:'⚔️', hp:650,  maxHp:650,  prot:50,  maxProt:50,  template_code:'chaos_monkey' },
-];
+const BUST_BASE_PATH = '/app/static/heroes/busts/';
+
+function pickBust(rng, used) {
+  // Pick a bust we haven't used yet; if all used (impossible here since 35 > 6), fall back.
+  for (let tries = 0; tries < 50; tries++) {
+    const pick = HERO_BUSTS[Math.floor(rng() * HERO_BUSTS.length)];
+    if (!used.has(pick)) {
+      used.add(pick);
+      return pick;
+    }
+  }
+  return HERO_BUSTS[0];
+}
+
+function pickRandomRoster() {
+  // Read seed from URL (?seed=foo) so a particular roster is shareable, else random.
+  // ?og=1 pins the front-row ally to Gary and front-row enemy to Dark Assassin
+  // while the other 4 slots stay random. Useful for showing OG rigs alongside CraftPix.
+  const params = new URLSearchParams(location.search);
+  const seedRaw = params.get('seed');
+  const pinOG = params.get('og') === '1';
+  const rng = seedRaw ? mulberry32(hashStr(seedRaw)) : Math.random;
+  const pool = [...ALL_RIGS];
+  // Pull the OG rigs out of the random pool when pinning so they don't get duplicated.
+  const reserved = pinOG ? ['stick-figure', 'dark-assassin'] : [];
+  const remaining = pool.filter(r => !reserved.includes(r));
+  // Fisher-Yates with our RNG.
+  for (let i = remaining.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+  }
+  const need = 6 - reserved.length;
+  const random = remaining.slice(0, need);
+  // Layout: ally-0 (front), ally-1, ally-2 (back), enemy-0 (front), enemy-1, enemy-2 (back).
+  // When pinning, slot ally-0 = stick-figure, slot enemy-0 = dark-assassin.
+  const picks = pinOG
+    ? ['stick-figure', random[0], random[1], 'dark-assassin', random[2], random[3]]
+    : random;
+  const usedBusts = new Set();
+  const allies = picks.slice(0, 3).map((rig, i) => ({
+    uid:'a'+i, rig,
+    name: RIG_META[rig]?.name || rig,
+    role: RIG_META[rig]?.role || 'ATK',
+    emoji: '⚔️',
+    hp: 800 + i*150, maxHp: 800 + i*150,
+    prot: i === 1 ? 200 : (i === 2 ? 100 : 0),
+    maxProt: i === 1 ? 200 : (i === 2 ? 100 : 0),
+    template_code: rig,
+    bustUrl: BUST_BASE_PATH + pickBust(rng, usedBusts) + '.png',
+  }));
+  const enemies = picks.slice(3, 6).map((rig, i) => ({
+    uid:'e'+i, rig,
+    name: RIG_META[rig]?.name || rig,
+    role: RIG_META[rig]?.role || 'ATK',
+    emoji: '💀',
+    hp: 700 + i*200, maxHp: 700 + i*200,
+    prot: i === 1 ? 300 : (i === 2 ? 50 : 0),
+    maxProt: i === 1 ? 300 : (i === 2 ? 50 : 0),
+    template_code: rig,
+    bustUrl: BUST_BASE_PATH + pickBust(rng, usedBusts) + '.png',
+  }));
+  return { allies, enemies };
+}
+
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function mulberry32(seed) {
+  let a = seed;
+  return function() {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const _rosterPick = pickRandomRoster();
+const DEMO_ALLIES  = _rosterPick.allies;
+const DEMO_ENEMIES = _rosterPick.enemies;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let units = {};           // uid → unit data
@@ -568,7 +658,8 @@ const delay = ms => new Promise(r => setTimeout(r, ms / speedMult));
 // ─── Sprite animation ─────────────────────────────────────────────────────────
 function initSprite(uid, imgEl) {
   const u = units[uid];
-  const rig = rigForTemplate(u && u.template_code);
+  const rigKey = (u && u.rig) || DEFAULT_RIG;
+  const rig = RIGS[rigKey] || RIGS[DEFAULT_RIG];
   spriteState[uid] = { frame:0, timer:null, mode:'idle', imgEl, onDone:null, rig };
   tickIdle(uid);
 }
@@ -586,7 +677,7 @@ function tickIdle(uid) {
 function playAttackAnim(uid, onDone) {
   const s = spriteState[uid];
   if(!s) { if(onDone) onDone(); return; }
-  if(s.mode === 'die') return;
+  if(s.mode === 'die') return; // dead units don't attack
   clearTimeout(s.timer);
   s.mode = 'attack';
   s.frame = 0;
@@ -657,6 +748,7 @@ function tickDie(uid) {
     s.frame++;
     s.timer = setTimeout(() => tickDie(uid), 1000 / s.rig.fps.die);
   }
+  // hold last frame — don't loop back
 }
 
 // ─── Unit DOM ─────────────────────────────────────────────────────────────────
@@ -707,7 +799,8 @@ function setUnitSprite(uid) {
   if(u.useSprite) {
     const img = document.createElement('img');
     img.className = 'sprite-img';
-    const rig = rigForTemplate(u.template_code);
+    const rigKey = (u && u.rig) || DEFAULT_RIG;
+    const rig = RIGS[rigKey] || RIGS[DEFAULT_RIG];
     img.src = rig.paths.idle + '00.png';
     wrap.appendChild(img);
     initSprite(uid, img);
