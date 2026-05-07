@@ -66,6 +66,13 @@ class TokenOut(BaseModel):
     refresh_token: str | None = None
 
 
+class PendingArenaReward(BaseModel):
+    """Unacknowledged weekly arena payout. Cleared by /arena/weekly/acknowledge."""
+    week_key: str
+    rank: int
+    gems: int
+
+
 class MeOut(BaseModel):
     id: int
     email: EmailStr
@@ -102,6 +109,12 @@ class MeOut(BaseModel):
     arena_rating: int = 1000
     arena_wins: int = 0
     arena_losses: int = 0
+    energy_next_tick_in: int = 0
+    arena_tickets: int = 0
+    arena_tickets_cap: int = 0
+    arena_tickets_next_tick_in: int = 0
+    arena_weekly_wins: int = 0
+    pending_arena_rewards: list[PendingArenaReward] = []
     hero_slot_cap: int = 50
     gear_slot_cap: int = 200
     is_admin: bool = False
@@ -223,6 +236,7 @@ class ArenaMatchOut(BaseModel):
     log: list[dict]
     # Same shape as BattleOut.participants so the Phaser replay works unchanged.
     participants: list[BattleParticipant] = []
+    rewards: dict[str, int] = {}  # {"coins": 75, "shards": 3, "gems": 5}
     created_at: datetime
 
 
