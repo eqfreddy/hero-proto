@@ -208,6 +208,16 @@ class Account(Base):
     arena_wins: Mapped[int] = mapped_column(Integer, default=0)
     arena_losses: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Arena tickets — gate on attacks. Mirrors the energy regen pattern.
+    arena_tickets_stored: Mapped[int] = mapped_column(Integer, default=5)
+    arena_tickets_last_tick_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+    # Weekly arena counter — resets at the ISO week boundary. Used by the
+    # leaderboard payout distributor to filter parked accounts (must have
+    # at least 1 win this week to be eligible for top-50 rewards).
+    arena_weekly_wins: Mapped[int] = mapped_column(Integer, default=0)
+    arena_weekly_key: Mapped[str] = mapped_column(String(10), default="")
+
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_superadmin: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
@@ -1129,6 +1139,33 @@ class AccountQuest(Base):
     claim_choice: Mapped[str | None] = mapped_column(String(16), nullable=True)
     dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
+class ArenaWeeklyPayout(Base):
+    """Idempotent ledger of weekly arena leaderboard payouts.
+
+    Compound PK (week_key, account_id) is the idempotency lock — re-running
+    the distributor for the same week is a no-op via INSERT ... ON CONFLICT
+    DO NOTHING (or its driver-equivalent path).
+
+    `acknowledged_at` is set when the player clicks "Claim" on the modal.
+    Frontend uses null-acknowledged rows to populate `pending_arena_rewards`
+    on `/me`.
+    """
+    __tablename__ = "arena_weekly_payouts"
+
+    week_key: Mapped[str] = mapped_column(String(10), primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+    rank: Mapped[int] = mapped_column(Integer)
+    gems: Mapped[int] = mapped_column(Integer)
+    eligible_wins: Mapped[int] = mapped_column(Integer)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class GuildAchievement(Base):
