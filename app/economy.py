@@ -195,7 +195,7 @@ def seconds_until_next_energy(account: Account, now: datetime | None = None) -> 
     if elapsed < 0:
         elapsed = 0
     remainder = elapsed % settings.energy_regen_seconds
-    return max(0, int(settings.energy_regen_seconds - remainder))
+    return max(0, round(settings.energy_regen_seconds - remainder))
 
 
 def seconds_until_next_ticket(account: Account, now: datetime | None = None) -> int:
