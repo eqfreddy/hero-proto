@@ -10,6 +10,7 @@ import { apiPost } from '../api/client'
 import { toast } from '../store/ui'
 import { RootlordSidebar } from '../components/Layout/RootlordSidebar'
 import { RarityPill } from '../components/RarityPill'
+import { RecurringResources } from '../components/Me/RecurringResources'
 import { useAuthStore } from '../store/auth'
 import type { ShopProduct } from '../types'
 
@@ -261,6 +262,8 @@ function OpsPanel() {
             ))}
           </div>
         </div>
+
+        <RecurringResources me={me} />
 
         {/* Top heroes */}
         {topHeroes.length > 0 && (
