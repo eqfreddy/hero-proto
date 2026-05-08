@@ -151,6 +151,14 @@ Last updated: 2026-05-08 (CraftPix battle rigs + busts wired into prod; onboardi
 - SPA auth polish shipped (2026-04-28): Login page with Sign In / Register / Forgot-password tabs; auth guard in Shell; NavBar hides auth-required tabs for guests; Sign-out button; 401 interceptor. Rebuilt + deployed.
 - DragonBones demo confirmed working in user's environment ("this is what we need" — Plan B greenlit).
 
+### Follow-ups from 2026-05-07 rig work
+
+- [ ] **Move `TEMPLATE_TO_RIG` to backend `HeroTemplate.rig` column** — currently hardcoded in `battle-arena.html`. New heroes added to seed.py won't render without an HTML edit. Migration: add `rig: Mapped[str]`, populate from the JS map, return in participant payload, frontend reads `p.rig` directly.
+- [ ] **Nightmare difficulty seed** — backend has `StageDifficulty.NIGHTMARE` enum but no stages seeded. The frontend `H-/N-` prefix strip is already in place for when it ships.
+- [ ] **Stage tier icons (NORMAL / HARD / NIGHTMARE)** — visible-but-unstyled tier indicators on the stage list and battle setup. Already on the design queue (line 331).
+- [ ] **Slice ninja-monk + ninja-peasant frames look short next to others** — they're 96px source frames upscaled to 250px wrap, while others are 128px. Optional: pad top of those frames so they match visual baseline of others.
+- [ ] **Delete `app/static/heroes/sprites/` rigged paper-doll parts** — orphaned from the abandoned skeletal pipeline (~150MB). 42 photoreal busts already cover the same heroes. Pure cleanup.
+
 ### Known papercuts still open
 
 - **Postgres compose-stack smoke: PASSED 2026-05-05.** STARTUP CHECK OK (3 warn/expected, 6 ok) + CLIENT WALKTHROUGH PASSED (34 sections) against postgres:16-alpine. Fixed three script bugs in the process: register expected 201 (returns 200), env was `dev` so email-verify gate blocked summons (now `test`), worker reported `enabled:true` in test mode when task wasn't started (now `false`). Run: start Docker Desktop, then `bash scripts/postgres_stack_validate.sh`.
@@ -312,15 +320,15 @@ Architecture is already native-friendly — every player feature is an HTTP JSON
 Work the design AI can do without committing code. Outputs land as SVG / PNG / Lottie / Figma / markdown — pasted into the repo by hand after review. Ranked by how much they unblock ongoing sprints.
 
 ### High leverage
-- [ ] **Stick-figure battle animation sprite sheets** — unblocks Sprint G. Short loops (4–8 frames): idle, melee attack, ranged attack, hit reaction, death, special trigger. SVG sprite sheet or Lottie JSON. One rig per role (ATK/DEF/SUP).
+- [x] ~~**Stick-figure battle animation sprite sheets**~~ — superseded 2026-05-07 by CraftPix PNG-frame pipeline. 26 rigs live, every hero template_code mapped, idle/attack/hurt/die/run animations all working in prod.
 - [ ] **App icon + maskable PWA icons** — unblocks Sprint H. 192×192, 512×512, maskable-safe (80% inner keep-clear), 1024×1024 for Apple touch icon.
 - [ ] **Roster card redesign mockups** — current is a list, we want rarity-tabbed grid with faction/role/power/upgrade-teaser per hero. Figma or annotated PNG.
 - [ ] **Shop page mockups — PoE2-style** — layout for gem packs, QoL packs, cosmetic frames, seasonal offers. Tone: premium/optional, not FOMO.
 
 ### Medium leverage
 - [ ] **Missing hero portraits** — roster currently has 35 heroes; any generic/placeholder slots that need art. Request: faction-tinted backgrounds, role-suggestive poses.
-- [ ] **Stage background set** — 32 stages need environmental variety (server room / cubicle / boss office / cable hell / boardroom / data center / storage closet etc.). SVG or 1024×576 PNG, dark palette compatible.
-- [ ] **Raid boss art** — 3 boss templates (Legacy Colossus, C-Suite Hydra, Chaos Dragon) need hero-card art *and* an animated hit-reaction layer for the raid fight view.
+- [x] ~~**Stage background set**~~ — done 2026-05-07. All 16 normal stages + 13 story arcs + 3 raid bosses mapped in `STAGE_CODE_TO_BG`, with `H-` prefix strip so Hard tiers share their base bg. Verified live on First Ticket / Onboarding Day / First Outage / Quarterly Audit / Legacy Server Room.
+- [ ] **Raid boss art** — bosses now have battle rigs (minotaur-1/minotaur-3/red-werewolf) and busts via `template_code`, but the **hero-card art** for the raid landing page is still placeholder. Animated hit-reaction layer also pending.
 - [ ] **Faction badges 2.0** — current are fine; a signed-off final palette would let the UI stop tuning colors ad-hoc.
 
 ### Low leverage / nice-to-have
