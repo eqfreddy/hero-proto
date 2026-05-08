@@ -153,11 +153,11 @@ Last updated: 2026-05-08 (CraftPix battle rigs + busts wired into prod; onboardi
 
 ### Follow-ups from 2026-05-07 rig work
 
-- [ ] **Move `TEMPLATE_TO_RIG` to backend `HeroTemplate.rig` column** — currently hardcoded in `battle-arena.html`. New heroes added to seed.py won't render without an HTML edit. Migration: add `rig: Mapped[str]`, populate from the JS map, return in participant payload, frontend reads `p.rig` directly.
-- [ ] **Nightmare difficulty seed** — backend has `StageDifficulty.NIGHTMARE` enum but no stages seeded. The frontend `H-/N-` prefix strip is already in place for when it ships.
-- [ ] **Stage tier icons (NORMAL / HARD / NIGHTMARE)** — visible-but-unstyled tier indicators on the stage list and battle setup. Already on the design queue (line 331).
-- [ ] **Slice ninja-monk + ninja-peasant frames look short next to others** — they're 96px source frames upscaled to 250px wrap, while others are 128px. Optional: pad top of those frames so they match visual baseline of others.
-- [ ] **Delete `app/static/heroes/sprites/` rigged paper-doll parts** — orphaned from the abandoned skeletal pipeline (~150MB). 42 photoreal busts already cover the same heroes. Pure cleanup.
+- [x] **Move `TEMPLATE_TO_RIG` to backend `HeroTemplate.rig` column** ✅ 2026-05-08 (327c428). Migration `c7a91f3e4d2b` adds the column with stick-figure default + backfill from `rig_map.py`. `seed()` reconciles on every run. battles/arena/raids read `template.rig` directly.
+- [x] **Nightmare difficulty seed** ✅ shipped in bfc23cd. 16 N-stages seeded via the same `STAGE_SEEDS` loop (+20 levels, 2.5x rewards, gated on Hard clear).
+- [x] **Stage tier icons (NORMAL / HARD / NIGHTMARE)** ✅ shipped in bfc23cd (`frontend/src/components/TierBadge.tsx`, used in Stages route + BattleSetupRoute).
+- [x] **Slice ninja-monk + ninja-peasant frames look short next to others** ✅ shipped in bfc23cd via `scripts/pad_ninja_frames.py`.
+- [x] **Delete `app/static/heroes/sprites/` rigged paper-doll parts** ✅ shipped in bfc23cd (~150MB pruned).
 
 ### Known papercuts still open
 
@@ -425,7 +425,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 ### Frontend
 - [x] Real SPA (React + Vite) — shipped, all routes, auth guard, full login/register/forgot-password flow
 - [ ] CSS + loading/error states — SPA uses inline styles; a shared stylesheet pass would tighten consistency
-- [ ] Mobile-responsive layout — SPA nav scrolls horizontally, not collapsed on mobile
+- [x] Mobile-responsive layout ✅ — `NavBar.tsx` collapses to hamburger drawer below 720px; `.nav-strip` hidden, `.nav-hamburger` shown via media query (global.css:361).
 - [ ] PWA offline shell — manifest + service worker exist in SPA build
 - [x] Native iOS / Android wrapper (Capacitor) — Android running on emulator; iOS via cloud CI
 
