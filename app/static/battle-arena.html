@@ -463,19 +463,37 @@ const TEMPLATE_TO_RIG = {
 function rigForTemplate(tc) { return RIGS[TEMPLATE_TO_RIG[tc] || DEFAULT_RIG] || RIGS[DEFAULT_RIG]; }
 
 const STAGE_CODE_TO_BG = {
-  'legacy_server_room':     'cof/bg-server-closet.png',
-  'first_outage':           'cof/bg-noc.png',
-  'onboarding_day':         'cof/bg-orientation.png',
-  'quarterly_audit':        'cof/bg-bossoffice.svg',
-  'ceos_one_on_one':        'cof/bg-war-room.png',
-  'resistance_server_room': 'cof/bg-hideout.png',
+  // Tutorial / early stages
+  'tutorial_first_ticket':    'cof/bg-cubicle.svg',
+  'onboarding_day':           'cof/bg-orientation.png',
+  'first_outage':             'cof/bg-noc.png',
+  'quarterly_audit':          'cof/bg-bossoffice.svg',
+  'legacy_server_room':       'cof/bg-server-closet.png',
+  'ceos_one_on_one':          'cof/bg-war-room.png',
+  // Mid-game normal stages
+  'reorg_announcement':       'cof/bg-bossoffice.svg',
+  'migration_weekend':        'cof/bg-data-center.png',
+  'pager_storm':              'cof/bg-noc.png',
+  'hostile_acquisition':      'cof/bg-war-room.png',
+  'the_singularity':          'cof/bg-data-center.png',
+  'tape_room_breach':         'cof/bg-storage.svg',
+  'boardroom_coup':           'cof/bg-bossoffice.svg',
+  'prod_is_down':             'cof/bg-server-closet.png',
+  'the_unauthorized_tool':    'cof/bg-itcorner.svg',
+  'the_all_hands':            'cof/bg-openoffice.svg',
+  // Story arcs
+  'resistance_server_room':   'cof/bg-hideout.png',
   'new_employee_orientation': 'cof/bg-orientation.png',
   'innovation_lab':           'cof/bg-innovation-lab.png',
-  'exile_hideout':            'cof/bg-hideout.png',
+  'exile_hideout':             'cof/bg-hideout.png',
   'parking_garage':           'cof/bg-parking-garage.png',
   'csuite_war_room':          'cof/bg-war-room.png',
   'restricted_data_center':   'cof/bg-data-center.png',
   'the_basement':             'cof/bg-basement.png',
+  // Raid bosses
+  'raidboss_c_suite_hydra':   'cof/bg-war-room.png',
+  'raidboss_chaos_dragon':    'cof/bg-data-center.png',
+  'raidboss_legacy_colossus': 'cof/bg-server-closet.png',
 };
 
 const BUST_BASE = '/app/static/heroes/busts/';
@@ -1294,6 +1312,7 @@ function buildUnitsFromParticipants(participants) {
       side,
       slot,
       level: p.level || 1,
+      template_code: p.template_code,  // preserved so initSprite can pick the rig
       useSprite: !!(p.template_code && TEMPLATE_SPRITE[p.template_code]),
       bustUrl: p.template_code ? BUST_BASE + p.template_code + '.png' : null,
     };
@@ -1473,7 +1492,7 @@ async function init() {
       const battle = await resp.json();
       $('loading-overlay').style.display = 'none';
       // Match background to stage
-      const bgFile = STAGE_CODE_TO_BG[battle.stage_code] || 'cof/bg-server-closet.svg';
+      const bgFile = STAGE_CODE_TO_BG[battle.stage_code] || 'cof/bg-server-closet.png';
       $('bg-img').src = '/app/static/backgrounds/' + bgFile;
       // Hide stage selector — it's a replay, not a demo
       $('stage-selector').style.display = 'none';
