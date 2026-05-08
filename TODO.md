@@ -2,24 +2,58 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-05-05 (lobby overhaul shipped; email background send; postgres smoke green).
+Last updated: 2026-05-08 (CraftPix battle rigs + busts wired into prod; onboarding quests + arena tickets + drip rewards + weekly payout + countdown timers shipped).
 
 ---
 
 ## 📊 Where we're at
 
-- **Phases shipped:** Phase 1 ✅, Phase 2 (2.1–2.6) ✅, Phase 2 review fixes ✅, Phase 2 polish + Phase 3.1/3.2 starters ✅, Phase 3.5 Alignment Fork ✅. Plan B (DragonBones battle visuals) **greenlit + scaffolded** — registry + Pixi prototype viewer + event-mapping spec all live; awaiting Moho-rendered rigs from the user to drop in.
+- **Phases shipped:** Phase 1 ✅, Phase 2 (2.1–2.6) ✅, Phase 2 review fixes ✅, Phase 2 polish + Phase 3.1/3.2 starters ✅, Phase 3.5 Alignment Fork ✅, Phase 4 (mobile/wrap/store/push) ✅. Onboarding quests + arena tickets/drip/weekly payout + countdown timers shipped 2026-05-06. CraftPix sprite system shipped 2026-05-07 — 26 rigs (24 CraftPix + Gary stick-figure + Dark Assassin), each hero template_code mapped to a rig, bust portraits in unit cards, all stages have backgrounds.
 - **Backend:** Combat resolver w/ 8 statuses + faction synergy + hail-mary + BOSS_PHASE + variance + attack-channel split. Refresh-token rotation w/ reuse + fingerprint anomaly detection. Stripe + Apple StoreKit + Google Play Billing adapters. Per-day rate limits on friends/DMs. Alignment fork: `POST /story/alignment`, faction-gated chapters, exclusive hero grants, arena same-alignment soft matchmaking.
 - **Frontend:** React SPA at `/app` (built with Vite, served from `app/static/spa/`). All routes wired. Auth guard redirects unauthenticated users to login. Login page: Sign In / Register / Forgot-password tabs. NavBar hides auth-required tabs when logged out; shows Sign-out button when logged in. 401 interceptor auto-clears JWT. Dashboard redesigned (two-column grid, profile banner, stat cells, hero mini-roster). Story route overhauled (expandable chapters, stage-level cutscene previews, alignment fork choice UI). Faction badge in profile banner. Original vanilla-JS shell still present at `/app/partials/*` but SPA is the primary client.
 - **Observability:** Prometheus `/metrics`, JSON logs, request IDs, Sentry (DSN-gated), worker supervisor + 9 alerts in RUNBOOK + 11-row PromQL cookbook + 7-row Grafana layout.
 - **Infra:** Redis-backed rate limiter (horizontal-scale ready). CI matrix on SQLite + Postgres per push.
-- **Tests:** **643 passed / 3 skipped** (backend) + **37 passed** (frontend vitest). `pytest` green; `vitest` green. Acceptance scripts:
+- **Tests:** **673 passed / 3 skipped** (backend, +30 from arena economy + arena payout + quest tests) + **47 passed** (frontend vitest, +10 from useCountdown + useDailyResetCountdown). `pytest` green; `vitest` green. Acceptance scripts:
   - `scripts/startup_check.py` — admin/operator health check
   - `scripts/client_walkthrough.py` — 17-section feature tour (was 13; +4 Phase 2 surfaces)
   - `tests/test_phase1_acceptance.py`, `tests/test_phase2_acceptance.py` — bright-line e2e
 - **Mobile:** Capacitor scaffold in `mobile/` — `package.json` + `capacitor.config.ts` targeting `app/static/spa`. `POST/DELETE /notifications/device-token` endpoints live. `app/push.py` FCM stub (no-op without `FCM_SERVER_KEY`). `frontend/src/api/push.ts` — call `initPush()` after login. iOS builds go through Codemagic / GitHub mac runners.
 - **Docs:** `README.md`, `docs/RUNBOOK.md`, `docs/PRD.md`, `docs/PHASE_2_HUMAN_TEST.md`, `docs/PLAN_B_INTEGRATION.md`, `docs/BATTLE_RIG_EVENT_MAPPING.md`, `docs/BATTLE_VISUALS_STACK.md` all current.
 - **Art:** 33 trading-card portraits + 33 auto-cropped busts in `/app/static/heroes/`. Cluster-of-fuckery stick-figure animation pipeline available outside repo. DragonBones Mecha 1004B sample lives in repo as Plan B feasibility demo.
+
+### Shipped 2026-05-07 / 2026-05-08
+
+**Onboarding quest system** (`onboarding_week_one`):
+- New `Quest` + `AccountQuest` models + migration `db7eac125e36`. Compound idempotency (`uq_account_quests_account_quest`).
+- Fire-and-forget `app/quest_service.py::record_event()` — never raises; threads through `BATTLE_COMPLETE`, `BATTLE_WIN`, `STAGE_CLEARED`, `HARD_STAGE_CLEARED`, `LEGENDARY_STAGE_CLEARED`, `ACCOUNT_LEVEL_REACHED` (threshold-based, not counter), `STORY_CHAPTER_CLEARED`, `STORY_ARC_CLEARED`, `HERO_LEVELED` (fires on level==5 exactly), `SUMMON_COMPLETE` (x1 + x10 + event_banner), `GEAR_EQUIPPED`, `ARENA_WIN`, `GUILD_JOINED`, `RAID_CONTRIBUTED`, `DAILY_QUEST_COMPLETE` (day-set tracking), `FACTION_CHOSEN`.
+- 19-task quest, 7-day window, claim choice between EPIC hero or 500 gems + always-granted "Survived Onboarding" cosmetic frame. `pulls_since_epic` resets on Epic claim.
+- `app/quests.py::auto_enroll(db, account)` — idempotent, FK-guarded; called from auth register flow.
+- Endpoints: `GET /quests/active`, `POST /quests/{id}/claim` (with `SELECT FOR UPDATE` lock + 503 if no Epic pool), `POST /quests/{id}/dismiss` (dismissed quests still progress).
+- Frontend: floating bottom-right `QuestWidget`, expandable, gold pulse on completion, `ClaimModal` for choice. CoachMark component for first-screen tooltips on 7 routes.
+- Existing accounts (e.g. ridler69) backfilled via `fly ssh console` script.
+
+**Arena economy + countdowns** (spec: `docs/superpowers/specs/2026-05-06-arena-tickets-and-countdowns-design.md`):
+- Account fields: `arena_tickets_stored`, `arena_tickets_last_tick_at`, `arena_weekly_wins`, `arena_weekly_key`. Migration `a4e1c5d2b8f9` (cross-DB safe — nullable DateTime + UPDATE backfill, not raw `CURRENT_TIMESTAMP` server_default).
+- New `arena_weekly_payouts` table with `(week_key, account_id)` PK as idempotency lock + `acknowledged_at` for modal dismissal.
+- `app/economy.py`: `compute_arena_tickets`, `consume_arena_ticket`, `seconds_until_next_energy`, `seconds_until_next_ticket` — mirror the existing energy regen pattern. 4h regen, 5-ticket cap.
+- `app/arena_payout.py`: ISO week-key helpers + `distribute_pending(db)` lazy distributor (idempotent via PK), `reset_weekly_counter_if_stale`. Top-50 by rating, `arena_weekly_wins >= 1` eligibility filter.
+- `app/arena_constants.py`: per-attack drip (win 75c/3s/5g, loss/draw 25c/0/0, ±20% coin jitter), weekly bracket payouts (1: 500g + frame, 2-5: 250g, 6-20: 100g, 21-50: 50g), `arena_champion` cosmetic frame.
+- `/arena/attack` gates on `consume_arena_ticket` (429 with `Retry-After` if 0), drips rewards, increments `arena_weekly_wins` on win.
+- `/arena/weekly/acknowledge` clears `acknowledged_at` for modal flow. `/me` calls `reset_weekly_counter_if_stale` + `distribute_pending` on every hit; returns `energy_next_tick_in`, `arena_tickets`, `arena_tickets_cap`, `arena_tickets_next_tick_in`, `arena_weekly_wins`, `pending_arena_rewards`.
+- Frontend: `useCountdown` + `useDailyResetCountdown` hooks (Rules-of-Hooks-safe — fix shipped after a regression). Inline `+1 in M:SS` in `CurrencyBar`. `Arena/TicketHeader` with full-cap timer. `Me/RecurringResources` panel. Attack result toast shows drip rewards. `PendingArenaReward` modal for weekly payouts (auto-shows when `pending_arena_rewards` non-empty).
+
+**CraftPix battle rigs + bust portraits in prod arena**:
+- 24 character packs sliced from CraftPix free packs (knights x3, werewolves x3, wizards x3, gorgons x3, yokai x3, ninjas x3, minotaurs x3, satyrs x3) — frame-strip slicer at `scripts/slice_craftpix_packs.py`. Plus `scripts/slice_existing_packs.py` for pre-existing orc/soldier sheets.
+- Slicer auto-detects frame size from sheet height (handles 96/100/128px frames). 5 animation slots per character: idle/attack/hurt/die/run. 2,800+ individual PNG frames committed.
+- `app/static/battle-arena.html` ported from single-rig stick-figure to 26-rig system: `RIGS` catalog, `TEMPLATE_TO_RIG` map (35 hero templates → CraftPix rigs), `rigForTemplate(template_code)` resolver, per-unit rig stored on `spriteState`. Sprite size bumped from 80×140 to 250×250; slot positions widened.
+- Bust portraits already supported via `bustUrl` from `template_code`; only fix needed was preserving `template_code` on the unit object so `rigForTemplate` could resolve it.
+- `STAGE_CODE_TO_BG` extended to all 16 normal stages + 13 story arcs + 3 raid bosses. Difficulty prefix strip (`H-`, `N-`) so all difficulty tiers share their base stage's bg.
+- Hooks bug fix: `useCountdown` calls hoisted above early returns in `CurrencyBar` (was causing minified React error #310 on Summon page).
+- Verified end-to-end on prod with fresh test account: First Ticket (Normal + Hard), Legacy Server Room — rigs render, busts show in turn-order strip + active panel, mapped backgrounds load.
+- Demos: `/app/static/battle-arena-knights.html` (random 6-rig roster + reroll, supports `?seed=foo` and `?og=1` to pin Gary + Dark Assassin), `/app/static/character-roster.html` (24-character catalog with per-animation toggle).
+
+**Operational**:
+- Anthropic API key rotated (Fly secret hash changed; smoke-tested via SSH calling `claude-haiku-4-5` from prod env).
 
 ### Verified green today (2026-04-29)
 
@@ -120,7 +154,7 @@ Last updated: 2026-05-05 (lobby overhaul shipped; email background send; postgre
 ### Known papercuts still open
 
 - **Postgres compose-stack smoke: PASSED 2026-05-05.** STARTUP CHECK OK (3 warn/expected, 6 ok) + CLIENT WALKTHROUGH PASSED (34 sections) against postgres:16-alpine. Fixed three script bugs in the process: register expected 201 (returns 200), env was `dev` so email-verify gate blocked summons (now `test`), worker reported `enabled:true` in test mode when task wasn't started (now `false`). Run: start Docker Desktop, then `bash scripts/postgres_stack_validate.sh`.
-- **Production rigs** — DragonBones Mecha is the Plan B placeholder until ATK/DEF/SUP rigs ship from Moho or the DragonBones editor.
+- ~~**Production rigs**~~ ✅ **Resolved 2026-05-07** — CraftPix pre-rendered PNG-frame pipeline replaces the abandoned DragonBones/Moho path. 26 rigs live, each hero template mapped, bust portraits + backgrounds wired across all stages and difficulty tiers.
 - **SPA shipped ✅** — React SPA is the primary client. Vanilla-JS shell still exists at `/app/partials/*` and the admin panel; those are not yet ported to React. Next: Event tab missing from SPA nav (no nav tab for `/app/event`, only appears when event is active via the event query). Admin panel is still vanilla-JS.
 
 ---
