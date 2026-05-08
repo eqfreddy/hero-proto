@@ -69,9 +69,12 @@ async def lifespan(_: FastAPI):
     _check_secrets()
     _run_migrations()
     from app.quests import seed_quests as _seed_quests
+    from app.battle_pass import seed_active_season as _seed_bp
     from app.db import SessionLocal as _SL
     with _SL() as _db:
         _seed_quests(_db)
+        _seed_bp(_db)
+        _db.commit()
     log.info("startup complete (env=%s)", settings.environment)
 
     worker_task: asyncio.Task | None = None
