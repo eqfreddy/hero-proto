@@ -1486,6 +1486,24 @@ def seed() -> None:
                 per_account_limit=1,
                 is_active=True,
             ))
+        if db.scalar(select(ShopProduct).where(ShopProduct.sku == "monthly_card")) is None:
+            db.add(ShopProduct(
+                sku="monthly_card",
+                title="Monthly Card",
+                description=(
+                    "30 days of daily 💎 50 gems + 💎 100 instant. "
+                    "Stacks: re-purchase extends the card. Best value in the shop."
+                ),
+                kind=ShopProductKind.SUBSCRIPTION_CARD,
+                price_cents=499,
+                contents_json=json.dumps({
+                    "monthly_card_days": 30,
+                    "monthly_card_instant_gems": 100,
+                }),
+                sort_order=190,
+                per_account_limit=0,
+                is_active=True,
+            ))
 
         # Welcome LiveOps events: 7-day DOUBLE_REWARDS window + 3-day
         # BONUS_GEAR_DROPS overlapping. Both seed idempotently by name.

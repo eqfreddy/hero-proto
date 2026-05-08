@@ -20,7 +20,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import achievements, admin, ai, announcements, arena, auth, battle_pass, battles, crafting, daily, events, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, notifications, quests, raids, shop, stages, story, summon, ui
+from app.routers import achievements, admin, ai, announcements, arena, auth, battle_pass, battles, crafting, daily, events, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, monthly_card as monthly_card_router, notifications, quests, raids, shop, stages, story, summon, ui
 from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -91,6 +91,25 @@ async def lifespan(_: FastAPI):
                 }),
                 sort_order=200,
                 per_account_limit=1,
+                is_active=True,
+            ))
+        # Monthly Card — $4.99 for 30 days of daily 50-gem drip + 100 instant gems.
+        if _db.scalar(_select(ShopProduct).where(ShopProduct.sku == "monthly_card")) is None:
+            _db.add(ShopProduct(
+                sku="monthly_card",
+                title="Monthly Card",
+                description=(
+                    "30 days of daily 💎 50 gems + 💎 100 instant. "
+                    "Stacks: re-purchase extends the card. Best value in the shop."
+                ),
+                kind=ShopProductKind.SUBSCRIPTION_CARD,
+                price_cents=499,
+                contents_json=_json.dumps({
+                    "monthly_card_days": 30,
+                    "monthly_card_instant_gems": 100,
+                }),
+                sort_order=190,
+                per_account_limit=0,
                 is_active=True,
             ))
         _db.commit()
@@ -217,6 +236,7 @@ app.include_router(story.router)
 app.include_router(friends.router)
 app.include_router(quests.router)
 app.include_router(battle_pass.router)
+app.include_router(monthly_card_router.router)
 app.include_router(i18n_router.router)
 
 # Stripe checkout + webhook. Endpoints 503 until HEROPROTO_STRIPE_* vars are set.

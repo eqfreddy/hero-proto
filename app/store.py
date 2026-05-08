@@ -188,6 +188,27 @@ def apply_grant(db: Session, account: Account, purchase: Purchase, contents: dic
             direction=LedgerDirection.GRANT,
         ))
 
+    # Monthly Card. Adds N days to monthly_card_ends_at (stacks if already
+    # active) and grants the optional instant-bonus gems. Daily drip is
+    # claimed elsewhere (lazy on /me hit or via POST /monthly-card/claim).
+    mc_days = int(contents.get("monthly_card_days", 0) or 0)
+    if mc_days > 0:
+        from app.monthly_card import extend as _mc_extend
+        new_end = _mc_extend(account, mc_days)
+        db.add(PurchaseLedger(
+            purchase_id=purchase.id, kind="monthly_card_days", amount=mc_days,
+            direction=LedgerDirection.GRANT,
+            note=f"new ends_at={new_end.isoformat()}",
+        ))
+    mc_instant = int(contents.get("monthly_card_instant_gems", 0) or 0)
+    if mc_instant > 0:
+        account.gems = int(account.gems) + mc_instant
+        granted["gems"] = granted.get("gems", 0) + mc_instant
+        db.add(PurchaseLedger(
+            purchase_id=purchase.id, kind="gems", amount=mc_instant,
+            direction=LedgerDirection.GRANT, note="monthly card instant bonus",
+        ))
+
     # Battle Pass premium track. Idempotent — re-purchase via restore-purchases
     # is a no-op on grant_premium (only sets timestamp if null). Optional
     # season_code lets a future season's SKU bind to a specific season; absent

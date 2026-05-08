@@ -40,6 +40,11 @@ def get_me(
     #   2. Run the global distributor — idempotent on (week_key) PK.
     reset_weekly_counter_if_stale(account)
     distribute_pending(db)
+    # Monthly Card daily drip — granted lazily on the next /me hit each UTC day.
+    # Idempotent via the date lock; no-op when card is inactive.
+    from app.monthly_card import claim_daily_drip as _mc_drip, status as _mc_status
+    if _mc_drip(db, account) > 0:
+        db.commit()
     cleared = load_cleared(account)
     has_summoned = db.query(HeroInstance).filter_by(account_id=account.id).limit(1).first() is not None
     has_battled = db.query(Battle).filter_by(account_id=account.id).limit(1).first() is not None
@@ -99,6 +104,7 @@ def get_me(
         is_admin=bool(account.is_admin),
         email_verified=bool(account.email_verified),
         totp_enabled=bool(account.totp_enabled),
+        monthly_card=_mc_status(account),
     )
 
 

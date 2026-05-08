@@ -11,6 +11,7 @@ import { toast } from '../store/ui'
 import { RootlordSidebar } from '../components/Layout/RootlordSidebar'
 import { RarityPill } from '../components/RarityPill'
 import { RecurringResources } from '../components/Me/RecurringResources'
+import { MonthlyCardCard } from '../components/MonthlyCardCard'
 import { useAuthStore } from '../store/auth'
 import type { ShopProduct } from '../types'
 
@@ -264,6 +265,8 @@ function OpsPanel() {
         </div>
 
         <RecurringResources me={me} />
+
+        <MonthlyCardCard />
 
         {/* Top heroes */}
         {topHeroes.length > 0 && (

@@ -123,6 +123,8 @@ class MeOut(BaseModel):
     is_admin: bool = False
     email_verified: bool = True
     totp_enabled: bool = False
+    # Monthly Card subscription: active flag + days remaining + drip claimable today.
+    monthly_card: dict | None = None
 
 
 class HeroTemplateOut(BaseModel):

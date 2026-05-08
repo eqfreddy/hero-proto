@@ -155,6 +155,7 @@ class ShopProductKind(StrEnum):
     WEEKLY_BUNDLE = "WEEKLY_BUNDLE"
     SEASONAL_BUNDLE = "SEASONAL_BUNDLE"
     BATTLE_PASS = "BATTLE_PASS"
+    SUBSCRIPTION_CARD = "SUBSCRIPTION_CARD"
 
 
 class PurchaseState(StrEnum):
@@ -271,6 +272,11 @@ class Account(Base):
     # alongside grant logic. Cosmetic frames are tracked separately below
     # so they're cheap to render in roster lists without parsing this.
     qol_unlocks_json: Mapped[str] = mapped_column(String(2048), default="{}")
+    # Monthly Card subscription. End date is extended on purchase (stacks).
+    # last_drip_at is a UTC date — "what calendar day did we last grant the
+    # daily drip on" — used as idempotency lock so a single day grants once.
+    monthly_card_ends_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    monthly_card_last_drip_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     # Cosmetic frame codes the player owns. JSON list of strings — frames
     # are pure visual flair on hero cards, no power. PoE2-style: cosmetics
     # are the recurring spend, never stat-boosting items.
