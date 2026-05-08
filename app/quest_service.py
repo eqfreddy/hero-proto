@@ -39,11 +39,20 @@ DAY_TRACKING_PROGRESS_KEY = "daily_quest_days"
 
 
 def record_event(db: Session, account: Account, event: str, payload: dict | None = None) -> None:
-    """Advance quest tasks matching `event` for this account. Never raises."""
+    """Advance quest tasks matching `event` for this account. Never raises.
+
+    Also fans the event out to the Battle Pass XP grant — both systems read
+    the same router-side hook points, so adding a new hook does double duty.
+    """
     try:
         _record_event(db, account, event, payload or {})
     except Exception:
         log.exception("quest record_event failed (event=%s account=%s)", event, account.id)
+    try:
+        from app.battle_pass import record_event as _bp_record_event
+        _bp_record_event(db, account, event)
+    except Exception:
+        log.exception("battle_pass fan-out failed (event=%s account=%s)", event, account.id)
 
 
 def _record_event(db: Session, account: Account, event: str, payload: dict) -> None:

@@ -1142,6 +1142,58 @@ class AccountQuest(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
 
 
+class BattlePassSeason(Base):
+    """A 30-day Battle Pass season. Seeded on startup; one ACTIVE row at a time.
+
+    `tracks_json` stores the full reward table as:
+      {"free": [{"tier": 1, "kind": "coins", "amount": 500}, ...],
+       "premium": [{"tier": 1, "kind": "gems", "amount": 50}, ...]}
+    Every tier appears in both tracks; missing entries = no reward at that tier.
+    `xp_per_tier` * 50 = total XP needed for the final tier.
+    """
+
+    __tablename__ = "battle_pass_seasons"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    description: Mapped[str] = mapped_column(String(512), default="")
+    starts_at: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    max_tier: Mapped[int] = mapped_column(Integer, default=50)
+    xp_per_tier: Mapped[int] = mapped_column(Integer, default=200)
+    premium_price_cents: Mapped[int] = mapped_column(Integer, default=999)
+    tracks_json: Mapped[str] = mapped_column(String(16384), default='{"free":[],"premium":[]}')
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
+class AccountBattlePass(Base):
+    """One row per (account, season). Created lazily on first XP grant or GET.
+
+    `claimed_free_json` / `claimed_premium_json` are JSON lists of tier ints
+    already redeemed — prevents double-claim. `premium_purchased_at` is set
+    when the player buys the premium track for this season; the original
+    Purchase row remains the audit/refund source of truth.
+    """
+
+    __tablename__ = "account_battle_pass"
+    __table_args__ = (UniqueConstraint("account_id", "season_id", name="uq_account_battle_pass"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    season_id: Mapped[int] = mapped_column(
+        ForeignKey("battle_pass_seasons.id", ondelete="CASCADE"), index=True
+    )
+    xp_total: Mapped[int] = mapped_column(Integer, default=0)
+    claimed_free_json: Mapped[str] = mapped_column(String(2048), default="[]")
+    claimed_premium_json: Mapped[str] = mapped_column(String(2048), default="[]")
+    premium_purchased_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow)
+
+
 class ArenaWeeklyPayout(Base):
     """Idempotent ledger of weekly arena leaderboard payouts.
 

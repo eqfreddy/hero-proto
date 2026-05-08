@@ -1463,6 +1463,10 @@ def seed() -> None:
                 ))
                 added_s += 1
 
+        # Battle Pass — Season 1 idempotent seed.
+        from app.battle_pass import seed_active_season
+        seed_active_season(db)
+
         # Welcome LiveOps events: 7-day DOUBLE_REWARDS window + 3-day
         # BONUS_GEAR_DROPS overlapping. Both seed idempotently by name.
         added_l = 0
