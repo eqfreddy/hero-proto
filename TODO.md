@@ -426,7 +426,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] Real SPA (React + Vite) — shipped, all routes, auth guard, full login/register/forgot-password flow
 - [ ] CSS + loading/error states — SPA uses inline styles; a shared stylesheet pass would tighten consistency
 - [x] Mobile-responsive layout ✅ — `NavBar.tsx` collapses to hamburger drawer below 720px; `.nav-strip` hidden, `.nav-hamburger` shown via media query (global.css:361).
-- [ ] PWA offline shell — manifest + service worker exist in SPA build
+- [x] PWA offline shell ✅ — `vite-plugin-pwa` registered with autoUpdate workbox SW; manifest + maskable 512 icon already wired in `frontend/vite.config.ts`.
 - [x] Native iOS / Android wrapper (Capacitor) — Android running on emulator; iOS via cloud CI
 
 ### Progression system (backburner — review before Phase 4)
@@ -457,8 +457,8 @@ Output format for everything on this list: **paste the final file(s) back here i
 
 ### Gaps ❌
 - [ ] Full `pytest` + E2E smokes against live compose-Postgres (not just CI) — Sprint C
-- [ ] Docker container smoke — `docker compose up --build`, hit `/healthz` + `/docs`
-- [ ] `smoke_guild.py` / `smoke_raid.py` E2E mirrors of the unit tests
+- [x] Docker container smoke ✅ — `scripts/postgres_stack_validate.sh` builds the stack, probes `/healthz` + `/docs`, then runs the full startup-check + client-walkthrough.
+- [x] `smoke_guild.py` / `smoke_raid.py` E2E mirrors of the unit tests ✅ — `smoke_raid.py` shipped 2026-05-08 (e836511).
 - [ ] Load test — 100 concurrent players on `/battles` + `/summon` (k6 or locust)
 - [ ] Long-running soak — 24 h with the worker task, verify no memory creep
 - [ ] Stripe webhook signature round-trip against real `stripe listen` (tested with mocks, not the CLI)

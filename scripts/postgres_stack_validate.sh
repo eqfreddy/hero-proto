@@ -47,6 +47,13 @@ for i in $(seq 1 60); do
   fi
 done
 
+echo "==> Probing /docs (OpenAPI Swagger UI)..."
+if ! curl -sf "${BASE}/docs" | grep -q "swagger"; then
+  echo "!! /docs did not return Swagger UI"
+  exit 1
+fi
+echo "    /docs OK"
+
 echo ""
 echo "==> Seeding content..."
 docker compose -p "${PROJECT}" exec -T hero-proto \
