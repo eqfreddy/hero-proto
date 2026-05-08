@@ -1492,7 +1492,10 @@ async function init() {
       const battle = await resp.json();
       $('loading-overlay').style.display = 'none';
       // Match background to stage
-      const bgFile = STAGE_CODE_TO_BG[battle.stage_code] || 'cof/bg-server-closet.png';
+      // Strip difficulty prefix ('H-' for Hard, 'N-' if Nightmare ever ships) so
+      // every difficulty tier shares the base stage's background mapping.
+      const baseCode = (battle.stage_code || '').replace(/^[HN]-/, '');
+      const bgFile = STAGE_CODE_TO_BG[baseCode] || 'cof/bg-server-closet.png';
       $('bg-img').src = '/app/static/backgrounds/' + bgFile;
       // Hide stage selector — it's a replay, not a demo
       $('stage-selector').style.display = 'none';
