@@ -372,6 +372,7 @@ class HeroTemplate(Base):
     attack_kind: Mapped[str] = mapped_column(String(8), default="melee")
     mana_cost: Mapped[int] = mapped_column(Integer, default=10)
     mana_regen_per_turn: Mapped[int] = mapped_column(Integer, default=15)
+    rig: Mapped[str] = mapped_column(String(64), default="stick-figure")
 
 
 class HeroInstance(Base):

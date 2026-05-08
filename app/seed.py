@@ -1369,6 +1369,8 @@ def seed_offer_bundles(db) -> int:
 def seed() -> None:
     _ensure_schema()
     with SessionLocal() as db:
+        from app.rig_map import rig_for as _rig_for
+
         existing_hero_codes = set(db.scalars(select(HeroTemplate.code)).all())
         added_h = 0
         for h in HERO_SEEDS:
@@ -1382,8 +1384,16 @@ def seed() -> None:
                 basic_mult=h["basic_mult"],
                 special_json=json.dumps(h["special"]),
                 special_cooldown=h["special_cooldown"],
+                rig=_rig_for(h["code"]),
             ))
             added_h += 1
+
+        # Reconcile rig column on existing rows so updates to rig_map.py
+        # propagate without needing a new migration.
+        for tpl in db.scalars(select(HeroTemplate)).all():
+            desired = _rig_for(tpl.code)
+            if tpl.rig != desired:
+                tpl.rig = desired
 
         existing_stage_codes = set(db.scalars(select(Stage.code)).all())
         added_s = 0

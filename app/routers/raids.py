@@ -17,7 +17,6 @@ from app.db import get_db
 from app.deps import get_current_account
 from app.economy import consume_energy
 from app.gear_logic import gear_bonus_for
-from app.rig_map import rig_for
 from app.models import (
     Account,
     BattleOutcome,
@@ -569,7 +568,7 @@ def raid_interactive_start(
          "level": u.level, "max_hp": u.max_hp,
          "template_code": heroes[i].template.code,
          "rarity": str(heroes[i].template.rarity), "faction": str(heroes[i].template.faction),
-         "rig": rig_for(heroes[i].template.code)}
+         "rig": heroes[i].template.rig}
         for i, u in enumerate(team_a)
     ] + [{
         "uid": "B0", "side": "B", "name": boss_template.name,
@@ -577,7 +576,7 @@ def raid_interactive_start(
         "max_hp": boss_unit.max_hp,
         "template_code": boss_template.code,
         "rarity": str(boss_template.rarity), "faction": str(boss_template.faction),
-        "rig": rig_for(boss_template.code),
+        "rig": boss_template.rig,
     }]
 
     rng = random.Random()
