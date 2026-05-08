@@ -20,7 +20,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import achievements, admin, ai, announcements, arena, auth, battle_pass, battles, crafting, daily, events, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, monthly_card as monthly_card_router, notifications, quests, raids, shop, stages, story, summon, ui
+from app.routers import achievements, admin, afk as afk_router, ai, announcements, arena, auth, battle_pass, battles, crafting, daily, events, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, monthly_card as monthly_card_router, notifications, quests, raids, shop, stages, story, summon, ui
 from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -237,6 +237,7 @@ app.include_router(friends.router)
 app.include_router(quests.router)
 app.include_router(battle_pass.router)
 app.include_router(monthly_card_router.router)
+app.include_router(afk_router.router)
 app.include_router(i18n_router.router)
 
 # Stripe checkout + webhook. Endpoints 503 until HEROPROTO_STRIPE_* vars are set.

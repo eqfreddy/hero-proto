@@ -12,6 +12,7 @@ import { RootlordSidebar } from '../components/Layout/RootlordSidebar'
 import { RarityPill } from '../components/RarityPill'
 import { RecurringResources } from '../components/Me/RecurringResources'
 import { MonthlyCardCard } from '../components/MonthlyCardCard'
+import { AfkCard } from '../components/AfkCard'
 import { useAuthStore } from '../store/auth'
 import type { ShopProduct } from '../types'
 
@@ -265,6 +266,8 @@ function OpsPanel() {
         </div>
 
         <RecurringResources me={me} />
+
+        <AfkCard />
 
         <MonthlyCardCard />
 

@@ -277,6 +277,9 @@ class Account(Base):
     # daily drip on" — used as idempotency lock so a single day grants once.
     monthly_card_ends_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     monthly_card_last_drip_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # AFK income loop. NULL = never claimed; service treats as registration time.
+    # Accrual capped at AFK_MAX_HOURS regardless of how long ago last claim was.
+    afk_last_collected_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     # Cosmetic frame codes the player owns. JSON list of strings — frames
     # are pure visual flair on hero cards, no power. PoE2-style: cosmetics
     # are the recurring spend, never stat-boosting items.
