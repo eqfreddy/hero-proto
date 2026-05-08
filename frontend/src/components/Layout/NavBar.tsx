@@ -5,6 +5,8 @@ import { useAuthStore } from '../../store/auth'
 import { apiFetch } from '../../api/client'
 import { fetchDaily } from '../../api/daily'
 import { fetchDmThreads } from '../../api/friends'
+import { fetchBattlePass } from '../../api/battlePass'
+import { claimableTierCount } from '../../routes/BattlePass'
 import { BellButton } from './BellPopover'
 import { SoundButton } from './SoundPopover'
 
@@ -27,10 +29,11 @@ const NAV_GROUPS: { label: string; tabs: Tab[] }[] = [
     { path: '/app/raids',  label: 'Raids',  icon: '🐉' },
   ]},
   { label: 'Social', tabs: [
-    { path: '/app/daily',   label: 'Daily',   icon: '📋' },
-    { path: '/app/shop',    label: 'Shop',    icon: '🛒' },
-    { path: '/app/guild',   label: 'Guild',   icon: '🛡️' },
-    { path: '/app/friends', label: 'Friends', icon: '🤝' },
+    { path: '/app/daily',       label: 'Daily',       icon: '📋' },
+    { path: '/app/battle-pass', label: 'Battle Pass', icon: '🎫' },
+    { path: '/app/shop',        label: 'Shop',        icon: '🛒' },
+    { path: '/app/guild',       label: 'Guild',       icon: '🛡️' },
+    { path: '/app/friends',     label: 'Friends',     icon: '🤝' },
   ]},
   { label: 'You', tabs: [
     { path: '/app/achievements', label: 'Achievements', icon: '🏆' },
@@ -87,11 +90,21 @@ export function NavBar() {
   })
   const dmUnread = (dmThreads ?? []).reduce((sum, t) => sum + (t.unread ?? 0), 0)
 
+  const { data: bpData } = useQuery({
+    queryKey: ['battle-pass'],
+    queryFn: fetchBattlePass,
+    refetchInterval: 60_000,
+    enabled: !!jwt,
+    retry: false,
+  })
+  const bpClaimable = claimableTierCount(bpData)
+
   if (!jwt) return null
 
   function badgeFor(path: string) {
     if (path === '/app/daily' && dailyClaimable > 0) return dailyClaimable
     if (path === '/app/friends' && dmUnread > 0) return dmUnread
+    if (path === '/app/battle-pass' && bpClaimable > 0) return bpClaimable
     return null
   }
 
