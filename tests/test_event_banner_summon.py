@@ -198,3 +198,30 @@ def test_pull_after_banner_window_expires_returns_409(client) -> None:
         assert r.status_code == 409
     finally:
         _delete_event(bid)
+
+
+def test_event_banner_pull_resets_pity_via_carryover(client) -> None:
+    """Pity carryover: pulling a MYTH-tier event hero resets the shared
+    standard-banner pity counter to 0, since MYTH counts as Epic+ in the
+    pity ladder."""
+    from app.db import SessionLocal
+    from app.models import Account
+    hdr, aid = _register(client)
+    _set_shards(aid, 50)
+    # Manually push the standard-banner pity to almost-hard.
+    db = SessionLocal()
+    try:
+        a = db.get(Account, aid)
+        a.pulls_since_epic = 40
+        db.commit()
+    finally:
+        db.close()
+    bid = _activate_banner(hero_code='applecrumb', shard_cost=1, cap=3)
+    try:
+        r = client.post('/summon/event-banner', headers=hdr)
+        assert r.status_code == 201, r.text
+        me = client.get('/me', headers=hdr).json()
+        assert me['pulls_since_epic'] == 0, 'MYTH-tier pull should reset pity'
+    finally:
+        _delete_event(bid)
+

@@ -206,6 +206,11 @@ class Settings(BaseSettings):
     onboarding_bonus_shards: int = 10  # granted on first /me after registration
 
     gacha_pity_threshold: int = 50
+    # Soft pity ramp: each pull at or above this counter adds +5% Epic+ chance.
+    # At pity_threshold-1 the cumulative bonus is +75% with defaults — most
+    # players hit Epic before the hard floor. Set above pity_threshold to
+    # disable soft pity entirely.
+    gacha_soft_pity_threshold: int = 35
 
     xp_per_battle_win: int = 60
     xp_per_battle_loss: int = 15

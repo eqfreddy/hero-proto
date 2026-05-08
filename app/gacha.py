@@ -85,16 +85,52 @@ def _roll_rarity(rng: random.Random) -> Rarity:
 
 
 def _is_epic_or_better(rarity: Rarity) -> bool:
-    return rarity in (Rarity.EPIC, Rarity.LEGENDARY)
+    return rarity in (Rarity.EPIC, Rarity.LEGENDARY, Rarity.MYTH)
+
+
+def _soft_pity_epic_bonus(pity_before_this_roll: int) -> float:
+    """Additional Epic+ chance applied to this roll based on the current pity
+    counter. Returns 0..1.
+
+    Modern gacha standard ("soft pity ramp"):
+    - Below the soft threshold: bonus = 0 (base rates apply).
+    - Between soft threshold and hard pity: bonus ramps linearly from 0 to
+      what the base Epic+ chance plus the bonus would need to be to make
+      the EV land an Epic+ before hard pity for ~95% of cohorts.
+    - At hard pity: caller short-circuits to a guaranteed Epic upgrade.
+
+    Concretely with defaults (soft=35, hard=50): each pull from 35 onward
+    adds +5% chance, so a player at pity=49 has +75% chance on top of base.
+    """
+    soft = settings.gacha_soft_pity_threshold
+    if pity_before_this_roll < soft:
+        return 0.0
+    over = pity_before_this_roll - soft + 1
+    return min(1.0, 0.05 * over)
 
 
 def roll(pity: int, rng: random.Random) -> RollResult:
     """One gacha pull. `pity` is current pulls-since-last-EPIC+ counter.
 
-    Pity: if the counter reached the threshold and this roll isn't EPIC+, upgrade to EPIC.
+    Layers, in order:
+    - Base RATES roll.
+    - Soft pity bonus rolled separately as 'upgrade to EPIC if hit'.
+      Triggered Epic still counts as a pity reset.
+    - Hard pity: if the counter reached the threshold and this roll isn't
+      EPIC+, force-upgrade to EPIC.
     """
     rolled = _roll_rarity(rng)
     triggered = False
+
+    # Soft pity bonus — players above the soft threshold get an extra Epic
+    # roll attached to this pull. Implemented as an independent dice roll
+    # against the bonus chance so base RATES stay self-consistent.
+    bonus = _soft_pity_epic_bonus(pity)
+    if bonus > 0 and not _is_epic_or_better(rolled) and rng.random() < bonus:
+        rolled = Rarity.EPIC
+        triggered = True
+
+    # Hard pity floor — guaranteed Epic upgrade if we hit the cap.
     if pity + 1 >= settings.gacha_pity_threshold and not _is_epic_or_better(rolled):
         rolled = Rarity.EPIC
         triggered = True

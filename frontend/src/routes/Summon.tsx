@@ -10,6 +10,7 @@ import { CoachMark } from '../components/CoachMark'
 import type { Hero } from '../types'
 
 const PITY_CAP = 50
+const SOFT_PITY = 35
 
 export function SummonRoute() {
   const { data: me, isLoading } = useMe()
@@ -52,15 +53,31 @@ export function SummonRoute() {
       <div className="card">
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>Pity Progress</span>
-          <span className="muted" style={{ fontSize: 12 }}>{pityProgress} / {PITY_CAP} — {pullsToEpic} to guaranteed EPIC</span>
+          <span className="muted" style={{ fontSize: 12 }}>
+            {pityProgress} / {PITY_CAP} — {pullsToEpic} to guaranteed EPIC
+            {pityProgress >= SOFT_PITY && (
+              <span style={{ color: 'var(--warn)', marginLeft: 6 }}>
+                · 🔥 +{Math.min(100, (pityProgress - SOFT_PITY + 1) * 5)}% Epic
+              </span>
+            )}
+          </span>
         </div>
-        <div style={{ background: 'var(--bg-inset)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+        <div style={{ position: 'relative', background: 'var(--bg-inset)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+          {/* Soft-pity zone marker */}
+          <div style={{
+            position: 'absolute', left: `${(SOFT_PITY / PITY_CAP) * 100}%`, top: 0,
+            width: 1, height: '100%', background: 'rgba(255, 187, 51, 0.6)',
+          }} />
           <div style={{
             height: '100%', borderRadius: 4,
             background: 'linear-gradient(90deg, var(--r-rare), var(--r-epic))',
             width: `${Math.min(100, (pityProgress / PITY_CAP) * 100)}%`,
             transition: 'width 0.3s ease',
           }} />
+        </div>
+        <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+          Soft pity kicks in at pull {SOFT_PITY} — every pull after adds +5% Epic chance.
+          Event banner pulls also count toward this counter.
         </div>
       </div>
 

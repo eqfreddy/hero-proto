@@ -297,6 +297,14 @@ def summon_event_banner(
         pity_before=account.pulls_since_epic,
     ))
     _bump_event_banner_pulls(account, banner.id)
+    # Pity carryover: event-banner pulls advance the shared standard-banner
+    # counter. Epic+ event heroes reset it; lower-rarity event heroes still
+    # increment so the next standard pull benefits from approaching pity.
+    from app.gacha import _is_epic_or_better as _epic_plus
+    if _epic_plus(template.rarity):
+        account.pulls_since_epic = 0
+    else:
+        account.pulls_since_epic = int(account.pulls_since_epic or 0) + 1
 
     db.flush()
     _ = hero.template
