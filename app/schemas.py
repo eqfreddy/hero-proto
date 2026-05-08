@@ -34,6 +34,9 @@ class BattleParticipant(BaseModel):
     # Default empty strings keep legacy Battle.participants_json rows deserializable.
     rarity: str = ""
     faction: str = ""
+    # Animated rig key (resolves to RIGS[...] in battle-arena.html). Empty on
+    # legacy rows; the client falls back to its embedded TEMPLATE_TO_RIG map.
+    rig: str = ""
 
 
 class RegisterIn(BaseModel):

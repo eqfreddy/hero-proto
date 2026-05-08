@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '../../api/client'
 import { postBattle, postInteractiveStart } from '../../api/battles'
 import { useUiStore } from '../../store/ui'
+import { TierBadge } from '../../components/TierBadge'
 import type { Hero, Stage } from '../../types'
 
 function useHeroes() {
@@ -89,12 +90,14 @@ export default function BattleSetupRoute() {
               onClick={() => setSelectedStageId(s.id)}
               style={{
                 padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
                 background: selectedStageId === s.id ? 'var(--color-accent)' : 'var(--color-surface)',
                 color: selectedStageId === s.id ? '#fff' : 'var(--color-text)',
                 border: '1px solid ' + (selectedStageId === s.id ? 'var(--color-accent)' : 'rgba(255,255,255,0.1)'),
               }}
             >
               {s.name}
+              <TierBadge tier={s.difficulty_tier} size="sm" />
             </button>
           ))}
         </div>

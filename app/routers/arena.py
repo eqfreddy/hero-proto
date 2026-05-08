@@ -15,6 +15,7 @@ from app.event_state import QUEST_KINDS_ARENA, on_activity as event_on_activity
 from app.db import get_db
 from app.deps import enforce_arena_rate_limit, get_current_account
 from app.gear_logic import gear_bonus_for
+from app.rig_map import rig_for
 from app.models import (
     Account,
     ArenaMatch,
@@ -276,7 +277,8 @@ def attack(
          "level": u.level, "max_hp": u.max_hp,
          "template_code": attackers[i].template.code,
          "rarity": str(attackers[i].template.rarity),
-         "faction": str(attackers[i].template.faction)}
+         "faction": str(attackers[i].template.faction),
+         "rig": rig_for(attackers[i].template.code)}
         for i, u in enumerate(team_a)
     ]
     participants.extend(
@@ -284,7 +286,8 @@ def attack(
          "level": u.level, "max_hp": u.max_hp,
          "template_code": defenders[i].template.code,
          "rarity": str(defenders[i].template.rarity),
-         "faction": str(defenders[i].template.faction)}
+         "faction": str(defenders[i].template.faction),
+         "rig": rig_for(defenders[i].template.code)}
         for i, u in enumerate(team_b)
     )
 

@@ -5,6 +5,7 @@ import { useMe } from '../hooks/useMe'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
 import { CoachMark } from '../components/CoachMark'
+import { TierBadge } from '../components/TierBadge'
 import type { Stage } from '../types'
 
 const TIER_LABELS = { NORMAL: 'Normal', HARD: 'Hard', NIGHTMARE: 'Nightmare' }
@@ -68,8 +69,9 @@ export function StagesRoute() {
             <div key={stage.id} className="card" style={{ padding: '12px 16px', opacity: stage.locked ? 0.5 : 1 }}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {stage.cleared ? '✅ ' : ''}{stage.name}
+                    <TierBadge tier={stage.difficulty_tier} size="sm" />
                   </div>
                   <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
                     ⚡ {stage.energy_cost} energy · Rec. {stage.recommended_power} power

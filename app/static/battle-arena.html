@@ -416,7 +416,10 @@ const RIGS = {
 const DEFAULT_RIG = 'stick-figure';
 
 // Hero template_code → rig assignment. Heroes not listed fall back to DEFAULT_RIG.
-// Kept in JS for now (zero backend churn); migrate to HeroTemplate.rig column later if desired.
+// Backend (`app/rig_map.py`) is now the source of truth; participants ship a
+// `rig` field. This map is the legacy fallback for replays predating the field
+// and for the standalone `battle-arena-knights.html` demo. Keep it in sync if
+// you tweak rig_map.py while old battle rows still exist in the DB.
 const TEMPLATE_TO_RIG = {
   'dark-assassin':          'dark-assassin',
   ticket_gremlin:           'kunoichi',
@@ -460,6 +463,13 @@ const TEMPLATE_TO_RIG = {
   raidboss_legacy_colossus: 'minotaur-1',
   tbfam:                    'gorgon-2',
 };
+// Prefer explicit rig key (shipped by backend on `p.rig`); fall back to the
+// JS map for legacy replays where participants predate the field.
+function rigForUnit(u) {
+  const key = (u && u.rig) || (u && TEMPLATE_TO_RIG[u.template_code]) || DEFAULT_RIG;
+  return RIGS[key] || RIGS[DEFAULT_RIG];
+}
+// Legacy alias retained for any callers that only have a template_code.
 function rigForTemplate(tc) { return RIGS[TEMPLATE_TO_RIG[tc] || DEFAULT_RIG] || RIGS[DEFAULT_RIG]; }
 
 const STAGE_CODE_TO_BG = {
@@ -586,7 +596,7 @@ const delay = ms => new Promise(r => setTimeout(r, ms / speedMult));
 // ─── Sprite animation ─────────────────────────────────────────────────────────
 function initSprite(uid, imgEl) {
   const u = units[uid];
-  const rig = rigForTemplate(u && u.template_code);
+  const rig = rigForUnit(u);
   spriteState[uid] = { frame:0, timer:null, mode:'idle', imgEl, onDone:null, rig };
   tickIdle(uid);
 }
@@ -725,7 +735,7 @@ function setUnitSprite(uid) {
   if(u.useSprite) {
     const img = document.createElement('img');
     img.className = 'sprite-img';
-    const rig = rigForTemplate(u.template_code);
+    const rig = rigForUnit(u);
     img.src = rig.paths.idle + '00.png';
     wrap.appendChild(img);
     initSprite(uid, img);
@@ -1312,7 +1322,8 @@ function buildUnitsFromParticipants(participants) {
       side,
       slot,
       level: p.level || 1,
-      template_code: p.template_code,  // preserved so initSprite can pick the rig
+      template_code: p.template_code,  // preserved for portraits + legacy fallback
+      rig: p.rig || '',                // backend-shipped rig key (Phase 5 cleanup)
       useSprite: !!(p.template_code && TEMPLATE_SPRITE[p.template_code]),
       bustUrl: p.template_code ? BUST_BASE + p.template_code + '.png' : null,
     };

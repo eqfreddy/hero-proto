@@ -16,6 +16,7 @@ from app.deps import enforce_battle_rate_limit, get_current_account
 from app.economy import award_rewards, consume_energy, load_cleared, mark_cleared
 from app.gear_logic import gear_bonus_for, roll_gear
 from app.liveops import gear_drop_bonus, reward_multiplier
+from app.rig_map import rig_for
 from app.models import (
     Account,
     Battle,
@@ -145,7 +146,8 @@ def fight(
          "level": u.level, "max_hp": u.max_hp,
          "template_code": heroes[i].template.code,
          "rarity": str(heroes[i].template.rarity),
-         "faction": str(heroes[i].template.faction)}
+         "faction": str(heroes[i].template.faction),
+         "rig": rig_for(heroes[i].template.code)}
         for i, u in enumerate(team_a)
     ]
 
@@ -171,6 +173,7 @@ def fight(
                 "template_code": tmpl.code,
                 "rarity": str(tmpl.rarity),
                 "faction": str(tmpl.faction),
+                "rig": rig_for(tmpl.code),
             })
             enemy_counter += 1
 
@@ -902,7 +905,8 @@ def interactive_start(
     participants: list[dict] = [
         {"uid": u.uid, "side": "A", "name": u.name, "role": str(u.role), "level": u.level,
          "max_hp": u.max_hp, "template_code": heroes[i].template.code,
-         "rarity": str(heroes[i].template.rarity), "faction": str(heroes[i].template.faction)}
+         "rarity": str(heroes[i].template.rarity), "faction": str(heroes[i].template.faction),
+         "rig": rig_for(heroes[i].template.code)}
         for i, u in enumerate(team_a)
     ]
 
@@ -920,6 +924,7 @@ def interactive_start(
                 "uid": eu.uid, "side": "B", "name": eu.name, "role": str(eu.role),
                 "level": eu.level, "max_hp": eu.max_hp,
                 "template_code": tmpl.code, "rarity": str(tmpl.rarity), "faction": str(tmpl.faction),
+                "rig": rig_for(tmpl.code),
             })
             enemy_counter += 1
         wave_teams_b.append(wave_b)

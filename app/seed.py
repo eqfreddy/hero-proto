@@ -1427,6 +1427,32 @@ def seed() -> None:
                 ))
                 added_s += 1
 
+            # --- NIGHTMARE tier: same waves, enemies +20 levels, 2.5x rewards, gated on HARD clear.
+            nightmare_code = f"N-{s['code']}"
+            if nightmare_code not in existing_stage_codes:
+                nm_waves = []
+                for w in s["waves"]:
+                    nm_waves.append({
+                        "enemies": [
+                            {"template_code": e["template_code"], "level": int(e.get("level", 1)) + 20}
+                            for e in w.get("enemies", [])
+                        ]
+                    })
+                db.add(Stage(
+                    code=nightmare_code,
+                    name=f"{s['name']} (Nightmare)",
+                    order=s["order"] + 200,   # keeps HARD sorted before NIGHTMARE
+                    energy_cost=s["energy_cost"] + 2,
+                    recommended_power=s["recommended_power"] * 3,
+                    waves_json=json.dumps(nm_waves),
+                    coin_reward=int(s["coin_reward"] * 2.5),
+                    first_clear_gems=s["first_clear_gems"] * 3,
+                    first_clear_shards=s["first_clear_shards"] * 3,
+                    difficulty_tier=StageDifficulty.NIGHTMARE,
+                    requires_code=hard_code,
+                ))
+                added_s += 1
+
         # Welcome LiveOps events: 7-day DOUBLE_REWARDS window + 3-day
         # BONUS_GEAR_DROPS overlapping. Both seed idempotently by name.
         added_l = 0

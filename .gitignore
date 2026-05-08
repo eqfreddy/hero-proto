@@ -39,6 +39,20 @@ tests-scratch.db
 
 # Reference/external projects dropped in locally
 RPG-Turn-Battle-main/
+Craftpics/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Local debug artifacts (Playwright traces, manual screenshots at repo root)
+.playwright-mcp/
+/*.png
+
+# Signing keys / secrets — never commit
+*.keystore
+*.jks
+*.p12
+*.pem
 
 # SPA build output is committed so Docker/dev servers can serve it without a frontend build step.
 # Run `cd frontend && npm run build` to regenerate.
