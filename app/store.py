@@ -188,6 +188,25 @@ def apply_grant(db: Session, account: Account, purchase: Purchase, contents: dic
             direction=LedgerDirection.GRANT,
         ))
 
+    # Battle Pass premium track. Idempotent — re-purchase via restore-purchases
+    # is a no-op on grant_premium (only sets timestamp if null). Optional
+    # season_code lets a future season's SKU bind to a specific season; absent
+    # = active season at grant time.
+    if contents.get("battle_pass_premium"):
+        from app.battle_pass import active_season as _bp_active, grant_premium as _bp_grant
+        season_code = contents.get("battle_pass_season_code")
+        season = None
+        if season_code:
+            from app.models import BattlePassSeason
+            season = db.scalar(select(BattlePassSeason).where(BattlePassSeason.code == season_code))
+        season = season or _bp_active(db)
+        if season is not None:
+            _bp_grant(db, account, season)
+            db.add(PurchaseLedger(
+                purchase_id=purchase.id, kind="battle_pass", amount=1,
+                direction=LedgerDirection.GRANT, note=f"season={season.code}",
+            ))
+
     return GrantSummary(
         currencies=granted, hero_instance_id=hero_instance_id,
         qol_unlocks=qol_granted, cosmetic_frames=cosm_granted,

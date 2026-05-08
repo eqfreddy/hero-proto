@@ -46,10 +46,17 @@ export const fetchBattlePass = (): Promise<BPState> =>
 export const claimBattlePassTier = (tier: number, track: 'free' | 'premium') =>
   apiPost<BPClaimResult>(`/battle-pass/claim/${tier}`, { track })
 
+export interface BPPurchaseResult {
+  purchased: boolean
+  mode: 'mock' | 'stripe'
+  season_code: string
+  premium_purchased_at?: string | null
+  purchase_id: number
+  checkout_url: string | null
+}
+
 export const purchaseBattlePassPremium = () =>
-  apiPost<{ purchased: boolean; season_code: string; premium_purchased_at: string | null; purchase_id: number }>(
-    '/battle-pass/purchase-premium', {}
-  )
+  apiPost<BPPurchaseResult>('/battle-pass/purchase-premium', {})
 
 // --- Helpers ---------------------------------------------------------------
 

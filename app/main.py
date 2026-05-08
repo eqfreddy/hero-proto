@@ -71,9 +71,28 @@ async def lifespan(_: FastAPI):
     from app.quests import seed_quests as _seed_quests
     from app.battle_pass import seed_active_season as _seed_bp
     from app.db import SessionLocal as _SL
+    from app.models import ShopProduct, ShopProductKind
+    from sqlalchemy import select as _select
+    import json as _json
     with _SL() as _db:
         _seed_quests(_db)
-        _seed_bp(_db)
+        _bp_season = _seed_bp(_db)
+        _bp_sku = f"battle_pass_premium_{_bp_season.code}"
+        if _db.scalar(_select(ShopProduct).where(ShopProduct.sku == _bp_sku)) is None:
+            _db.add(ShopProduct(
+                sku=_bp_sku,
+                title=f"{_bp_season.name} — Premium Pass",
+                description="Unlock the Premium reward track for the current Battle Pass season.",
+                kind=ShopProductKind.BATTLE_PASS,
+                price_cents=_bp_season.premium_price_cents,
+                contents_json=_json.dumps({
+                    "battle_pass_premium": True,
+                    "battle_pass_season_code": _bp_season.code,
+                }),
+                sort_order=200,
+                per_account_limit=1,
+                is_active=True,
+            ))
         _db.commit()
     log.info("startup complete (env=%s)", settings.environment)
 

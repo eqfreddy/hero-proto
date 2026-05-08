@@ -102,6 +102,22 @@ def test_claim_free_tier_grants_rewards_and_is_idempotent(client):
     assert r2.json()["granted"] == {}
 
 
+def test_shop_purchase_of_battle_pass_sku_grants_premium(client):
+    """End-to-end: hitting /shop/purchases with the BP SKU runs through
+    apply_grant and unlocks the premium track via the standard fulfillment path."""
+    token = _register(client, "bp_shop@example.com")
+    bp = client.get("/battle-pass", headers=_hdr(token)).json()
+    assert bp["progress"]["premium_purchased"] is False
+
+    sku = f"battle_pass_premium_{bp['season']['code']}"
+    r = client.post("/shop/purchases", json={"sku": sku}, headers=_hdr(token))
+    assert r.status_code == 201, r.text
+    assert r.json()["state"] == "COMPLETED"
+
+    bp_after = client.get("/battle-pass", headers=_hdr(token)).json()
+    assert bp_after["progress"]["premium_purchased"] is True
+
+
 def test_purchase_premium_unlocks_premium_track(client, monkeypatch):
     monkeypatch.setattr("app.config.settings.mock_payments_enabled", True)
     token = _register(client, "bp_buy@example.com")

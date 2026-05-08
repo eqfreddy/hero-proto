@@ -154,6 +154,7 @@ class ShopProductKind(StrEnum):
     STARTER_BUNDLE = "STARTER_BUNDLE"
     WEEKLY_BUNDLE = "WEEKLY_BUNDLE"
     SEASONAL_BUNDLE = "SEASONAL_BUNDLE"
+    BATTLE_PASS = "BATTLE_PASS"
 
 
 class PurchaseState(StrEnum):

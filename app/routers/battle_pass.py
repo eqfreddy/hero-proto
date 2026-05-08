@@ -60,47 +60,58 @@ def purchase_premium(
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
-    """Mock-fulfilled premium-track purchase for the active season.
+    """Buy the premium track for the active season.
 
-    Real money flow: client calls /shop/purchase with SKU
-    `battle_pass_premium_<season_code>`; the shop fulfillment path calls
-    bp_service.grant_premium. This endpoint is the dev/QA shortcut and the
-    fallback when mock payments are enabled.
+    Mode auto-selected from settings:
+      - HEROPROTO_MOCK_PAYMENTS_ENABLED=1 (dev/test/QA): instant grant + audit row.
+      - Production: returns a Stripe Checkout URL; the webhook (POST /shop/webhooks/stripe)
+        completes the Purchase and bp_service.grant_premium fires from the shared
+        apply_grant codepath. Frontend redirects the player to `checkout_url`.
     """
     season = bp_service.active_season(db)
     if season is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no active battle pass season")
 
-    if not settings.mock_payments_enabled:
-        raise HTTPException(
-            status.HTTP_402_PAYMENT_REQUIRED,
-            "use /shop/purchase with the battle-pass SKU when mock payments are off",
-        )
+    sku = f"battle_pass_premium_{season.code}"
 
-    bp = bp_service.grant_premium(db, account, season)
-    # Audit row so this still surfaces in /me/purchases.
-    p = Purchase(
-        account_id=account.id,
-        sku=f"battle_pass_premium_{season.code}",
-        title_snapshot=f"{season.name} — Premium Pass",
-        price_cents_paid=season.premium_price_cents,
-        currency_code="USD",
-        processor="mock",
-        processor_ref=f"bp-mock-{account.id}-{season.id}",
-        state=PurchaseState.COMPLETED,
-        contents_snapshot_json="{}",
-        completed_at=utcnow(),
-    )
-    db.add(p)
-    db.flush()
-    db.add(PurchaseLedger(
-        purchase_id=p.id, kind="battle_pass", amount=1, direction=LedgerDirection.GRANT,
-        note=f"Premium pass for {season.code}",
-    ))
-    db.commit()
+    if settings.mock_payments_enabled:
+        bp = bp_service.grant_premium(db, account, season)
+        # Audit row mirrors the shape of a completed shop purchase.
+        p = Purchase(
+            account_id=account.id,
+            sku=sku,
+            title_snapshot=f"{season.name} — Premium Pass",
+            price_cents_paid=season.premium_price_cents,
+            currency_code="USD",
+            processor="mock",
+            processor_ref=f"bp-mock-{account.id}-{season.id}",
+            state=PurchaseState.COMPLETED,
+            contents_snapshot_json="{}",
+            completed_at=utcnow(),
+        )
+        db.add(p)
+        db.flush()
+        db.add(PurchaseLedger(
+            purchase_id=p.id, kind="battle_pass", amount=1, direction=LedgerDirection.GRANT,
+            note=f"Premium pass for {season.code}",
+        ))
+        db.commit()
+        return {
+            "purchased": True,
+            "mode": "mock",
+            "season_code": season.code,
+            "premium_purchased_at": bp.premium_purchased_at.isoformat() if bp.premium_purchased_at else None,
+            "purchase_id": p.id,
+            "checkout_url": None,
+        }
+
+    # Real-money path — delegate to the Stripe checkout endpoint via direct call.
+    from app.stripe_ext import create_stripe_checkout, StripeCheckoutIn
+    out = create_stripe_checkout(StripeCheckoutIn(sku=sku), account=account, db=db)
     return {
-        "purchased": True,
+        "purchased": False,
+        "mode": "stripe",
         "season_code": season.code,
-        "premium_purchased_at": bp.premium_purchased_at.isoformat() if bp.premium_purchased_at else None,
-        "purchase_id": p.id,
+        "checkout_url": out.checkout_url,
+        "purchase_id": out.purchase_id,
     }

@@ -1463,9 +1463,29 @@ def seed() -> None:
                 ))
                 added_s += 1
 
-        # Battle Pass — Season 1 idempotent seed.
+        # Battle Pass — Season 1 idempotent seed + matching shop SKU.
         from app.battle_pass import seed_active_season
-        seed_active_season(db)
+        bp_season = seed_active_season(db)
+        bp_sku = f"battle_pass_premium_{bp_season.code}"
+        if db.scalar(select(ShopProduct).where(ShopProduct.sku == bp_sku)) is None:
+            db.add(ShopProduct(
+                sku=bp_sku,
+                title=f"{bp_season.name} — Premium Pass",
+                description=(
+                    "Unlock the Premium reward track for the current Battle Pass "
+                    "season. Earned XP from gameplay claims rewards on both tracks; "
+                    "Premium adds gems, shards, and seasonal milestones at every tier."
+                ),
+                kind=ShopProductKind.BATTLE_PASS,
+                price_cents=bp_season.premium_price_cents,
+                contents_json=json.dumps({
+                    "battle_pass_premium": True,
+                    "battle_pass_season_code": bp_season.code,
+                }),
+                sort_order=200,
+                per_account_limit=1,
+                is_active=True,
+            ))
 
         # Welcome LiveOps events: 7-day DOUBLE_REWARDS window + 3-day
         # BONUS_GEAR_DROPS overlapping. Both seed idempotently by name.

@@ -124,7 +124,13 @@ export function BattlePassRoute() {
   async function handlePurchase() {
     setPurchasing(true)
     try {
-      await purchaseBattlePassPremium()
+      const res = await purchaseBattlePassPremium()
+      if (res.mode === 'stripe' && res.checkout_url) {
+        // Real-money path — redirect to Stripe-hosted checkout. Webhook will
+        // complete the Purchase + grant the premium track on success.
+        window.location.href = res.checkout_url
+        return
+      }
       toast.success('Premium track unlocked!')
       qc.invalidateQueries({ queryKey: ['battle-pass'] })
     } catch (e) {
