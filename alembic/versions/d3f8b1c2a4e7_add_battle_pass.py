@@ -11,6 +11,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.sql import expression
 
 
 revision: str = 'd3f8b1c2a4e7'
@@ -32,7 +33,7 @@ def upgrade() -> None:
         sa.Column('xp_per_tier', sa.Integer(), nullable=False, server_default='200'),
         sa.Column('premium_price_cents', sa.Integer(), nullable=False, server_default='999'),
         sa.Column('tracks_json', sa.String(length=16384), nullable=False, server_default='{"free":[],"premium":[]}'),
-        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('1')),
+        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=expression.true()),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint('code', name='uq_battle_pass_seasons_code'),
     )
