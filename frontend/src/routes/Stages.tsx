@@ -55,6 +55,10 @@ export function StagesRoute() {
         {byTier.map((stage, index) => {
           const powerRatio = teamPower > 0 ? teamPower / stage.recommended_power : 0
           const powerColor = powerRatio >= 1.2 ? 'var(--good)' : powerRatio >= 0.8 ? 'var(--warn)' : 'var(--bad)'
+          const lockTitle = stage.requires_code
+            ? `Clear ${stage.requires_code} first`
+            : 'Stage locked'
+          const belowFloor = !stage.locked && stage.power_floor != null && teamPower < stage.power_floor
           const battleBtn = (
             <button
               className="primary"
@@ -72,11 +76,19 @@ export function StagesRoute() {
                   <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {stage.cleared ? '✅ ' : ''}{stage.name}
                     <TierBadge tier={stage.difficulty_tier} label={stage.display_name} size="sm" />
+                    {stage.locked && (
+                      <span title={lockTitle} style={{ fontSize: 11, color: 'var(--bad)' }}>🔒 Locked</span>
+                    )}
                   </div>
                   <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
                     ⚡ {stage.energy_cost} energy · Rec. {stage.recommended_power} power
                     <span style={{ color: powerColor }}> (yours: {teamPower})</span>
                   </div>
+                  {stage.power_floor != null && (
+                    <div style={{ fontSize: 11, marginTop: 2, color: belowFloor ? 'var(--bad)' : 'var(--muted)' }}>
+                      {belowFloor ? '⚠️' : '🛡️'} Min {stage.power_floor.toLocaleString()} power required
+                    </div>
+                  )}
                   <div style={{ fontSize: 11, color: 'var(--warn)', marginTop: 2 }}>
                     🪙 {stage.coin_reward}
                     {stage.first_clear_gems > 0 && !stage.cleared && ` · 💎 ${stage.first_clear_gems} first clear`}

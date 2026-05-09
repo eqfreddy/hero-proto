@@ -78,6 +78,7 @@ export interface Stage {
   display_name: string
   requires_code: string | null
   locked: boolean
+  power_floor: number | null
 }
 
 export interface Guild {

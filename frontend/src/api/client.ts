@@ -39,6 +39,14 @@ export async function apiFetch<T = unknown>(
       const raw = body.detail ?? body.message
       if (Array.isArray(raw)) {
         message = raw.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join('; ')
+      } else if (raw != null && typeof raw === 'object' && 'detail' in raw) {
+        // Structured error e.g. power-floor rejection: { detail, required, current }
+        const structured = raw as { detail: string; required?: number; current?: number }
+        if (structured.required != null && structured.current != null) {
+          message = `${structured.detail} (need ${structured.required.toLocaleString()}, have ${structured.current.toLocaleString()})`
+        } else {
+          message = String(structured.detail)
+        }
       } else if (raw != null) {
         message = String(raw)
       }
