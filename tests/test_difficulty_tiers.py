@@ -67,3 +67,26 @@ def test_stages_api_returns_display_name(client):
         assert "display_name" in row, f"missing display_name on {row.get('code')}"
     normal = next(r for r in rows if r["difficulty_tier"] == "NORMAL")
     assert normal["display_name"] == "Floppy"
+
+
+def test_seed_emits_four_tiers_per_stage(client):
+    """After seed runs, every NORMAL stage has H-, N-, and L- siblings."""
+    r = client.get("/stages")
+    assert r.status_code == 200
+    rows = r.json()
+
+    normals = [s for s in rows if s["difficulty_tier"] == "NORMAL"]
+    assert len(normals) > 0, "seed produced no NORMAL stages"
+
+    by_code = {s["code"]: s for s in rows}
+
+    for n in normals:
+        for prefix, tier in [("H-", "HARD"),
+                             ("N-", "NIGHTMARE"),
+                             ("L-", "LEGENDARY")]:
+            sibling_code = f"{prefix}{n['code']}"
+            sibling = by_code.get(sibling_code)
+            assert sibling is not None, f"missing {sibling_code}"
+            assert sibling["difficulty_tier"] == tier
+            if prefix == "L-":
+                assert sibling.get("requires_code") == f"N-{n['code']}"

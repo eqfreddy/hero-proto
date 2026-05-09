@@ -1463,6 +1463,32 @@ def seed() -> None:
                 ))
                 added_s += 1
 
+            # --- LEGENDARY tier: same waves, enemies +30 levels, 3.5x rewards, gated on NIGHTMARE clear.
+            legendary_code = f"L-{s['code']}"
+            if legendary_code not in existing_stage_codes:
+                lg_waves = []
+                for w in s["waves"]:
+                    lg_waves.append({
+                        "enemies": [
+                            {"template_code": e["template_code"], "level": int(e.get("level", 1)) + 30}
+                            for e in w.get("enemies", [])
+                        ]
+                    })
+                db.add(Stage(
+                    code=legendary_code,
+                    name=f"{s['name']} (Legendary)",
+                    order=s["order"] + 300,   # keeps NIGHTMARE sorted before LEGENDARY
+                    energy_cost=s["energy_cost"] + 3,
+                    recommended_power=s["recommended_power"] * 4,
+                    waves_json=json.dumps(lg_waves),
+                    coin_reward=int(s["coin_reward"] * 3.5),
+                    first_clear_gems=s["first_clear_gems"] * 4,
+                    first_clear_shards=s["first_clear_shards"] * 4,
+                    difficulty_tier=StageDifficulty.LEGENDARY,
+                    requires_code=nightmare_code,
+                ))
+                added_s += 1
+
         # Battle Pass — Season 1 idempotent seed + matching shop SKU.
         from app.battle_pass import seed_active_season
         bp_season = seed_active_season(db)
