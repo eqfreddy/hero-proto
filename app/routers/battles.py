@@ -116,6 +116,27 @@ def fight(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"hero {hid} not owned")
         heroes.append(h)
 
+    # Build the persistent player team early so we can compute team power
+    # before any energy is consumed; under-powered teams on high-tier stages
+    # get rejected upfront.
+    team_a = [_unit_from_instance(h, "A", i) for i, h in enumerate(heroes)]
+
+    # Power-floor enforcement on NIGHTMARE/LEGENDARY tiers.
+    from app.tiers import tier_power_floor as _tier_floor
+    from app.combat import unit_power as _unit_power
+    _floor = _tier_floor(stage.difficulty_tier)
+    if _floor is not None:
+        team_power = sum(_unit_power(u) for u in team_a)
+        if team_power < _floor:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                {
+                    "detail": "team power below tier floor",
+                    "required": _floor,
+                    "current": team_power,
+                },
+            )
+
     if not consume_energy(account, stage.energy_cost):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -133,8 +154,7 @@ def fight(
     })
 
     waves = json.loads(stage.waves_json or "[]")
-    # Build the persistent player team once; it rolls through all waves keeping HP damage.
-    team_a = [_unit_from_instance(h, "A", i) for i, h in enumerate(heroes)]
+    # team_a was built above (hoisted for power-floor check).
 
     rng = random.Random()
     combined_log: list[dict] = []

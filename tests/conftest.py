@@ -49,3 +49,14 @@ def auth_headers(client: TestClient) -> dict[str, str]:
     r = client.post("/auth/register", json={"email": email, "password": "hunter22"})
     assert r.status_code == 200, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+@pytest.fixture()
+def db_session():
+    """Yield a raw SQLAlchemy session for direct DB manipulation in tests."""
+    from app.db import SessionLocal
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
