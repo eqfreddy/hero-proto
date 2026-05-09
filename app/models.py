@@ -296,6 +296,14 @@ class Account(Base):
     # duplicate gacha pulls; spent on hero ascension instead of fodder.
     # JSON dict keyed by HeroTemplate.code, value = int shard count.
     template_shards_json: Mapped[str] = mapped_column(String(8192), default="{}")
+    # Tower of Trials — endless solo climb. tower_floor advances on win,
+    # never decreases mid-season. Monthly reset returns floor → 1 but keeps
+    # tower_best_floor as the all-time PB. attempts/today caps daily plays.
+    tower_floor: Mapped[int] = mapped_column(Integer, default=1)
+    tower_best_floor: Mapped[int] = mapped_column(Integer, default=0)
+    tower_attempts_today: Mapped[int] = mapped_column(Integer, default=0)
+    tower_attempts_today_date: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    tower_season_key: Mapped[str] = mapped_column(String(8), default="")
     # Cosmetic frame codes the player owns. JSON list of strings — frames
     # are pure visual flair on hero cards, no power. PoE2-style: cosmetics
     # are the recurring spend, never stat-boosting items.

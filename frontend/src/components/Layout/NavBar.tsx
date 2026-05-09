@@ -26,6 +26,7 @@ const NAV_GROUPS: { label: string; tabs: Tab[] }[] = [
     { path: '/app/stages', label: 'Stages', icon: '⚔️' },
     { path: '/app/story',  label: 'Story',  icon: '📖' },
     { path: '/app/arena',  label: 'Arena',  icon: '🏟️' },
+    { path: '/app/tower',  label: 'Tower',  icon: '🗼' },
     { path: '/app/raids',  label: 'Raids',  icon: '🐉' },
   ]},
   { label: 'Social', tabs: [
