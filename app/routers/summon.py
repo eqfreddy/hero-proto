@@ -65,6 +65,9 @@ def _do_one_pull(db: Session, account: Account, rng: random.Random, *, allow_fre
     variance_blob = "{}"
     if already_owned is not None:
         variance_blob = serialize_variance(roll_variance(rng))
+        # Dupe pull → grant template shards (ascension currency).
+        from app.template_shards import grant_dupe_shards
+        grant_dupe_shards(account, template.code, template.rarity)
 
     hero = HeroInstance(
         account_id=account.id, template_id=template.id, level=1, xp=0,
@@ -284,6 +287,8 @@ def summon_event_banner(
     variance_blob = "{}"
     if already_owned is not None:
         variance_blob = serialize_variance(roll_variance(rng))
+        from app.template_shards import grant_dupe_shards
+        grant_dupe_shards(account, template.code, template.rarity)
 
     hero = HeroInstance(
         account_id=account.id, template_id=template.id, level=1, xp=0,

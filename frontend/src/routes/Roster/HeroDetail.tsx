@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useHero } from '../../hooks/useHeroes'
-import { ascendHero, skillUpHero } from '../../api/heroes'
+import {
+  ascendHero, ascendHeroWithShards, fetchTemplateShards, skillUpHero,
+  SHARDS_TO_ASCEND_FROM,
+} from '../../api/heroes'
 import {
   fetchGear, equipGear, unequipGear,
   ALL_SLOTS, SLOT_META, RARITY_COLOR,
@@ -19,8 +22,9 @@ export function HeroDetailRoute() {
   const qc = useQueryClient()
   const { data: hero, isLoading } = useHero(heroIdNum)
   const { data: allGear } = useQuery({ queryKey: ['gear'], queryFn: fetchGear })
-  const [loading, setLoading] = useState<'ascend' | 'skill' | null>(null)
+  const [loading, setLoading] = useState<'ascend' | 'skill' | 'shards' | null>(null)
   const [pickerSlot, setPickerSlot] = useState<GearSlot | null>(null)
+  const { data: shards } = useQuery({ queryKey: ['template-shards'], queryFn: fetchTemplateShards })
 
   const equippedBySlot = useMemo(() => {
     const map = new Map<GearSlot, GearOut>()
@@ -46,6 +50,17 @@ export function HeroDetailRoute() {
       await ascendHero(hero!.id)
       toast.success(`${t.name} ascended!`)
       qc.invalidateQueries({ queryKey: ['heroes'] })
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
+    finally { setLoading(null) }
+  }
+
+  async function doAscendWithShards() {
+    setLoading('shards')
+    try {
+      await ascendHeroWithShards(hero!.id)
+      toast.success(`${t.name} ascended via shards!`)
+      qc.invalidateQueries({ queryKey: ['heroes'] })
+      qc.invalidateQueries({ queryKey: ['template-shards'] })
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
     finally { setLoading(null) }
   }
@@ -180,14 +195,36 @@ export function HeroDetailRoute() {
 
       <div className="card">
         <h3 style={{ marginTop: 0, fontSize: 13 }}>Upgrades</h3>
-        <div className="row" style={{ gap: 8 }}>
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
           <button onClick={doAscend} disabled={!!loading} className="primary">
-            {loading === 'ascend' ? '…' : '⭐ Star Up'}
+            {loading === 'ascend' ? '…' : '⭐ Star Up (fodder)'}
           </button>
+          {hero.stars < 6 && (() => {
+            const cost = SHARDS_TO_ASCEND_FROM[hero.stars] ?? 0
+            const have = shards?.[t.code] ?? 0
+            const ok = have >= cost
+            return (
+              <button
+                onClick={doAscendWithShards}
+                disabled={!!loading || !ok}
+                className="primary"
+                style={{ background: ok ? undefined : 'var(--bg-inset)', color: ok ? undefined : 'var(--muted)' }}
+                title={`Spend ${cost} ${t.name} shards (you have ${have})`}
+              >
+                {loading === 'shards' ? '…' : `🌟 Ascend (${have}/${cost} shards)`}
+              </button>
+            )
+          })()}
           <button onClick={doSkillUp} disabled={!!loading} className="secondary">
             {loading === 'skill' ? '…' : '🔮 Skill Up'}
           </button>
         </div>
+        {hero.stars < 6 && (
+          <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+            Tip: every duplicate pull of {t.name} grants template shards. Spend them
+            here instead of feeding a whole hero. Max ascension is 6★.
+          </div>
+        )}
       </div>
 
       {pickerSlot && (

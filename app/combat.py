@@ -60,8 +60,8 @@ def scale_stat(base: int, level: int, stars: int = 1) -> int:
 
 
 def level_cap_for_stars(stars: int) -> int:
-    # 1* = 10, 2* = 15, 3* = 20, 4* = 25, 5* = 30
-    return 10 + 5 * max(1, min(5, stars))
+    # 1* = 10, 2* = 15, 3* = 20, 4* = 25, 5* = 30, 6* = 35 (Mythic ascension)
+    return 10 + 5 * max(1, min(6, stars))
 
 
 def power_rating(hp: int, atk: int, def_: int, spd: int) -> int:

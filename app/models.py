@@ -292,6 +292,10 @@ class Account(Base):
     friend_pings_today_date: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     # Friend-summon banner has its own pity counter; standard banner unaffected.
     fp_pulls_since_epic: Mapped[int] = mapped_column(Integer, default=0)
+    # Template shards — per-hero-template currency. Earned automatically on
+    # duplicate gacha pulls; spent on hero ascension instead of fodder.
+    # JSON dict keyed by HeroTemplate.code, value = int shard count.
+    template_shards_json: Mapped[str] = mapped_column(String(8192), default="{}")
     # Cosmetic frame codes the player owns. JSON list of strings — frames
     # are pure visual flair on hero cards, no power. PoE2-style: cosmetics
     # are the recurring spend, never stat-boosting items.

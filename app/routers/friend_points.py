@@ -80,6 +80,8 @@ def summon_friend_banner(
     variance_blob = "{}"
     if already_owned is not None:
         variance_blob = serialize_variance(roll_variance(rng))
+        from app.template_shards import grant_dupe_shards
+        grant_dupe_shards(account, template.code, template.rarity)
 
     hero = HeroInstance(
         account_id=account.id, template_id=template.id, level=1, xp=0,

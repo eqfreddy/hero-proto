@@ -38,7 +38,8 @@ def test_level_cap_increases_with_stars() -> None:
     assert level_cap_for_stars(5) == 35
     # Clamped sanely below/above legal range.
     assert level_cap_for_stars(0) == 15
-    assert level_cap_for_stars(99) == 35
+    assert level_cap_for_stars(6) == 40
+    assert level_cap_for_stars(99) == 40
 
 
 def test_power_rating_monotonic() -> None:

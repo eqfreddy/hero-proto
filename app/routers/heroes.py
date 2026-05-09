@@ -157,7 +157,7 @@ def skill_up(
     return instance_out(hero)
 
 
-MAX_STARS = 5
+MAX_STARS = 6
 
 
 @router.post("/{hero_instance_id}/ascend", response_model=HeroInstanceOut)
@@ -203,6 +203,47 @@ def ascend(
     db.commit()
     db.refresh(hero)
     return instance_out(hero)
+
+
+@router.post("/{hero_instance_id}/ascend-with-shards", response_model=HeroInstanceOut)
+def ascend_with_shards(
+    hero_instance_id: int,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> HeroInstanceOut:
+    """Spend template shards to ascend instead of feeding duplicate heroes.
+
+    Shards are auto-granted on duplicate gacha pulls; this endpoint is the
+    sink. Cost scales by current star tier (10 / 30 / 80 / 200 / 500)."""
+    from app.template_shards import shards_for_ascension, get_shards, spend
+    hero = db.get(HeroInstance, hero_instance_id)
+    if hero is None or hero.account_id != account.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "hero not found")
+    if hero.stars >= MAX_STARS:
+        raise HTTPException(status.HTTP_409_CONFLICT, "already at max stars")
+    cost = shards_for_ascension(hero.stars)
+    if cost is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "no shard cost defined for this star tier")
+    if not spend(account, hero.template.code, cost):
+        have = get_shards(account, hero.template.code)
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"need {cost} {hero.template.code} shards, have {have}",
+        )
+    hero.stars += 1
+    db.commit()
+    db.refresh(hero)
+    return instance_out(hero)
+
+
+@router.get("/template-shards", response_model=dict[str, int])
+def list_template_shards(
+    account: Annotated[Account, Depends(get_current_account)],
+) -> dict[str, int]:
+    """Return all template-shard balances. UI uses this to badge ascendable
+    heroes in the roster."""
+    from app.template_shards import get_all_shards
+    return get_all_shards(account)
 
 
 # --- Sell hero ---------------------------------------------------------------
