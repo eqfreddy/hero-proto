@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../hooks/useMe'
 import { useHeroes } from '../hooks/useHeroes'
 import { pullStandard } from '../api/summon'
+import { fetchFriendPoints, summonFriendBanner } from '../api/friendPoints'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from '../store/ui'
 import { HeroCard } from '../components/HeroCard'
 import { SkeletonGrid } from '../components/SkeletonGrid'
@@ -18,6 +20,23 @@ export function SummonRoute() {
   const qc = useQueryClient()
   const [pulling, setPulling] = useState(false)
   const [lastPull, setLastPull] = useState<Hero[] | null>(null)
+  const { data: fp } = useQuery({ queryKey: ['friend-points'], queryFn: fetchFriendPoints, refetchInterval: 60_000 })
+
+  async function pullFriend() {
+    setPulling(true)
+    setLastPull(null)
+    try {
+      const res = await summonFriendBanner()
+      setLastPull([res.hero])
+      toast.success(`Friend pull: ${res.rarity} ${res.hero.template.name}`)
+      qc.invalidateQueries({ queryKey: ['friend-points'] })
+      qc.invalidateQueries({ queryKey: ['heroes'] })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Friend pull failed')
+    } finally {
+      setPulling(false)
+    }
+  }
 
   if (isLoading) return <SkeletonGrid count={3} height={80} />
 
@@ -101,6 +120,30 @@ export function SummonRoute() {
           </button>
         </div>
       </div>
+
+      {fp && (
+        <div className="card" style={{
+          borderLeft: '3px solid #ff79c6',
+          background: 'linear-gradient(120deg, rgba(255,121,198,0.06), transparent 60%)',
+        }}>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, color: '#ff79c6' }}>Friend Banner</h3>
+            <span className="muted" style={{ fontSize: 12 }}>
+              💞 {fp.balance} FP · pity {fp.fp_pulls_since_epic}/{fp.fp_pity_threshold}
+            </span>
+          </div>
+          <div className="muted" style={{ fontSize: 12, margin: '8px 0' }}>
+            Spend {fp.fp_per_summon} FP per pull. Earn FP by daily-pinging friends.
+          </div>
+          <button
+            className="primary"
+            onClick={pullFriend}
+            disabled={pulling || fp.balance < fp.fp_per_summon}
+          >
+            {pulling ? '…' : `Pull (${fp.fp_per_summon} FP)`}
+          </button>
+        </div>
+      )}
 
       {lastPull && (
         <div className="card">

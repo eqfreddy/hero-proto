@@ -284,6 +284,14 @@ class Account(Base):
     # Level resolved from VIP_TIERS table; perks are read-only derivations.
     vip_xp: Mapped[int] = mapped_column(Integer, default=0)
     vip_last_drip_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # Friend Points — earned by daily ping send/receive between friends.
+    # Spent on the friend-summon banner. Daily send-ping count (per UTC day)
+    # tracked in friend_pings_today + friend_pings_today_date for cap enforcement.
+    friend_points: Mapped[int] = mapped_column(Integer, default=0)
+    friend_pings_sent_today: Mapped[int] = mapped_column(Integer, default=0)
+    friend_pings_today_date: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # Friend-summon banner has its own pity counter; standard banner unaffected.
+    fp_pulls_since_epic: Mapped[int] = mapped_column(Integer, default=0)
     # Cosmetic frame codes the player owns. JSON list of strings — frames
     # are pure visual flair on hero cards, no power. PoE2-style: cosmetics
     # are the recurring spend, never stat-boosting items.
@@ -540,6 +548,27 @@ class Friendship(Base):
 
     __table_args__ = (
         UniqueConstraint("account_id", "other_account_id", name="uq_friendship_pair"),
+    )
+
+
+class FriendPing(Base):
+    """Daily ping log between friends. PK enforces 'one ping per (sender,
+    recipient, UTC date)' so spam-pings can't farm Friend Points."""
+
+    __tablename__ = "friend_pings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sender_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    recipient_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), index=True
+    )
+    sent_on: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    fp_granted: Mapped[int] = mapped_column(Integer, default=5)
+
+    __table_args__ = (
+        UniqueConstraint("sender_id", "recipient_id", "sent_on", name="uq_friend_pings_per_day"),
     )
 
 
