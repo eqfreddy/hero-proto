@@ -74,7 +74,8 @@ export interface Stage {
   first_clear_gems: number
   first_clear_shards: number
   cleared: boolean
-  difficulty_tier: 'NORMAL' | 'HARD' | 'NIGHTMARE'
+  difficulty_tier: 'NORMAL' | 'HARD' | 'NIGHTMARE' | 'LEGENDARY'
+  display_name: string
   requires_code: string | null
   locked: boolean
 }

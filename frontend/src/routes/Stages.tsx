@@ -8,7 +8,7 @@ import { CoachMark } from '../components/CoachMark'
 import { TierBadge } from '../components/TierBadge'
 import type { Stage } from '../types'
 
-const TIER_LABELS = { NORMAL: 'Normal', HARD: 'Hard', NIGHTMARE: 'Nightmare' }
+const TIER_LABELS: Record<string, string> = { NORMAL: 'Floppy', HARD: 'Hard Disk', NIGHTMARE: 'RAID-0', LEGENDARY: "Legen'waitforit'dary" }
 
 export function StagesRoute() {
   const { data: stages, isLoading } = useStages()
@@ -34,7 +34,7 @@ export function StagesRoute() {
       </div>
 
       <div className="row" style={{ gap: 4 }}>
-        {(['NORMAL', 'HARD', 'NIGHTMARE'] as const).map((tier) => (
+        {(['NORMAL', 'HARD', 'NIGHTMARE', 'LEGENDARY'] as const).map((tier) => (
           <button
             key={tier}
             onClick={() => setActiveTier(tier)}
@@ -71,7 +71,7 @@ export function StagesRoute() {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {stage.cleared ? '✅ ' : ''}{stage.name}
-                    <TierBadge tier={stage.difficulty_tier} size="sm" />
+                    <TierBadge tier={stage.difficulty_tier} label={stage.display_name} size="sm" />
                   </div>
                   <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
                     ⚡ {stage.energy_cost} energy · Rec. {stage.recommended_power} power
