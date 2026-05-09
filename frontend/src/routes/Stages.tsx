@@ -58,25 +58,25 @@ export function StagesRoute() {
           const lockTitle = stage.requires_code
             ? `Clear ${stage.requires_code} first`
             : 'Stage locked'
-          const belowFloor = !stage.locked && stage.power_floor != null && teamPower < stage.power_floor
+          const belowFloor = stage.unlocked && stage.power_floor != null && teamPower < stage.power_floor
           const battleBtn = (
             <button
               className="primary"
-              disabled={stage.locked || (me?.energy ?? 0) < stage.energy_cost}
+              disabled={!stage.unlocked || (me?.energy ?? 0) < stage.energy_cost}
               onClick={() => startBattle(stage)}
               style={{ fontSize: 12 }}
             >
-              {stage.locked ? '🔒' : 'Battle'}
+              {!stage.unlocked ? '🔒' : 'Battle'}
             </button>
           )
           return (
-            <div key={stage.id} className="card" style={{ padding: '12px 16px', opacity: stage.locked ? 0.5 : 1 }}>
+            <div key={stage.id} className="card" style={{ padding: '12px 16px', opacity: !stage.unlocked ? 0.5 : 1 }}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {stage.cleared ? '✅ ' : ''}{stage.name}
                     <TierBadge tier={stage.difficulty_tier} label={stage.display_name} size="sm" />
-                    {stage.locked && (
+                    {!stage.unlocked && (
                       <span title={lockTitle} style={{ fontSize: 11, color: 'var(--bad)' }}>🔒 Locked</span>
                     )}
                   </div>

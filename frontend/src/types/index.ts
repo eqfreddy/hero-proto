@@ -77,7 +77,7 @@ export interface Stage {
   difficulty_tier: 'NORMAL' | 'HARD' | 'NIGHTMARE' | 'LEGENDARY'
   display_name: string
   requires_code: string | null
-  locked: boolean
+  unlocked: boolean
   power_floor: number | null
 }
 
