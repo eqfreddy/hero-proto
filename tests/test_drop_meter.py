@@ -13,3 +13,98 @@ def test_account_has_stage_drop_pity_json_column(db_session):
     assert acc.stage_drop_pity_json == "{}"
     parsed = json.loads(acc.stage_drop_pity_json)
     assert parsed == {}
+
+
+import random
+
+from app.drop_meter import (
+    read_meter,
+    increment_and_check,
+    force_rarity,
+    DROP_METER_CAP,
+    GUARANTEE_POOL,
+)
+from app.models import GearRarity, StageDifficulty
+
+
+def _make_account(db_session):
+    from app.models import Account
+    n = db_session.info.get("counter", 0)
+    db_session.info["counter"] = n + 1
+    acc = Account(email=f"drop_{n}@example.com", password_hash="x")
+    db_session.add(acc)
+    db_session.flush()
+    return acc
+
+
+def test_constants_match_spec():
+    assert DROP_METER_CAP == 20
+    assert set(GUARANTEE_POOL.keys()) == {
+        StageDifficulty.NORMAL,
+        StageDifficulty.HARD,
+        StageDifficulty.NIGHTMARE,
+        StageDifficulty.LEGENDARY,
+    }
+    assert GUARANTEE_POOL[StageDifficulty.NORMAL] == {GearRarity.RARE: 1.0}
+    leg = GUARANTEE_POOL[StageDifficulty.LEGENDARY]
+    assert leg[GearRarity.EPIC] == 0.4
+    assert leg[GearRarity.LEGENDARY] == 0.6
+
+
+def test_read_meter_default_zero(db_session):
+    acc = _make_account(db_session)
+    assert read_meter(acc, "1-1", StageDifficulty.HARD) == 0
+
+
+def test_increment_and_check_below_cap_returns_false(db_session):
+    """First 19 increments return False; counter advances by 1 each call."""
+    acc = _make_account(db_session)
+    for i in range(1, DROP_METER_CAP):
+        triggered = increment_and_check(acc, "1-1", StageDifficulty.HARD)
+        assert triggered is False, f"unexpected trigger at run {i}"
+        assert read_meter(acc, "1-1", StageDifficulty.HARD) == i
+
+
+def test_increment_and_check_at_cap_triggers_and_resets(db_session):
+    """Run 20 hits cap, returns True, and resets counter to 0."""
+    acc = _make_account(db_session)
+    import json
+    acc.stage_drop_pity_json = json.dumps({"1-1:HARD": 19})
+    triggered = increment_and_check(acc, "1-1", StageDifficulty.HARD)
+    assert triggered is True
+    assert read_meter(acc, "1-1", StageDifficulty.HARD) == 0
+
+
+def test_increment_independent_per_stage_and_tier(db_session):
+    acc = _make_account(db_session)
+    increment_and_check(acc, "1-1", StageDifficulty.HARD)
+    increment_and_check(acc, "1-1", StageDifficulty.HARD)
+    assert read_meter(acc, "1-2", StageDifficulty.HARD) == 0
+    assert read_meter(acc, "1-1", StageDifficulty.NIGHTMARE) == 0
+    assert read_meter(acc, "1-1", StageDifficulty.HARD) == 2
+
+
+def test_force_rarity_normal_always_rare():
+    rng = random.Random(0)
+    for _ in range(50):
+        assert force_rarity(StageDifficulty.NORMAL, rng) == GearRarity.RARE
+
+
+def test_force_rarity_legendary_only_epic_or_legendary():
+    rng = random.Random(0)
+    for _ in range(100):
+        rolled = force_rarity(StageDifficulty.LEGENDARY, rng)
+        assert rolled in {GearRarity.EPIC, GearRarity.LEGENDARY}
+
+
+def test_force_rarity_distribution_matches_weights():
+    """Sampling 1000 LEGENDARY rolls should land within tolerance of (0.4, 0.6)."""
+    rng = random.Random(42)
+    counts = {GearRarity.EPIC: 0, GearRarity.LEGENDARY: 0}
+    n = 1000
+    for _ in range(n):
+        counts[force_rarity(StageDifficulty.LEGENDARY, rng)] += 1
+    epic_pct = counts[GearRarity.EPIC] / n
+    legendary_pct = counts[GearRarity.LEGENDARY] / n
+    assert 0.35 <= epic_pct <= 0.45, f"EPIC pct out of band: {epic_pct}"
+    assert 0.55 <= legendary_pct <= 0.65, f"LEGENDARY pct out of band: {legendary_pct}"
