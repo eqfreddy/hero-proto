@@ -186,6 +186,15 @@ class StageDifficulty(StrEnum):
     NORMAL = "NORMAL"
     HARD = "HARD"
     NIGHTMARE = "NIGHTMARE"
+    LEGENDARY = "LEGENDARY"
+
+
+STAGE_TIER_DISPLAY: dict[StageDifficulty, str] = {
+    StageDifficulty.NORMAL:    "Floppy",
+    StageDifficulty.HARD:      "Hard Disk",
+    StageDifficulty.NIGHTMARE: "RAID-0",
+    StageDifficulty.LEGENDARY: "Legen'waitforit'dary",
+}
 
 
 class Account(Base):
