@@ -169,3 +169,37 @@ def test_battle_at_cap_triggers_meter_reset(client, db_session):
     else:
         # LOSS — counter unchanged (LOSS doesn't increment).
         assert read_meter(acc, normal.code, StageDifficulty.NORMAL) == DROP_METER_CAP - 1
+
+
+def test_stages_api_includes_drop_meter_fields(client, db_session):
+    """GET /stages returns drop_meter (per-row count) and drop_meter_cap (constant)
+    scoped to the caller."""
+    from sqlalchemy import select
+
+    from app.models import Account, Stage, StageDifficulty
+    from app.security import issue_token
+    from app.drop_meter import increment_and_check, DROP_METER_CAP
+
+    acc = Account(email="drop_api@example.com", password_hash="x")
+    db_session.add(acc)
+    db_session.flush()
+
+    normal = db_session.scalar(
+        select(Stage).where(Stage.difficulty_tier == StageDifficulty.NORMAL).limit(1)
+    )
+    for _ in range(5):
+        increment_and_check(acc, normal.code, StageDifficulty.NORMAL)
+    db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.get("/stages", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    rows = r.json()
+
+    target = next(row for row in rows if row["code"] == normal.code)
+    assert target["drop_meter"] == 5
+    assert target["drop_meter_cap"] == DROP_METER_CAP
+
+    other = next(row for row in rows if row["code"] != normal.code and row["difficulty_tier"] == "NORMAL")
+    assert other["drop_meter"] == 0
+    assert other["drop_meter_cap"] == DROP_METER_CAP

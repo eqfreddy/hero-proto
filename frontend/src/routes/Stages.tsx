@@ -89,6 +89,38 @@ export function StagesRoute() {
                       {belowFloor ? '⚠️' : '🛡️'} Min {stage.power_floor.toLocaleString()} power required
                     </div>
                   )}
+                  {stage.drop_meter_cap > 0 && (
+                    stage.drop_meter >= stage.drop_meter_cap - 1 ? (
+                      <span
+                        title="Next win guarantees a rare+ gear drop!"
+                        style={{
+                          marginLeft: 8,
+                          padding: "2px 8px",
+                          background: "rgba(255, 200, 80, 0.22)",
+                          color: "#f5c842",
+                          borderRadius: 4,
+                          fontSize: "0.85em",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ★ Guaranteed drop next!
+                      </span>
+                    ) : (
+                      <span
+                        title={`Guaranteed rare+ drop in ${stage.drop_meter_cap - stage.drop_meter} wins`}
+                        style={{
+                          marginLeft: 8,
+                          padding: "2px 8px",
+                          background: "rgba(180, 180, 180, 0.18)",
+                          color: "#bbb",
+                          borderRadius: 4,
+                          fontSize: "0.85em",
+                        }}
+                      >
+                        🎁 Drop in {stage.drop_meter_cap - stage.drop_meter}
+                      </span>
+                    )
+                  )}
                   <div style={{ fontSize: 11, color: 'var(--warn)', marginTop: 2 }}>
                     🪙 {stage.coin_reward}
                     {stage.first_clear_gems > 0 && !stage.cleared && ` · 💎 ${stage.first_clear_gems} first clear`}

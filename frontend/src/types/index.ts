@@ -80,6 +80,8 @@ export interface Stage {
   requires_code: string | null
   unlocked: boolean
   power_floor: number | null
+  drop_meter: number
+  drop_meter_cap: number
 }
 
 export interface Guild {

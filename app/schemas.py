@@ -406,6 +406,8 @@ class StageOut(BaseModel):
     unlocked: bool = True
     cleared: bool = False
     power_floor: int | None = None
+    drop_meter: int = 0
+    drop_meter_cap: int = 0
 
 
 class TeamMember(BaseModel):
