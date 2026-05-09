@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Stage
+from app.models import Stage, StageDifficulty, STAGE_TIER_DISPLAY
 from app.schemas import StageOut
 
 router = APIRouter(prefix="/stages", tags=["stages"])
@@ -17,6 +17,12 @@ def stage_out(s: Stage) -> StageOut:
         waves = json.loads(s.waves_json or "[]")
     except json.JSONDecodeError:
         waves = []
+    # Resolve display name; fall back to enum string if tier is unknown.
+    try:
+        tier_enum = s.difficulty_tier if isinstance(s.difficulty_tier, StageDifficulty) else StageDifficulty(s.difficulty_tier)
+        display = STAGE_TIER_DISPLAY.get(tier_enum, str(s.difficulty_tier))
+    except ValueError:
+        display = str(s.difficulty_tier)
     return StageOut(
         id=s.id,
         code=s.code,
@@ -30,6 +36,7 @@ def stage_out(s: Stage) -> StageOut:
         first_clear_shards=s.first_clear_shards,
         difficulty_tier=str(s.difficulty_tier),
         requires_code=s.requires_code,
+        display_name=display,
     )
 
 

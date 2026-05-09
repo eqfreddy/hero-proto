@@ -400,6 +400,7 @@ class StageOut(BaseModel):
     first_clear_shards: int
     difficulty_tier: str = "NORMAL"
     requires_code: str = ""
+    display_name: str = ""
 
 
 class TeamMember(BaseModel):

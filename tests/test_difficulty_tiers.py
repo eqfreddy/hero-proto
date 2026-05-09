@@ -55,3 +55,15 @@ def test_xp_grant_lookup_per_tier():
         (StageDifficulty.LEGENDARY, 60),
     ]:
         assert xp_per_win(tier) == expected
+
+
+def test_stages_api_returns_display_name(client):
+    """GET /stages includes display_name per row."""
+    r = client.get("/stages")
+    assert r.status_code == 200
+    rows = r.json()
+    assert len(rows) > 0
+    for row in rows:
+        assert "display_name" in row, f"missing display_name on {row.get('code')}"
+    normal = next(r for r in rows if r["difficulty_tier"] == "NORMAL")
+    assert normal["display_name"] == "Floppy"
