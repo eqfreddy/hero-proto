@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -293,6 +293,11 @@ class Account(Base):
     # AFK income loop. NULL = never claimed; service treats as registration time.
     # Accrual capped at AFK_MAX_HOURS regardless of how long ago last claim was.
     afk_last_collected_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # Rest XP — 2x XP multiplier on banked offline time.
+    # Bank ticks down at 2x wallclock during active sessions, accumulates while offline.
+    # Capped at 12h (43,200s). See app/rest_xp.py for the tick logic.
+    rest_xp_banked_seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    rest_xp_last_tick_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, server_default=text("CURRENT_TIMESTAMP"))
     # VIP tier — cumulative-spend XP. 1 USD cent of paid purchases = 1 VIP XP.
     # Level resolved from VIP_TIERS table; perks are read-only derivations.
     vip_xp: Mapped[int] = mapped_column(Integer, default=0)
