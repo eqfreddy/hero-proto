@@ -214,6 +214,10 @@ class Account(Base):
 
     pulls_since_epic: Mapped[int] = mapped_column(Integer, default=0)
     stages_cleared_json: Mapped[str] = mapped_column(String(1024), default="[]")
+    # Per (stage_code, difficulty_tier) consecutive-loss counter for fail pity.
+    # Shape: {"<stage_code>:<TIER>": int, "<stage_code>:<TIER>:_consumed": bool}.
+    # Hidden from players — drives a one-shot 0.9× enemy HP discount after 3 losses.
+    stage_pity_json: Mapped[str] = mapped_column(String(2048), default="{}", server_default="{}")
 
     arena_rating: Mapped[int] = mapped_column(Integer, default=1000, index=True)
     arena_wins: Mapped[int] = mapped_column(Integer, default=0)
