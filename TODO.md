@@ -437,12 +437,14 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [ ] **Guaranteed drop meter** — per-stage fill meter; at cap, next run guarantees rare+ gear. Shown in stage UI. Tracked in `stage_drop_pity_json` on accounts.
 - [ ] All three ship together — see `docs/superpowers/specs/2026-05-06-onboarding-quest-design.md §9` for full design.
 
-### Onboarding quest system
-- [ ] **Write implementation plan** — spec at `docs/superpowers/specs/2026-05-06-onboarding-quest-design.md`; use `writing-plans` skill. Lock down Legendary modifier list during planning.
-- [ ] Implement backend: `Quest` + `AccountQuest` models, `quest_service.record_event()`, `/quests/active` + `/quests/{id}/claim` + `/quests/{id}/dismiss` endpoints, seed `onboarding_week_one` on startup, auto-enroll on registration
-- [ ] Wire `record_event` hooks into battles, summon, gear, arena, guilds, daily, story, me routers
-- [ ] Implement frontend: floating bottom-right widget (collapsed pill ↔ expanded task list), gold pulse on completion, claim modal with Epic/gems choice, confetti + auto-hide
-- [ ] Implement coach marks: `<CoachMark>` overlay component, `localStorage` tracking, 7 screens wired up
+### Onboarding quest system ✅ shipped (verified 2026-05-09)
+- [x] Backend: `Quest` + `AccountQuest` models, `app/quest_service.py` `record_event()`, `/quests/active` + `/claim` + `/dismiss` in `app/routers/quests.py`, seed in `app/quests.py`, auto-enroll in `auth.py:register`
+- [x] `record_event` hooks wired across battles, summon, gear, arena, guilds, daily, story, me, raids (all 11 spec events)
+- [x] Frontend: `frontend/src/components/QuestWidget/{index,ClaimModal}.tsx` mounted in `Layout/Shell.tsx`
+- [x] Coach marks: `components/CoachMark.tsx` + `localStorage` tracking, wired in Stages, Summon, Inventory, Arena, Guild, Daily, Roster (7 screens)
+- [x] Tests: `tests/test_quests.py` — 6/6 passing
+- [ ] **Open**: Legendary stage tier doesn't exist in `StageDifficulty` enum yet (only NORMAL/HARD/NIGHTMARE). Task 19 (`LEGENDARY_STAGE_CLEARED`) is unreachable until §9 progression system ships.
+- [ ] **Open**: Faction choice unlock at lvl 50 vs onboarding task — verify task 4 fires on first visit to alignment screen for sub-50 accounts (spec §2 note).
 
 ---
 
