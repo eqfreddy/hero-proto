@@ -95,6 +95,9 @@ def grant_xp(db: Session, account: Account, amount: int) -> list[dict]:
     """
     if amount <= 0 or (account.account_level or 1) >= ACCOUNT_LEVEL_CAP:
         return []
+    # Rest XP: while a banked-rest period is active, double the grant.
+    from app.rest_xp import apply_multiplier as _rest_mult
+    amount = _rest_mult(account, amount)
     account.account_xp = int(account.account_xp or 0) + int(amount)
 
     levelups: list[dict] = []

@@ -99,3 +99,59 @@ def test_apply_multiplier_no_bank_returns_unchanged(db_session):
     acc = _make_account(db_session, banked=0)
     assert apply_multiplier(acc, 12) == 12
     assert apply_multiplier(acc, 100) == 100
+
+
+import json
+
+
+def test_grant_xp_doubles_with_rest_bank(db_session):
+    """grant_xp internally applies the rest-XP multiplier."""
+    from app.account_level import grant_xp
+
+    acc = _make_account(db_session, banked=1000)
+    acc.account_level = 1
+    acc.account_xp = 0
+    db_session.flush()
+
+    grant_xp(db_session, acc, 12)
+    assert acc.account_xp == 24
+
+
+def test_grant_xp_no_doubling_without_rest_bank(db_session):
+    """grant_xp acts as before when bank is empty."""
+    from app.account_level import grant_xp
+
+    acc = _make_account(db_session, banked=0)
+    acc.account_level = 1
+    acc.account_xp = 0
+    db_session.flush()
+
+    grant_xp(db_session, acc, 12)
+    assert acc.account_xp == 12
+
+
+def test_get_current_account_ticks_bank(client, db_session):
+    """An authenticated request triggers update_bank via the auth dep."""
+    from datetime import timedelta
+    from app.models import Account
+    from app.security import issue_token
+
+    six_min_ago = utcnow() - timedelta(minutes=6)
+    acc = Account(
+        email="tick_via_auth@example.com",
+        password_hash="x",
+        rest_xp_banked_seconds=0,
+        rest_xp_last_tick_at=six_min_ago,
+    )
+    db_session.add(acc)
+    db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.get("/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+
+    db_session.refresh(acc)
+    # 6 min offline gap → bank should have accumulated.
+    assert acc.rest_xp_banked_seconds > 0
+    delta = (utcnow() - acc.rest_xp_last_tick_at).total_seconds()
+    assert delta < 5

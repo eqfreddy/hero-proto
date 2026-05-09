@@ -114,7 +114,8 @@ def claim(db: Session, account: Account, now: datetime | None = None) -> dict:
             from app.economy import apply_xp
             actual_total = 0
             for h in heroes:
-                apply_xp(h, per_hero)
+                from app.rest_xp import apply_multiplier as _rest_mult
+                apply_xp(h, _rest_mult(account, per_hero))
                 granted["heroes_xp_grants"].append({"hero_id": h.id, "xp": per_hero})
                 actual_total += per_hero
             granted["hero_xp"] = actual_total

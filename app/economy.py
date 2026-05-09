@@ -131,7 +131,8 @@ def award_rewards(
     for h in heroes_on_team:
         if h.level >= level_cap_for_stars(h.stars):
             continue
-        lv, _ = apply_xp(h, xp)
+        from app.rest_xp import apply_multiplier as _rest_mult
+        lv, _ = apply_xp(h, _rest_mult(account, xp))
         if lv:
             level_ups[h.id] = lv
 

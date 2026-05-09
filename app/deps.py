@@ -97,6 +97,11 @@ def get_current_account(
                 status.HTTP_403_FORBIDDEN,
                 f"account is banned: {account.banned_reason or 'no reason given'}",
             )
+    # Rest-XP bank tick: every authed request updates the bank based on
+    # elapsed time since the last tick. Active sessions burn at 2x wallclock;
+    # past 5 min idle accumulates. See app/rest_xp.py.
+    from app.rest_xp import update_bank as _rest_tick
+    _rest_tick(account, utcnow())
     return account
 
 
