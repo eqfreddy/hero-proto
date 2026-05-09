@@ -39,7 +39,7 @@ def xp_per_win(tier: StageDifficulty | str) -> int:
         key = tier if isinstance(tier, StageDifficulty) else StageDifficulty(tier)
     except ValueError:
         return XP_PER_BATTLE_WIN_BY_TIER[StageDifficulty.NORMAL]
-    return XP_PER_BATTLE_WIN_BY_TIER.get(key, XP_PER_BATTLE_WIN_BY_TIER[StageDifficulty.NORMAL])
+    return XP_PER_BATTLE_WIN_BY_TIER[key]
 XP_PER_SUMMON_PULL = 4
 XP_PER_RAID_ATTACK = 8
 XP_PER_DAILY_BONUS = 25

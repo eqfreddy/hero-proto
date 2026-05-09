@@ -30,3 +30,15 @@ def test_xp_per_win_helper():
     assert xp_per_win(StageDifficulty.LEGENDARY) == 60
     # Legacy constant kept as NORMAL alias.
     assert XP_PER_BATTLE_WIN == 12
+
+
+def test_xp_per_win_accepts_strings():
+    assert xp_per_win("NORMAL")    == 12
+    assert xp_per_win("HARD")      == 28
+    assert xp_per_win("NIGHTMARE") == 50
+    assert xp_per_win("LEGENDARY") == 60
+
+
+def test_xp_per_win_unknown_tier_falls_back_to_normal():
+    assert xp_per_win("BOGUS") == 12
+    assert xp_per_win("")      == 12
