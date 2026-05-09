@@ -448,6 +448,111 @@ Specs at `docs/superpowers/specs/2026-05-09-*.md` (5 design docs from 2026-05-09
 
 ---
 
+## 🎮 Engagement / monetization design (research-driven, captured 2026-05-09)
+
+### Daily / weekly events — *Battle of the OSs* (concept)
+- [ ] Daily event popup; week-long quest examples themed to hero-proto's mixed-hardware/mixed-OS premise
+- [ ] Example arc: **Battle of the OSs** — random "parts" drop from stages, player assembles a working system to defeat **Boto** (boss/bot — name TBD)
+- [ ] Different events spotlight different stacks; ties into roster's IT-flavor identity
+- [ ] Pairs with collections (below) — events drive seasonal grind, collections drive long-term grind
+
+### Rare collections (5–12 piece sets)
+- [ ] Loot-screen popup on stage clear / boss / wherever a piece drops
+- [ ] Collection size 5–12 pieces per set; most pieces drop randomly from any stage
+- [ ] **Completion pieces are RARE drops** from chapter-end / stage bosses
+- [ ] Raid bosses host their own special collections with fairly rare drops
+- [ ] Drives "I'm closer to finishing X" motivation — keeps players grinding even when nothing else is happening
+
+### Battle viewer #3 — full Three.js overhaul (backburner)
+- [ ] Replace `battle-arena.html` with Three.js scene using KayKit GLTFs from `maynewmodels/`
+- [ ] Combat resolver stays unchanged — only the renderer changes
+- [ ] Active direction is **#1 + #2 hybrid**: pre-render KayKit/PSX into CraftPix-shaped sprite frames + Three.js viewer for interactive mode
+- [ ] "Easy to whip up when we get time" — not blocking anything
+
+### Competitor playbook (MSF / SWGOH / PortalQuest / DandyDungeon / DragonChampions)
+*Full intel: Phase 1 + Phase 2 store sweeps complete 2026-05-09. Recurring intel feed.*
+
+**⚠️ Attribution corrections caught in Phase 2:** Portal Quest = PerBlue, NOT NimbleBit (real PerBlue postmortem = Disney Heroes Battle Mode shutting May 31, 2026 with $110K/mo revenue insufficient under Disney IP fees). Dragon Champions = PlayQuantum/AppQuantum, NOT Crazy Panda — zombie state, not delisted.
+
+**Cross-cutting lessons:**
+- Never invalidate earned progression (MSF OVERPOWERED, SWGOH Era/Relic Delta)
+- Pop-up shop interruption = uninstall (15-min new-player churn)
+- Guild raids carry retention but must scale to small guilds (4–6 active)
+- F2P viability is the marketing truth — lead with "you don't have to spend"
+- Production value > feature breadth (DragonChampions died feature-complete)
+- UA war on Play Store unwinnable vs RAID's $100M+ — web-first/Stripe sidesteps it
+- Theme is the differentiator. First 10 min must communicate why we're not RAID
+
+**Paywall anatomy (the throughline — every churn vector traces here):**
+- MSF shard-pack deception: $50 = unlock only, not max-star (43% of 1★ reviews)
+- MSF spend-tier inflection: $20-35 minnow churn / $50-100 dolphin / $300-500 mid-whale / $10k+ terminal-whale "I quit"
+- MSF betrayal window: Year 2-3 (sunk cost becomes weapon when new tier obsoletes portfolio)
+- SWGOH disguised subscription: $20/mo Episode Pass + ~$40/mo Pass+ + $150-200/Era character → de-facto recurring without disclosure
+- SWGOH quantified churn: 50K MAU in 2 weeks after Overpower (Apr 2025), ~10K/mo sustained
+- DandyDungeon counter-data: "ducks IAP" — friction → purchasable removal → upgrade-to-ownership feel
+- Premium-feel vocabulary: *polished* / *respects your time* / *no nag* / *worth every penny*
+
+**Economy design principles (locked):**
+1. **Golden Ratio** — F2P maxes a hero in 30 days; minnow does it in 15 for $5. Purchase = time-saver, not gate.
+2. **Power Creep Trap** — Linear effort growth, exponential cost growth (lvl 1→10 = 100g, lvl 10→20 = 500g). Soft walls drive spend over spike.
+3. **Pity is mandatory** — Pure RNG hurts business. Pity at 9 → guaranteed at 10. Turns gambling into progress bar.
+4. **Currency tiering** — Soft (gold, plentiful), Hard (gems, real money / bypass time), Social/Event (earned with others — keeps F2P logged in so whales have someone to play against).
+5. **Minnow Daily Login Pass** — $4.99 / 30 days of small rewards. Highest value/$ in game. Forces daily login → builds habit.
+
+**Open question (parked):** Hero-proto already runs BOTH gacha summons + template-shard ascension. Tune them together so neither dominates — dedicated design pass when monetization is ready for calibration.
+
+### DO / DON'T — Marketplace + Player-Base design rules
+
+*Distilled from research above. Apply when designing any shop, IAP, BP, monthly card, event, raid, arena, or community feature.*
+
+**Marketplace — DO:**
+- ✓ Make every purchase **atomic** (buying a hero gives the hero, not 47/100 shards). If shards involved, show count + total cost before confirmation.
+- ✓ BP/card unlock = ownership moment. Visible state change (badge, color shift, "Welcome Supporter"). Not a receipt.
+- ✓ Suppress all gacha/IAP promos during active BP or monthly card. Reintroduce at renewal only.
+- ✓ Frame BP/card as "the ducks", not "a subscription". Vocabulary: polished, respects your time, no nag.
+- ✓ Every event has a guaranteed F2P ceiling at ~70% of milestone track. Spend-gated rewards live in the top 30%.
+- ✓ Honor every payment failure with auto-grant within 24h. No ticket required.
+- ✓ Keep all IAP through platform storefronts. Don't route around Apple/Google.
+- ✓ Audit "fully-activated competitive player" monthly spend — if total > $30/mo AND necessary for PvP viability, you have the disguised-sub pattern.
+- ✓ Storefront = single entry point. Never interrupt navigation with shop popups.
+
+**Marketplace — DON'T:**
+- ✗ NEVER add a new tier to existing progression mid-life that invalidates prior spend. (#1 whale-churn trigger.)
+- ✗ NEVER sell a direct combat-stat multiplier to a subscriber tier (the OVERPOWERED failure). VIP/BP/card may gate cosmetics, currency drip, convenience — never raw combat math.
+- ✗ NEVER cap PvP performance by spend level (Relic Delta failure).
+- ✗ NEVER lock new characters behind a 3-month time gate after launch.
+- ✗ NEVER narrow daily/streak windows below 24 hours.
+- ✗ NEVER de-surface free progression after a purchase ("Find" button shifting to shop after spend).
+- ✗ NEVER front-load monetization at launch (DragonChampions: $1M month one → collapse).
+- ✗ NEVER promise content cadence you can't keep (Portal Quest died from this).
+
+**Player-Base — DO:**
+- ✓ Design guild raids for **4–6 active members minimum**, not 20.
+- ✓ Reply to store reviews. Free retention signal.
+- ✓ Lightweight balance pass cadence on PvP/arena.
+- ✓ Match arena/PvP by account XP/power score, not raw rating.
+- ✓ Surface faction/team synergy in roster UI — synergy is the gacha equivalent of a progress bar.
+- ✓ Make the IT-theme louder in the first 10 minutes.
+- ✓ AFK/idle income should be **diegetic** ("your squad has been grinding" >>> "Offline earnings: 847 coins").
+- ✓ Build social features that retain even when they don't directly monetize.
+
+**Player-Base — DON'T:**
+- ✗ DON'T proliferate servers to solve retention. Splits playerbase, fragments social graph.
+- ✗ DON'T make F2P viability ambiguous. Positive reviews lead with "you don't have to spend."
+- ✗ DON'T let "fine" be the production-value bar. Acceptable art in a premium-art genre = invisible.
+- ✗ DON'T release new heroes faster than the 6★ ascension system can absorb. Depth > breadth.
+- ✗ DON'T have a single resource bottleneck. Resources must drain at the rate they generate.
+- ✗ DON'T treat your playerbase as a UA cohort. Long-tenure players ARE the most monetarily valuable AND the highest churn risk.
+- ✗ DON'T let raids degrade into "log in and simulate". Strategy layer = social glue.
+- ✗ DON'T put the angry whale letter at the top of your reviews. Reluctant whales who spent $10k+ then quit angry = worst possible monetization outcome.
+
+**Hero-proto-specific safeguards (from research):**
+- BP + monthly card structurally protect against MSF/SWGOH "OVERPOWERED" failure mode IF kept opt-in and non-stat-gating
+- Tower of Trials addresses Portal Quest's biggest gap (no endgame loop)
+- Guard against future scope creep that bolts on a new monetization layer mid-life — that's the exact moment MSF lost its 2-3 year cohort
+
+---
+
 ## 🧪 Test matrix — coverage
 
 ### Covered ✅
