@@ -207,8 +207,10 @@ def test_purchase_records_processor_and_ledger_entries(client) -> None:
         assert p.state == PurchaseState.COMPLETED
         ledger = list(db.scalars(select(PurchaseLedger).where(PurchaseLedger.purchase_id == pid)))
 
-    # Should have one GRANT row for access_cards.
-    grants = [l for l in ledger if l.direction == LedgerDirection.GRANT]
+    # Should have one GRANT row for access_cards (plus a vip_xp row from
+    # the cumulative-spend tracker — that's an additive feature, not the
+    # focus of this test).
+    grants = [l for l in ledger if l.direction == LedgerDirection.GRANT and l.kind != "vip_xp"]
     assert len(grants) == 1
     assert grants[0].kind == "access_cards"
     assert grants[0].amount == 15

@@ -40,8 +40,14 @@ def _seconds_since(account: Account, now: datetime) -> float:
     return max(0.0, delta)
 
 
+def _max_hours_for(account: Account) -> float:
+    """Base 12h cap, extended by VIP tier perks. VIP 1 gets 13h, max VIP 36h."""
+    from app.vip import perks_for_account
+    return float(perks_for_account(account).get("afk_cap_hours", AFK_MAX_HOURS))
+
+
 def _capped_seconds(account: Account, now: datetime) -> float:
-    return min(_seconds_since(account, now), AFK_MAX_HOURS * 3600)
+    return min(_seconds_since(account, now), _max_hours_for(account) * 3600)
 
 
 def _level(account: Account) -> int:
@@ -60,16 +66,17 @@ def pending(account: Account, now: datetime | None = None) -> dict:
     """Compute pending accrual without granting it. Pure function — safe to
     call from /me on every request."""
     now = now or utcnow()
+    max_hours = _max_hours_for(account)
     secs = _capped_seconds(account, now)
     raw_secs = _seconds_since(account, now)
-    cap_secs = AFK_MAX_HOURS * 3600
+    cap_secs = max_hours * 3600
     coins = int(coins_per_hour(account) * (secs / 3600))
     hero_xp_total = int(hero_xp_per_hour(account) * (secs / 3600))
     return {
         "pending_coins": coins,
         "pending_hero_xp": hero_xp_total,
         "hours_accrued": round(secs / 3600, 2),
-        "hours_max": AFK_MAX_HOURS,
+        "hours_max": max_hours,
         "is_at_cap": raw_secs >= cap_secs,
         "coins_per_hour": coins_per_hour(account),
         "hero_xp_per_hour": hero_xp_per_hour(account),

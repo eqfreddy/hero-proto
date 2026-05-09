@@ -207,10 +207,13 @@ def test_webhook_completed_grants_and_is_idempotent(client, configured_stripe, m
     with SessionLocal() as db:
         p = db.get(Purchase, purchase_id)
         assert p.state == PurchaseState.COMPLETED
-        # Ledger has one GRANT row.
-        grants = db.query(PurchaseLedger).filter_by(
-            purchase_id=purchase_id, direction=LedgerDirection.GRANT
-        ).all()
+        # Ledger has one currency GRANT row (vip_xp tracker also adds one).
+        grants = [
+            g for g in db.query(PurchaseLedger).filter_by(
+                purchase_id=purchase_id, direction=LedgerDirection.GRANT
+            ).all()
+            if g.kind != "vip_xp"
+        ]
         assert len(grants) == 1 and grants[0].kind == "gems" and grants[0].amount == 300
 
     # Second delivery of the same event must not double-grant.

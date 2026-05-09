@@ -13,6 +13,7 @@ import { RarityPill } from '../components/RarityPill'
 import { RecurringResources } from '../components/Me/RecurringResources'
 import { MonthlyCardCard } from '../components/MonthlyCardCard'
 import { AfkCard } from '../components/AfkCard'
+import { VipCard } from '../components/VipCard'
 import { useAuthStore } from '../store/auth'
 import type { ShopProduct } from '../types'
 
@@ -270,6 +271,8 @@ function OpsPanel() {
         <AfkCard />
 
         <MonthlyCardCard />
+
+        <VipCard />
 
         {/* Top heroes */}
         {topHeroes.length > 0 && (

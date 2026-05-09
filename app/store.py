@@ -77,6 +77,17 @@ def product_contents(product: ShopProduct) -> dict:
 
 def apply_grant(db: Session, account: Account, purchase: Purchase, contents: dict) -> GrantSummary:
     """Add contents to the account and write ledger entries. No commit — caller commits."""
+    # VIP XP — every paid purchase contributes its $cents to cumulative-spend
+    # progression. Free items (price_cents=0 daily coin sack) don't bump VIP.
+    if purchase.price_cents_paid > 0:
+        from app.vip import grant_xp as _vip_grant
+        _vip_grant(account, int(purchase.price_cents_paid))
+        db.add(PurchaseLedger(
+            purchase_id=purchase.id, kind="vip_xp",
+            amount=int(purchase.price_cents_paid),
+            direction=LedgerDirection.GRANT,
+            note=f"cumulative spend +{purchase.price_cents_paid}c",
+        ))
     granted: dict[str, int] = {}
     for kind in GRANTABLE_CURRENCIES:
         amount = int(contents.get(kind, 0) or 0)

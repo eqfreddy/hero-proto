@@ -280,6 +280,10 @@ class Account(Base):
     # AFK income loop. NULL = never claimed; service treats as registration time.
     # Accrual capped at AFK_MAX_HOURS regardless of how long ago last claim was.
     afk_last_collected_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # VIP tier — cumulative-spend XP. 1 USD cent of paid purchases = 1 VIP XP.
+    # Level resolved from VIP_TIERS table; perks are read-only derivations.
+    vip_xp: Mapped[int] = mapped_column(Integer, default=0)
+    vip_last_drip_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     # Cosmetic frame codes the player owns. JSON list of strings — frames
     # are pure visual flair on hero cards, no power. PoE2-style: cosmetics
     # are the recurring spend, never stat-boosting items.
