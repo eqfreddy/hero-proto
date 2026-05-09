@@ -33,7 +33,7 @@ def _bump_energy(aid: int, n: int) -> None:
 def _clear_tutorial_and_collect(client, hdr) -> int:
     """Win the tutorial stage so it counts as 'cleared' for sweep
     purposes. Returns the tutorial stage_id."""
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]
@@ -89,7 +89,7 @@ def test_sweep_no_team_no_history_400(client) -> None:
     hdr, aid = _register(client)
     # Force-mark a stage as cleared but never actually win it (so no
     # winning Battle row exists).
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     stage = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     import json
     from app.models import Account

@@ -77,7 +77,7 @@ def test_grant_xp_levels_up_with_reward(client) -> None:
 
 def test_battle_win_grants_account_xp(client) -> None:
     hdr, acct_id, _ = _register(client)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     roster = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(roster, key=lambda h: h["power"], reverse=True)[:3]]

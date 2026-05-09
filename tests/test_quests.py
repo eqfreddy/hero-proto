@@ -32,7 +32,7 @@ def test_battle_complete_advances_quest(client):
     heroes = sorted(client.get("/heroes/mine", headers=_headers(token)).json(),
                     key=lambda h: h["power"], reverse=True)
     team = [h["id"] for h in heroes[:3]]
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=_headers(token)).json()
     stage1 = next(s for s in stages if s["order"] == 1)
     client.post("/battles", json={"stage_id": stage1["id"], "team": team},
                 headers=_headers(token))
@@ -76,7 +76,7 @@ def test_gear_equip_advances_task(client):
     heroes = sorted(client.get("/heroes/mine", headers=_headers(token)).json(),
                     key=lambda h: h["power"], reverse=True)
     team = [h["id"] for h in heroes[:3]]
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=_headers(token)).json()
     stage1 = next(s for s in stages if s["order"] == 1)
     client.post("/battles", json={"stage_id": stage1["id"], "team": team},
                 headers=_headers(token))

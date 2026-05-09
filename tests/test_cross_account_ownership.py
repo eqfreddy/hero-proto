@@ -63,7 +63,7 @@ def test_battle_rejects_other_accounts_hero_in_team(client) -> None:
     bob_hdr, _ = _register(client)
     bob_hero = _summon_one(client, bob_hdr)
     # Alice tries to fight stage 1 borrowing bob's hero.
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=alice_hdr).json()
     sid = stages[0]["id"]
     r = client.post(
         "/battles",
@@ -93,7 +93,7 @@ def test_gear_equip_rejects_other_accounts_hero(client) -> None:
     bob_hero = _summon_one(client, bob_hdr)
 
     # Alice needs gear of her own. Grind a few wins.
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=alice_hdr).json()
     sid = stages[0]["id"]
     alice_hero = _summon_one(client, alice_hdr)
     gear_id = None
@@ -124,7 +124,7 @@ def test_battle_get_rejects_other_accounts_battle(client) -> None:
     alice_hdr, _ = _register(client)
     bob_hdr, _ = _register(client)
     bob_hero = _summon_one(client, bob_hdr)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=bob_hdr).json()
     sid = stages[0]["id"]
     r = client.post(
         "/battles",

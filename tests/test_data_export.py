@@ -42,7 +42,7 @@ def test_export_reflects_recent_battles_and_summons(client) -> None:
     if me["shards"] >= 100 or me["free_summon_credits"] > 0:
         r = client.post("/summon/x1", headers=hdr)
         assert r.status_code == 201
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     # Build a team of the first hero we have.
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [heroes[0]["id"]] if heroes else []

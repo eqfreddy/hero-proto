@@ -27,7 +27,7 @@ def test_full_loop(client, auth_headers) -> None:
     roster = sorted(r.json(), key=lambda h: h["power"], reverse=True)
     team = [h["id"] for h in roster[:3]]
 
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=auth_headers).json()
     stage1 = next(s for s in stages if s["order"] == 1)
 
     r = client.post("/battles", json={"stage_id": stage1["id"], "team": team}, headers=auth_headers)

@@ -84,7 +84,7 @@ def test_last_team_returns_most_recent_battle_team(client) -> None:
     assert r.json() == {"team": [], "source": "empty"}
 
     # Fight stage 1 to seed a Battle row.
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     stage1 = next(s for s in stages if s["order"] == 1)
     client.post("/battles", json={"stage_id": stage1["id"], "team": team}, headers=hdr)
     r = client.get("/me/last-team", headers=hdr)

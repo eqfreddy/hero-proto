@@ -79,7 +79,7 @@ def test_delete_cascades_through_all_owned_tables(client) -> None:
         key=lambda h: h["power"], reverse=True,
     )
     team = [h["id"] for h in roster[:3]]
-    stage1 = next(s for s in client.get("/stages").json() if s["order"] == 1)
+    stage1 = next(s for s in client.get("/stages", headers=hdr).json() if s["order"] == 1)
     client.post("/battles", json={"stage_id": stage1["id"], "team": team}, headers=hdr)
 
     # 3. Gear: grant one piece directly (battles random-roll gear; guarantee at least one).

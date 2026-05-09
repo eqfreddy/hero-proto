@@ -71,7 +71,7 @@ def test_analytics_counts_activity(client) -> None:
         key=lambda h: h["power"], reverse=True,
     )
     team = [h["id"] for h in roster[:3]]
-    stage1 = next(s for s in client.get("/stages").json() if s["order"] == 1)
+    stage1 = next(s for s in client.get("/stages", headers=hdr).json() if s["order"] == 1)
     client.post("/battles", json={"stage_id": stage1["id"], "team": team}, headers=hdr)
 
     # Make a purchase.

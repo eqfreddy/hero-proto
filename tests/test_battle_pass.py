@@ -44,7 +44,7 @@ def test_battle_grants_xp_via_quest_service_fanout(client):
     heroes = sorted(client.get("/heroes/mine", headers=_hdr(token)).json(),
                     key=lambda h: h["power"], reverse=True)
     team = [h["id"] for h in heroes[:3]]
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=_hdr(token)).json()
     stage1 = next(s for s in stages if s["order"] == 1)
     r = client.post("/battles", json={"stage_id": stage1["id"], "team": team},
                     headers=_hdr(token))

@@ -113,7 +113,7 @@ def test_active_event_payload_shape(client, active_test_event) -> None:
 def test_battle_win_drops_currency_and_advances_quest(client, active_test_event) -> None:
     hdr, _ = _register(client)
     # Find tutorial stage for a guaranteed-win battle.
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     roster = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(roster, key=lambda h: h["power"], reverse=True)[:3]]
@@ -210,7 +210,7 @@ def test_milestone_redeem_bad_index_404(client, active_test_event) -> None:
 def test_full_round_trip(client, active_test_event) -> None:
     """Battle → quest progress → claim → redeem milestone with that currency."""
     hdr, _ = _register(client)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     roster = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(roster, key=lambda h: h["power"], reverse=True)[:3]]

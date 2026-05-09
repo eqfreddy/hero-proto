@@ -65,7 +65,7 @@ def test_progress_advances_after_a_win(client) -> None:
     """After winning the tutorial battle, wins_10's progress should be
     at least 1."""
     hdr, _ = _register(client)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]

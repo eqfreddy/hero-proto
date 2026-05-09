@@ -25,7 +25,7 @@ def _win_stage1(client, hdr) -> dict:
     client.post("/summon/x10", headers=hdr)
     roster = sorted(client.get("/heroes/mine", headers=hdr).json(), key=lambda h: h["power"], reverse=True)
     team = [h["id"] for h in roster[:3]]
-    stage1 = next(s for s in client.get("/stages").json() if s["order"] == 1)
+    stage1 = next(s for s in client.get("/stages", headers=hdr).json() if s["order"] == 1)
     for _ in range(8):
         r = client.post("/battles", json={"stage_id": stage1["id"], "team": team}, headers=hdr)
         assert r.status_code == 201

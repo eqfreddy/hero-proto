@@ -34,7 +34,7 @@ def test_phase1_end_to_end(client) -> None:
 
     # Step 3: Click the tutorial CTA — auto-team battle, victory screen shows
     # "+1 free summon" grant. We emulate the UI's top-3 pick.
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     team = [h["id"] for h in sorted(roster, key=lambda h: h["power"], reverse=True)[:3]]
 

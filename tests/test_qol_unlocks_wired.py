@@ -83,7 +83,7 @@ def test_battle_auto_flag_no_unlock_runs_watch_flow(client) -> None:
     """Players without the QoL unlock get the regular response — server
     refuses to silently skip the watch step."""
     hdr, _ = _register(client)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]
@@ -100,7 +100,7 @@ def test_battle_auto_flag_no_unlock_runs_watch_flow(client) -> None:
 def test_battle_auto_flag_with_unlock_echoes_auto_resolved(client) -> None:
     hdr, aid = _register(client)
     _grant_unlock(aid, "auto_battle")
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]
@@ -118,7 +118,7 @@ def test_battle_default_auto_resolved_false(client) -> None:
     """Omitting `auto` from the body must not flip auto_resolved on."""
     hdr, aid = _register(client)
     _grant_unlock(aid, "auto_battle")
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]
