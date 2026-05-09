@@ -105,6 +105,7 @@ def get_me(
         email_verified=bool(account.email_verified),
         totp_enabled=bool(account.totp_enabled),
         monthly_card=_mc_status(account),
+        rest_xp_banked_seconds=account.rest_xp_banked_seconds or 0,
     )
 
 

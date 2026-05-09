@@ -28,6 +28,7 @@ export interface Me {
   email_verified: boolean
   totp_enabled: boolean
   is_admin: boolean
+  rest_xp_banked_seconds: number
 }
 
 export interface HeroTemplate {

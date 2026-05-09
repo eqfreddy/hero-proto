@@ -125,6 +125,8 @@ class MeOut(BaseModel):
     totp_enabled: bool = False
     # Monthly Card subscription: active flag + days remaining + drip claimable today.
     monthly_card: dict | None = None
+    # Rest-XP bank: seconds of double-XP remaining (0 = no bonus active).
+    rest_xp_banked_seconds: int = 0
 
 
 class HeroTemplateOut(BaseModel):

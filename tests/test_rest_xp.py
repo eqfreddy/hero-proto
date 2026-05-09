@@ -155,3 +155,23 @@ def test_get_current_account_ticks_bank(client, db_session):
     assert acc.rest_xp_banked_seconds > 0
     delta = (utcnow() - acc.rest_xp_last_tick_at).total_seconds()
     assert delta < 5
+
+
+def test_me_endpoint_includes_rest_xp_banked_seconds(client, db_session):
+    from app.models import Account
+    from app.security import issue_token
+
+    acc = Account(
+        email="me_rest@example.com", password_hash="x",
+        rest_xp_banked_seconds=3600, rest_xp_last_tick_at=utcnow(),
+    )
+    db_session.add(acc)
+    db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.get("/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "rest_xp_banked_seconds" in body
+    # Auth-dep tick may burn a tiny amount; expect close to 3600.
+    assert 3500 <= body["rest_xp_banked_seconds"] <= 3600

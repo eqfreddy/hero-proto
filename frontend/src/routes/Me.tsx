@@ -28,6 +28,13 @@ const LOG_ENTRIES = [
 
 let _logKey = 0
 
+function formatRemaining(seconds: number): string {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
 // ── Top bar ──────────────────────────────────────────────────────────────────
 
 function TopBar() {
@@ -222,8 +229,23 @@ function OpsPanel() {
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 3 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 3, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
               Lv {me.account_level} · {me.account_xp.toLocaleString()} XP
+              {me.rest_xp_banked_seconds > 0 && (
+                <span
+                  title={`Rested XP: ${formatRemaining(me.rest_xp_banked_seconds)} remaining`}
+                  style={{
+                    marginLeft: 8,
+                    padding: '2px 8px',
+                    background: 'rgba(120, 200, 255, 0.18)',
+                    color: '#7ad6ff',
+                    borderRadius: 4,
+                    fontSize: '0.85em',
+                  }}
+                >
+                  💤 Rested ×2
+                </span>
+              )}
             </div>
             <div style={{ width: 120, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${Math.min(100, (me.account_xp % 500) / 5)}%`, background: 'linear-gradient(90deg, var(--accent), var(--void-purple))', borderRadius: 2 }} />

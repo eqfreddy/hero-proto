@@ -10,6 +10,7 @@ const me: Me = {
   arena_wins: 0, arena_losses: 0, account_level: 1, account_xp: 0,
   qol_unlocks: {}, active_cosmetic_frame: '',
   faction: 'EXILE', alignment_chosen_at: null, email_verified: true, totp_enabled: false, is_admin: false,
+  rest_xp_banked_seconds: 0,
 }
 
 const tmpl: HeroTemplate = {
