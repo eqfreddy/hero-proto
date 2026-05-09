@@ -429,13 +429,13 @@ Output format for everything on this list: **paste the final file(s) back here i
 - [x] PWA offline shell ✅ — `vite-plugin-pwa` registered with autoUpdate workbox SW; manifest + maskable 512 icon already wired in `frontend/vite.config.ts`.
 - [x] Native iOS / Android wrapper (Capacitor) — Android running on emulator; iOS via cloud CI
 
-### Progression system (backburner — review before Phase 4)
-- [ ] **XP scaling by difficulty** — Floppy: 12 XP/win, Hard Disk: 28 XP/win, Legendary: 60 XP/win. Design note in spec §9.
-- [ ] **Stage tier locks** — Hard unlocks after Normal clear per stage; Legendary unlocks after Hard. Power floor gate on Legendary (threshold TBD).
-- [ ] **Fail pity** — 3 consecutive losses on a stage → 10% enemy HP reduction for next attempt only. Tracked in `stage_pity_json` on accounts.
-- [ ] **Rest XP** — offline time banks 2× XP multiplier, capped at 12h, burns off next session. `rest_xp_banked` + `rest_xp_last_tick_at` on accounts. UI badge on XP bar.
-- [ ] **Guaranteed drop meter** — per-stage fill meter; at cap, next run guarantees rare+ gear. Shown in stage UI. Tracked in `stage_drop_pity_json` on accounts.
-- [ ] All three ship together — see `docs/superpowers/specs/2026-05-06-onboarding-quest-design.md §9` for full design.
+### Progression system (5 subsystems, sequenced)
+Specs at `docs/superpowers/specs/2026-05-09-*.md` (5 design docs from 2026-05-09).
+- [x] **#1 Difficulty tiers** ✅ shipped 2026-05-09 — 4-tier system (Floppy/Hard Disk/RAID-0/Legen'waitforit'dary), XP 12/28/50/60, level deltas +0/+10/+20/+30, seed produces 4 tiers × 26 stages = 104 rows. Plan: `2026-05-09-difficulty-tiers.md`.
+- [ ] **#2 Tier locks + power floor** — clear-chain gating + global 50k/100k power thresholds for NIGHTMARE/LEGENDARY. Spec: `2026-05-09-tier-locks-power-floor-design.md`.
+- [ ] **#3 Fail pity** — 3 consecutive losses on (stage, tier) → -10% enemy HP one-shot next attempt. All 4 tiers. Hidden mechanic. Spec: `2026-05-09-fail-pity-design.md`.
+- [ ] **#4 Rest XP** — 2× multiplier on account+hero XP, 12h offline cap, 2× wallclock burn. Spec: `2026-05-09-rest-xp-design.md`.
+- [ ] **#5 Drop meter** — per (stage, tier) cap=20, guarantees RARE+ with tier-keyed pool. Spec: `2026-05-09-drop-meter-design.md`.
 
 ### Onboarding quest system ✅ shipped (verified 2026-05-09)
 - [x] Backend: `Quest` + `AccountQuest` models, `app/quest_service.py` `record_event()`, `/quests/active` + `/claim` + `/dismiss` in `app/routers/quests.py`, seed in `app/quests.py`, auto-enroll in `auth.py:register`
