@@ -108,3 +108,64 @@ def test_force_rarity_distribution_matches_weights():
     legendary_pct = counts[GearRarity.LEGENDARY] / n
     assert 0.35 <= epic_pct <= 0.45, f"EPIC pct out of band: {epic_pct}"
     assert 0.55 <= legendary_pct <= 0.65, f"LEGENDARY pct out of band: {legendary_pct}"
+
+
+def test_battle_at_cap_triggers_meter_reset(client, db_session):
+    """When the meter is at cap-1 (19), the next battle WIN forces the trigger
+    and resets the counter. The strict assertion is the reset post-WIN."""
+    from sqlalchemy import select
+
+    from app.models import (
+        Account, HeroInstance, HeroTemplate, Rarity, Stage, StageDifficulty,
+    )
+    from app.security import issue_token
+    from app.drop_meter import read_meter, DROP_METER_CAP
+
+    acc = Account(email="drop_e2e@example.com", password_hash="x")
+    db_session.add(acc)
+    db_session.flush()
+
+    normal = db_session.scalar(
+        select(Stage).where(Stage.difficulty_tier == StageDifficulty.NORMAL).limit(1)
+    )
+    assert normal is not None
+
+    # Strong team — we need to WIN for the meter to fire.
+    epic_tmpl = db_session.scalar(
+        select(HeroTemplate).where(HeroTemplate.rarity == Rarity.EPIC).limit(1)
+    )
+    if epic_tmpl is None:
+        epic_tmpl = db_session.scalar(select(HeroTemplate).limit(1))
+    assert epic_tmpl is not None
+
+    hero_ids: list[int] = []
+    for _ in range(3):
+        hi = HeroInstance(account_id=acc.id, template_id=epic_tmpl.id, level=50, xp=0, stars=5)
+        db_session.add(hi)
+        db_session.flush()
+        hero_ids.append(hi.id)
+    db_session.commit()
+
+    # Set meter to 19 — next WIN triggers.
+    import json
+    acc.stage_drop_pity_json = json.dumps({f"{normal.code}:NORMAL": DROP_METER_CAP - 1})
+    db_session.commit()
+
+    db_session.refresh(acc)
+    assert read_meter(acc, normal.code, StageDifficulty.NORMAL) == DROP_METER_CAP - 1
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.post(
+        "/battles",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"stage_id": normal.id, "team": hero_ids},
+    )
+    assert r.status_code == 201, r.text
+
+    db_session.refresh(acc)
+    if r.json().get("outcome") == "WIN":
+        # Strict: counter must have reset to 0.
+        assert read_meter(acc, normal.code, StageDifficulty.NORMAL) == 0
+    else:
+        # LOSS — counter unchanged (LOSS doesn't increment).
+        assert read_meter(acc, normal.code, StageDifficulty.NORMAL) == DROP_METER_CAP - 1

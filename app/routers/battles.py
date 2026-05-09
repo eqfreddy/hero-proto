@@ -347,10 +347,19 @@ def fight(
                 {"code": c, "qty": q} for c, q in material_drops
             ]
     if outcome == BattleOutcome.WIN:
+        from app.drop_meter import increment_and_check as _drop_inc, force_rarity as _drop_force
+        from app.gear_logic import roll_gear_targeted as _roll_targeted
+        triggered = _drop_inc(account, stage.code, stage.difficulty_tier)
         drop_chance = 0.70 if first_clear else 0.35
         drop_chance += gear_drop_bonus(db)
-        if rng.random() < drop_chance:
-            slot, rarity, set_code, stats = roll_gear(rng, stage.order)
+        do_drop = triggered or (rng.random() < drop_chance)
+        if do_drop:
+            if triggered:
+                slot, rarity, set_code, stats = _roll_targeted(
+                    rng, rarity=_drop_force(stage.difficulty_tier, rng)
+                )
+            else:
+                slot, rarity, set_code, stats = roll_gear(rng, stage.order)
             usage = gear_usage(db, account)
             if usage.full:
                 # Cap-out: stash in mailbox so the player can claim later.
@@ -725,9 +734,18 @@ def sweep(
             totals["xp"] += rewards.xp_per_hero
             for qid in (q.id for q in on_battle_won(db, account, stage.code)):
                 daily_ids.add(qid)
+            from app.drop_meter import increment_and_check as _drop_inc, force_rarity as _drop_force
+            from app.gear_logic import roll_gear_targeted as _roll_targeted
+            triggered = _drop_inc(account, stage.code, stage.difficulty_tier)
             drop_chance = 0.35 + gear_drop_bonus(db)
-            if rng.random() < drop_chance:
-                slot, rarity, set_code, stats = roll_gear(rng, stage.order)
+            do_drop = triggered or (rng.random() < drop_chance)
+            if do_drop:
+                if triggered:
+                    slot, rarity, set_code, stats = _roll_targeted(
+                        rng, rarity=_drop_force(stage.difficulty_tier, rng)
+                    )
+                else:
+                    slot, rarity, set_code, stats = roll_gear(rng, stage.order)
                 g = Gear(
                     account_id=account.id, slot=slot, rarity=rarity,
                     set_code=set_code, stats_json=json.dumps(stats),
@@ -863,10 +881,19 @@ def _finalize_stage(session: InteractiveSession, account: Account, db: Session) 
     rewards_extra["completed_daily_quest_ids"] = completed_dailies
 
     if won:
+        from app.drop_meter import increment_and_check as _drop_inc, force_rarity as _drop_force
+        from app.gear_logic import roll_gear_targeted as _roll_targeted
+        triggered = _drop_inc(account, stage.code, stage.difficulty_tier)
         drop_chance = 0.70 if first_clear else 0.35
         drop_chance += gear_drop_bonus(db)
-        if session.rng.random() < drop_chance:
-            slot, rarity, set_code, stats = roll_gear(session.rng, stage.order)
+        do_drop = triggered or (session.rng.random() < drop_chance)
+        if do_drop:
+            if triggered:
+                slot, rarity, set_code, stats = _roll_targeted(
+                    session.rng, rarity=_drop_force(stage.difficulty_tier, session.rng)
+                )
+            else:
+                slot, rarity, set_code, stats = roll_gear(session.rng, stage.order)
             usage = gear_usage(db, account)
             if usage.full:
                 queue_mailbox(account, "gear", {
