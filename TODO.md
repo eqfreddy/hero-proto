@@ -434,7 +434,7 @@ Specs at `docs/superpowers/specs/2026-05-09-*.md` (5 design docs from 2026-05-09
 - [x] **#1 Difficulty tiers** ✅ shipped 2026-05-09 — 4-tier system (Floppy/Hard Disk/RAID-0/Legen'waitforit'dary), XP 12/28/50/60, level deltas +0/+10/+20/+30, seed produces 4 tiers × 26 stages = 104 rows. Plan: `2026-05-09-difficulty-tiers.md`.
 - [x] **#2 Tier locks + power floor** ✅ shipped 2026-05-09 — `app/tiers.py` with TIER_POWER_FLOOR (50k/100k); battle-start guard with HTTP 400 + required/current detail; `/stages` now auth'd with unlocked/cleared/power_floor fields; frontend lock + floor badges. Plan: `2026-05-09-tier-locks-power-floor.md`.
 - [x] **#3 Fail pity** ✅ shipped 2026-05-09 — `app/fail_pity.py` (PITY_LOSS_THRESHOLD=3, PITY_HP_MULT=0.9); `accounts.stage_pity_json` column + migration; wired into battles.py (start applies HP mult, end updates count). Hidden — no UI surfacing. Plan: `2026-05-09-fail-pity.md`.
-- [ ] **#4 Rest XP** — 2× multiplier on account+hero XP, 12h offline cap, 2× wallclock burn. Spec: `2026-05-09-rest-xp-design.md`.
+- [x] **#4 Rest XP** ✅ shipped 2026-05-09 — `app/rest_xp.py` (12h cap, 2x burn, 5min idle threshold); 2 columns + migration; ticked via `get_current_account`; multiplier in `grant_xp` + at 2 hero-XP call sites (battles/AFK); rested badge in /me. Plan: `2026-05-09-rest-xp.md`.
 - [ ] **#5 Drop meter** — per (stage, tier) cap=20, guarantees RARE+ with tier-keyed pool. Spec: `2026-05-09-drop-meter-design.md`.
 
 ### Onboarding quest system ✅ shipped (verified 2026-05-09)
