@@ -432,7 +432,7 @@ Output format for everything on this list: **paste the final file(s) back here i
 ### Progression system (5 subsystems, sequenced)
 Specs at `docs/superpowers/specs/2026-05-09-*.md` (5 design docs from 2026-05-09).
 - [x] **#1 Difficulty tiers** ✅ shipped 2026-05-09 — 4-tier system (Floppy/Hard Disk/RAID-0/Legen'waitforit'dary), XP 12/28/50/60, level deltas +0/+10/+20/+30, seed produces 4 tiers × 26 stages = 104 rows. Plan: `2026-05-09-difficulty-tiers.md`.
-- [ ] **#2 Tier locks + power floor** — clear-chain gating + global 50k/100k power thresholds for NIGHTMARE/LEGENDARY. Spec: `2026-05-09-tier-locks-power-floor-design.md`.
+- [x] **#2 Tier locks + power floor** ✅ shipped 2026-05-09 — `app/tiers.py` with TIER_POWER_FLOOR (50k/100k); battle-start guard with HTTP 400 + required/current detail; `/stages` now auth'd with unlocked/cleared/power_floor fields; frontend lock + floor badges. Plan: `2026-05-09-tier-locks-power-floor.md`.
 - [ ] **#3 Fail pity** — 3 consecutive losses on (stage, tier) → -10% enemy HP one-shot next attempt. All 4 tiers. Hidden mechanic. Spec: `2026-05-09-fail-pity-design.md`.
 - [ ] **#4 Rest XP** — 2× multiplier on account+hero XP, 12h offline cap, 2× wallclock burn. Spec: `2026-05-09-rest-xp-design.md`.
 - [ ] **#5 Drop meter** — per (stage, tier) cap=20, guarantees RARE+ with tier-keyed pool. Spec: `2026-05-09-drop-meter-design.md`.
