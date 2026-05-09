@@ -42,3 +42,16 @@ def test_xp_per_win_accepts_strings():
 def test_xp_per_win_unknown_tier_falls_back_to_normal():
     assert xp_per_win("BOGUS") == 12
     assert xp_per_win("")      == 12
+
+
+def test_xp_grant_lookup_per_tier():
+    """Sanity check: tier→XP lookup hits expected values for all four tiers.
+    The actual battle-resolve grant sites are covered by the existing battle
+    test suite (regression run after wiring changes)."""
+    for tier, expected in [
+        (StageDifficulty.NORMAL,    12),
+        (StageDifficulty.HARD,      28),
+        (StageDifficulty.NIGHTMARE, 50),
+        (StageDifficulty.LEGENDARY, 60),
+    ]:
+        assert xp_per_win(tier) == expected

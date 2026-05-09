@@ -269,13 +269,14 @@ def fight(
     # bonus. Level-ups grant currency rewards + a notification automatically.
     if outcome == BattleOutcome.WIN:
         from app.account_level import (
-            XP_PER_BATTLE_WIN, XP_PER_FIRST_CLEAR,
+            xp_per_win as _xp_per_win,
+            XP_PER_FIRST_CLEAR,
             grant_xp as _grant_xp,
             maybe_grant_chapter_reward as _chapter_reward,
         )
         levelups = _grant_xp(
             db, account,
-            XP_PER_BATTLE_WIN + (XP_PER_FIRST_CLEAR if first_clear else 0),
+            _xp_per_win(stage.difficulty_tier) + (XP_PER_FIRST_CLEAR if first_clear else 0),
         )
         if levelups:
             rewards_extra["account_levelups"] = levelups
@@ -851,8 +852,8 @@ def _finalize_stage(session: InteractiveSession, account: Account, db: Session) 
         if material_drops:
             rewards_extra["materials"] = [{"code": c, "qty": q} for c, q in material_drops]
 
-        from app.account_level import XP_PER_BATTLE_WIN, XP_PER_FIRST_CLEAR, grant_xp as _gxp
-        levelups = _gxp(db, account, XP_PER_BATTLE_WIN + (XP_PER_FIRST_CLEAR if first_clear else 0))
+        from app.account_level import xp_per_win as _xp_per_win, XP_PER_FIRST_CLEAR, grant_xp as _gxp
+        levelups = _gxp(db, account, _xp_per_win(stage.difficulty_tier) + (XP_PER_FIRST_CLEAR if first_clear else 0))
         if levelups:
             rewards_extra["account_levelups"] = levelups
 
