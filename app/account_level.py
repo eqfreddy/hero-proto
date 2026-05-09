@@ -15,13 +15,31 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models import Account, Faction
+from app.models import Account, Faction, StageDifficulty
 
 
 # --- XP curve --------------------------------------------------------------
 
+# Tier-keyed XP per battle win.
+XP_PER_BATTLE_WIN_BY_TIER: dict[StageDifficulty, int] = {
+    StageDifficulty.NORMAL:    12,
+    StageDifficulty.HARD:      28,
+    StageDifficulty.NIGHTMARE: 50,
+    StageDifficulty.LEGENDARY: 60,
+}
 
-XP_PER_BATTLE_WIN = 12
+# Backward-compat alias — equivalent to NORMAL tier.
+XP_PER_BATTLE_WIN = XP_PER_BATTLE_WIN_BY_TIER[StageDifficulty.NORMAL]
+
+
+def xp_per_win(tier: StageDifficulty | str) -> int:
+    """Look up XP-per-battle-win for a tier. Accepts enum or string.
+    Falls back to NORMAL (12) for unknown tiers — defensive default."""
+    try:
+        key = tier if isinstance(tier, StageDifficulty) else StageDifficulty(tier)
+    except ValueError:
+        return XP_PER_BATTLE_WIN_BY_TIER[StageDifficulty.NORMAL]
+    return XP_PER_BATTLE_WIN_BY_TIER.get(key, XP_PER_BATTLE_WIN_BY_TIER[StageDifficulty.NORMAL])
 XP_PER_SUMMON_PULL = 4
 XP_PER_RAID_ATTACK = 8
 XP_PER_DAILY_BONUS = 25
