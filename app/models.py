@@ -218,6 +218,10 @@ class Account(Base):
     # Shape: {"<stage_code>:<TIER>": int, "<stage_code>:<TIER>:_consumed": bool}.
     # Hidden from players — drives a one-shot 0.9× enemy HP discount after 3 losses.
     stage_pity_json: Mapped[str] = mapped_column(String(2048), default="{}", server_default="{}")
+    # Per (stage_code, difficulty_tier) gear-drop meter for guaranteed RARE+ drops.
+    # Shape: {"<stage_code>:<TIER>": int}.  Resets to 0 when the cap (20) fires.
+    # See app/drop_meter.py for the increment + rarity-roll logic.
+    stage_drop_pity_json: Mapped[str] = mapped_column(String(2048), default="{}", server_default="{}")
 
     arena_rating: Mapped[int] = mapped_column(Integer, default=1000, index=True)
     arena_wins: Mapped[int] = mapped_column(Integer, default=0)
