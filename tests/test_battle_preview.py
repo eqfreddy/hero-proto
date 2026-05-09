@@ -18,7 +18,7 @@ def _register(client) -> tuple[dict, int]:
 
 def test_preview_returns_expected_keys(client) -> None:
     hdr, _ = _register(client)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]
@@ -44,7 +44,7 @@ def test_preview_does_not_consume_energy(client) -> None:
     me_before = client.get("/me", headers=hdr).json()
     energy_before = me_before["energy"]
 
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]
@@ -62,7 +62,7 @@ def test_preview_does_not_consume_energy(client) -> None:
 
 def test_preview_does_not_persist_battle_row(client) -> None:
     hdr, _ = _register(client)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]
@@ -96,7 +96,7 @@ def test_preview_locked_stage_flagged(client) -> None:
     """A HARD stage gated on its NORMAL prerequisite should still preview
     but with stage_locked=true so the UI can render the gate."""
     hdr, _ = _register(client)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     locked_hard = next(
         (s for s in stages if s.get("difficulty_tier") == "HARD"
          and s.get("requires_code")),
@@ -122,7 +122,7 @@ def test_preview_unowned_hero_400s(client) -> None:
     hdr_a, _ = _register(client)
     hdr_b, _ = _register(client)
     heroes_b = client.get("/heroes/mine", headers=hdr_b).json()
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr_a).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     r = client.post(
         "/battles/preview",

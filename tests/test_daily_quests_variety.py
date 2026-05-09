@@ -123,7 +123,7 @@ def test_live_hard_stage_win_advances_quest(client) -> None:
     # Seed a fresh CLEAR_HARD_STAGE quest for today.
     qid = _seed_quest(account_id, DailyQuestKind.CLEAR_HARD_STAGE, goal=1)
 
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     hard1 = next(s for s in stages if s["code"] == "H-onboarding_day")
 
     # Fight — outcome may WIN or LOSS depending on RNG. Only WIN advances the quest.

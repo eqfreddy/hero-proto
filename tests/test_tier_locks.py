@@ -87,3 +87,71 @@ def test_legendary_battle_rejects_underpowered_team(client, db_session):
         assert detail["current"] < 100_000
     else:
         assert "100" in str(detail) or "power" in str(detail).lower()
+
+
+def test_stages_api_includes_unlock_state(client, db_session):
+    """GET /stages returns unlocked/cleared/power_floor per row, scoped to caller."""
+    from app.models import Account, StageDifficulty
+    from app.security import issue_token
+
+    acc = Account(email="stage_state@example.com", password_hash="x")
+    db_session.add(acc)
+    db_session.flush()
+    db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.get("/stages", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    rows = r.json()
+    assert len(rows) > 0
+
+    for row in rows:
+        assert "unlocked" in row, f"missing unlocked on {row['code']}"
+        assert "cleared" in row, f"missing cleared on {row['code']}"
+        assert "power_floor" in row, f"missing power_floor on {row['code']}"
+
+    normal = next(r for r in rows if r["difficulty_tier"] == "NORMAL")
+    assert normal["unlocked"] is True
+    assert normal["cleared"] is False
+    assert normal["power_floor"] is None
+
+    hard = next(r for r in rows if r["difficulty_tier"] == "HARD")
+    assert hard["unlocked"] is False
+    assert hard["power_floor"] is None
+
+    nightmare = next(r for r in rows if r["difficulty_tier"] == "NIGHTMARE")
+    assert nightmare["power_floor"] == 50_000
+    legendary = next(r for r in rows if r["difficulty_tier"] == "LEGENDARY")
+    assert legendary["power_floor"] == 100_000
+
+
+def test_stages_api_unlocks_after_clear(client, db_session):
+    """After clearing a NORMAL stage, its HARD sibling becomes unlocked."""
+    from app.models import Account, Stage, StageDifficulty
+    from app.economy import mark_cleared
+    from app.security import issue_token
+    from sqlalchemy import select
+
+    acc = Account(email="unlock_test@example.com", password_hash="x")
+    db_session.add(acc)
+    db_session.flush()
+
+    normal = db_session.scalar(
+        select(Stage).where(Stage.difficulty_tier == StageDifficulty.NORMAL).limit(1)
+    )
+    hard = db_session.scalar(select(Stage).where(Stage.code == f"H-{normal.code}"))
+    assert hard is not None
+
+    mark_cleared(acc, normal.code)
+    db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.get("/stages", headers={"Authorization": f"Bearer {token}"})
+    rows = r.json()
+
+    normal_row = next(r for r in rows if r["code"] == normal.code)
+    hard_row = next(r for r in rows if r["code"] == hard.code)
+
+    assert normal_row["cleared"] is True
+    assert hard_row["unlocked"] is True
+    assert hard_row["cleared"] is False

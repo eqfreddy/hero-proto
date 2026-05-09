@@ -401,6 +401,9 @@ class StageOut(BaseModel):
     difficulty_tier: str = "NORMAL"
     requires_code: str = ""
     display_name: str = ""
+    unlocked: bool = True
+    cleared: bool = False
+    power_floor: int | None = None
 
 
 class TeamMember(BaseModel):

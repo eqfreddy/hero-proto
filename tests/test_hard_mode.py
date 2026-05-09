@@ -20,7 +20,8 @@ def _register(client, prefix: str = "hard") -> tuple[dict[str, str], int]:
 
 
 def test_stages_list_exposes_difficulty_tier(client) -> None:
-    r = client.get("/stages")
+    hdr, _ = _register(client, "tier_list")
+    r = client.get("/stages", headers=hdr)
     assert r.status_code == 200
     stages = r.json()
     tiers = {s.get("difficulty_tier") for s in stages}
@@ -29,7 +30,8 @@ def test_stages_list_exposes_difficulty_tier(client) -> None:
 
 
 def test_hard_stage_has_requires_code_pointing_at_normal(client) -> None:
-    r = client.get("/stages").json()
+    hdr, _ = _register(client, "req_code")
+    r = client.get("/stages", headers=hdr).json()
     hard_stages = [s for s in r if s["difficulty_tier"] == "HARD"]
     assert hard_stages, "seed should include at least one HARD stage"
     for hs in hard_stages:
@@ -41,7 +43,8 @@ def test_hard_stage_has_requires_code_pointing_at_normal(client) -> None:
 
 
 def test_hard_rewards_scale_up_from_normal(client) -> None:
-    r = client.get("/stages").json()
+    hdr, _ = _register(client, "rewards_scale")
+    r = client.get("/stages", headers=hdr).json()
     by_code = {s["code"]: s for s in r}
     # Pick any NORMAL/HARD pair that exists.
     for s in r:
@@ -69,7 +72,7 @@ def test_hard_battle_blocked_without_normal_clear(client) -> None:
         key=lambda h: h["power"], reverse=True,
     )
     team = [h["id"] for h in roster[:3]]
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     # Pick the H- version of stage 1 (whose NORMAL is cleared of the lowest bar).
     hard_stage1 = next(s for s in stages if s["difficulty_tier"] == "HARD" and s["requires_code"] == "onboarding_day")
 
@@ -99,7 +102,7 @@ def test_hard_battle_works_after_normal_clear(client) -> None:
         save_cleared(a, cleared)
         db.commit()
 
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     hard_stage1 = next(s for s in stages if s["difficulty_tier"] == "HARD" and s["requires_code"] == "onboarding_day")
 
     r = client.post("/battles", json={"stage_id": hard_stage1["id"], "team": team}, headers=hdr)

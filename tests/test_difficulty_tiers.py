@@ -59,7 +59,12 @@ def test_xp_grant_lookup_per_tier():
 
 def test_stages_api_returns_display_name(client):
     """GET /stages includes display_name per row."""
-    r = client.get("/stages")
+    import random
+    email = f"tiers_display+{random.randint(100000,999999)}@example.com"
+    reg = client.post("/auth/register", json={"email": email, "password": "hunter22"})
+    assert reg.status_code == 200, reg.text
+    token = reg.json()["access_token"]
+    r = client.get("/stages", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     rows = r.json()
     assert len(rows) > 0
@@ -71,7 +76,12 @@ def test_stages_api_returns_display_name(client):
 
 def test_seed_emits_four_tiers_per_stage(client):
     """After seed runs, every NORMAL stage has H-, N-, and L- siblings."""
-    r = client.get("/stages")
+    import random
+    email = f"tiers_seed+{random.randint(100000,999999)}@example.com"
+    reg = client.post("/auth/register", json={"email": email, "password": "hunter22"})
+    assert reg.status_code == 200, reg.text
+    token = reg.json()["access_token"]
+    r = client.get("/stages", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     rows = r.json()
 

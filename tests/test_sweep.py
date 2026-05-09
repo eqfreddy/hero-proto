@@ -113,7 +113,7 @@ def test_sweep_no_team_no_history_400(client) -> None:
 
 def test_sweep_uncleared_stage_409(client) -> None:
     hdr, _ = _register(client)
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     stage_id = stages[0]["id"]
     r = client.post(f"/battles/sweep/{stage_id}", json={"count": 1}, headers=hdr)
     assert r.status_code == 409

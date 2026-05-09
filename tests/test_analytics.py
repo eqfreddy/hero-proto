@@ -136,7 +136,7 @@ def test_summon_x10_fires_summon_x10_event(client) -> None:
 
 def test_battle_fires_stage_start_and_stage_clear(client) -> None:
     hdr, _aid, _ = _register(client, "ev_bat")
-    stages = client.get("/stages").json()
+    stages = client.get("/stages", headers=hdr).json()
     tutorial = next(s for s in stages if s["code"] == "tutorial_first_ticket")
     heroes = client.get("/heroes/mine", headers=hdr).json()
     team = [h["id"] for h in sorted(heroes, key=lambda h: h["power"], reverse=True)[:3]]
