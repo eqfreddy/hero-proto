@@ -153,6 +153,12 @@ def fight(
         "team_size": len(heroes),
     })
 
+    # Fail-pity discount: if we've lost this (stage, tier) 3 times in a row,
+    # the next attempt fights enemies with -10% HP. apply_battle_start mutates
+    # the account row to mark the discount consumed (one-shot).
+    from app.fail_pity import apply_battle_start as _pity_start
+    enemy_hp_mult = _pity_start(account, stage.code, stage.difficulty_tier)
+
     waves = json.loads(stage.waves_json or "[]")
     # team_a was built above (hoisted for power-floor check).
 
@@ -184,6 +190,10 @@ def fight(
                     f"stage references missing template {code!r}",
                 )
             enemy_unit = _unit_from_template(tmpl, lvl, "B", enemy_counter)
+            # Apply pity HP discount if active (1.0 when no discount).
+            if enemy_hp_mult != 1.0:
+                enemy_unit.max_hp = int(round(enemy_unit.max_hp * enemy_hp_mult))
+                enemy_unit.hp = int(round(enemy_unit.hp * enemy_hp_mult))
             team_b.append(enemy_unit)
             participants.append({
                 "uid": enemy_unit.uid, "side": "B", "name": enemy_unit.name,
@@ -211,6 +221,10 @@ def fight(
             u.turn_meter = 0.0
             u.special_cooldown_left = 0
             u.shielded = False
+
+    # Update fail-pity state with the final outcome.
+    from app.fail_pity import apply_battle_end as _pity_end
+    _pity_end(account, stage.code, stage.difficulty_tier, won=outcome == BattleOutcome.WIN)
 
     first_clear = mark_cleared(account, stage.code) if outcome == BattleOutcome.WIN else False
     rewards = award_rewards(
