@@ -3,14 +3,23 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const HEROES_DIR = "frontend/public/battle-3d/heroes";
-const files = readdirSync(HEROES_DIR).filter((f) => f.endsWith(".glb")).sort();
+const DIRS = [
+  "frontend/public/battle-3d/heroes",
+  "frontend/public/battle-3d/animations",
+];
 
 const GLB_MAGIC = 0x46546c67; // "glTF"
 const JSON_CHUNK = 0x4e4f534a; // "JSON"
 
-for (const file of files) {
-  const buf = readFileSync(join(HEROES_DIR, file));
+const entries = [];
+for (const dir of DIRS) {
+  for (const f of readdirSync(dir).filter((f) => f.endsWith(".glb")).sort()) {
+    entries.push({ dir, file: f });
+  }
+}
+
+for (const { dir, file } of entries) {
+  const buf = readFileSync(join(dir, file));
   const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const magic = view.getUint32(0, true);
   if (magic !== GLB_MAGIC) {

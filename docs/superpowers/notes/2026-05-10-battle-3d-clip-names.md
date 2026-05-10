@@ -1,6 +1,7 @@
 # KayKit + Quaternius hero clip names (harvested 2026-05-10)
 
-Source: `scripts/harvest-gltf-clips.mjs` parsing GLB JSON chunk.
+Source: `scripts/harvest-gltf-clips.mjs` parsing GLB JSON chunk. Scans both
+`frontend/public/battle-3d/heroes/` and `frontend/public/battle-3d/animations/`.
 
 ## barbarian
 clips (0):
@@ -34,11 +35,8 @@ clips (0):
 ## rogue_hooded
 clips (0):
 
-## KayKit shared rig animations
-
-KayKit ships character meshes (`Knight.glb`, `Barbarian.glb`, `Mage.glb`, `Ranger.glb`, `Rogue.glb`, `Rogue_Hooded.glb`) **without** embedded animations. All animations live in shared rig files under `maynewmodels/KayKit_Adventurers_2.0_FREE/.../Animations/gltf/Rig_Medium/`:
-
-### Rig_Medium_General.glb (15 clips)
+## kaykit_general
+clips (15):
   - Death_A
   - Death_A_Pose
   - Death_B
@@ -55,7 +53,8 @@ KayKit ships character meshes (`Knight.glb`, `Barbarian.glb`, `Mage.glb`, `Range
   - Throw
   - Use_Item
 
-### Rig_Medium_MovementBasic.glb (11 clips)
+## kaykit_movement
+clips (11):
   - Jump_Full_Long
   - Jump_Full_Short
   - Jump_Idle
@@ -68,19 +67,52 @@ KayKit ships character meshes (`Knight.glb`, `Barbarian.glb`, `Mage.glb`, `Range
   - Walking_B
   - Walking_C
 
-The 6 KayKit hero archetypes (knight/barbarian/mage/ranger/rogue/rogue_hooded) all share the same Rig_Medium skeleton, so animations from these two rig files can be applied to any of them via Three.js `AnimationClip` retargeting on a common bone hierarchy.
+## Runtime pattern for KayKit heroes
+
+KayKit heroes share a single skeleton. Their `.glb` files contain mesh + skeleton only — no AnimationClips. AnimationClips live in `kaykit_general.glb` and `kaykit_movement.glb`.
+
+At load time:
+1. Load each KayKit hero `.glb` via GLTFLoader → get `gltf.scene` (mesh + bones).
+2. Load `kaykit_general.glb` once and cache → take `gltf.animations` (the AnimationClip array).
+3. Construct `new THREE.AnimationMixer(heroScene)` and call `mixer.clipAction(clip)` with the shared clips. Three.js retargets the clip to the hero's skeleton automatically because they share track-name structure.
+
+The Druid (Quaternius `Cleric.gltf`) is the exception — its clips live in the model file itself.
+
+The clipMap resolver in Task 2 must therefore know: which archetype uses shared clips (KayKit set) vs. embedded clips (Druid). The simplest API: `loadClipsFor(archetype)` returns the AnimationClip[] array regardless of where they actually came from.
+
+## Archetype clip resolution
+
+Candidate ordering per canonical slot. Resolver picks the first clip name that exists on the loaded AnimationClip[] for the archetype's source.
+
+### KayKit archetypes (knight, barbarian, mage, ranger, rogue, rogue_hooded)
+Source: `kaykit_general.glb` (shared rig).
+
+| slot   | candidates (in order)        |
+|--------|------------------------------|
+| idle   | `Idle_A`, `Idle_B`           |
+| attack | `Throw`                      |
+| hit    | `Hit_A`, `Hit_B`             |
+| die    | `Death_A`, `Death_B`         |
+
+> v1.1 follow-up: KayKit ships no melee attack clip in the General rig. `Throw` is the closest action and is used as the v1 attack stand-in. Source a real melee swing clip (or author one) before v1.1.
+
+### Druid (Quaternius Cleric)
+Source: `druid.glb` (embedded clips).
+
+| slot   | candidates (in order)                  |
+|--------|----------------------------------------|
+| idle   | `Idle`, `Idle_Weapon`                  |
+| attack | `Staff_Attack`, `Spell1`, `Punch`      |
+| hit    | `RecieveHit`                           |
+| die    | `Death`                                |
+
+> Note: `RecieveHit` misspelling is preserved — it is the canonical name in the source asset.
 
 ## Concerns
 
-- **KayKit hero .glb files contain zero embedded animations.** Task 2 must load `Rig_Medium_General.glb` + `Rig_Medium_MovementBasic.glb` once at boot and retarget those clips onto each KayKit hero's skeleton. The 6 character GLBs in `frontend/public/battle-3d/heroes/` carry mesh + skeleton only.
-- **No dedicated attack clip in KayKit rigs.** Closest matches: `Throw` (ranged toss), `Interact`, `Use_Item`, `PickUp`. The `clipMap` resolver should pick `Throw` as the attack default for KayKit archetypes, with per-archetype overrides if a better fit exists. Druid has explicit `Staff_Attack` / `Punch` / `Spell1` so it can map cleanly.
-- **No `hit` / damage-react clip on Druid.** Druid has `RecieveHit` (sic) and `RecieveHit_Attacking` — note the misspelling, it's the canonical name in the source asset, not a typo we should fix.
-- **Naming asymmetry.** KayKit uses `_A`/`_B` variants (Idle_A, Idle_B, Death_A, Hit_A) while Druid uses singular names (Idle, Death). The `clipMap` must normalise across both conventions per archetype.
-- **Two rig animation GLBs add ~payload** (not yet copied to `frontend/public/battle-3d/`). Decide in Task 2 whether to:
-  1. Copy both `Rig_Medium_*.glb` to `frontend/public/battle-3d/animations/` and load once shared, or
-  2. Bake just the 4 canonical clips (idle/attack/hit/die) into a single `kaykit_clips.glb`.
-  Option 2 is leaner. Required clips per canonical slot:
-  - idle → `Idle_A`
-  - attack → `Throw` (or per-archetype: knight/barbarian → `Throw`; mage → `Throw`; rogue → `Throw`; ranger → `Throw`)
-  - hit → `Hit_A`
-  - die → `Death_A`
+- **KayKit hero meshes carry zero embedded animations.** Confirmed: all 6 KayKit `.glb` files (knight, barbarian, mage, ranger, rogue, rogue_hooded) report 0 clips. Animations are now bundled as two shared `.glb` rigs in `frontend/public/battle-3d/animations/` (`kaykit_general.glb`, `kaykit_movement.glb`, both Draco-compressed).
+- **Runtime must distinguish shared-clip archetypes vs. embedded-clip archetypes.** KayKit set → load shared rig once at boot, cache, reuse `AnimationClip[]` across all 6 hero meshes via `AnimationMixer` retargeting. Druid → use `gltf.animations` from its own file. The `loadClipsFor(archetype)` API hides this split from callers.
+- **No dedicated melee attack clip in KayKit General rig.** Slot resolution falls back to `Throw`. Flagged for v1.1.
+- **No `hit` / damage-react on Druid.** `RecieveHit` (sic) is canonical — preserve the misspelling in clipMap.
+- **Naming asymmetry across sources.** KayKit uses `_A`/`_B` variants; Druid uses singular names. The candidate-order lists above absorb this; clipMap consumes them as-is.
+- **Two rig animation GLBs add ~1.5 MB payload** (`kaykit_general.glb` ~825 KB, `kaykit_movement.glb` ~687 KB after Draco). Loaded once, shared across 6 archetypes — cheaper than baking per-archetype clip files.
