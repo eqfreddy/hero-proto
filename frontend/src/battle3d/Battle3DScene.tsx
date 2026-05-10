@@ -5,6 +5,7 @@ import { loadDiorama, themeForStage } from "./dioramaLoader";
 import { handleEvent, type UnitRig } from "./animationDriver";
 import { resolveClip } from "./clipMap";
 import { TEMPLATE_TO_3D_ARCHETYPE, DEFAULT_3D_ARCHETYPE } from "./archetypeMap";
+import { markFirstFrame, recordBattle3DMetric } from "./telemetry";
 import {
   SLOT_POSITIONS_TEAM_A, SLOT_POSITIONS_TEAM_B,
   CAMERA_POSITION, CAMERA_LOOKAT,
@@ -53,6 +54,8 @@ export function Battle3DScene(props: Battle3DSceneProps) {
   useEffect(() => {
     if (!webglOk || !containerRef.current) return;
     const container = containerRef.current;
+    const mountStart = performance.now();
+    let firstFrameDone = false;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -164,6 +167,10 @@ export function Battle3DScene(props: Battle3DSceneProps) {
       const dt = clock.getDelta();
       mixers.forEach(m => m.update(dt));
       renderer.render(threeScene, camera);
+      if (!firstFrameDone) {
+        markFirstFrame(mountStart);
+        firstFrameDone = true;
+      }
       raf = requestAnimationFrame(tick);
     }
     tick();
@@ -177,6 +184,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     window.addEventListener("resize", onResize);
 
     return () => {
+      recordBattle3DMetric("battle3d.mount_ms", performance.now() - mountStart);
       disposed = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
