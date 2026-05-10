@@ -64,7 +64,7 @@ class InteractiveSession:
     created_at: float = field(default_factory=time.time)
 
     # 3D viewer support — captured at session creation, echoed on every poll
-    stage_code: str = ""
+    stage_code: str | None = None
     last_event: dict | None = None
 
 
@@ -166,6 +166,7 @@ def create_stage_session(
     rng: Any,
     participants: list[dict],
     target_priority: str = "default",
+    stage_code: str | None = None,
 ) -> InteractiveSession:
     _cleanup()
     sid = str(uuid.uuid4())
@@ -195,6 +196,7 @@ def create_stage_session(
         hero_ids=hero_ids,
         target_priority=target_priority,
         participants=participants,
+        stage_code=stage_code,
     )
     _advance(session)  # prime to first PLAYER_TURN
     _sessions[sid] = session

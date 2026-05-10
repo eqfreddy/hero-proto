@@ -501,7 +501,7 @@ def _raid_state_out(session: _ISession, rewards: dict | None = None) -> Interact
         outcome=str(session.outcome) if session.outcome is not None else None,
         rewards=rewards,
         participants=[BattleParticipant(**p) for p in session.participants],
-        stage_code=session.stage_code or None,
+        stage_code=session.stage_code,
         last_event=session.last_event,
     )
 
