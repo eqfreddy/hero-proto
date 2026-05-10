@@ -2,7 +2,7 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-05-08 (CraftPix battle rigs + busts wired into prod; onboarding quests + arena tickets + drip rewards + weekly payout + countdown timers shipped).
+Last updated: 2026-05-10 (Battle 3D Viewer v1 shipped — Three.js scene replaces interactive-mode "BATTLE" watermark; Rare Collections v1 shipped 2026-05-10).
 
 ---
 
@@ -20,6 +20,23 @@ Last updated: 2026-05-08 (CraftPix battle rigs + busts wired into prod; onboardi
 - **Mobile:** Capacitor scaffold in `mobile/` — `package.json` + `capacitor.config.ts` targeting `app/static/spa`. `POST/DELETE /notifications/device-token` endpoints live. `app/push.py` FCM stub (no-op without `FCM_SERVER_KEY`). `frontend/src/api/push.ts` — call `initPush()` after login. iOS builds go through Codemagic / GitHub mac runners.
 - **Docs:** `README.md`, `docs/RUNBOOK.md`, `docs/PRD.md`, `docs/PHASE_2_HUMAN_TEST.md`, `docs/PLAN_B_INTEGRATION.md`, `docs/BATTLE_RIG_EVENT_MAPPING.md`, `docs/BATTLE_VISUALS_STACK.md` all current.
 - **Art:** 33 trading-card portraits + 33 auto-cropped busts in `/app/static/heroes/`. Cluster-of-fuckery stick-figure animation pipeline available outside repo. DragonBones Mecha 1004B sample lives in repo as Plan B feasibility demo.
+
+### Shipped 2026-05-10
+
+**Battle 3D Viewer v1** (interactive mode only — instant-replay still uses `battle-arena.html`):
+- Replaces empty "BATTLE" watermark in `BattlePlayRoute` with a Three.js scene rendering KayKit chibi heroes on programmatically-composited dioramas. Animation-driven from interactive combat events (DAMAGE/DEATH/SPECIAL).
+- **Backend** (`fa278fe`, `7b020e0`): `InteractiveStateOut` extended with `stage_code` + `last_event` (persistence-across-empty-polls). `last_event` captured at `_state_out` from `log_delta[-1]`; preserved between polls so the animation driver isn't starved. `stage_code` set at `create_stage_session(...)` constructor call. Raid sessions intentionally null (no per-stage code; falls back to default theme).
+- **Frontend** (`docs/superpowers/specs/2026-05-10-battle-3d-interactive-viewer-design.md` + `-pre-plan-addendum.md`): new `frontend/src/battle3d/` module — `Battle3DScene.tsx`, `Battle3DErrorBoundary.tsx`, `heroLoader.ts`, `dioramaLoader.ts`, `animationDriver.ts`, `clipMap.ts`, `archetypeMap.ts` (auto-generated from `app/rig_map.py` via `scripts/gen-archetype-map.py`), `constants.ts`, `telemetry.ts`. Lazy-loaded chunk (~624KB / 162KB gz) isolated from main bundle via `React.lazy + Suspense`. Error boundary falls back to watermark on Three.js crash.
+- **Assets** (~6 MB Draco-compressed, well under 20 MB spec budget): 7 chibi archetypes — 6 KayKit (knight/barbarian/mage/ranger/rogue/rogue_hooded) sharing rig clips from `kaykit_general.glb` + Quaternius Cleric as druid (embedded clips). 2 dioramas (server-closet, data-center) composited from SciFi MegaKit primitives via `frontend/scripts/compose-dioramas.mjs` using `@gltf-transform/core`.
+- **Architecture insight**: KayKit hero meshes ship with **zero embedded animations** — clips live in shared rig files. `heroLoader` returns `{ scene, animations, archetype }` where KayKit archetypes pull animations from the shared `kaykit_general.glb` (cached separately) while druid uses its own embedded clips. Three.js `AnimationMixer` retargets the shared clips onto each hero's skeleton automatically because they share track-name structure.
+- **Tests**: 32 vitest tests in `frontend/src/battle3d/__tests__/` + 3 new pytest tests in `tests/test_battle_3d_state.py`. 0 regressions across battle suite.
+- **Telemetry**: `recordBattle3DMetric("battle3d.first_frame_ms", ...)` and `battle3d.mount_ms` emitted via `console.info` (real analytics sink TBD — left as v1.1 follow-up with `// TODO` in `telemetry.ts`).
+- **Bug caught by smoke test**: hero/diorama URLs hard-coded to `/battle-3d/...` (root-absolute) but SPA mounted at `/app/static/spa/`. Fixed via `import.meta.env.BASE_URL` (`d651984`).
+
+**Rare Collections v1** (shipped earlier today):
+- 12 collections (3 of each rarity tier) + 8-track piece reward system live in production. `Collection` table model + Account columns. Drops surface in battle victory overlay + dedicated `/collections` route + loot popup + nav tab.
+- 8-track grants from 3 sources: weekly chest, Tower of Trials floor 50, raid top 10%.
+- Smoke-tested in production (`hero-proto.fly.dev`) 2026-05-10 morning.
 
 ### Shipped 2026-05-07 / 2026-05-08
 
@@ -151,6 +168,17 @@ Last updated: 2026-05-08 (CraftPix battle rigs + busts wired into prod; onboardi
 - SPA auth polish shipped (2026-04-28): Login page with Sign In / Register / Forgot-password tabs; auth guard in Shell; NavBar hides auth-required tabs for guests; Sign-out button; 401 interceptor. Rebuilt + deployed.
 - DragonBones demo confirmed working in user's environment ("this is what we need" — Plan B greenlit).
 
+### Follow-ups from 2026-05-10 Battle 3D Viewer v1
+
+- [ ] **3 missing diorama themes** — `cubicle-farm`, `exec-floor`, `break-room`. SciFi MegaKit lacks office furniture (desks, conference tables, kitchen appliances) so v1 ships only `server-closet` + `data-center`. All stages currently fan onto these 2 themes via `STAGE_3D_THEME` in `dioramaLoader.ts`. Either source proper office assets or compose in Asset Forge (already installed at `maynewmodels/Asset Forge 2.5.3 Deluxe (Windows)/`).
+- [ ] **Real KayKit melee attack clip** — KayKit Adventurers FREE pack has no melee animation; `clipMap.ts` resolves `attack` → `Throw` for all 6 KayKit archetypes. Either Blender-export a custom 1H_Slash clip onto the shared rig, or wait for a KayKit pack that ships melee.
+- [ ] **Engineer archetype model** — `archetypeMap.ts` remaps `engineer` rig → `ranger` archetype because no chibi-style engineer model exists in current asset folders. Adding one is a single-line `RIG_TO_ARCHETYPE` change in `scripts/gen-archetype-map.py` once the model ships.
+- [ ] **Real analytics sink for telemetry** — `frontend/src/battle3d/telemetry.ts` currently `console.info`s `battle3d.first_frame_ms` and `battle3d.mount_ms`. Wire to project analytics once chosen (PostHog? Custom backend endpoint?).
+- [ ] **MeshBasicMaterial flash-white path** — `Battle3DScene.tsx::flashWhite` only handles `MeshStandardMaterial.emissive`. Quaternius druid uses `MeshBasicMaterial` which has no `emissive`; hit-flash silently no-ops. Either tint `.color` directly for BasicMaterial or document the gap (currently inline `// v1.1` comment).
+- [ ] **Mid-battle wave-swap rig refresh** — `Battle3DScene` mount effect deps array is `[webglOk]` only. If multi-wave interactive battles ever ship, new units won't get rigs. Single-wave is the current contract; flag for revisit if the scope expands.
+- [ ] **SPECIAL event defender visual** — `animationDriver` only fires the attacker's attack clip on SPECIAL events; targets get no `hit` reaction or flash. Low impact in v1 (SPECIAL is rare) but worth a defender visual for parity with DAMAGE.
+- [ ] **Three.js bundle split** — `Battle3DScene-*.js` chunk is 624 KB / 162 KB gz. GLTFLoader + DRACOLoader can be code-split further; Vite chunk-size warning ignored intentionally for v1. Revisit if mobile TTI on Slow 3G is too slow (target ≤3s).
+
 ### Follow-ups from 2026-05-07 rig work
 
 - [x] **Move `TEMPLATE_TO_RIG` to backend `HeroTemplate.rig` column** ✅ 2026-05-08 (327c428). Migration `c7a91f3e4d2b` adds the column with stick-figure default + backfill from `rig_map.py`. `seed()` reconciles on every run. battles/arena/raids read `template.rig` directly.
@@ -180,9 +208,9 @@ Feedback from the first UI walkthrough — long-term vision, not next-sprint wor
 - **Hail-mary mechanic** — at ≤5% HP, heroes can trigger a one-shot desperation ability (flavor varies by role/faction). Gives late-fight drama.
 
 ### Art / presentation
-- Battle viewer needs animated actors. Reference: *Shogun / ShoHo* small-character style with short attack loops.
-- **Stick figures are fine as placeholders** — better than silhouettes. Can animate the same rig across heroes until real art lands.
-- Current SVG portraits stay on roster/replay cards; battle stage needs its own animated layer.
+- ~~Battle viewer needs animated actors.~~ ✅ **Shipped 2026-05-10** for interactive mode (Three.js + KayKit chibi rigs). Instant-replay still uses CraftPix PNG-frame pipeline in `battle-arena.html`.
+- ~~**Stick figures are fine as placeholders**~~ ✅ Replaced by KayKit chibi 3D models for interactive mode.
+- Current SVG portraits stay on roster/replay cards; battle stage now has its own 3D animated layer (interactive) or PNG-frame layer (replay).
 
 ### Roster / progression (meta loop)
 - Per-hero **equipment panels**: weapon + armor + accessories. Currently we have abstract `Gear` but no per-slot weapon/armor semantics.
