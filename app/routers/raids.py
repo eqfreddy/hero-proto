@@ -367,6 +367,27 @@ def attack_raid(
 
     from app.quest_service import record_event as _rq
     _rq(db, account, "RAID_CONTRIBUTED")
+
+    # Collection piece drop on raid contribution. v1 uses the regular 12
+    # collections; v2 will partition raid-specific collections via an
+    # `is_raid_pool` flag on Collection. 5% rate per attack.
+    import random as _rand
+    _raid_rng = _rand.Random()
+    if _raid_rng.random() < 0.05:
+        from app.collections import (
+            roll_piece_drop as _coll_roll,
+            award_piece as _coll_award,
+            try_complete as _coll_complete,
+            DUP_COIN_AWARD as _COLL_DUP,
+        )
+        _drop = _coll_roll(db, account, source="raid", rng=_raid_rng)
+        if _drop is not None:
+            _status = _coll_award(account, _drop.collection_code, _drop.piece_code)
+            if _status == "duplicate":
+                account.coins = (account.coins or 0) + _COLL_DUP
+            else:
+                _coll_complete(account, _drop.collection_code)
+
     db.commit()
 
     # Suppress unused-var lint.

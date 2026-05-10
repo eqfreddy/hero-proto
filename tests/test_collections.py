@@ -244,3 +244,52 @@ def test_open_eight_track_consumes_inventory(db_session):
     from fastapi import HTTPException
     with pytest.raises(HTTPException):
         open_eight_track(db_session, acc, rng=rng)
+
+
+def test_battle_win_can_drop_collection_piece(client, db_session):
+    """A battle WIN occasionally fires a collection_drop in rewards_extra.
+    7% rate × 60 trials ≈ 98% probability of seeing at least one drop."""
+    from sqlalchemy import select
+    from app.models import Account, HeroInstance, HeroTemplate, Rarity, Stage, StageDifficulty
+    from app.security import issue_token
+
+    acc = Account(email="coll_battle@example.com", password_hash="x", account_level=5)
+    db_session.add(acc); db_session.flush()
+
+    normal = db_session.scalar(
+        select(Stage).where(Stage.difficulty_tier == StageDifficulty.NORMAL).limit(1)
+    )
+    epic_tmpl = db_session.scalar(
+        select(HeroTemplate).where(HeroTemplate.rarity == Rarity.EPIC).limit(1)
+    ) or db_session.scalar(select(HeroTemplate).limit(1))
+
+    hero_ids: list[int] = []
+    for _ in range(3):
+        hi = HeroInstance(account_id=acc.id, template_id=epic_tmpl.id, level=50, xp=0, stars=5)
+        db_session.add(hi); db_session.flush()
+        hero_ids.append(hi.id)
+    db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    saw_drop = False
+    for _ in range(60):
+        r = client.post(
+            "/battles",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"stage_id": normal.id, "team": hero_ids},
+        )
+        if r.status_code != 201:
+            continue
+        body = r.json()
+        # rewards_extra is in body.rewards_json or body.rewards depending on schema
+        rewards = body.get("rewards") or body.get("rewards_json") or {}
+        if isinstance(rewards, str):
+            import json as _json
+            try:
+                rewards = _json.loads(rewards)
+            except Exception:
+                rewards = {}
+        if rewards.get("collection_drop"):
+            saw_drop = True
+            break
+    assert saw_drop, "no collection drop after 60 battles — wiring may be broken"

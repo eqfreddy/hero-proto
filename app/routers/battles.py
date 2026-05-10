@@ -391,6 +391,37 @@ def fight(
                     "stats": stats,
                 }
 
+    # Collection piece drop (site 1 — main battle).
+    if outcome == BattleOutcome.WIN:
+        from app.collections import (
+            roll_piece_drop as _coll_roll,
+            award_piece as _coll_award,
+            try_complete as _coll_complete,
+            is_boss_stage as _coll_is_boss,
+            DROP_CHANCE_REGULAR as _COLL_PR,
+            DROP_CHANCE_BOSS as _COLL_PB,
+            DUP_COIN_AWARD as _COLL_DUP,
+        )
+        _coll_p = _COLL_PB if _coll_is_boss(stage.code) else _COLL_PR
+        if rng.random() < _coll_p:
+            src = "boss" if _coll_is_boss(stage.code) else "stage"
+            _drop = _coll_roll(db, account, source=src, rng=rng)
+            if _drop is not None:
+                _status = _coll_award(account, _drop.collection_code, _drop.piece_code)
+                if _status == "duplicate":
+                    account.coins = (account.coins or 0) + _COLL_DUP
+                    rewards_extra["collection_dup_coins"] = _COLL_DUP
+                else:
+                    rewards_extra["collection_drop"] = {
+                        "collection_code": _drop.collection_code,
+                        "piece_code":      _drop.piece_code,
+                        "name":            _drop.name,
+                        "icon":            _drop.icon,
+                        "is_completion_piece": _drop.is_completion_piece,
+                    }
+                    if _coll_complete(account, _drop.collection_code):
+                        rewards_extra["collection_completed"] = _drop.collection_code
+
     trimmed_log = trim_combat_log(combined_log)
     battle = Battle(
         account_id=account.id,
@@ -753,6 +784,26 @@ def sweep(
                 db.add(g)
                 db.flush()
                 gear_ids.append(g.id)
+            # Collection piece drop (site 2 — sweep, silent award, no popup).
+            from app.collections import (
+                roll_piece_drop as _coll_roll,
+                award_piece as _coll_award,
+                try_complete as _coll_complete,
+                is_boss_stage as _coll_is_boss,
+                DROP_CHANCE_REGULAR as _COLL_PR,
+                DROP_CHANCE_BOSS as _COLL_PB,
+                DUP_COIN_AWARD as _COLL_DUP,
+            )
+            _coll_p = _COLL_PB if _coll_is_boss(stage.code) else _COLL_PR
+            if rng.random() < _coll_p:
+                src = "boss" if _coll_is_boss(stage.code) else "stage"
+                _drop = _coll_roll(db, account, source=src, rng=rng)
+                if _drop is not None:
+                    _status = _coll_award(account, _drop.collection_code, _drop.piece_code)
+                    if _status == "duplicate":
+                        account.coins = (account.coins or 0) + _COLL_DUP
+                    else:
+                        _coll_complete(account, _drop.collection_code)
         else:
             losses += 1
             rewards = award_rewards(account, stage, heroes, won=False, first_clear=False, rng=rng, liveops_multiplier=1.0)
@@ -906,6 +957,36 @@ def _finalize_stage(session: InteractiveSession, account: Account, db: Session) 
                 db.add(g)
                 db.flush()
                 rewards_extra["gear"] = {"id": g.id, "slot": str(slot), "rarity": str(rarity), "set": str(set_code), "stats": stats}
+
+        # Collection piece drop (site 3 — auto-resolve / interactive session).
+        from app.collections import (
+            roll_piece_drop as _coll_roll,
+            award_piece as _coll_award,
+            try_complete as _coll_complete,
+            is_boss_stage as _coll_is_boss,
+            DROP_CHANCE_REGULAR as _COLL_PR,
+            DROP_CHANCE_BOSS as _COLL_PB,
+            DUP_COIN_AWARD as _COLL_DUP,
+        )
+        _coll_p = _COLL_PB if _coll_is_boss(stage.code) else _COLL_PR
+        if session.rng.random() < _coll_p:
+            src = "boss" if _coll_is_boss(stage.code) else "stage"
+            _drop = _coll_roll(db, account, source=src, rng=session.rng)
+            if _drop is not None:
+                _status = _coll_award(account, _drop.collection_code, _drop.piece_code)
+                if _status == "duplicate":
+                    account.coins = (account.coins or 0) + _COLL_DUP
+                    rewards_extra["collection_dup_coins"] = _COLL_DUP
+                else:
+                    rewards_extra["collection_drop"] = {
+                        "collection_code": _drop.collection_code,
+                        "piece_code":      _drop.piece_code,
+                        "name":            _drop.name,
+                        "icon":            _drop.icon,
+                        "is_completion_piece": _drop.is_completion_piece,
+                    }
+                    if _coll_complete(account, _drop.collection_code):
+                        rewards_extra["collection_completed"] = _drop.collection_code
 
         material_drops = roll_battle_drops(session.rng, stage.order)
         for code, qty in material_drops:
