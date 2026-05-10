@@ -3,8 +3,8 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 
-const HERO_BASE = "/battle-3d/heroes";
-const ANIM_BASE = "/battle-3d/animations";
+const HERO_BASE = `${import.meta.env.BASE_URL}battle-3d/heroes`;
+const ANIM_BASE = `${import.meta.env.BASE_URL}battle-3d/animations`;
 
 const KAYKIT_ARCHETYPES = new Set([
   "knight",

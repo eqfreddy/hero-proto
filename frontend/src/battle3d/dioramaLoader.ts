@@ -3,7 +3,7 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 
-const DIORAMA_BASE = "/battle-3d/props";
+const DIORAMA_BASE = `${import.meta.env.BASE_URL}battle-3d/props`;
 
 export const DEFAULT_THEME = "server-closet";
 
