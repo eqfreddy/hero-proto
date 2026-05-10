@@ -405,3 +405,14 @@ def test_weekly_chest_grants_per_iso_week(db_session):
     assert acc.eight_tracks == 1
     grant_eight_track(acc, source="weekly_2026_w20")  # next week
     assert acc.eight_tracks == 2
+
+
+def test_me_includes_eight_tracks(client, db_session):
+    from app.models import Account
+    from app.security import issue_token
+    acc = Account(email="me_8t@example.com", password_hash="x", eight_tracks=3)
+    db_session.add(acc); db_session.commit()
+    token = issue_token(acc.id, acc.token_version)
+    r = client.get("/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert r.json()["eight_tracks"] == 3

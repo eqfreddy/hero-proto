@@ -106,6 +106,7 @@ def get_me(
         totp_enabled=bool(account.totp_enabled),
         monthly_card=_mc_status(account),
         rest_xp_banked_seconds=account.rest_xp_banked_seconds or 0,
+        eight_tracks=account.eight_tracks or 0,
     )
 
 

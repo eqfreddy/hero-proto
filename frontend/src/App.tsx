@@ -27,6 +27,7 @@ import { InventoryRoute } from './routes/Inventory'
 import { BattlePassRoute } from './routes/BattlePass'
 import { TowerRoute } from './routes/Tower'
 import { PrivacyRoute, TermsRoute } from './routes/Legal'
+import CollectionsRoute from './routes/Collections'
 import BattleSetupRoute from './routes/battle/BattleSetupRoute'
 import BattleReplayRoute from './routes/battle/BattleReplayRoute'
 import BattlePlayRoute from './routes/battle/BattlePlayRoute'
@@ -55,6 +56,7 @@ const router = createBrowserRouter([
       { path: 'daily', element: <DailyRoute /> },
       { path: 'battle-pass', element: <BattlePassRoute /> },
       { path: 'tower', element: <TowerRoute /> },
+      { path: 'collections', element: <CollectionsRoute /> },
       { path: 'story', element: <StoryRoute /> },
       { path: 'friends', element: <FriendsLayout />, children: [
         { index: true, element: <FriendsList /> },

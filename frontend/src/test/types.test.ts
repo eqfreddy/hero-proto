@@ -11,6 +11,7 @@ const me: Me = {
   qol_unlocks: {}, active_cosmetic_frame: '',
   faction: 'EXILE', alignment_chosen_at: null, email_verified: true, totp_enabled: false, is_admin: false,
   rest_xp_banked_seconds: 0,
+  eight_tracks: 0,
 }
 
 const tmpl: HeroTemplate = {

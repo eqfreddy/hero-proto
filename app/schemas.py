@@ -127,6 +127,8 @@ class MeOut(BaseModel):
     monthly_card: dict | None = None
     # Rest-XP bank: seconds of double-XP remaining (0 = no bonus active).
     rest_xp_banked_seconds: int = 0
+    # Rare-collections currency: consumable 8-track cassette packs.
+    eight_tracks: int = 0
 
 
 class HeroTemplateOut(BaseModel):

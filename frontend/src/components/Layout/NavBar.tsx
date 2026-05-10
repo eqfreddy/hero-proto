@@ -36,6 +36,9 @@ const NAV_GROUPS: { label: string; tabs: Tab[] }[] = [
     { path: '/app/guild',       label: 'Guild',       icon: '🛡️' },
     { path: '/app/friends',     label: 'Friends',     icon: '🤝' },
   ]},
+  { label: 'Collect', tabs: [
+    { path: '/app/collections', label: 'Collections', icon: '📜' },
+  ]},
   { label: 'You', tabs: [
     { path: '/app/achievements', label: 'Achievements', icon: '🏆' },
     { path: '/app/account',      label: 'Account',      icon: '⚙️' },

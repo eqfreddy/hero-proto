@@ -29,6 +29,7 @@ export interface Me {
   totp_enabled: boolean
   is_admin: boolean
   rest_xp_banked_seconds: number
+  eight_tracks: number
 }
 
 export interface HeroTemplate {
@@ -183,4 +184,35 @@ export interface PendingArenaReward {
   week_key: string
   rank: number
   gems: number
+}
+
+export interface CollectionPiece {
+  code: string
+  name: string
+  icon: string
+  owned: boolean
+  is_completion_piece: boolean
+}
+
+export interface Collection {
+  code: string
+  name: string
+  theme: string
+  rarity: 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY'
+  level_bracket: '1-20' | '21-40' | '41-60'
+  pieces: CollectionPiece[]
+  owned_count: number
+  total_count: number
+  completed_at: string | null
+  claimed_at: string | null
+  claimable: boolean
+  reward_summary: string
+}
+
+export interface CollectionDrop {
+  collection_code: string
+  piece_code: string
+  name: string
+  icon: string
+  is_completion_piece: boolean
 }
