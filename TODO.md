@@ -2,7 +2,7 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-05-10 (Battle 3D Viewer v1 shipped — Three.js scene replaces interactive-mode "BATTLE" watermark; Rare Collections v1 shipped 2026-05-10).
+Last updated: 2026-05-10 (Battle 3D Viewer v1 + v1.1 polish all shipped — Three.js scene, 5 dioramas, SPECIAL attacker flash, MeshBasicMaterial flash for druid; Rare Collections v1 shipped same day).
 
 ---
 
@@ -170,14 +170,15 @@ Last updated: 2026-05-10 (Battle 3D Viewer v1 shipped — Three.js scene replace
 
 ### Follow-ups from 2026-05-10 Battle 3D Viewer v1
 
-- [ ] **3 missing diorama themes** — `cubicle-farm`, `exec-floor`, `break-room`. SciFi MegaKit lacks office furniture (desks, conference tables, kitchen appliances) so v1 ships only `server-closet` + `data-center`. All stages currently fan onto these 2 themes via `STAGE_3D_THEME` in `dioramaLoader.ts`. Either source proper office assets or compose in Asset Forge (already installed at `maynewmodels/Asset Forge 2.5.3 Deluxe (Windows)/`).
-- [ ] **Real KayKit melee attack clip** — KayKit Adventurers FREE pack has no melee animation; `clipMap.ts` resolves `attack` → `Throw` for all 6 KayKit archetypes. Either Blender-export a custom 1H_Slash clip onto the shared rig, or wait for a KayKit pack that ships melee.
+- [x] ~~**3 missing diorama themes**~~ ✅ Shipped 2026-05-10 PM. `cubicle-farm` (beige tan tint + 3×3 crate grid), `exec-floor` (gold tint + monolith + boss desk), `break-room` (pastel cyan + vending machine + coffee bar) composited from SciFi MegaKit primitives with `baseColorFactor` tinting. All 5 themes total ~830 KB. `STAGE_3D_THEME` now thematically maps all 26 seeded stages.
+- [x] ~~**MeshBasicMaterial flash-white path**~~ ✅ Shipped 2026-05-10 PM. `flashWhite` now falls back to tinting `.color` when `.emissive` is absent (Quaternius druid). Hit reactions visible across all archetypes.
+- [x] ~~**SPECIAL event defender visual**~~ ✅ Shipped 2026-05-10 PM. SPECIAL events now flash the attacker so the announcement has a distinct visual marker from a basic attack. (Defenders already get hit/flash via the follow-up DAMAGE events the special's effects emit — no defender-side gap exists.)
+- [ ] **Real KayKit melee attack clip** — KayKit Adventurers FREE pack has no melee animation; `clipMap.ts` resolves `attack` → `Throw` for all 6 KayKit archetypes. Investigated 2026-05-10 (see `docs/superpowers/notes/2026-05-10-battle-3d-clip-names.md` for the 3 v1.2 paths: procedural Three.js arm-swing, custom Blender export, or re-ordering existing in-pack candidates). `Throw` remains the stand-in.
 - [ ] **Engineer archetype model** — `archetypeMap.ts` remaps `engineer` rig → `ranger` archetype because no chibi-style engineer model exists in current asset folders. Adding one is a single-line `RIG_TO_ARCHETYPE` change in `scripts/gen-archetype-map.py` once the model ships.
 - [ ] **Real analytics sink for telemetry** — `frontend/src/battle3d/telemetry.ts` currently `console.info`s `battle3d.first_frame_ms` and `battle3d.mount_ms`. Wire to project analytics once chosen (PostHog? Custom backend endpoint?).
-- [ ] **MeshBasicMaterial flash-white path** — `Battle3DScene.tsx::flashWhite` only handles `MeshStandardMaterial.emissive`. Quaternius druid uses `MeshBasicMaterial` which has no `emissive`; hit-flash silently no-ops. Either tint `.color` directly for BasicMaterial or document the gap (currently inline `// v1.1` comment).
 - [ ] **Mid-battle wave-swap rig refresh** — `Battle3DScene` mount effect deps array is `[webglOk]` only. If multi-wave interactive battles ever ship, new units won't get rigs. Single-wave is the current contract; flag for revisit if the scope expands.
-- [ ] **SPECIAL event defender visual** — `animationDriver` only fires the attacker's attack clip on SPECIAL events; targets get no `hit` reaction or flash. Low impact in v1 (SPECIAL is rare) but worth a defender visual for parity with DAMAGE.
 - [ ] **Three.js bundle split** — `Battle3DScene-*.js` chunk is 624 KB / 162 KB gz. GLTFLoader + DRACOLoader can be code-split further; Vite chunk-size warning ignored intentionally for v1. Revisit if mobile TTI on Slow 3G is too slow (target ≤3s).
+- [ ] **Replace Throw fallback with procedural arm-swing** — see clip-names doc. Until a real melee clip exists, a 400ms runtime AnimationClip that swings the right arm in a diagonal arc would read better than `Throw`. ~80 lines, requires KayKit bone names (likely `Hand_R`, `Forearm_R`, `UpperArm_R` — verify in gltf viewer).
 
 ### Follow-ups from 2026-05-07 rig work
 
