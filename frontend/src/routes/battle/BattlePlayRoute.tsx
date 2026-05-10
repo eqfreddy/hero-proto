@@ -1,8 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useInteractiveSession } from '../../hooks/useInteractiveSession'
 import { BattleHUD } from '../../components/BattleHUD'
+import { Battle3DErrorBoundary } from '../../battle3d/Battle3DErrorBoundary'
 import type { InteractiveStateOut } from '../../types/battle'
+
+const Battle3DScene = lazy(() =>
+  import('../../battle3d/Battle3DScene').then(m => ({ default: m.Battle3DScene }))
+)
 
 export default function BattlePlayRoute() {
   const { id: _id } = useParams<{ id: string }>()
@@ -36,9 +41,22 @@ export default function BattlePlayRoute() {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', background: 'var(--color-bg)' }}>
-      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'rgba(255,255,255,0.08)', fontSize: 48, fontWeight: 900, letterSpacing: 4 }}>BATTLE</div>
-      </div>
+      <Battle3DErrorBoundary>
+        <Suspense fallback={
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ color: 'rgba(255,255,255,0.08)', fontSize: 48, fontWeight: 900, letterSpacing: 4 }}>BATTLE</div>
+          </div>
+        }>
+          <Battle3DScene
+            teamA={state.team_a}
+            teamB={state.team_b}
+            stageCode={state.stage_code ?? null}
+            pendingActorUid={pending?.actor_uid ?? null}
+            lastEvent={state.last_event ?? null}
+            done={done}
+          />
+        </Suspense>
+      </Battle3DErrorBoundary>
 
       <BattleHUD
         teamA={state.team_a}
