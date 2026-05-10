@@ -868,6 +868,9 @@ from app.schemas import UnitSnapshot
 def _state_out(session: InteractiveSession, rewards: dict | None = None) -> InteractiveStateOut:
     """Convert session state into the wire response."""
     delta = session_log_delta(session)
+    if delta:
+        session.last_event = delta[-1]
+    # else: keep prior last_event so 3D animation driver isn't starved between polls
     pending = None
     if session.pending is not None:
         actor = next(
@@ -894,6 +897,8 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
         rewards=rewards,
         participants=[BattleParticipant(**p) for p in session.participants],
         battle_id=battle_id,
+        stage_code=session.stage_code,
+        last_event=session.last_event,
     )
 
 
@@ -1081,6 +1086,7 @@ def interactive_start(
         rng=rng,
         participants=participants,
         target_priority=body.target_priority,
+        stage_code=stage.code,
     )
     return _state_out(session)
 

@@ -479,6 +479,8 @@ def _unit_snap_r(u) -> dict:
 
 def _raid_state_out(session: _ISession, rewards: dict | None = None) -> InteractiveStateOut:
     delta = session_log_delta(session)
+    if delta:
+        session.last_event = delta[-1]
     pending = None
     if session.pending is not None:
         actor = next((u for u in session.team_a if u.uid == session.pending["actor"]), None)
@@ -499,6 +501,10 @@ def _raid_state_out(session: _ISession, rewards: dict | None = None) -> Interact
         outcome=str(session.outcome) if session.outcome is not None else None,
         rewards=rewards,
         participants=[BattleParticipant(**p) for p in session.participants],
+        # Raids have no per-session stage code (boss tiers, not stages).
+        # The 3D viewer falls back to DEFAULT_THEME (server-closet) for raids.
+        stage_code=session.stage_code,
+        last_event=session.last_event,
     )
 
 

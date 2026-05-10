@@ -37,6 +37,8 @@ export interface InteractiveStateOut {
   rewards?: Record<string, number>
   done?: boolean
   battle_id?: number
+  stage_code?: string | null
+  last_event?: Record<string, unknown> | null
 }
 
 export interface PostBattlePayload {

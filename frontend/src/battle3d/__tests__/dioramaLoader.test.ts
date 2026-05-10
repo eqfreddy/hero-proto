@@ -1,0 +1,67 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("three/examples/jsm/loaders/DRACOLoader.js", () => ({
+  DRACOLoader: class {
+    setDecoderPath() {}
+  },
+}));
+
+vi.mock("three/examples/jsm/loaders/GLTFLoader.js", () => {
+  return {
+    GLTFLoader: class {
+      setDRACOLoader() {}
+      load(url: string, onLoad: (gltf: any) => void) {
+        const scene = { clone: (_deep?: boolean) => ({ __cloned: true, src: url, id: Math.random() }) };
+        setTimeout(() => onLoad({ scene, animations: [] }), 0);
+      }
+    },
+  };
+});
+
+import {
+  themeForStage,
+  loadDiorama,
+  DEFAULT_THEME,
+  STAGE_3D_THEME,
+  _resetDioramaCache,
+} from "../dioramaLoader";
+
+describe("themeForStage", () => {
+  it("returns DEFAULT_THEME for unknown stage", () => {
+    expect(themeForStage("not_a_real_stage")).toBe(DEFAULT_THEME);
+  });
+
+  it("returns DEFAULT_THEME for null/undefined", () => {
+    expect(themeForStage(null)).toBe(DEFAULT_THEME);
+    expect(themeForStage(undefined)).toBe(DEFAULT_THEME);
+  });
+
+  it("returns DEFAULT_THEME for empty string", () => {
+    expect(themeForStage("")).toBe(DEFAULT_THEME);
+  });
+
+  it("returns mapped theme for known stage", () => {
+    expect(themeForStage("tutorial_first_ticket")).toBe("server-closet");
+    expect(themeForStage("ceos_one_on_one")).toBe("data-center");
+  });
+
+  it("only emits the 2 v1 themes", () => {
+    const allowed = new Set(["server-closet", "data-center"]);
+    for (const theme of Object.values(STAGE_3D_THEME)) {
+      expect(allowed.has(theme)).toBe(true);
+    }
+    expect(allowed.has(DEFAULT_THEME)).toBe(true);
+  });
+});
+
+describe("loadDiorama", () => {
+  beforeEach(() => _resetDioramaCache());
+
+  it("caches per theme (different scenes per call due to clone)", async () => {
+    const a = await loadDiorama("server-closet");
+    const b = await loadDiorama("server-closet");
+    expect(a.theme).toBe("server-closet");
+    expect(b.theme).toBe("server-closet");
+    expect(a.scene).not.toBe(b.scene);
+  });
+});
