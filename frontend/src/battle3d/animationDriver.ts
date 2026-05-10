@@ -49,7 +49,13 @@ export function handleEvent(event: CombatEvent, rigs: Map<string, UnitRig>): voi
   }
   if (event.type === "SPECIAL" && "actor_uid" in event) {
     const attacker = rigs.get(event.actor_uid as string);
-    if (attacker) playCanonical(attacker, "attack");
+    if (attacker) {
+      playCanonical(attacker, "attack");
+      // Flash the attacker so SPECIAL announcements have a visual marker
+      // distinct from a basic attack. Follow-up DAMAGE events from the
+      // special's effects will flash defenders via the DAMAGE branch.
+      attacker.flashWhite();
+    }
     return;
   }
   // Other event types: no-op.

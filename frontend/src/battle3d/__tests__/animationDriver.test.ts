@@ -40,10 +40,11 @@ describe("animationDriver.handleEvent", () => {
     expect(victim.fade).toHaveBeenCalledWith(0.4);
   });
 
-  it("SPECIAL: attacker plays attack clip", () => {
+  it("SPECIAL: attacker plays attack clip and flashes", () => {
     const attacker = makeRig("a1", "knight");
     handleEvent({ type: "SPECIAL", actor_uid: "a1" }, new Map([["a1", attacker]]));
     expect(attacker.play).toHaveBeenCalledWith("Throw");
+    expect(attacker.flashWhite).toHaveBeenCalled();
   });
 
   it("unknown event type is a no-op", () => {

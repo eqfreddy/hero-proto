@@ -130,15 +130,25 @@ export function Battle3DScene(props: Battle3DSceneProps) {
             flashWhite: () => {
               scene.traverse(o => {
                 const mesh = o as THREE.Mesh;
-                if (mesh.isMesh) {
-                  const mat = mesh.material as THREE.MeshStandardMaterial;
-                  // MeshStandardMaterial only — Quaternius (druid) uses MeshBasicMaterial
-                  // which has no emissive. Hit-flash silently skipped for those models.
-                  // v1.1: tint .color directly for BasicMaterial.
-                  if (!mat || !mat.emissive) return;
+                if (!mesh.isMesh) return;
+                const mat = mesh.material as
+                  | (THREE.Material & {
+                      emissive?: THREE.Color;
+                      color?: THREE.Color;
+                    })
+                  | undefined;
+                if (!mat) return;
+                // Prefer emissive (MeshStandardMaterial / MeshPhongMaterial).
+                // Fall back to tinting .color for MeshBasicMaterial (Quaternius
+                // druid), which has no emissive channel.
+                if (mat.emissive) {
                   const orig = mat.emissive.clone();
                   mat.emissive.setHex(0xffffff);
-                  setTimeout(() => mat.emissive.copy(orig), 200);
+                  setTimeout(() => mat.emissive!.copy(orig), 200);
+                } else if (mat.color) {
+                  const orig = mat.color.clone();
+                  mat.color.setHex(0xffffff);
+                  setTimeout(() => mat.color!.copy(orig), 200);
                 }
               });
             },
