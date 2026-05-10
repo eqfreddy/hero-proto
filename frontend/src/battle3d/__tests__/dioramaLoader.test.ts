@@ -42,11 +42,20 @@ describe("themeForStage", () => {
 
   it("returns mapped theme for known stage", () => {
     expect(themeForStage("tutorial_first_ticket")).toBe("server-closet");
-    expect(themeForStage("ceos_one_on_one")).toBe("data-center");
+    expect(themeForStage("ceos_one_on_one")).toBe("exec-floor");
+    expect(themeForStage("quarterly_audit")).toBe("cubicle-farm");
+    expect(themeForStage("resistance_aftermath")).toBe("break-room");
+    expect(themeForStage("the_singularity")).toBe("data-center");
   });
 
-  it("only emits the 2 v1 themes", () => {
-    const allowed = new Set(["server-closet", "data-center"]);
+  it("only emits one of the 5 v1.1 themes", () => {
+    const allowed = new Set([
+      "server-closet",
+      "data-center",
+      "cubicle-farm",
+      "exec-floor",
+      "break-room",
+    ]);
     for (const theme of Object.values(STAGE_3D_THEME)) {
       expect(allowed.has(theme)).toBe(true);
     }

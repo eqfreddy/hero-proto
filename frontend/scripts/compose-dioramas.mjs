@@ -283,6 +283,212 @@ async function buildDataCenter() {
 }
 
 /**
+ * Apply a constant tint to every material in the document. `tint` is an RGB
+ * array with values 0-1. The tint multiplies into each material's baseColorFactor,
+ * so on top of the existing texture/color it shifts the overall hue. Use subtle
+ * values (0.6-0.9 per channel) — full saturation will wash everything out.
+ */
+function tintAllMaterials(doc, tint) {
+  for (const mat of doc.getRoot().listMaterials()) {
+    const f = mat.getBaseColorFactor();
+    mat.setBaseColorFactor([f[0] * tint[0], f[1] * tint[1], f[2] * tint[2], f[3]]);
+  }
+}
+
+/**
+ * cubicle-farm: featureless beige floor with a 3×3 grid of crate-stacks
+ * playing the role of cubicle dividers. The corporate void.
+ *
+ *   - Floor: Platform_CenterPlate scaled 2× (→ 8×8m) at origin
+ *   - NO back wall (open-plan office vibe)
+ *   - 9× Prop_Crate3 in a 3×3 grid, paired vertically (18 crates total)
+ *   - 2× Prop_Light_Floor at edges (fluorescent runway feel)
+ *   - Subtle tan tint applied to every material
+ */
+async function buildCubicleFarm() {
+  const { Document } = await import("@gltf-transform/core");
+  const doc = new Document();
+  doc.createScene("cubicle-farm");
+
+  const floor = await loadPrim("Platforms/Platform_CenterPlate.gltf");
+  const crate = await loadPrim("Props/Prop_Crate3.gltf");
+  const light = await loadPrim("Props/Prop_Light_Floor.gltf");
+
+  instantiate(doc, await cloneDoc(floor), {
+    translate: [0, 0, -1.0],
+    scale: [2.0, 1, 2.0],
+    name: "floor",
+  });
+
+  // 3×3 grid of cubicle "dividers" — each cell has a 2-crate stack
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      const x = (col - 1) * 2.4;
+      const z = -2.6 + row * 1.2;
+      instantiate(doc, await cloneDoc(crate), {
+        translate: [x, 0.5, z],
+        name: `cube-${row}-${col}-bottom`,
+      });
+      instantiate(doc, await cloneDoc(crate), {
+        translate: [x, 1.5, z],
+        name: `cube-${row}-${col}-top`,
+      });
+    }
+  }
+
+  // 2 floor lights at the front edges (fluorescent runway)
+  for (let i = 0; i < 2; i++) {
+    instantiate(doc, await cloneDoc(light), {
+      translate: [(i - 0.5) * 5, 0, 0.2],
+      rotate: quatY(Math.PI),
+      name: `light-${i}`,
+    });
+  }
+
+  // Beige/tan tint — washes the cool sci-fi blue toward warm corporate beige
+  tintAllMaterials(doc, [1.0, 0.95, 0.78]);
+
+  await doc.transform(dedup(), prune());
+  return doc;
+}
+
+/**
+ * exec-floor: sleek, dark, gold-accented. A single monolithic back column,
+ * raised platform feel, dramatic flanking lights.
+ *
+ *   - Floor: Platform_CenterPlate scaled 2×1.5 (→ 8×6m)
+ *   - Back wall: 1× WallBand panel (sleek, single backdrop)
+ *   - Center monolith: stack of 3× Prop_Crate3 as a tall column at center-back
+ *   - 2× Prop_Light_Floor flanking the monolith (spotlight effect)
+ *   - 1× Prop_Computer at right (the boss desk)
+ *   - Gold tint applied
+ */
+async function buildExecFloor() {
+  const { Document } = await import("@gltf-transform/core");
+  const doc = new Document();
+  doc.createScene("exec-floor");
+
+  const wall = await loadPrim("Walls/WallBand_Straight.gltf");
+  const floor = await loadPrim("Platforms/Platform_CenterPlate.gltf");
+  const computer = await loadPrim("Props/Prop_Computer.gltf");
+  const crate = await loadPrim("Props/Prop_Crate3.gltf");
+  const light = await loadPrim("Props/Prop_Light_Floor.gltf");
+
+  instantiate(doc, await cloneDoc(floor), {
+    translate: [0, 0, -1.0],
+    scale: [2.0, 1, 1.5],
+    name: "floor",
+  });
+
+  // Single sleek back wall
+  instantiate(doc, await cloneDoc(wall), {
+    translate: [0, 0, -3.0],
+    rotate: quatY(Math.PI / 2),
+    scale: [1.5, 1, 1],
+    name: "back-wall",
+  });
+
+  // Monolith: 3 stacked crates at center-back — the executive throne
+  for (let i = 0; i < 3; i++) {
+    instantiate(doc, await cloneDoc(crate), {
+      translate: [0, 0.5 + i, -2.7],
+      name: `monolith-${i}`,
+    });
+  }
+
+  // Flanking spotlights
+  for (let i = 0; i < 2; i++) {
+    instantiate(doc, await cloneDoc(light), {
+      translate: [(i - 0.5) * 2.0, 0, -2.3],
+      rotate: quatY(0),
+      name: `spotlight-${i}`,
+    });
+  }
+
+  // Boss desk on the right
+  instantiate(doc, await cloneDoc(computer), {
+    translate: [3.0, 0, -2.0],
+    rotate: quatY(-Math.PI / 4),
+    name: "boss-desk",
+  });
+
+  // Gold tint — warm bronze cast
+  tintAllMaterials(doc, [1.0, 0.85, 0.45]);
+
+  await doc.transform(dedup(), prune());
+  return doc;
+}
+
+/**
+ * break-room: smaller, bright, casual. An L of walls + a "vending machine"
+ * (sideways computer) + a "coffee bar" (crate). Pastel cyan tint.
+ *
+ *   - Floor: Platform_CenterPlate scaled 1.25× (→ 5×5m)
+ *   - Back wall: 1× WallBand panel
+ *   - Side wall: 1× WallBand on the right
+ *   - 1× Prop_Computer rotated sideways as a "vending machine" against back wall
+ *   - 1× Prop_Crate3 single (no stack) as a coffee bar
+ *   - 1× Prop_Light_Floor centered
+ *   - Pastel cyan tint
+ */
+async function buildBreakRoom() {
+  const { Document } = await import("@gltf-transform/core");
+  const doc = new Document();
+  doc.createScene("break-room");
+
+  const wall = await loadPrim("Walls/WallBand_Straight.gltf");
+  const floor = await loadPrim("Platforms/Platform_CenterPlate.gltf");
+  const computer = await loadPrim("Props/Prop_Computer.gltf");
+  const crate = await loadPrim("Props/Prop_Crate3.gltf");
+  const light = await loadPrim("Props/Prop_Light_Floor.gltf");
+
+  instantiate(doc, await cloneDoc(floor), {
+    translate: [0, 0, -0.5],
+    scale: [1.25, 1, 1.25],
+    name: "floor",
+  });
+
+  // Back wall
+  instantiate(doc, await cloneDoc(wall), {
+    translate: [0, 0, -2.5],
+    rotate: quatY(Math.PI / 2),
+    name: "back-wall",
+  });
+
+  // Right side wall (creates an L-shaped room)
+  instantiate(doc, await cloneDoc(wall), {
+    translate: [2.5, 0, -0.5],
+    rotate: quatY(Math.PI),
+    name: "side-wall-R",
+  });
+
+  // Vending machine: rotated computer leaning against back wall
+  instantiate(doc, await cloneDoc(computer), {
+    translate: [-1.5, 0, -2.1],
+    name: "vending-machine",
+  });
+
+  // Coffee bar: single crate, no stack
+  instantiate(doc, await cloneDoc(crate), {
+    translate: [1.2, 0.5, -2.1],
+    name: "coffee-bar",
+  });
+
+  // Center floor light
+  instantiate(doc, await cloneDoc(light), {
+    translate: [0, 0, 0],
+    rotate: quatY(Math.PI),
+    name: "ceiling-light",
+  });
+
+  // Pastel cyan tint — bright, friendly, fluorescent
+  tintAllMaterials(doc, [0.85, 1.0, 1.0]);
+
+  await doc.transform(dedup(), prune());
+  return doc;
+}
+
+/**
  * Re-load a primitive document from disk so each `merge()` consumes a fresh
  * copy. (gltf-transform's `merge` mutates the source's parent links; reusing
  * the same source twice corrupts later instances.)
@@ -330,8 +536,17 @@ async function writeDoc(doc, name) {
   const dc = await buildDataCenter();
   await writeDoc(dc, "data-center");
 
+  const cubicle = await buildCubicleFarm();
+  await writeDoc(cubicle, "cubicle-farm");
+
+  const exec = await buildExecFloor();
+  await writeDoc(exec, "exec-floor");
+
+  const breakRoom = await buildBreakRoom();
+  await writeDoc(breakRoom, "break-room");
+
   console.log("\nNext: run gltf-pipeline draco compression on each output:");
   console.log(
-    "  npx gltf-pipeline -i public/battle-3d/props/server-closet.glb -o public/battle-3d/props/server-closet.glb --draco.compressionLevel=10",
+    "  for f in server-closet data-center cubicle-farm exec-floor break-room; do npx gltf-pipeline -i public/battle-3d/props/$f.glb -o public/battle-3d/props/$f.glb --draco.compressionLevel=10; done",
   );
 })();

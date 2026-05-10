@@ -7,29 +7,45 @@ const DIORAMA_BASE = `${import.meta.env.BASE_URL}battle-3d/props`;
 
 export const DEFAULT_THEME = "server-closet";
 
-// V1 ships 2 themes only — fan all stages onto these.
-// Anything not listed → DEFAULT_THEME ("server-closet").
-// Mid/late-game and corporate-themed stages map to "data-center"; the rest
-// (early levels, server rooms, helpdesk-flavored fights) fall through to
-// "server-closet" by default.
+// V1.1 ships 5 themes. Every seeded stage gets an explicit theme assigned
+// by flavor; anything not listed (future stages) falls through to
+// DEFAULT_THEME ("server-closet").
 export const STAGE_3D_THEME: Record<string, string> = {
-  // Early/tutorial — server-closet feel
+  // server-closet — sci-fi technical, racks, IT crisis
   tutorial_first_ticket: "server-closet",
   onboarding_day: "server-closet",
   first_outage: "server-closet",
   legacy_server_room: "server-closet",
   tape_room_breach: "server-closet",
+  pager_storm: "server-closet",
+  prod_is_down: "server-closet",
+  resistance_server_room: "server-closet",
 
-  // Corporate / late-game — data-center feel
-  ceos_one_on_one: "data-center",
-  reorg_announcement: "data-center",
-  hostile_acquisition: "data-center",
-  boardroom_coup: "data-center",
-  the_all_hands: "data-center",
-  corpgreed_boardroom: "data-center",
+  // cubicle-farm — open office beige existential vibe
+  quarterly_audit: "cubicle-farm",
+  the_unauthorized_tool: "cubicle-farm",
+  migration_weekend: "cubicle-farm",
+
+  // exec-floor — sleek dark gold, boardrooms + power moves
+  ceos_one_on_one: "exec-floor",
+  reorg_announcement: "exec-floor",
+  hostile_acquisition: "exec-floor",
+  boardroom_coup: "exec-floor",
+  the_all_hands: "exec-floor",
+  resistance_boardroom: "exec-floor",
+  resistance_coup: "exec-floor",
+  corpgreed_first_move: "exec-floor",
+  corpgreed_boardroom: "exec-floor",
+
+  // break-room — bright pastel casual
+  resistance_aftermath: "break-room",
+  corpgreed_saas: "break-room",
+
+  // data-center — industrial scale, late-game dramatic
+  the_singularity: "data-center",
+  resistance_breach: "data-center",
   corpgreed_acquisition: "data-center",
   corpgreed_apotheosis: "data-center",
-  the_singularity: "data-center",
 };
 
 export interface DioramaAssets {
