@@ -1,4 +1,4 @@
-import{r as di,j as Vo}from"./index-B3Z5HfVU.js";/**
+import{r as di,j as Vo}from"./index-DyWobGqn.js";/**
  * @license
  * Copyright 2010-2026 Three.js Authors
  * SPDX-License-Identifier: MIT

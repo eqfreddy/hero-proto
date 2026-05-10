@@ -2,7 +2,6 @@ import type { Hero } from '../types'
 import { apiFetch, apiPost } from './client'
 
 export const fetchHeroes = (): Promise<Hero[]> => apiFetch<Hero[]>('/heroes/mine')
-export const fetchHero = (id: number): Promise<Hero> => apiFetch<Hero>(`/heroes/${id}/preview`)
 export const ascendHero = (id: number): Promise<Hero> => apiPost(`/heroes/${id}/ascend`, {})
 export const ascendHeroWithShards = (id: number): Promise<Hero> =>
   apiPost(`/heroes/${id}/ascend-with-shards`, {})

@@ -32,7 +32,7 @@ export function HeroCard({ hero, onClick, selected }: Props) {
     >
       <div style={{ position: 'relative', aspectRatio: '1', background: 'var(--bg-inset)', overflow: 'hidden' }}>
         <img
-          src={hero.has_bust ? bustUrl : placeholderUrl}
+          src={bustUrl}
           alt={t.name}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={(e) => { (e.target as HTMLImageElement).src = placeholderUrl }}
