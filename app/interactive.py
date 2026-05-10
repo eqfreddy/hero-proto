@@ -63,6 +63,10 @@ class InteractiveSession:
 
     created_at: float = field(default_factory=time.time)
 
+    # 3D viewer support — captured at session creation, echoed on every poll
+    stage_code: str = ""
+    last_event: dict | None = None
+
 
 # Session store — keyed by session_id
 _sessions: dict[str, InteractiveSession] = {}

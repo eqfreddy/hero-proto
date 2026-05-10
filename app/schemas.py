@@ -534,3 +534,6 @@ class InteractiveStateOut(BaseModel):
     rewards: dict | None = None
     participants: list[BattleParticipant] = []
     battle_id: int | None = None
+    # 3D viewer support (interactive mode only)
+    stage_code: str | None = None
+    last_event: dict | None = None
