@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -222,6 +222,15 @@ class Account(Base):
     # Shape: {"<stage_code>:<TIER>": int}.  Resets to 0 when the cap (20) fires.
     # See app/drop_meter.py for the increment + rarity-roll logic.
     stage_drop_pity_json: Mapped[str] = mapped_column(String(2048), default="{}", server_default="{}")
+
+    # Per-account rare-collection progress.
+    # Shape: {"<collection_code>": {"pieces": [...], "completed_at": "...", "claimed_at": "..."}}
+    # See app/collections.py for the roll/award/complete/claim logic.
+    collection_progress_json: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
+
+    # 8-track loot box inventory count. Earned via weekly chest, tower floor 50,
+    # raid top-10%. v2 will add a buyable Stripe SKU.
+    eight_tracks: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     arena_rating: Mapped[int] = mapped_column(Integer, default=1000, index=True)
     arena_wins: Mapped[int] = mapped_column(Integer, default=0)
@@ -483,6 +492,19 @@ class Stage(Base):
     # For HARD+ tiers: the code of the NORMAL stage whose clear unlocks this one.
     # Empty string means "no prerequisite" (NORMAL tier stages).
     requires_code: Mapped[str] = mapped_column(String(64), default="")
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    theme: Mapped[str] = mapped_column(String(255), default="")
+    rarity: Mapped[str] = mapped_column(String(16))           # UNCOMMON | RARE | EPIC | LEGENDARY
+    level_bracket: Mapped[str] = mapped_column(String(8))     # "1-20" | "21-40" | "41-60"
+    pieces_json: Mapped[str] = mapped_column(Text, default="[]")
+    reward_json: Mapped[str] = mapped_column(Text, default="{}")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, index=True)
 
 
 class Battle(Base):
