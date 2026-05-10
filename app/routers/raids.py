@@ -428,11 +428,16 @@ def _distribute_rewards(db: Session, raid: Raid) -> dict:
         select(RaidAttempt.account_id, func.sum(RaidAttempt.damage_dealt))
         .where(RaidAttempt.raid_id == raid.id)
         .group_by(RaidAttempt.account_id)
+        .order_by(func.sum(RaidAttempt.damage_dealt).desc())
     )
-    contributions = {int(r[0]): int(r[1] or 0) for r in rows}
-    total = sum(contributions.values()) or 1
+    contributions = [(int(r[0]), int(r[1] or 0)) for r in rows]
+    total = sum(dmg for _, dmg in contributions) or 1
+    # Top-10% by damage get an 8-track (at least 1 contributor).
+    top_n = max(1, len(contributions) // 10)
+    top_account_ids = {acct_id for acct_id, _ in contributions[:top_n]}
+    from app.collections import grant_eight_track as _g8t
     paid: dict[int, dict[str, int]] = {}
-    for acct_id, dmg in contributions.items():
+    for acct_id, dmg in contributions:
         share = dmg / total
         a = db.get(Account, acct_id)
         if a is None:
@@ -443,8 +448,11 @@ def _distribute_rewards(db: Session, raid: Raid) -> dict:
         a.coins += coins
         a.gems += gems
         a.shards += shards
+        if acct_id in top_account_ids:
+            _g8t(a, source=f"raid_{raid.id}")
         paid[acct_id] = {"coins": coins, "gems": gems, "shards": shards}
-    return {"total_contributions": contributions, "payouts": paid, "tier": str(tier)}
+    contributions_dict = {acct_id: dmg for acct_id, dmg in contributions}
+    return {"total_contributions": contributions_dict, "payouts": paid, "tier": str(tier)}
 
 
 # ---------------------------------------------------------------------------

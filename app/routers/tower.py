@@ -182,8 +182,12 @@ def attempt_floor(
         if rewards.get("shards"):
             account.shards = int(account.shards or 0) + rewards["shards"]
         account.tower_floor = floor + 1
-        if (account.tower_floor or 1) > int(account.tower_best_floor or 0):
+        _old_best = int(account.tower_best_floor or 0)
+        if (account.tower_floor or 1) > _old_best:
             account.tower_best_floor = account.tower_floor
+        if _old_best < 50 and int(account.tower_best_floor or 0) >= 50:
+            from app.collections import grant_eight_track
+            grant_eight_track(account, source="tower_floor_50")
 
     db.commit()
     return {

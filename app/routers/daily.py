@@ -41,6 +41,12 @@ def claim(
     q.claimed_at = utcnow()
     from app.quest_service import record_event as _rq
     _rq(db, account, "DAILY_QUEST_COMPLETE")
+    # Weekly 8-track: one per ISO week per player.
+    from datetime import date as _date
+    _year, _week, _ = _date.today().isocalendar()
+    _weekly_key = f"weekly_{_year}_w{_week:02d}"
+    from app.collections import grant_eight_track as _g8t
+    _g8t(account, source=_weekly_key)
     db.commit()
     db.refresh(q)
     return q

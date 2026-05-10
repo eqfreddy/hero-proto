@@ -369,3 +369,39 @@ def test_collections_8track_consumes_and_returns_pieces(client, db_session):
     assert "pieces" in body
     db_session.refresh(acc)
     assert acc.eight_tracks == 0
+
+
+def test_grant_eight_track_idempotent(db_session):
+    """Same source key only grants once."""
+    from app.collections import grant_eight_track
+    acc = _make_account(db_session, level=10, eight_tracks=0)
+    assert grant_eight_track(acc, source="tower_floor_50") is True
+    assert acc.eight_tracks == 1
+    assert grant_eight_track(acc, source="tower_floor_50") is False
+    assert acc.eight_tracks == 1
+    # Different source grants separately
+    assert grant_eight_track(acc, source="weekly_2026_w19") is True
+    assert acc.eight_tracks == 2
+
+
+def test_tower_floor_50_grants_eight_track_once(db_session):
+    """Crossing floor 50 for the first time grants 1 8-track; second crossing doesn't."""
+    from app.collections import grant_eight_track
+    acc = _make_account(db_session, level=70, eight_tracks=0)
+    # Simulate tower floor crossing
+    grant_eight_track(acc, source="tower_floor_50")
+    assert acc.eight_tracks == 1
+    grant_eight_track(acc, source="tower_floor_50")  # idempotent
+    assert acc.eight_tracks == 1
+
+
+def test_weekly_chest_grants_per_iso_week(db_session):
+    """Different ISO weeks grant separately; same week is idempotent."""
+    from app.collections import grant_eight_track
+    acc = _make_account(db_session, level=10, eight_tracks=0)
+    grant_eight_track(acc, source="weekly_2026_w19")
+    assert acc.eight_tracks == 1
+    grant_eight_track(acc, source="weekly_2026_w19")  # same week, idempotent
+    assert acc.eight_tracks == 1
+    grant_eight_track(acc, source="weekly_2026_w20")  # next week
+    assert acc.eight_tracks == 2

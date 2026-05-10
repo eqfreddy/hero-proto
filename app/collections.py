@@ -280,3 +280,23 @@ def claim_reward(db: Session, account: Account, collection_code: str) -> dict:
     progress["claimed_at"] = utcnow().isoformat()
     _set_progress(account, collection_code, progress)
     return granted
+
+
+def grant_eight_track(account: Account, *, source: str) -> bool:
+    """Grant 1 8-track if `source` hasn't already paid out for this player.
+
+    Returns True if granted, False if already granted (idempotent).
+
+    Tracking: account.collection_progress_json["_eight_track_grants"] = [source, ...].
+    For repeating sources (weekly chest), the source string MUST include the period
+    — e.g., "weekly_2026_w19" — so different periods grant separately.
+    """
+    data = _load_all(account)
+    granted = data.setdefault("_eight_track_grants", [])
+    if source in granted:
+        return False
+    granted.append(source)
+    data["_eight_track_grants"] = granted
+    _save_all(account, data)
+    account.eight_tracks = (account.eight_tracks or 0) + 1
+    return True
