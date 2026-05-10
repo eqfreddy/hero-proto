@@ -443,8 +443,8 @@ Specs at `docs/superpowers/specs/2026-05-09-*.md` (5 design docs from 2026-05-09
 - [x] Frontend: `frontend/src/components/QuestWidget/{index,ClaimModal}.tsx` mounted in `Layout/Shell.tsx`
 - [x] Coach marks: `components/CoachMark.tsx` + `localStorage` tracking, wired in Stages, Summon, Inventory, Arena, Guild, Daily, Roster (7 screens)
 - [x] Tests: `tests/test_quests.py` — 6/6 passing
-- [ ] **Open**: Legendary stage tier doesn't exist in `StageDifficulty` enum yet (only NORMAL/HARD/NIGHTMARE). Task 19 (`LEGENDARY_STAGE_CLEARED`) is unreachable until §9 progression system ships.
-- [ ] **Open**: Faction choice unlock at lvl 50 vs onboarding task — verify task 4 fires on first visit to alignment screen for sub-50 accounts (spec §2 note).
+- [x] ~~Legendary stage tier doesn't exist in `StageDifficulty` enum~~ — resolved 2026-05-09 by progression subsystem #1 (LEGENDARY enum + 26 LEGENDARY stage rows seeded).
+- [x] ~~Faction choice unlock at lvl 50 vs onboarding task~~ — resolved 2026-05-09 by removing the `faction_chosen` task from week-one quest. FACTION_CHOSEN was structurally unreachable for new accounts (alignment is a lvl-50 chapter-4 milestone, not an onboarding step). Quest now 18 tasks.
 
 ---
 

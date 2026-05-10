@@ -23,7 +23,10 @@ _TASKS = [
     {"id": "first_battle",       "label": "Run your first battle",                   "event": "BATTLE_COMPLETE",        "target": 1},
     {"id": "first_summon",       "label": "Summon a hero",                            "event": "SUMMON_COMPLETE",        "target": 1},
     {"id": "first_gear",         "label": "Equip a gear item",                        "event": "GEAR_EQUIPPED",          "target": 1},
-    {"id": "faction_chosen",     "label": "Choose your faction",                      "event": "FACTION_CHOSEN",         "target": 1},
+    # NOTE: faction_chosen task removed 2026-05-09 — FACTION_CHOSEN fires from
+    # POST /story/alignment which is hard-gated at account_level >= 50, making
+    # the task structurally unreachable during the week-one onboarding window.
+    # Alignment fork is a chapter-4 milestone, not an onboarding step.
     {"id": "win_5",              "label": "Win 5 battles",                             "event": "BATTLE_WIN",             "target": 5},
     {"id": "story_chapter_1",    "label": "Clear a story chapter",                    "event": "STORY_CHAPTER_CLEARED",  "target": 1},
     {"id": "first_arena_win",    "label": "Win your first arena match",               "event": "ARENA_WIN",              "target": 1},
