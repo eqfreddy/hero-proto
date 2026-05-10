@@ -18,9 +18,6 @@ export interface InteractiveUnit {
   template_code?: string;
   faction?: string;
   side?: "A" | "B";
-  hp: number;
-  hp_max?: number;
-  max_hp?: number;
 }
 
 export interface Battle3DSceneProps {
@@ -135,6 +132,9 @@ export function Battle3DScene(props: Battle3DSceneProps) {
                 const mesh = o as THREE.Mesh;
                 if (mesh.isMesh) {
                   const mat = mesh.material as THREE.MeshStandardMaterial;
+                  // MeshStandardMaterial only — Quaternius (druid) uses MeshBasicMaterial
+                  // which has no emissive. Hit-flash silently skipped for those models.
+                  // v1.1: tint .color directly for BasicMaterial.
                   if (!mat || !mat.emissive) return;
                   const orig = mat.emissive.clone();
                   mat.emissive.setHex(0xffffff);

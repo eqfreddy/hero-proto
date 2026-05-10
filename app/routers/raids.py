@@ -501,6 +501,8 @@ def _raid_state_out(session: _ISession, rewards: dict | None = None) -> Interact
         outcome=str(session.outcome) if session.outcome is not None else None,
         rewards=rewards,
         participants=[BattleParticipant(**p) for p in session.participants],
+        # Raids have no per-session stage code (boss tiers, not stages).
+        # The 3D viewer falls back to DEFAULT_THEME (server-closet) for raids.
         stage_code=session.stage_code,
         last_event=session.last_event,
     )

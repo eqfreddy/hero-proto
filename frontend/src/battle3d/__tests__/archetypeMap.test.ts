@@ -25,4 +25,14 @@ describe("archetypeMap", () => {
   it("at least 10 templates are mapped", () => {
     expect(Object.keys(TEMPLATE_TO_3D_ARCHETYPE).length).toBeGreaterThanOrEqual(10);
   });
+
+  it("no orphan archetypes in clipMap (every clipMap key is reachable from a template or is the default)", () => {
+    const reachable = new Set([
+      ...Object.values(TEMPLATE_TO_3D_ARCHETYPE),
+      DEFAULT_3D_ARCHETYPE,
+    ]);
+    for (const key of Object.keys(ARCHETYPE_CLIP_MAP)) {
+      expect(reachable.has(key)).toBe(true);
+    }
+  });
 });
