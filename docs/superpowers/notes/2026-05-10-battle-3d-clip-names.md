@@ -95,6 +95,18 @@ Source: `kaykit_general.glb` (shared rig).
 | die    | `Death_A`, `Death_B`         |
 
 > v1.1 follow-up: KayKit ships no melee attack clip in the General rig. `Throw` is the closest action and is used as the v1 attack stand-in. Source a real melee swing clip (or author one) before v1.1.
+>
+> **Investigated 2026-05-10:** Searched all asset folders (incl. 11 new drive-downloads dropped that day) for a melee clip retargetable to the KayKit Medium rig. Findings:
+> - KayKit FREE pack ships only General + MovementBasic rigs. No KayKit premium melee pack appears to be available.
+> - `drive-download-20260510T161025Z-3-001` ships a `KnightCharacter.fbx` with its own rig + weapons — incompatible with KayKit chibi bones, would not retarget.
+> - Other free packs (Quaternius RPG, Ultimate Animated Character) use different skeletons.
+>
+> **Recommended paths for v1.2:**
+> 1. **Procedural melee in Three.js** — write a 400ms runtime `AnimationClip` that rotates the right-arm bones in a diagonal swing arc. Requires knowing KayKit's bone hierarchy (likely `Hand_R`, `Forearm_R`, `UpperArm_R`). Plays additively over the idle clip. ~80 lines.
+> 2. **Custom Blender export** — open `Rig_Medium_General.glb` in Blender, author a 30-frame melee swing, append to the rig's animation list, re-export. Most "correct" but requires Blender.
+> 3. **Try other in-pack candidates** — `Interact`, `Use_Item`, `PickUp` may look more melee-like than `Throw` on a swinging fighter. Easy to test: re-order the `attack` candidates in `clipMap.ts::KAYKIT_CLIPS`. No code change beyond that array.
+>
+> Until then, `Throw` remains the attack stand-in. The visual is unidiomatic but functional — combat still reads.
 
 ### Druid (Quaternius Cleric)
 Source: `druid.glb` (embedded clips).
