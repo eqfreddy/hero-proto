@@ -456,12 +456,15 @@ Specs at `docs/superpowers/specs/2026-05-09-*.md` (5 design docs from 2026-05-09
 - [ ] Different events spotlight different stacks; ties into roster's IT-flavor identity
 - [ ] Pairs with collections (below) — events drive seasonal grind, collections drive long-term grind
 
-### Rare collections (5–12 piece sets)
-- [ ] Loot-screen popup on stage clear / boss / wherever a piece drops
-- [ ] Collection size 5–12 pieces per set; most pieces drop randomly from any stage
-- [ ] **Completion pieces are RARE drops** from chapter-end / stage bosses
-- [ ] Raid bosses host their own special collections with fairly rare drops
-- [ ] Drives "I'm closer to finishing X" motivation — keeps players grinding even when nothing else is happening
+### Rare collections v1 ✅ shipped 2026-05-10
+- [x] 12 collections seeded (4 rarities × 3 brackets: 1-20, 21-40, 41-60)
+- [x] Drop pipeline wired in 3 battle sites (fight/sweep/auto-resolve) + 5% raid contribution rate
+- [x] `/collections` API: GET list, POST claim, POST 8-track/open
+- [x] 8-track grants from weekly chest (per ISO week), tower floor-50 first-cross, raid top-10% per raid
+- [x] Frontend: Collections.tsx grid route + nav entry; loot popup component shipped (battle-flow wiring deferred to v1.1); `/me.eight_tracks` surfaced
+- [x] Tests: 24/24 passing in `tests/test_collections.py`
+- [ ] **v1.1 polish**: wire CollectionLootPopup into battle response flow; coach-mark trigger on first piece drop
+- [ ] **v2 follow-ups**: Legendary set-bonus passive design (replace placeholder reward), Myth tier RNG-gated unlock on Legendary completion, buyable 8-tracks via Stripe SKU, random collection-piece rotation in shop catalog. Spec deferrals listed in `docs/superpowers/specs/2026-05-10-rare-collections-v1-design.md` §11.
 
 ### Battle viewer #3 — full Three.js overhaul (backburner)
 - [ ] Replace `battle-arena.html` with Three.js scene using KayKit GLTFs from `maynewmodels/`
