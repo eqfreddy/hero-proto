@@ -1366,6 +1366,274 @@ def seed_offer_bundles(db) -> int:
     return added
 
 
+def _piece_set(items: list[tuple[str, str, str]], *, completion_idx: int) -> list[dict]:
+    """Build a list of piece dicts. items = [(code, name, icon), ...]."""
+    out = []
+    for i, (code, name, icon) in enumerate(items):
+        out.append({
+            "code": code, "name": name, "icon": icon,
+            "flavor": "",
+            "is_completion_piece": (i == completion_idx),
+        })
+    return out
+
+
+def seed_collections(db: Session) -> int:
+    """Upsert the 12 v1 collections. Idempotent."""
+    from app.models import Collection
+
+    DEFS = [
+        # ── 1-20 bracket ──────────────────────────────────────────────────
+        {
+            "code": "cubicle_detritus",
+            "name": "Cubicle Detritus",
+            "theme": "The pile under the keyboard.",
+            "rarity": "UNCOMMON", "level_bracket": "1-20", "sort_order": 1,
+            "pieces": _piece_set([
+                ("paperclip_red",   "Red Paperclip",   "📎"),
+                ("paperclip_silver","Silver Paperclip","📎"),
+                ("postit_yellow",   "Yellow Post-it",  "📒"),
+                ("postit_pink",     "Pink Post-it",    "📒"),
+                ("rubber_band",     "Rubber Band",     "⭕"),
+                ("staple_box",      "Stapler Refill",  "📎"),
+                ("pen_chewed",      "Chewed Pen",      "🖊️"),
+                ("desk_dust_bunny", "Desk Dust Bunny", "💨"),
+            ], completion_idx=7),
+            "reward": {"kind": "frame", "frame_code": "cubicle_archaeologist"},
+        },
+        {
+            "code": "onboarding_kit",
+            "name": "Onboarding Kit",
+            "theme": "Day-one swag that never quite fits.",
+            "rarity": "RARE", "level_bracket": "1-20", "sort_order": 2,
+            "pieces": _piece_set([
+                ("badge_laminated", "Laminated Badge",  "🪪"),
+                ("lanyard_logo",    "Logo Lanyard",     "🎗️"),
+                ("welcome_mug",     "Welcome Mug",      "☕"),
+                ("stress_ball",     "Stress Ball",      "🎾"),
+                ("cable_bagged",    "Bagged USB Cable", "🔌"),
+                ("notebook_blank",  "Blank Notebook",   "📔"),
+                ("benefits_pdf",    "Benefits PDF (printed)", "📄"),
+                ("welcome_keys",    "Welcome Keychain", "🔑"),
+            ], completion_idx=7),
+            "reward": {"kind": "currency", "coins": 500, "gems": 50, "shards": 10},
+        },
+        {
+            "code": "helpdesk_starter",
+            "name": "Help Desk Starter Pack",
+            "theme": "Survival kit for the first three weeks.",
+            "rarity": "EPIC", "level_bracket": "1-20", "sort_order": 3,
+            "pieces": _piece_set([
+                ("spare_kb",       "Spare Keyboard",      "⌨️"),
+                ("password_sticky","Password Sticky-note","🔓"),
+                ("energy_drink",   "Energy Drink Can",    "🥤"),
+                ("ticket_dump",    "Ticket Queue Dump",   "🎫"),
+                ("hold_music",     "On-Hold Music CD",    "💿"),
+                ("escalation_doc", "Escalation Path PDF", "📋"),
+                ("mouse_dirty",    "Crumby Mouse",        "🖱️"),
+                ("aspirin_bottle", "Aspirin Bottle",      "💊"),
+                ("kvm_switch",     "Old KVM Switch",      "🔀"),
+                ("pager_dead",     "Dead Pager",          "📟"),
+            ], completion_idx=9),
+            "reward": {"kind": "hero_shards", "amount": 30, "rarity": "EPIC"},
+        },
+        {
+            "code": "y2k_relics",
+            "name": "Y2K Survival Relics",
+            "theme": "What we hoarded under our desks in 1999.",
+            "rarity": "LEGENDARY", "level_bracket": "1-20", "sort_order": 4,
+            "pieces": _piece_set([
+                ("y2k_bunker_log",  "Bunker Watch Log",     "📓"),
+                ("canned_goods",    "Canned Soup Stockpile","🥫"),
+                ("battery_pack",    "Battery Pack",         "🔋"),
+                ("paper_compliance","Paper Compliance Cert","📜"),
+                ("clock_resync",    "Manual Clock Resync",  "⏰"),
+                ("backup_tape_dat", "DAT Backup Tape",      "📼"),
+                ("flannel_emergency","Emergency Flannel",   "👕"),
+                ("noaa_radio",      "NOAA Weather Radio",   "📻"),
+                ("disc_install_bsd","BSD Install CD",       "💿"),
+                ("pager_text",      "Pager 'all clear' Text","📟"),
+                ("y2k_tshirt",      "Limited Y2K T-shirt",  "👕"),
+                ("midnight_audit",  "Midnight Audit Receipt","🧾"),
+            ], completion_idx=11),
+            "reward": {"kind": "currency", "gems": 200, "frame_code": "legen_waitforit_dary_hoarder"},
+        },
+        # ── 21-40 bracket ─────────────────────────────────────────────────
+        {
+            "code": "floppy_boneyard",
+            "name": "Floppy Drive Boneyard",
+            "theme": "Discs that nobody can read anymore.",
+            "rarity": "UNCOMMON", "level_bracket": "21-40", "sort_order": 5,
+            "pieces": _piece_set([
+                ("floppy_525_blue","5.25\" Floppy (Blue)","💾"),
+                ("floppy_525_red","5.25\" Floppy (Red)", "💾"),
+                ("floppy_35_black","3.5\" Floppy (Black)","💾"),
+                ("floppy_35_color","3.5\" Floppy (Rainbow)","💾"),
+                ("zip_disk_100",  "Zip Disk 100MB",      "💽"),
+                ("jaz_disk_1gb",  "Jaz Disk 1GB",        "💽"),
+                ("ls120_super",   "LS-120 SuperDisk",    "💽"),
+                ("floppy_label_handwritten","Handwritten Label Floppy","📝"),
+            ], completion_idx=7),
+            "reward": {"kind": "frame", "frame_code": "floppy_whisperer"},
+        },
+        {
+            "code": "paperclip_anthology",
+            "name": "Themed Paperclip Anthology",
+            "theme": "Curated by someone who clearly had time.",
+            "rarity": "RARE", "level_bracket": "21-40", "sort_order": 6,
+            "pieces": _piece_set([
+                ("clip_butterfly", "Butterfly Clip",   "🦋"),
+                ("clip_owl",       "Owl Clip",         "🦉"),
+                ("clip_jumbo_gold","Jumbo Gold Clip",  "📎"),
+                ("clip_neon_green","Neon Green Clip",  "📎"),
+                ("clip_glitter",   "Glitter Clip",     "✨"),
+                ("clip_skull",     "Skull Clip",       "💀"),
+                ("clip_holiday",   "Limited Holiday Clip","🎄"),
+                ("clip_handmade",  "Handmade Beaded Clip","💎"),
+            ], completion_idx=7),
+            "reward": {"kind": "currency", "coins": 800, "gems": 80, "shards": 20},
+        },
+        {
+            "code": "server_closet_archaeology",
+            "name": "Server Closet Archaeology",
+            "theme": "Whatever's been back there since the office moved.",
+            "rarity": "EPIC", "level_bracket": "21-40", "sort_order": 7,
+            "pieces": _piece_set([
+                ("cat5_bent",      "Bent CAT5 Cable",     "🔌"),
+                ("ups_dead",       "Dead UPS Battery",    "🔋"),
+                ("kvm_old",        "Yellowing KVM",       "🔀"),
+                ("dust_bunny_giant","Giant Dust Bunny",   "💨"),
+                ("rack_screw",     "Stripped Rack Screw", "🔩"),
+                ("ethernet_orange","Orange Crossover",    "🔌"),
+                ("label_maker_tape","Old Label Tape Roll","🏷️"),
+                ("zip_tie_jungle", "Zip-tie Jungle Cluster","🌿"),
+                ("cd_unmarked",    "Unmarked CD-R",       "💿"),
+                ("doc_post_it_tower","Tower of Post-its", "📒"),
+            ], completion_idx=9),
+            "reward": {"kind": "hero_shards", "amount": 30, "rarity": "EPIC"},
+        },
+        {
+            "code": "legendary_rolodex",
+            "name": "The Legendary Rolodex",
+            "theme": "Index cards from sysadmins past.",
+            "rarity": "LEGENDARY", "level_bracket": "21-40", "sort_order": 8,
+            "pieces": _piece_set([
+                ("card_dba_pete",   "DBA Pete's Card",      "🗂️"),
+                ("card_unix_dave",  "Unix Dave's Card",     "🗂️"),
+                ("card_security_lin","Security Lin's Card", "🗂️"),
+                ("card_helpdesk_kim","Helpdesk Kim's Card", "🗂️"),
+                ("card_vendor_acme","Vendor: ACME Card",    "🗂️"),
+                ("card_dev_anita",  "Dev Anita's Card",     "🗂️"),
+                ("card_oncall_rota","On-call Rotation Card","🗂️"),
+                ("card_consultant", "$300/hr Consultant",   "🗂️"),
+                ("card_recruiter",  "External Recruiter",   "🗂️"),
+                ("card_unknown",    "Card with No Name",    "🗂️"),
+                ("card_legend",     "The 'Just Call Mike'", "🗂️"),
+                ("card_origin",     "Founder Card (Original)","🗂️"),
+            ], completion_idx=11),
+            "reward": {"kind": "currency", "gems": 200, "frame_code": "rolodex_keeper"},
+        },
+        # ── 41-60 bracket ─────────────────────────────────────────────────
+        {
+            "code": "cassette_oddities",
+            "name": "Cassette & 8-track Oddities",
+            "theme": "The format wars never really ended.",
+            "rarity": "UNCOMMON", "level_bracket": "41-60", "sort_order": 9,
+            "pieces": _piece_set([
+                ("eight_track_clean","Clean 8-track",     "📼"),
+                ("eight_track_warped","Warped 8-track",   "📼"),
+                ("cassette_metal",  "Type IV Cassette",   "📼"),
+                ("cassette_dat",    "DAT Cassette",       "📼"),
+                ("vhs_training",    "VHS Training Tape",  "📼"),
+                ("betamax_mystery", "Betamax (Unmarked)", "📼"),
+                ("microcassette",   "Microcassette",      "📼"),
+                ("reel_to_reel",    "Reel-to-reel Spool", "📼"),
+            ], completion_idx=7),
+            "reward": {"kind": "frame", "frame_code": "tape_curator"},
+        },
+        {
+            "code": "patch_tuesday_memorial",
+            "name": "Patch Tuesday Memorial KBs",
+            "theme": "Articles from the long Tuesdays.",
+            "rarity": "RARE", "level_bracket": "41-60", "sort_order": 10,
+            "pieces": _piece_set([
+                ("kb_3024815", "KB3024815 (Reboots)",   "📄"),
+                ("kb_4023057", "KB4023057 (Updates)",   "📄"),
+                ("kb_legacy",  "KB Legacy 'do not run'","📄"),
+                ("kb_hotfix",  "Out-of-band Hotfix",    "📄"),
+                ("kb_recall",  "Recalled KB",           "📄"),
+                ("kb_security","Critical Security KB",  "📄"),
+                ("kb_winter",  "Winter Patch Notes",    "📄"),
+                ("kb_orig",    "First Patch Tuesday Memo","📄"),
+            ], completion_idx=7),
+            "reward": {"kind": "currency", "coins": 1200, "gems": 100, "shards": 30},
+        },
+        {
+            "code": "forbidden_codebase",
+            "name": "The Forbidden Codebase",
+            "theme": "Don't touch any of this.",
+            "rarity": "EPIC", "level_bracket": "41-60", "sort_order": 11,
+            "pieces": _piece_set([
+                ("cobol_listing",   "COBOL Listing (Yellow)","📜"),
+                ("fortran_card",    "Fortran Punch Card",    "🃏"),
+                ("perl_oneliner",   "Perl Oneliner (Sacred)","🐪"),
+                ("vb6_form",        "VB6 .frm File",         "🪟"),
+                ("delphi_pas",      "Delphi .pas Module",    "📜"),
+                ("regex_unholy",    "300-char Regex Print",  "📃"),
+                ("makefile_cursed", "Cursed Makefile",       "📜"),
+                ("classic_asp",     "Classic ASP File",      "📜"),
+                ("xslt_template",   "XSLT Transform",        "📜"),
+                ("source_locked",   "Locked .tgz Archive",   "📦"),
+            ], completion_idx=9),
+            "reward": {"kind": "hero_shards", "amount": 30, "rarity": "EPIC"},
+        },
+        {
+            "code": "founders_garage",
+            "name": "Founder's Garage",
+            "theme": "Original prototype hardware.",
+            "rarity": "LEGENDARY", "level_bracket": "41-60", "sort_order": 12,
+            "pieces": _piece_set([
+                ("pcb_original",    "Original PCB",         "🔧"),
+                ("breadboard_jumper","Jumper-wire Tangle",  "🧵"),
+                ("schematic_napkin","Napkin Schematic",     "📐"),
+                ("scope_polaroid",  "Oscilloscope Polaroid","📸"),
+                ("solder_iron_old", "Old Soldering Iron",   "🔥"),
+                ("ide_floppy_dev",  "Dev IDE on Floppy",    "💾"),
+                ("voltmeter_taped", "Taped Voltmeter",      "🧰"),
+                ("chip_unmarked",   "Unmarked DIP Chip",    "🔲"),
+                ("fan_homemade",    "Homemade CPU Fan",     "🌀"),
+                ("logo_first_sketch","First Logo Sketch",   "✏️"),
+                ("press_release_v1","V1 Press Release",     "📰"),
+                ("garage_key",      "Garage Front-door Key","🗝️"),
+            ], completion_idx=11),
+            "reward": {"kind": "currency", "gems": 200, "frame_code": "founders_friend"},
+        },
+    ]
+
+    added = 0
+    for d in DEFS:
+        existing = db.get(Collection, d["code"])
+        if existing is None:
+            db.add(Collection(
+                code=d["code"], name=d["name"], theme=d["theme"],
+                rarity=d["rarity"], level_bracket=d["level_bracket"],
+                pieces_json=json.dumps(d["pieces"]),
+                reward_json=json.dumps(d["reward"]),
+                sort_order=d["sort_order"],
+            ))
+            added += 1
+        else:
+            existing.name = d["name"]
+            existing.theme = d["theme"]
+            existing.rarity = d["rarity"]
+            existing.level_bracket = d["level_bracket"]
+            existing.pieces_json = json.dumps(d["pieces"])
+            existing.reward_json = json.dumps(d["reward"])
+            existing.sort_order = d["sort_order"]
+    db.commit()
+    return added
+
+
 def seed() -> None:
     _ensure_schema()
     with SessionLocal() as db:
@@ -1568,8 +1836,9 @@ def seed() -> None:
 
         added_b = seed_offer_bundles(db)
         added_ga = seed_guild_achievements(db)
+        added_c = seed_collections(db)
         db.commit()
-        print(f"seeded heroes+={added_h} stages+={added_s} liveops+={added_l} products+={added_p} offer_bundles+={added_b} guild_achievements+={added_ga}")
+        print(f"seeded heroes+={added_h} stages+={added_s} liveops+={added_l} products+={added_p} offer_bundles+={added_b} guild_achievements+={added_ga} collections+={added_c}")
 
 
 if __name__ == "__main__":

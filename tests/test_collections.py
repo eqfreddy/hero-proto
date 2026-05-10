@@ -32,3 +32,31 @@ def test_collection_model_exists(db_session):
     db_session.refresh(c)
     assert c.code == "test_floppy"
     assert c.rarity == "UNCOMMON"
+
+
+import pytest
+import json
+
+
+@pytest.fixture(autouse=True)
+def _seed_collections_fixture(db_session):
+    """Seed collections before each collection test."""
+    from app.seed import seed_collections
+    seed_collections(db_session)
+
+
+def test_seed_produces_12_collections(db_session):
+    """Seed loop creates the 12 v1 collections, 4 rarities × 3 brackets."""
+    from sqlalchemy import select
+    rows = db_session.scalars(select(Collection)).all()
+    rarities = {r.rarity for r in rows}
+    brackets = {r.level_bracket for r in rows}
+    assert len(rows) == 12, f"expected 12 collections, got {len(rows)}"
+    assert rarities == {"UNCOMMON", "RARE", "EPIC", "LEGENDARY"}
+    assert brackets == {"1-20", "21-40", "41-60"}
+    # Each collection has at least 5 pieces, at most 12.
+    for c in rows:
+        pieces = json.loads(c.pieces_json)
+        assert 5 <= len(pieces) <= 12, f"{c.code}: {len(pieces)} pieces out of range"
+        completion_pieces = [p for p in pieces if p["is_completion_piece"]]
+        assert len(completion_pieces) == 1, f"{c.code}: must have exactly 1 completion piece"
