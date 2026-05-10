@@ -293,3 +293,79 @@ def test_battle_win_can_drop_collection_piece(client, db_session):
             saw_drop = True
             break
     assert saw_drop, "no collection drop after 60 battles — wiring may be broken"
+
+
+def test_collections_api_returns_progress(client, db_session):
+    from app.models import Account
+    from app.security import issue_token
+
+    acc = Account(email="coll_api@example.com", password_hash="x", account_level=10)
+    db_session.add(acc); db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.get("/collections", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    rows = r.json()
+    assert len(rows) == 12
+    sample = next(r for r in rows if r["code"] == "cubicle_detritus")
+    assert sample["name"] == "Cubicle Detritus"
+    assert sample["rarity"] == "UNCOMMON"
+    assert sample["level_bracket"] == "1-20"
+    assert sample["owned_count"] == 0
+    assert sample["total_count"] >= 5
+    assert sample["claimable"] is False
+    for p in sample["pieces"]:
+        assert "code" in p and "name" in p and "icon" in p
+        assert "owned" in p
+
+
+def test_collections_claim_grants_reward(client, db_session):
+    from app.models import Account, Collection
+    from app.security import issue_token
+    from app.collections import award_piece, try_complete
+
+    acc = Account(email="coll_claim@example.com", password_hash="x", account_level=10, coins=0, gems=0)
+    db_session.add(acc); db_session.flush()
+    c = db_session.get(Collection, "onboarding_kit")
+    for p in json.loads(c.pieces_json):
+        award_piece(acc, "onboarding_kit", p["code"])
+    try_complete(acc, "onboarding_kit")
+    db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.post("/collections/onboarding_kit/claim", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["granted"]["kind"] == "currency"
+    assert body["granted"]["coins"] == 500
+
+    r2 = client.post("/collections/onboarding_kit/claim", headers={"Authorization": f"Bearer {token}"})
+    assert r2.status_code == 400
+
+
+def test_collections_8track_requires_inventory(client, db_session):
+    from app.models import Account
+    from app.security import issue_token
+
+    acc = Account(email="coll_8t_empty@example.com", password_hash="x", account_level=10, eight_tracks=0)
+    db_session.add(acc); db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.post("/collections/8-track/open", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 400
+
+
+def test_collections_8track_consumes_and_returns_pieces(client, db_session):
+    from app.models import Account
+    from app.security import issue_token
+
+    acc = Account(email="coll_8t_full@example.com", password_hash="x", account_level=10, eight_tracks=1)
+    db_session.add(acc); db_session.commit()
+
+    token = issue_token(acc.id, acc.token_version)
+    r = client.post("/collections/8-track/open", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "pieces" in body
+    db_session.refresh(acc)
+    assert acc.eight_tracks == 0
