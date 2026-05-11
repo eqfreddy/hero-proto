@@ -18,7 +18,7 @@ export const SLOT_POSITIONS_TEAM_B: [number, number, number][] = SLOT_POSITIONS_
 // the frame, and the lookAt raised from y=1 to y=3 so the characters
 // fall toward the bottom third of the screen (showing more diorama
 // above them).
-export const CAMERA_POSITION = new THREE.Vector3(0, 5.5, 14);
+export const CAMERA_POSITION = new THREE.Vector3(0, 5, 10);
 export const CAMERA_LOOKAT   = new THREE.Vector3(0, 3, 0);
 
 export const AMBIENT_INTENSITY     = 0.6;

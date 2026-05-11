@@ -75,8 +75,11 @@ export function themeForStage(stageCode: string | null | undefined): string {
 // formation spans ~9u along x and ~3u along z, so we scale the diorama
 // so its on-floor footprint is at least this wide — guarantees the
 // backdrop fills the frame at the v1 camera (0,5,13).
-const TARGET_DIORAMA_WIDTH = 11;   // x
-const TARGET_DIORAMA_DEPTH = 7;    // z
+// Sized to overflow the camera frustum at (0,5,10) lookAt (0,3,0) so
+// the backdrop fully fills the visible frame. The renderer also sets
+// scene.background to a dark fallback color for any remaining gap.
+const TARGET_DIORAMA_WIDTH = 30;   // x
+const TARGET_DIORAMA_DEPTH = 22;   // z
 
 export async function loadDiorama(theme: string): Promise<DioramaAssets> {
   let p = dioramaCache.get(theme);

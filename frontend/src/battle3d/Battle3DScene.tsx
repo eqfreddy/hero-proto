@@ -65,6 +65,10 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     container.appendChild(renderer.domElement);
 
     const threeScene = new THREE.Scene();
+    // Fallback background so any gap between the diorama mesh and the
+    // camera frustum doesn't show the page's black body color through
+    // the alpha:true canvas.
+    threeScene.background = new THREE.Color(0x1a1a22);
     const camera = new THREE.PerspectiveCamera(
       45,
       container.clientWidth / container.clientHeight,
@@ -110,7 +114,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           if (disposed) return;
           // scene is already cloned by heroLoader.
           scene.position.set(slot[0], slot[1], slot[2]);
-          scene.scale.setScalar(1.1);
+          scene.scale.setScalar(0.55);
           // Face teammates toward each other across the battle line.
           // Models actually export facing -z (typical glTF "forward"),
           // not +z, so flipping the previous signs here. Team A
