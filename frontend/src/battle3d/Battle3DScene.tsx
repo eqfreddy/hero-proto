@@ -111,7 +111,11 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           // scene is already cloned by heroLoader.
           scene.position.set(slot[0], slot[1], slot[2]);
           scene.scale.setScalar(0.6);
-          if (side === "B") scene.rotation.y = Math.PI;
+          // Face teammates toward each other across the battle line.
+          // Models export facing +z by default; rotating around y by
+          // -PI/2 turns +z into +x (team A faces enemy on the right),
+          // +PI/2 turns +z into -x (team B faces enemy on the left).
+          scene.rotation.y = side === "A" ? -Math.PI / 2 : Math.PI / 2;
           threeScene.add(scene);
 
           const mixer = new THREE.AnimationMixer(scene);

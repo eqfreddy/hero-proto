@@ -1,12 +1,13 @@
 import * as THREE from "three";
 
 // Diagonal wedge formation: slot 0 is the forward-most (closest to
-// the enemy line), slot 2 is the back-most. Each step back also steps
-// further out on x so the wedge spreads visually. Mirrored for team B.
+// the enemy line, smallest |x|), slot 2 is the back-most. z range is
+// kept above -2 / below 0 so the front-most card isn't clipped by the
+// HUD strip at the bottom of the screen. Mirrored for team B.
 export const SLOT_POSITIONS_TEAM_A: [number, number, number][] = [
-  [-1.6, 0,  1.2],   // front
-  [-3.0, 0,  0.0],   // mid
-  [-4.4, 0, -1.2],   // back
+  [-1.6, 0,  0.0],   // front
+  [-2.7, 0, -0.9],   // mid
+  [-3.8, 0, -1.8],   // back
 ];
 
 export const SLOT_POSITIONS_TEAM_B: [number, number, number][] = SLOT_POSITIONS_TEAM_A.map(
