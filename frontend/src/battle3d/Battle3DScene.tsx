@@ -110,6 +110,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           if (disposed) return;
           // scene is already cloned by heroLoader.
           scene.position.set(slot[0], slot[1], slot[2]);
+          scene.scale.setScalar(0.6);
           if (side === "B") scene.rotation.y = Math.PI;
           threeScene.add(scene);
 
