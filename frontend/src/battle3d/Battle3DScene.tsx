@@ -112,6 +112,11 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           scene.position.set(slot[0], slot[1], slot[2]);
           if (side === "B") scene.rotation.y = Math.PI;
           threeScene.add(scene);
+          // DEBUG: confirm per-unit placement
+          console.log("[battle-3d:place]", {
+            uid: unit.uid, side, idx, archetype,
+            slot, posAfterAdd: scene.position.toArray(),
+          });
 
           const mixer = new THREE.AnimationMixer(scene);
           mixers.push(mixer);
