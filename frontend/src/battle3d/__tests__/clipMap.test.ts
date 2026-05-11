@@ -10,11 +10,8 @@ describe("resolveClip", () => {
     expect(resolveClip("knight", "die", available)).toBe("Death_A");
   });
 
-  it("prefers procedural MeleeSwing over Throw when both are present", () => {
-    expect(resolveClip("knight", "attack", ["MeleeSwing", "Throw"])).toBe("MeleeSwing");
-  });
-
-  it("falls back to Throw when MeleeSwing was not built (bone discovery failed)", () => {
+  it("resolves Throw as the KayKit attack fallback (MeleeSwing preference paused pending live verification)", () => {
+    expect(resolveClip("knight", "attack", ["MeleeSwing", "Throw"])).toBe("Throw");
     expect(resolveClip("knight", "attack", ["Throw"])).toBe("Throw");
   });
 
