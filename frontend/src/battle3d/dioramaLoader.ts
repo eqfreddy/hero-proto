@@ -110,6 +110,13 @@ export async function loadDiorama(theme: string): Promise<DioramaAssets> {
   scene.position.z -= center.z;
   scene.position.y -= box.min.y; // floor at y=0
 
+  // Push the whole backdrop deeper along -z so its front wall sits
+  // BEHIND the hero formation (which lives at z = 0 .. -1.8) instead
+  // of in front of it. Without this offset the diorama's front face
+  // was clipping into the heroes — only the units fully on the back
+  // side of the wall were rendering.
+  scene.position.z -= 9;
+
   return { scene, theme };
 }
 
