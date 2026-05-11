@@ -1,20 +1,18 @@
 import * as THREE from "three";
 
-// Slots arranged in a battle line — same z, spread along x with
-// enough gap (~2u) that ~1.5u-wide hero models do not visually
-// overlap from the camera's POV.
+// Diagonal wedge formation: slot 0 is the forward-most (closest to
+// the enemy line), slot 2 is the back-most. Each step back also steps
+// further out on x so the wedge spreads visually. Mirrored for team B.
 export const SLOT_POSITIONS_TEAM_A: [number, number, number][] = [
-  [-1.8, 0, 0],   // front-most (toward center, closest to enemy)
-  [-3.8, 0, 0],   // mid
-  [-5.8, 0, 0],   // back-most (farthest from center)
+  [-1.6, 0,  1.2],   // front
+  [-3.0, 0,  0.0],   // mid
+  [-4.4, 0, -1.2],   // back
 ];
 
 export const SLOT_POSITIONS_TEAM_B: [number, number, number][] = SLOT_POSITIONS_TEAM_A.map(
   ([x, y, z]) => [-x, y, z],
 );
 
-// Camera pulled back + raised so a 6-unit battle line (~14u wide)
-// fits in frame with the diorama backdrop visible behind.
 export const CAMERA_POSITION = new THREE.Vector3(0, 5, 13);
 export const CAMERA_LOOKAT   = new THREE.Vector3(0, 1, 0);
 

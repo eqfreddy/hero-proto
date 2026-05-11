@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import type { CombatUnit } from '../types/battle'
+
+const BUST_BASE = '/app/static/heroes/busts/'
 
 interface BattleHUDProps {
   teamA: CombatUnit[]
@@ -10,10 +13,23 @@ interface BattleHUDProps {
   done: boolean
   rewards: Record<string, number> | null
   onClose: () => void
+  templateByUid?: Record<string, string>
 }
 
-function UnitCard({ unit, isTarget, onSelect }: { unit: CombatUnit; isTarget: boolean; onSelect?: () => void }) {
+function UnitCard({
+  unit,
+  isTarget,
+  templateCode,
+  onSelect,
+}: {
+  unit: CombatUnit
+  isTarget: boolean
+  templateCode?: string
+  onSelect?: () => void
+}) {
   const pct = unit.max_hp > 0 ? Math.max(0, unit.hp / unit.max_hp) : 0
+  const [bustOk, setBustOk] = useState(true)
+  const bustUrl = templateCode && bustOk ? `${BUST_BASE}${templateCode}.png` : null
   return (
     <div
       data-dead={unit.dead ? 'true' : undefined}
@@ -25,8 +41,26 @@ function UnitCard({ unit, isTarget, onSelect }: { unit: CombatUnit; isTarget: bo
         opacity: unit.dead ? 0.4 : 1,
         cursor: isTarget ? 'pointer' : 'default',
         minWidth: 90,
+        background: 'rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(2px)',
       }}
     >
+      {bustUrl && (
+        <img
+          src={bustUrl}
+          alt=""
+          onError={() => setBustOk(false)}
+          style={{
+            width: '100%',
+            height: 56,
+            objectFit: 'cover',
+            objectPosition: 'top',
+            borderRadius: 4,
+            marginBottom: 4,
+            background: 'rgba(255,255,255,0.05)',
+          }}
+        />
+      )}
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)', marginBottom: 3 }}>{unit.name}</div>
       <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{ width: `${pct * 100}%`, height: '100%', background: unit.dead ? '#666' : 'var(--color-accent)', transition: 'width 0.3s' }} />
@@ -36,7 +70,7 @@ function UnitCard({ unit, isTarget, onSelect }: { unit: CombatUnit; isTarget: bo
   )
 }
 
-export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorUid, validTargets, acting, done, rewards, onClose }: BattleHUDProps) {
+export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorUid, validTargets, acting, done, rewards, onClose, templateByUid }: BattleHUDProps) {
   const validSet = new Set(validTargets)
 
   return (
@@ -48,6 +82,7 @@ export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorU
             key={u.uid}
             unit={u}
             isTarget={!!onAct && validSet.has(u.uid)}
+            templateCode={templateByUid?.[u.uid]}
             onSelect={onAct ? () => onAct(u.uid) : undefined}
           />
         ))}
@@ -60,6 +95,7 @@ export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorU
             key={u.uid}
             unit={u}
             isTarget={false}
+            templateCode={templateByUid?.[u.uid]}
           />
         ))}
       </div>

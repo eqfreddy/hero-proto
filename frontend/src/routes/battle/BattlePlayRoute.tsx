@@ -73,6 +73,7 @@ export default function BattlePlayRoute() {
         done={done}
         rewards={rewards}
         onClose={() => navigate('/app/stages')}
+        templateByUid={templateByUid}
       />
 
       {error && (

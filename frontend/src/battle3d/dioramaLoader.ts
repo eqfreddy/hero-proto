@@ -71,6 +71,13 @@ export function themeForStage(stageCode: string | null | undefined): string {
   return STAGE_3D_THEME[stageCode] ?? DEFAULT_THEME;
 }
 
+// Target footprint the diorama should fill, in world units. The hero
+// formation spans ~9u along x and ~3u along z, so we scale the diorama
+// so its on-floor footprint is at least this wide — guarantees the
+// backdrop fills the frame at the v1 camera (0,5,13).
+const TARGET_DIORAMA_WIDTH = 16;   // x
+const TARGET_DIORAMA_DEPTH = 10;   // z
+
 export async function loadDiorama(theme: string): Promise<DioramaAssets> {
   let p = dioramaCache.get(theme);
   if (!p) {
@@ -79,6 +86,27 @@ export async function loadDiorama(theme: string): Promise<DioramaAssets> {
   }
   const gltf = await p;
   const scene = (gltf.scene as unknown as { clone: (deep?: boolean) => THREE.Group }).clone(true);
+
+  // Auto-fit: measure bounding box, scale uniformly so x-width and
+  // z-depth both meet the target (pick the larger required scale so
+  // we never end up smaller than the target on either axis), then
+  // center horizontally and drop the floor onto y=0 so heroes stand on it.
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const sx = size.x > 0 ? TARGET_DIORAMA_WIDTH / size.x : 1;
+  const sz = size.z > 0 ? TARGET_DIORAMA_DEPTH / size.z : 1;
+  const s = Math.max(sx, sz);
+  scene.scale.setScalar(s);
+
+  // Re-measure after scale, then center.
+  box.setFromObject(scene);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  scene.position.x -= center.x;
+  scene.position.z -= center.z;
+  scene.position.y -= box.min.y; // floor at y=0
+
   return { scene, theme };
 }
 
