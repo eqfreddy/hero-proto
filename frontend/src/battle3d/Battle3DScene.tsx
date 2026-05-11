@@ -8,9 +8,9 @@ import { TEMPLATE_TO_3D_ARCHETYPE, DEFAULT_3D_ARCHETYPE } from "./archetypeMap";
 import { markFirstFrame, recordBattle3DMetric } from "./telemetry";
 import {
   SLOT_POSITIONS_TEAM_A, SLOT_POSITIONS_TEAM_B,
-  CAMERA_POSITION, CAMERA_LOOKAT,
   AMBIENT_INTENSITY, DIRECTIONAL_INTENSITY, DIRECTIONAL_POSITION,
 } from "./constants";
+import { computeResponsiveFrame } from "./responsive";
 
 export interface InteractiveUnit {
   uid: string;
@@ -75,8 +75,12 @@ export function Battle3DScene(props: Battle3DSceneProps) {
       0.1,
       100,
     );
-    camera.position.copy(CAMERA_POSITION);
-    camera.lookAt(CAMERA_LOOKAT);
+    const initialFrame = computeResponsiveFrame(
+      container.clientWidth,
+      container.clientHeight,
+    );
+    camera.position.copy(initialFrame.cameraPosition);
+    camera.lookAt(initialFrame.cameraLookAt);
 
     threeScene.add(new THREE.AmbientLight(0xffffff, AMBIENT_INTENSITY));
     const dir = new THREE.DirectionalLight(0xffffff, DIRECTIONAL_INTENSITY);
@@ -202,9 +206,14 @@ export function Battle3DScene(props: Battle3DSceneProps) {
 
     function onResize() {
       if (!container) return;
-      camera.aspect = container.clientWidth / container.clientHeight;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setSize(w, h);
+      const frame = computeResponsiveFrame(w, h);
+      camera.position.copy(frame.cameraPosition);
+      camera.lookAt(frame.cameraLookAt);
     }
     window.addEventListener("resize", onResize);
 
