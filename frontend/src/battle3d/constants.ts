@@ -6,8 +6,8 @@ import * as THREE from "three";
 // HUD strip at the bottom of the screen. Mirrored for team B.
 export const SLOT_POSITIONS_TEAM_A: [number, number, number][] = [
   [-1.6, 0,  0.0],   // front
-  [-2.7, 0, -0.9],   // mid
-  [-3.8, 0, -1.8],   // back
+  [-3.2, 0, -1.4],   // mid
+  [-4.8, 0, -2.8],   // back
 ];
 
 export const SLOT_POSITIONS_TEAM_B: [number, number, number][] = SLOT_POSITIONS_TEAM_A.map(
