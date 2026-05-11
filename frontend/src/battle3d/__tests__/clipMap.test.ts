@@ -10,6 +10,14 @@ describe("resolveClip", () => {
     expect(resolveClip("knight", "die", available)).toBe("Death_A");
   });
 
+  it("prefers procedural MeleeSwing over Throw when both are present", () => {
+    expect(resolveClip("knight", "attack", ["MeleeSwing", "Throw"])).toBe("MeleeSwing");
+  });
+
+  it("falls back to Throw when MeleeSwing was not built (bone discovery failed)", () => {
+    expect(resolveClip("knight", "attack", ["Throw"])).toBe("Throw");
+  });
+
   it("returns Idle_B when Idle_A is unavailable (KayKit fallback)", () => {
     expect(resolveClip("knight", "idle", ["Idle_B"])).toBe("Idle_B");
   });

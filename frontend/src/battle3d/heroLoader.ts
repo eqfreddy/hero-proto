@@ -2,6 +2,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
+import { buildKaykitMeleeSwing } from "./proceduralClips";
 
 const HERO_BASE = `${import.meta.env.BASE_URL}battle-3d/heroes`;
 const ANIM_BASE = `${import.meta.env.BASE_URL}battle-3d/animations`;
@@ -53,7 +54,9 @@ export async function loadHero(archetype: string): Promise<HeroAssets> {
   const scene = (gltf.scene as unknown as { clone: (deep?: boolean) => THREE.Group }).clone(true);
   let animations = gltf.animations;
   if (KAYKIT_ARCHETYPES.has(archetype)) {
-    animations = await loadKaykitClips();
+    const sharedClips = await loadKaykitClips();
+    const meleeSwing = buildKaykitMeleeSwing(scene);
+    animations = meleeSwing ? [meleeSwing, ...sharedClips] : sharedClips;
   }
   return { scene, animations, archetype };
 }

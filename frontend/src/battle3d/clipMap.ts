@@ -24,7 +24,7 @@ export type CanonicalClip = "idle" | "attack" | "hit" | "die";
 // v1.1 follow-up: source a real melee clip.
 const KAYKIT_CLIPS: Record<CanonicalClip, string[]> = {
   idle: ["Idle_A", "Idle_B"],
-  attack: ["Throw"],
+  attack: ["MeleeSwing", "Throw"],
   hit: ["Hit_A", "Hit_B"],
   die: ["Death_A", "Death_B"],
 };

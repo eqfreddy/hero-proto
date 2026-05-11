@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("../proceduralClips", () => ({
+  // Returns a clip only when the scene actually has a traverse function — the
+  // mocked GLTFLoader scene doesn't, so all existing tests still see shared
+  // clips only. The dedicated prepend test below overrides this per-call.
+  buildKaykitMeleeSwing: vi.fn((root: any) =>
+    typeof root?.traverse === "function" ? { name: "MeleeSwing" } : null,
+  ),
+}));
+
 vi.mock("three/examples/jsm/loaders/DRACOLoader.js", () => ({
   DRACOLoader: class {
     setDecoderPath() {}
@@ -26,6 +35,7 @@ vi.mock("three/examples/jsm/loaders/GLTFLoader.js", () => {
 });
 
 import { loadHero, _resetHeroCache } from "../heroLoader";
+import { buildKaykitMeleeSwing } from "../proceduralClips";
 
 describe("loadHero", () => {
   beforeEach(() => _resetHeroCache());
@@ -61,5 +71,24 @@ describe("loadHero", () => {
     const a = await loadHero("knight");
     const b = await loadHero("knight");
     expect(a.scene).not.toBe(b.scene);
+  });
+
+  it("prepends procedural MeleeSwing clip for KayKit heroes when bone discovery succeeds", async () => {
+    (buildKaykitMeleeSwing as any).mockImplementationOnce(() => ({ name: "MeleeSwing" }));
+    const knight = await loadHero("knight");
+    expect(knight.animations.map((c: any) => c.name)).toEqual([
+      "MeleeSwing",
+      "Idle_A",
+      "Throw",
+      "Hit_A",
+      "Death_A",
+    ]);
+  });
+
+  it("does not call buildKaykitMeleeSwing for druid (uses embedded clips)", async () => {
+    (buildKaykitMeleeSwing as any).mockClear();
+    const druid = await loadHero("druid");
+    expect(buildKaykitMeleeSwing).not.toHaveBeenCalled();
+    expect(druid.animations.map((c: any) => c.name)).not.toContain("MeleeSwing");
   });
 });
