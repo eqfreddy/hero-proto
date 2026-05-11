@@ -38,6 +38,10 @@ export default function BattlePlayRoute() {
 
   const pending = state.pending
   const rewards = state.rewards ?? null
+  const templateByUid: Record<string, string> = {}
+  for (const p of state.participants ?? []) {
+    if (p.template_code) templateByUid[p.uid] = p.template_code
+  }
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', background: 'var(--color-bg)' }}>
@@ -54,6 +58,7 @@ export default function BattlePlayRoute() {
             pendingActorUid={pending?.actor_uid ?? null}
             lastEvent={state.last_event ?? null}
             done={done}
+            templateByUid={templateByUid}
           />
         </Suspense>
       </Battle3DErrorBoundary>

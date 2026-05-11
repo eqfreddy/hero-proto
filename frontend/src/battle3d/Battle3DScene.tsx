@@ -27,6 +27,7 @@ export interface Battle3DSceneProps {
   pendingActorUid: string | null;
   lastEvent: Record<string, unknown> | null;
   done: boolean;
+  templateByUid?: Record<string, string>;
 }
 
 function detectWebGL(): boolean {
@@ -38,8 +39,12 @@ function detectWebGL(): boolean {
   }
 }
 
-function archetypeFor(unit: InteractiveUnit): string {
-  return TEMPLATE_TO_3D_ARCHETYPE[unit.template_code ?? ""] ?? DEFAULT_3D_ARCHETYPE;
+function archetypeFor(
+  unit: InteractiveUnit,
+  templateByUid?: Record<string, string>,
+): string {
+  const code = unit.template_code ?? templateByUid?.[unit.uid] ?? "";
+  return TEMPLATE_TO_3D_ARCHETYPE[code] ?? DEFAULT_3D_ARCHETYPE;
 }
 
 export function Battle3DScene(props: Battle3DSceneProps) {
@@ -100,7 +105,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           ? SLOT_POSITIONS_TEAM_A[idx % SLOT_POSITIONS_TEAM_A.length]
           : SLOT_POSITIONS_TEAM_B[idx % SLOT_POSITIONS_TEAM_B.length];
 
-      loadHero(archetypeFor(unit))
+      loadHero(archetypeFor(unit, props.templateByUid))
         .then(({ scene, animations, archetype }) => {
           if (disposed) return;
           // scene is already cloned by heroLoader.

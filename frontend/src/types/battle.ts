@@ -28,6 +28,19 @@ export interface InteractivePending {
   valid_targets: string[]
 }
 
+export interface InteractiveParticipant {
+  uid: string
+  side: 'A' | 'B'
+  name: string
+  role?: string
+  level?: number
+  max_hp?: number
+  template_code?: string
+  rarity?: string
+  faction?: string
+  rig?: string
+}
+
 export interface InteractiveStateOut {
   session_id: string
   status?: string
@@ -39,6 +52,7 @@ export interface InteractiveStateOut {
   battle_id?: number
   stage_code?: string | null
   last_event?: Record<string, unknown> | null
+  participants?: InteractiveParticipant[]
 }
 
 export interface PostBattlePayload {
