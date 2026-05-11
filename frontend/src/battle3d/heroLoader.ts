@@ -1,6 +1,7 @@
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import * as THREE from "three";
 import { buildKaykitMeleeSwing } from "./proceduralClips";
 
@@ -51,7 +52,10 @@ export async function loadHero(archetype: string): Promise<HeroAssets> {
     heroCache.set(archetype, p);
   }
   const gltf = await p;
-  const scene = (gltf.scene as unknown as { clone: (deep?: boolean) => THREE.Group }).clone(true);
+  // Use SkeletonUtils.clone — plain Object3D.clone() shares the skeleton
+  // across instances, which makes every same-archetype unit render at
+  // the same animated bone positions (i.e. visually stacked).
+  const scene = cloneSkinned(gltf.scene) as THREE.Group;
   let animations = gltf.animations;
   if (KAYKIT_ARCHETYPES.has(archetype)) {
     const sharedClips = await loadKaykitClips();
