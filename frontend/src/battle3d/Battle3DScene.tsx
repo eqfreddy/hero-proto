@@ -110,7 +110,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           if (disposed) return;
           // scene is already cloned by heroLoader.
           scene.position.set(slot[0], slot[1], slot[2]);
-          scene.scale.setScalar(0.6);
+          scene.scale.setScalar(1.1);
           // Face teammates toward each other across the battle line.
           // Models export facing +z by default; rotating around y by
           // -PI/2 turns +z into +x (team A faces enemy on the right),

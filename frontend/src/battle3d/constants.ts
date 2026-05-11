@@ -14,7 +14,7 @@ export const SLOT_POSITIONS_TEAM_B: [number, number, number][] = SLOT_POSITIONS_
   ([x, y, z]) => [-x, y, z],
 );
 
-export const CAMERA_POSITION = new THREE.Vector3(0, 5, 13);
+export const CAMERA_POSITION = new THREE.Vector3(0, 3.5, 9);
 export const CAMERA_LOOKAT   = new THREE.Vector3(0, 1, 0);
 
 export const AMBIENT_INTENSITY     = 0.6;
