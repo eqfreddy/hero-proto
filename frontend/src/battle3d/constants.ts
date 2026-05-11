@@ -14,8 +14,12 @@ export const SLOT_POSITIONS_TEAM_B: [number, number, number][] = SLOT_POSITIONS_
   ([x, y, z]) => [-x, y, z],
 );
 
-export const CAMERA_POSITION = new THREE.Vector3(0, 3.5, 9);
-export const CAMERA_LOOKAT   = new THREE.Vector3(0, 1, 0);
+// Camera pulled back ~60% from (0,3.5,9) so heroes don't dominate
+// the frame, and the lookAt raised from y=1 to y=3 so the characters
+// fall toward the bottom third of the screen (showing more diorama
+// above them).
+export const CAMERA_POSITION = new THREE.Vector3(0, 5.5, 14);
+export const CAMERA_LOOKAT   = new THREE.Vector3(0, 3, 0);
 
 export const AMBIENT_INTENSITY     = 0.6;
 export const DIRECTIONAL_INTENSITY = 0.8;

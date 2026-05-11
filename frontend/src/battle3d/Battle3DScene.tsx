@@ -112,10 +112,11 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           scene.position.set(slot[0], slot[1], slot[2]);
           scene.scale.setScalar(1.1);
           // Face teammates toward each other across the battle line.
-          // Models export facing +z by default; rotating around y by
-          // -PI/2 turns +z into +x (team A faces enemy on the right),
-          // +PI/2 turns +z into -x (team B faces enemy on the left).
-          scene.rotation.y = side === "A" ? -Math.PI / 2 : Math.PI / 2;
+          // Models actually export facing -z (typical glTF "forward"),
+          // not +z, so flipping the previous signs here. Team A
+          // (negative x) rotates +PI/2 to face +x toward team B;
+          // team B mirrors with -PI/2 to face -x toward team A.
+          scene.rotation.y = side === "A" ? Math.PI / 2 : -Math.PI / 2;
           threeScene.add(scene);
 
           const mixer = new THREE.AnimationMixer(scene);
