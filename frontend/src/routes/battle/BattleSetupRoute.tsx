@@ -5,7 +5,30 @@ import { apiFetch } from '../../api/client'
 import { postBattle, postInteractiveStart } from '../../api/battles'
 import { useUiStore } from '../../store/ui'
 import { TierBadge } from '../../components/TierBadge'
-import type { Hero, Stage } from '../../types'
+import type { Hero, HeroTemplate, Stage } from '../../types'
+
+// Tier color theming — mirrors TierBadge so stage buttons match the
+// badge inside them. Used for grouped <details> sections + per-stage
+// button accents.
+const TIER_THEME: Record<Stage['difficulty_tier'], { bg: string; fg: string; border: string; tintBg: string }> = {
+  NORMAL:    { bg: 'rgba(120,160,200,0.18)', fg: '#7ca8d8', border: 'rgba(120,160,200,0.5)',  tintBg: 'rgba(120,160,200,0.08)' },
+  HARD:      { bg: 'rgba(220,140,60,0.22)',  fg: '#e8a35a', border: 'rgba(220,140,60,0.55)',  tintBg: 'rgba(220,140,60,0.10)' },
+  NIGHTMARE: { bg: 'rgba(200,60,80,0.25)',   fg: '#e85a78', border: 'rgba(200,60,80,0.60)',   tintBg: 'rgba(200,60,80,0.12)' },
+  LEGENDARY: { bg: 'rgba(220,180,40,0.28)',  fg: '#f5c842', border: 'rgba(220,180,40,0.65)',  tintBg: 'rgba(220,180,40,0.14)' },
+}
+
+const TIER_ORDER: Stage['difficulty_tier'][] = ['NORMAL', 'HARD', 'NIGHTMARE', 'LEGENDARY']
+
+// Rarity color theming for hero buttons + filled slot cards. Uses the
+// same CSS custom properties as RarityPill so the palette stays in sync.
+const RARITY_VAR: Record<HeroTemplate['rarity'], string> = {
+  COMMON:    'var(--r-common)',
+  UNCOMMON:  'var(--r-uncommon)',
+  RARE:      'var(--r-rare)',
+  EPIC:      'var(--r-epic)',
+  LEGENDARY: 'var(--r-legendary)',
+  MYTH:      'var(--r-myth)',
+}
 
 function useHeroes() {
   return useQuery<Hero[]>({ queryKey: ['heroes'], queryFn: () => apiFetch('/heroes/mine'), staleTime: 5 * 60_000 })
@@ -80,26 +103,61 @@ export default function BattleSetupRoute() {
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Battle Setup</h1>
       </div>
 
-      {/* Stage selector */}
+      {/* Stage selector — grouped by difficulty tier, each tier a
+          color-coded collapsible group. */}
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Select Stage</h2>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {stages.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setSelectedStageId(s.id)}
-              style={{
-                padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: selectedStageId === s.id ? 'var(--color-accent)' : 'var(--color-surface)',
-                color: selectedStageId === s.id ? '#fff' : 'var(--color-text)',
-                border: '1px solid ' + (selectedStageId === s.id ? 'var(--color-accent)' : 'rgba(255,255,255,0.1)'),
-              }}
-            >
-              {s.name}
-              <TierBadge tier={s.difficulty_tier} size="sm" />
-            </button>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {TIER_ORDER.map(tier => {
+            const tierStages = stages.filter(s => s.difficulty_tier === tier)
+            if (tierStages.length === 0) return null
+            const theme = TIER_THEME[tier]
+            const hasSelection = tierStages.some(s => s.id === selectedStageId)
+            return (
+              <details
+                key={tier}
+                open={hasSelection || tier === 'NORMAL'}
+                style={{
+                  background: theme.tintBg,
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                }}
+              >
+                <summary style={{
+                  padding: '10px 14px', cursor: 'pointer', userSelect: 'none',
+                  background: theme.bg, color: theme.fg,
+                  fontSize: 13, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <span>{tier} <span style={{ opacity: 0.7, fontWeight: 600, marginLeft: 6 }}>({tierStages.length})</span></span>
+                  <span style={{ fontSize: 11, opacity: 0.7, fontWeight: 600 }}>{hasSelection ? '✓ selected' : 'click to expand'}</span>
+                </summary>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: 12 }}>
+                  {tierStages.map(s => {
+                    const isSel = selectedStageId === s.id
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedStageId(s.id)}
+                        style={{
+                          padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          background: isSel ? theme.bg : 'var(--color-surface)',
+                          color: isSel ? theme.fg : 'var(--color-text)',
+                          border: '1px solid ' + (isSel ? theme.border : 'rgba(255,255,255,0.1)'),
+                          boxShadow: isSel ? `0 0 0 1px ${theme.border}` : 'none',
+                        }}
+                      >
+                        {s.name}
+                        <TierBadge tier={s.difficulty_tier} size="sm" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </details>
+            )
+          })}
         </div>
         {selectedStage && (
           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-muted)' }}>
@@ -116,20 +174,25 @@ export default function BattleSetupRoute() {
         <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           {team.map((heroId, idx) => {
             const hero = heroes.find(h => h.id === heroId)
+            const rarityColor = hero ? RARITY_VAR[hero.template.rarity] : null
             return (
               <div
                 key={idx}
                 onClick={() => heroId !== null && setTeam(prev => { const n = [...prev]; n[idx] = null; return n })}
                 style={{
-                  width: 80, height: 90, borderRadius: 8, border: '2px dashed rgba(255,255,255,0.15)',
-                  background: hero ? 'var(--color-surface)' : 'transparent',
+                  width: 80, height: 90, borderRadius: 8,
+                  border: rarityColor ? `2px solid ${rarityColor}` : '2px dashed rgba(255,255,255,0.15)',
+                  background: rarityColor
+                    ? `color-mix(in srgb, ${rarityColor} 18%, var(--color-surface))`
+                    : 'transparent',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   cursor: hero ? 'pointer' : 'default', fontSize: 11, color: 'var(--color-muted)',
+                  boxShadow: rarityColor ? `0 0 0 1px color-mix(in srgb, ${rarityColor} 35%, transparent)` : 'none',
                 }}
               >
                 {hero ? (
                   <>
-                    <div style={{ fontWeight: 700, color: 'var(--color-text)', textAlign: 'center', padding: '0 4px' }}>{hero.template.name}</div>
+                    <div style={{ fontWeight: 700, color: rarityColor ?? 'var(--color-text)', textAlign: 'center', padding: '0 4px' }}>{hero.template.name}</div>
                     <div style={{ color: 'var(--color-muted)', marginTop: 2 }}>Lv {hero.level}</div>
                     <div style={{ fontSize: 10, marginTop: 2, color: 'rgba(255,255,255,0.3)' }}>click to remove</div>
                   </>
@@ -144,18 +207,22 @@ export default function BattleSetupRoute() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {[...heroes].sort((a, b) => (b.power ?? 0) - (a.power ?? 0)).map(h => {
             const selected = team.includes(h.id)
+            const rarityColor = RARITY_VAR[h.template.rarity]
             return (
               <button
                 key={h.id}
                 onClick={() => toggleHero(h.id)}
                 style={{
-                  padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  background: selected ? 'var(--color-accent)' : 'var(--color-surface)',
-                  color: selected ? '#fff' : 'var(--color-text)',
-                  border: '1px solid ' + (selected ? 'var(--color-accent)' : 'rgba(255,255,255,0.1)'),
+                  padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  background: selected
+                    ? `color-mix(in srgb, ${rarityColor} 35%, var(--color-surface))`
+                    : `color-mix(in srgb, ${rarityColor} 10%, var(--color-surface))`,
+                  color: rarityColor,
+                  border: `1px solid ${selected ? rarityColor : `color-mix(in srgb, ${rarityColor} 45%, transparent)`}`,
+                  boxShadow: selected ? `0 0 0 1px ${rarityColor}` : 'none',
                 }}
               >
-                {h.template.name} ({h.power})
+                {h.template.name} <span style={{ opacity: 0.7, fontWeight: 500 }}>({h.power})</span>
               </button>
             )
           })}
