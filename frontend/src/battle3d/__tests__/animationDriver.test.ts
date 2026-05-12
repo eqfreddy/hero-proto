@@ -5,7 +5,7 @@ function makeRig(uid: string, archetype: string): UnitRig {
   return {
     uid,
     archetype,
-    availableClips: ["Idle_A", "Throw", "Hit_A", "Death_A"],
+    availableClips: ["Idle_Weapon", "Sword_Attack", "RecieveHit", "Death"],
     play: vi.fn(),
     flashWhite: vi.fn(),
     floatDamageNumber: vi.fn(),
@@ -24,8 +24,8 @@ describe("animationDriver.handleEvent", () => {
       rigs,
     );
 
-    expect(attacker.play).toHaveBeenCalledWith("Throw");
-    expect(defender.play).toHaveBeenCalledWith("Hit_A");
+    expect(attacker.play).toHaveBeenCalledWith("Sword_Attack");
+    expect(defender.play).toHaveBeenCalledWith("RecieveHit");
     expect(defender.flashWhite).toHaveBeenCalled();
     expect(defender.floatDamageNumber).toHaveBeenCalledWith(42);
   });
@@ -36,14 +36,14 @@ describe("animationDriver.handleEvent", () => {
 
     handleEvent({ type: "DEATH", target_uid: "b1" }, rigs);
 
-    expect(victim.play).toHaveBeenCalledWith("Death_A");
+    expect(victim.play).toHaveBeenCalledWith("Death");
     expect(victim.fade).toHaveBeenCalledWith(0.4);
   });
 
   it("SPECIAL: attacker plays attack clip and flashes", () => {
     const attacker = makeRig("a1", "knight");
     handleEvent({ type: "SPECIAL", actor_uid: "a1" }, new Map([["a1", attacker]]));
-    expect(attacker.play).toHaveBeenCalledWith("Throw");
+    expect(attacker.play).toHaveBeenCalledWith("Sword_Attack");
     expect(attacker.flashWhite).toHaveBeenCalled();
   });
 

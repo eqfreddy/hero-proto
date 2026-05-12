@@ -5,41 +5,65 @@
  * (idle/attack/hit/die). At runtime, `resolveClip` picks the first candidate
  * that exists on the loaded `AnimationClip[]` for that archetype.
  *
- * The 6 KayKit archetypes share a single skeleton; their clips live in
- * `kaykit_general.glb` and are reused via Three.js skeleton retargeting,
- * so they share the same candidate set.
+ * All shipped archetypes are Quaternius RPG Characters (chibi pack). Each
+ * `.glb` carries its own embedded clip set; there is no shared animation
+ * file. Clip-name typo `RecieveHit` is preserved — canonical in the source.
  *
- * Druid (Quaternius Cleric) ships embedded clips with a different naming
- * convention (`RecieveHit` misspelling preserved — canonical in source asset).
- *
- * `engineer` is intentionally absent — no engineer model in v1; the
+ * `engineer` is intentionally absent — no engineer template wired yet; the
  * `engineer` rig name is remapped to `ranger` archetype upstream in
- * `archetypeMap.ts`.
+ * `archetypeMap.ts`. Monk rig is staged at /heroes/monk.glb for when an
+ * engineer template ships.
  */
 
 export type CanonicalClip = "idle" | "attack" | "hit" | "die";
 
-// Shared candidate set for the 6 KayKit archetypes (shared rig, shared clip
-// names sourced from kaykit_general.glb). `Throw` is the v1 attack stand-in;
-// v1.1 follow-up: source a real melee clip.
-const KAYKIT_CLIPS: Record<CanonicalClip, string[]> = {
-  idle: ["Idle_A", "Idle_B"],
-  attack: ["Throw"],
-  hit: ["Hit_A", "Hit_B"],
-  die: ["Death_A", "Death_B"],
-};
-
 export const ARCHETYPE_CLIP_MAP: Record<string, Record<CanonicalClip, string[]>> = {
-  knight: KAYKIT_CLIPS,
-  barbarian: KAYKIT_CLIPS,
-  mage: KAYKIT_CLIPS,
-  rogue: KAYKIT_CLIPS,
-  rogue_hooded: KAYKIT_CLIPS,
-  ranger: KAYKIT_CLIPS,
+  knight: {
+    idle: ["Idle_Weapon", "Idle_Attacking", "Idle"],
+    attack: ["Sword_Attack", "Sword_Attack2"],
+    hit: ["RecieveHit"],
+    die: ["Death"],
+  },
+  barbarian: {
+    idle: ["Idle_Weapon", "Idle_Attacking", "Idle"],
+    attack: ["Sword_Attack2", "Sword_Attack"],
+    hit: ["RecieveHit"],
+    die: ["Death"],
+  },
+  mage: {
+    idle: ["Idle_Weapon", "Idle_Attacking", "Idle"],
+    attack: ["Staff_Attack", "Spell1", "Spell2"],
+    hit: ["RecieveHit", "RecieveHit_2"],
+    die: ["Death"],
+  },
+  rogue: {
+    idle: ["Attacking_Idle", "Idle"],
+    attack: ["Dagger_Attack", "Dagger_Attack2"],
+    hit: ["RecieveHit", "RecieveHit_2"],
+    die: ["Death"],
+  },
+  rogue_hooded: {
+    idle: ["Attacking_Idle", "Idle"],
+    attack: ["Dagger_Attack2", "Dagger_Attack"],
+    hit: ["RecieveHit", "RecieveHit_2"],
+    die: ["Death"],
+  },
+  ranger: {
+    idle: ["Idle_Weapon", "Idle_Attacking", "Idle"],
+    attack: ["Bow_Shoot", "Bow_Draw"],
+    hit: ["RecieveHit", "RecieveHit_2"],
+    die: ["Death"],
+  },
   druid: {
-    idle: ["Idle", "Idle_Weapon"],
+    idle: ["Idle_Weapon", "Idle"],
     attack: ["Staff_Attack", "Spell1", "Punch"],
     hit: ["RecieveHit"],
+    die: ["Death"],
+  },
+  monk: {
+    idle: ["Idle_Attacking", "Idle"],
+    attack: ["Attack", "Attack2"],
+    hit: ["RecieveHit", "RecieveHit_2"],
     die: ["Death"],
   },
 };

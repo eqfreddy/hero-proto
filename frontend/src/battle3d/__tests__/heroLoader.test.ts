@@ -1,18 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../proceduralClips", () => ({
-  // Returns a clip only when the scene actually has a traverse function — the
-  // mocked GLTFLoader scene doesn't, so all existing tests still see shared
-  // clips only. The dedicated prepend test below overrides this per-call.
-  buildKaykitMeleeSwing: vi.fn((root: any) =>
-    typeof root?.traverse === "function" ? { name: "MeleeSwing" } : null,
-  ),
-}));
-
 vi.mock("three/examples/jsm/loaders/DRACOLoader.js", () => ({
   DRACOLoader: class {
     setDecoderPath() {}
   },
+}));
+
+vi.mock("three/examples/jsm/utils/SkeletonUtils.js", () => ({
+  // Mirror real SkeletonUtils.clone signature; returns a fresh object each call.
+  clone: (root: any) => ({ __cloned: true, src: root?.src, id: Math.random() }),
 }));
 
 vi.mock("three/examples/jsm/loaders/GLTFLoader.js", () => {
@@ -20,14 +16,19 @@ vi.mock("three/examples/jsm/loaders/GLTFLoader.js", () => {
     GLTFLoader: class {
       setDRACOLoader() {}
       load(url: string, onLoad: (gltf: any) => void) {
-        const isKaykitClips = url.includes("kaykit_general");
-        const animations = isKaykitClips
-          ? [{ name: "Idle_A" }, { name: "Throw" }, { name: "Hit_A" }, { name: "Death_A" }]
-          : url.includes("druid")
+        // Every archetype's .glb ships its own embedded clips (Quaternius pack).
+        const animations = url.includes("druid")
           ? [{ name: "Idle" }, { name: "Staff_Attack" }, { name: "RecieveHit" }, { name: "Death" }]
-          : []; // KayKit hero meshes have no animations
-        // unique scene object per resolved gltf so .clone() returns fresh refs
-        const scene = { clone: (_deep?: boolean) => ({ __cloned: true, src: url, id: Math.random() }) };
+          : url.includes("knight") || url.includes("barbarian")
+          ? [{ name: "Idle_Weapon" }, { name: "Sword_Attack" }, { name: "RecieveHit" }, { name: "Death" }]
+          : url.includes("mage")
+          ? [{ name: "Idle_Weapon" }, { name: "Staff_Attack" }, { name: "RecieveHit" }, { name: "Death" }]
+          : url.includes("rogue")
+          ? [{ name: "Attacking_Idle" }, { name: "Dagger_Attack" }, { name: "RecieveHit" }, { name: "Death" }]
+          : url.includes("ranger")
+          ? [{ name: "Idle_Weapon" }, { name: "Bow_Shoot" }, { name: "RecieveHit" }, { name: "Death" }]
+          : [];
+        const scene = { src: url };
         setTimeout(() => onLoad({ scene, animations }), 0);
       }
     },
@@ -35,7 +36,6 @@ vi.mock("three/examples/jsm/loaders/GLTFLoader.js", () => {
 });
 
 import { loadHero, _resetHeroCache } from "../heroLoader";
-import { buildKaykitMeleeSwing } from "../proceduralClips";
 
 describe("loadHero", () => {
   beforeEach(() => _resetHeroCache());
@@ -47,14 +47,29 @@ describe("loadHero", () => {
     expect(b.archetype).toBe("knight");
   });
 
-  it("KayKit archetype gets shared kaykit_general clips", async () => {
+  it("knight ships embedded Sword_Attack clip (no shared kaykit_general)", async () => {
     const knight = await loadHero("knight");
     expect(knight.animations.map((c: any) => c.name)).toEqual([
-      "Idle_A",
-      "Throw",
-      "Hit_A",
-      "Death_A",
+      "Idle_Weapon",
+      "Sword_Attack",
+      "RecieveHit",
+      "Death",
     ]);
+  });
+
+  it("mage ships embedded Staff_Attack", async () => {
+    const mage = await loadHero("mage");
+    expect(mage.animations.map((c: any) => c.name)).toContain("Staff_Attack");
+  });
+
+  it("rogue ships embedded Dagger_Attack", async () => {
+    const rogue = await loadHero("rogue");
+    expect(rogue.animations.map((c: any) => c.name)).toContain("Dagger_Attack");
+  });
+
+  it("ranger ships embedded Bow_Shoot", async () => {
+    const ranger = await loadHero("ranger");
+    expect(ranger.animations.map((c: any) => c.name)).toContain("Bow_Shoot");
   });
 
   it("druid uses its own embedded clips", async () => {
@@ -71,24 +86,5 @@ describe("loadHero", () => {
     const a = await loadHero("knight");
     const b = await loadHero("knight");
     expect(a.scene).not.toBe(b.scene);
-  });
-
-  it("prepends procedural MeleeSwing clip for KayKit heroes when bone discovery succeeds", async () => {
-    (buildKaykitMeleeSwing as any).mockImplementationOnce(() => ({ name: "MeleeSwing" }));
-    const knight = await loadHero("knight");
-    expect(knight.animations.map((c: any) => c.name)).toEqual([
-      "MeleeSwing",
-      "Idle_A",
-      "Throw",
-      "Hit_A",
-      "Death_A",
-    ]);
-  });
-
-  it("does not call buildKaykitMeleeSwing for druid (uses embedded clips)", async () => {
-    (buildKaykitMeleeSwing as any).mockClear();
-    const druid = await loadHero("druid");
-    expect(buildKaykitMeleeSwing).not.toHaveBeenCalled();
-    expect(druid.animations.map((c: any) => c.name)).not.toContain("MeleeSwing");
   });
 });

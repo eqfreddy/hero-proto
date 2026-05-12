@@ -26,13 +26,16 @@ describe("archetypeMap", () => {
     expect(Object.keys(TEMPLATE_TO_3D_ARCHETYPE).length).toBeGreaterThanOrEqual(10);
   });
 
-  it("no orphan archetypes in clipMap (every clipMap key is reachable from a template or is the default)", () => {
+  it("no orphan archetypes in clipMap (every clipMap key is reachable, default, or a staged archetype)", () => {
+    // `monk` is staged for a future engineer template — has rig + clipset
+    // ready but no template wired yet.
+    const STAGED = new Set(["monk"]);
     const reachable = new Set([
       ...Object.values(TEMPLATE_TO_3D_ARCHETYPE),
       DEFAULT_3D_ARCHETYPE,
     ]);
     for (const key of Object.keys(ARCHETYPE_CLIP_MAP)) {
-      expect(reachable.has(key)).toBe(true);
+      expect(reachable.has(key) || STAGED.has(key)).toBe(true);
     }
   });
 });

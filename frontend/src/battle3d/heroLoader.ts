@@ -3,19 +3,8 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import * as THREE from "three";
-import { buildKaykitMeleeSwing } from "./proceduralClips";
 
 const HERO_BASE = `${import.meta.env.BASE_URL}battle-3d/heroes`;
-const ANIM_BASE = `${import.meta.env.BASE_URL}battle-3d/animations`;
-
-const KAYKIT_ARCHETYPES = new Set([
-  "knight",
-  "barbarian",
-  "mage",
-  "ranger",
-  "rogue",
-  "rogue_hooded",
-]);
 
 export interface HeroAssets {
   scene: THREE.Group;            // CLONED — caller owns it
@@ -29,20 +18,11 @@ const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 
 const heroCache = new Map<string, Promise<GLTF>>();
-let kaykitClipsCache: Promise<THREE.AnimationClip[]> | null = null;
 
 function loadGLTF(url: string): Promise<GLTF> {
   return new Promise((resolve, reject) => {
     gltfLoader.load(url, resolve, undefined, reject);
   });
-}
-
-function loadKaykitClips(): Promise<THREE.AnimationClip[]> {
-  if (kaykitClipsCache) return kaykitClipsCache;
-  kaykitClipsCache = loadGLTF(`${ANIM_BASE}/kaykit_general.glb`).then(
-    (g) => g.animations,
-  );
-  return kaykitClipsCache;
 }
 
 export async function loadHero(archetype: string): Promise<HeroAssets> {
@@ -56,16 +36,9 @@ export async function loadHero(archetype: string): Promise<HeroAssets> {
   // across instances, which makes every same-archetype unit render at
   // the same animated bone positions (i.e. visually stacked).
   const scene = cloneSkinned(gltf.scene) as THREE.Group;
-  let animations = gltf.animations;
-  if (KAYKIT_ARCHETYPES.has(archetype)) {
-    const sharedClips = await loadKaykitClips();
-    const meleeSwing = buildKaykitMeleeSwing(scene);
-    animations = meleeSwing ? [meleeSwing, ...sharedClips] : sharedClips;
-  }
-  return { scene, animations, archetype };
+  return { scene, animations: gltf.animations, archetype };
 }
 
 export function _resetHeroCache(): void {
   heroCache.clear();
-  kaykitClipsCache = null;
 }
