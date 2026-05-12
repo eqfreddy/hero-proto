@@ -66,9 +66,27 @@ def test_heroes_mine_limit_is_capped(client) -> None:
 
 
 def test_heroes_mine_pagination(client) -> None:
-    """offset + limit together page through the list."""
-    email, hdr, _ = _register(client)
-    client.post("/summon/x10", headers=hdr)
+    """offset + limit together page through the list.
+
+    Shard remap (2026-05-12): duplicate pulls credit shards instead of
+    minting new HeroInstance rows, so x10 no longer guarantees 10
+    unique heroes. We seed rows directly via the DB to guarantee enough
+    distinct templates for pagination."""
+    email, hdr, aid = _register(client)
+    from app.models import HeroInstance, HeroTemplate
+    with SessionLocal() as db:
+        owned_template_ids = {h.template_id for h in db.scalars(
+            __import__("sqlalchemy").select(HeroInstance).where(HeroInstance.account_id == aid)
+        )}
+        templates = list(db.scalars(__import__("sqlalchemy").select(HeroTemplate).limit(20)))
+        for t in templates:
+            if t.id in owned_template_ids:
+                continue
+            db.add(HeroInstance(
+                account_id=aid, template_id=t.id, level=1, xp=0,
+                variance_pct_json="{}",
+            ))
+        db.commit()
     page1 = client.get("/heroes/mine?limit=5&offset=0", headers=hdr).json()
     page2 = client.get("/heroes/mine?limit=5&offset=5", headers=hdr).json()
     assert len(page1) == 5 and len(page2) == 5

@@ -71,29 +71,33 @@ def summon_friend_banner(
     account.friend_points = int(account.friend_points or 0) - fp_service.FP_PER_SUMMON
     account.fp_pulls_since_epic = result.new_pity
 
-    already_owned = db.scalar(
-        select(HeroInstance.id).where(
+    # Shard-remap (2026-05-12): friend-points dupe pulls credit shards
+    # only; no second HeroInstance row.
+    existing = db.scalar(
+        select(HeroInstance).where(
             HeroInstance.account_id == account.id,
             HeroInstance.template_id == template.id,
         ).limit(1)
     )
-    variance_blob = "{}"
-    if already_owned is not None:
-        variance_blob = serialize_variance(roll_variance(rng))
-        from app.template_shards import grant_dupe_shards
-        grant_dupe_shards(account, template.code, template.rarity)
-
-    hero = HeroInstance(
-        account_id=account.id, template_id=template.id, level=1, xp=0,
-        variance_pct_json=variance_blob,
-    )
-    db.add(hero)
     db.add(GachaRecord(
         account_id=account.id,
         template_id=template.id,
         rarity=result.rarity,
         pity_before=pity,
     ))
+    is_dupe = existing is not None
+    shards_granted = 0
+    if is_dupe:
+        from app.template_shards import grant_dupe_shards, SHARDS_ON_DUPE
+        grant_dupe_shards(account, template.code, template.rarity)
+        shards_granted = SHARDS_ON_DUPE.get(template.rarity, 0)
+        hero = existing
+    else:
+        hero = HeroInstance(
+            account_id=account.id, template_id=template.id, level=1, xp=0,
+            variance_pct_json="{}",
+        )
+        db.add(hero)
     db.flush()
     _ = hero.template
     db.commit()
@@ -103,4 +107,6 @@ def summon_friend_banner(
         rarity=result.rarity,
         pulled_epic_pity=result.pity_triggered,
         pulls_since_epic_after=account.fp_pulls_since_epic,
+        is_duplicate=is_dupe,
+        shards_granted=shards_granted,
     )

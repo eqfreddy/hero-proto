@@ -473,6 +473,12 @@ class SummonOut(BaseModel):
     rarity: Rarity
     pulled_epic_pity: bool
     pulls_since_epic_after: int
+    # Shard remap: true when the player already owned this template, so
+    # the pull credited shards instead of a fresh roster row. The
+    # `hero` field still returns the existing canonical copy so the UI
+    # has something to render.
+    is_duplicate: bool = False
+    shards_granted: int = 0
 
 
 class GuildAchievementOut(BaseModel):

@@ -62,8 +62,9 @@ def test_phase2_end_to_end(client) -> None:
     assert preview["level_up"]["available"] is True
     assert preview["level_up"]["after"]["power"] >= preview["current"]["power"]
 
-    # --- Step 3: Stat variance on duplicate summons --------------------------
-    # First-copy starter heroes have no variance.
+    # --- Step 3: Shard remap (2026-05-12, replaces dupe-variance) -----------
+    # First-copy starter heroes are vanilla; duplicate pulls credit
+    # template shards instead of minting a second HeroInstance.
     seen_first_copy_vanilla = False
     seen_templates: set[int] = set()
     for h in roster:
@@ -75,7 +76,7 @@ def test_phase2_end_to_end(client) -> None:
             break
     assert seen_first_copy_vanilla, "first copy of a template must be vanilla"
 
-    # Force shards + a few x10 pulls until we land a dupe with variance.
+    # Force shards + a few x10 pulls until we land a duplicate.
     from app.db import SessionLocal
     from app.models import Account
     db = SessionLocal()
@@ -86,19 +87,18 @@ def test_phase2_end_to_end(client) -> None:
     finally:
         db.close()
 
-    saw_dupe_variance = False
+    saw_dupe = False
     for _ in range(8):
         r = client.post("/summon/x10", headers=hdr)
         assert r.status_code == 201, r.text
         for entry in r.json():
-            v = entry["hero"]["variance_pct"]
-            if v:
-                assert all(-0.10 - 1e-6 <= float(v[k]) <= 0.10 + 1e-6 for k in ("hp", "atk", "def", "spd"))
-                saw_dupe_variance = True
+            if entry["is_duplicate"]:
+                assert entry["shards_granted"] > 0, entry
+                saw_dupe = True
                 break
-        if saw_dupe_variance:
+        if saw_dupe:
             break
-    assert saw_dupe_variance, "should observe at least one dupe with variance after 8 x10 pulls"
+    assert saw_dupe, "should observe at least one duplicate (shard credit) after 8 x10 pulls"
 
     # --- Step 4: Analytics wrapper importable + recorder pattern works -------
     from unittest.mock import patch

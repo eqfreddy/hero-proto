@@ -49,45 +49,53 @@ def _do_one_pull(db: Session, account: Account, rng: random.Random, *, allow_fre
     template = _pick_template(db, result.rarity, rng)
     account.pulls_since_epic = result.new_pity
 
-    # Phase 2.2 — duplicate detection. If the account already owns ≥1 copy of
-    # this template, roll per-stat variance so this copy isn't identical.
-    # First copy stays vanilla (variance_pct_json = "{}"). Variance is set at
-    # creation and never re-rolled — keeps the stat sheet stable across
-    # ascensions and sells.
-    already_owned = db.scalar(
-        select(HeroInstance.id)
-        .where(
+    # Shard-remap (2026-05-12): if the player already owns this template,
+    # the pull credits shards instead of minting another HeroInstance.
+    # The canonical hero stays — variance was rolled on first pull and
+    # never re-rolls. Decisions: see
+    # docs/superpowers/plans/2026-05-12-shard-remap.md.
+    existing = db.scalar(
+        select(HeroInstance).where(
             HeroInstance.account_id == account.id,
             HeroInstance.template_id == template.id,
-        )
-        .limit(1)
+        ).limit(1)
     )
-    variance_blob = "{}"
-    if already_owned is not None:
-        variance_blob = serialize_variance(roll_variance(rng))
-        # Dupe pull → grant template shards (ascension currency).
-        from app.template_shards import grant_dupe_shards
-        grant_dupe_shards(account, template.code, template.rarity)
-
-    hero = HeroInstance(
-        account_id=account.id, template_id=template.id, level=1, xp=0,
-        variance_pct_json=variance_blob,
-    )
-    db.add(hero)
     db.add(GachaRecord(
         account_id=account.id,
         template_id=template.id,
         rarity=result.rarity,
         pity_before=result.new_pity if result.new_pity > 0 else 0,
     ))
+
+    if existing is not None:
+        from app.template_shards import grant_dupe_shards, SHARDS_ON_DUPE
+        grant_dupe_shards(account, template.code, template.rarity)
+        granted = SHARDS_ON_DUPE.get(template.rarity, 0)
+        _ = existing.template
+        return SummonOut(
+            hero=instance_out(existing),
+            rarity=result.rarity,
+            pulled_epic_pity=result.pity_triggered,
+            pulls_since_epic_after=account.pulls_since_epic,
+            is_duplicate=True,
+            shards_granted=granted,
+        )
+
+    # First copy of this template — fresh HeroInstance, vanilla variance.
+    hero = HeroInstance(
+        account_id=account.id, template_id=template.id, level=1, xp=0,
+        variance_pct_json="{}",
+    )
+    db.add(hero)
     db.flush()
-    # Preload template for instance_out.
     _ = hero.template
     return SummonOut(
         hero=instance_out(hero),
         rarity=result.rarity,
         pulled_epic_pity=result.pity_triggered,
         pulls_since_epic_after=account.pulls_since_epic,
+        is_duplicate=False,
+        shards_granted=0,
     )
 
 
@@ -274,33 +282,33 @@ def summon_event_banner(
 
     account.shards -= payload["shard_cost"]
 
-    # Variance applies if this is a duplicate (player already owns Applecrumb).
-    rng = random.Random()
-    already_owned = db.scalar(
-        select(HeroInstance.id)
-        .where(
+    # Shard-remap (2026-05-12): dupe event-banner pulls credit shards
+    # only; no new HeroInstance row. Canonical copy stays in roster.
+    existing = db.scalar(
+        select(HeroInstance).where(
             HeroInstance.account_id == account.id,
             HeroInstance.template_id == template.id,
-        )
-        .limit(1)
+        ).limit(1)
     )
-    variance_blob = "{}"
-    if already_owned is not None:
-        variance_blob = serialize_variance(roll_variance(rng))
-        from app.template_shards import grant_dupe_shards
-        grant_dupe_shards(account, template.code, template.rarity)
-
-    hero = HeroInstance(
-        account_id=account.id, template_id=template.id, level=1, xp=0,
-        variance_pct_json=variance_blob,
-    )
-    db.add(hero)
     db.add(GachaRecord(
         account_id=account.id,
         template_id=template.id,
         rarity=template.rarity,
         pity_before=account.pulls_since_epic,
     ))
+    is_dupe = existing is not None
+    shards_granted = 0
+    if is_dupe:
+        from app.template_shards import grant_dupe_shards, SHARDS_ON_DUPE
+        grant_dupe_shards(account, template.code, template.rarity)
+        shards_granted = SHARDS_ON_DUPE.get(template.rarity, 0)
+        hero = existing
+    else:
+        hero = HeroInstance(
+            account_id=account.id, template_id=template.id, level=1, xp=0,
+            variance_pct_json="{}",
+        )
+        db.add(hero)
     _bump_event_banner_pulls(account, banner.id)
     # Pity carryover: event-banner pulls advance the shared standard-banner
     # counter. Epic+ event heroes reset it; lower-rarity event heroes still
@@ -335,5 +343,7 @@ def summon_event_banner(
         rarity=Rarity(template.rarity) if not isinstance(template.rarity, Rarity) else template.rarity,
         pulled_epic_pity=False,
         pulls_since_epic_after=account.pulls_since_epic,
+        is_duplicate=is_dupe,
+        shards_granted=shards_granted,
     )
     return out

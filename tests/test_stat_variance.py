@@ -52,59 +52,75 @@ def test_first_copy_has_no_variance(client) -> None:
             assert h["variance_pct"] == {}, h
 
 
-def test_duplicate_summon_rolls_variance(client) -> None:
-    """Force a dupe by giving the account enough shards and pulling x10.
-    With 35 templates and 10 pulls there's still no guarantee of a dupe
-    in any single batch — we retry up to a few times before bailing."""
+def test_duplicate_summon_credits_shards_not_variance(client) -> None:
+    """Shard remap (2026-05-12): duplicate pulls credit template shards
+    and do NOT mint a new HeroInstance, so variance stays locked at the
+    first-pull value (vanilla `{}`). Test asserts the new contract:
+    `is_duplicate=true`, `shards_granted > 0`, and the response hero is
+    the same canonical row across dupes."""
     hdr, aid = _register(client)
     _set_shards(aid, 10_000)
 
-    saw_dupe_with_variance = False
-    for _ in range(10):
+    saw_dupe = False
+    canonical_ids: dict[int, int] = {}  # template_id -> hero id
+    # Seed canonical_ids from the starter team — those rows aren't
+    # surfaced via SummonOut so they'd otherwise appear as KeyErrors
+    # when a dupe lands on a starter template.
+    for h in client.get("/heroes/mine", headers=hdr).json():
+        canonical_ids[h["template"]["id"]] = h["id"]
+
+    for _ in range(20):
         r = client.post("/summon/x10", headers=hdr)
         assert r.status_code == 201, r.text
-        # If any of the 10 pulls landed a template the account already
-        # owned at the moment of that pull, it should have variance set.
         for entry in r.json():
-            v = entry["hero"]["variance_pct"]
-            if v:
-                # All four stats must be present and within bounds.
-                for k in ("hp", "atk", "def", "spd"):
-                    assert k in v, v
-                    assert -0.10 - 1e-6 <= v[k] <= 0.10 + 1e-6, v
-                saw_dupe_with_variance = True
-        if saw_dupe_with_variance:
+            tid = entry["hero"]["template"]["id"]
+            hid = entry["hero"]["id"]
+            if entry["is_duplicate"]:
+                saw_dupe = True
+                assert entry["shards_granted"] > 0, entry
+                # Variance never re-rolls — stays vanilla {} or whatever
+                # the first pull set.
+                assert hid == canonical_ids[tid], (entry, canonical_ids)
+            else:
+                # First pull of this template — variance is locked vanilla.
+                assert entry["hero"]["variance_pct"] == {}, entry
+                assert entry["shards_granted"] == 0, entry
+                canonical_ids[tid] = hid
+        if saw_dupe:
             return
-    raise AssertionError("never observed a duplicate summon with variance")
+    raise AssertionError("never observed a duplicate summon")
 
 
 def test_variance_persists_in_db(client) -> None:
-    """variance_pct_json round-trips through the DB so battles + later
-    /heroes/mine reads see the same numbers."""
+    """Shard remap (2026-05-12): the variance plumbing stays in place
+    even though the gacha no longer rolls fresh values — shard re-roll
+    is on the post-remap roadmap. This test forges a non-vanilla
+    variance via direct DB write to prove the round-trip still works."""
     hdr, aid = _register(client)
-    _set_shards(aid, 1_000)
-
-    client.post("/summon/x10", headers=hdr)
-    client.post("/summon/x10", headers=hdr)  # increase dupe odds
     heroes = client.get("/heroes/mine", headers=hdr).json()
-    with_variance = [h for h in heroes if h["variance_pct"]]
-    if not with_variance:
-        # Bracket — RNG-gated. Skip rather than fail since the previous
-        # test already proves variance fires; this one only checks the
-        # round-trip when it *does*.
-        import pytest
-        pytest.skip("no dupes rolled in this seed; round-trip check moot")
+    assert heroes, "starter team should seed heroes"
+    hid = heroes[0]["id"]
 
-    h = with_variance[0]
     from app.db import SessionLocal
-    from app.gacha import parse_variance
+    from app.gacha import parse_variance, serialize_variance
     from app.models import HeroInstance
+    forged = {"hp": 0.07, "atk": -0.04, "def": 0.01, "spd": 0.10}
     db = SessionLocal()
     try:
-        row = db.get(HeroInstance, h["id"])
-        assert row is not None
-        on_disk = parse_variance(row.variance_pct_json)
-        assert on_disk == {k: float(v) for k, v in h["variance_pct"].items()}
+        row = db.get(HeroInstance, hid)
+        row.variance_pct_json = serialize_variance(forged)
+        db.commit()
+    finally:
+        db.close()
+
+    heroes_after = client.get("/heroes/mine", headers=hdr).json()
+    hero = next(h for h in heroes_after if h["id"] == hid)
+    assert hero["variance_pct"] == forged, hero
+
+    db = SessionLocal()
+    try:
+        row = db.get(HeroInstance, hid)
+        assert parse_variance(row.variance_pct_json) == forged
     finally:
         db.close()
 
