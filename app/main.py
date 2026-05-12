@@ -20,7 +20,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import achievements, admin, afk as afk_router, ai, announcements, arena, auth, battle_pass, battles, collections as collections_router, crafting, daily, events, friend_points as friend_points_router, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, monthly_card as monthly_card_router, notifications, quests, raids, shop, stages, story, summon, tower as tower_router, ui, vip as vip_router
+from app.routers import achievements, admin, afk as afk_router, ai, announcements, arena, auth, battle_pass, battles, collections as collections_router, crafting, daily, events, friend_points as friend_points_router, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, monthly_card as monthly_card_router, notifications, quests, raids, shop, stages, story, summon, telemetry as telemetry_router, tower as tower_router, ui, vip as vip_router
 from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -235,6 +235,7 @@ app.include_router(notifications.router)
 app.include_router(story.router)
 app.include_router(friends.router)
 app.include_router(quests.router)
+app.include_router(telemetry_router.router)
 app.include_router(battle_pass.router)
 app.include_router(monthly_card_router.router)
 app.include_router(afk_router.router)
