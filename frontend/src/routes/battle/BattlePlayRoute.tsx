@@ -59,6 +59,8 @@ export default function BattlePlayRoute() {
             lastEvent={state.last_event ?? null}
             done={done}
             templateByUid={templateByUid}
+            validTargets={pending?.valid_targets ?? []}
+            onAct={pending ? act : undefined}
           />
         </Suspense>
       </Battle3DErrorBoundary>

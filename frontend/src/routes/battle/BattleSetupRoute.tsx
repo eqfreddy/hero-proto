@@ -30,6 +30,27 @@ const RARITY_VAR: Record<HeroTemplate['rarity'], string> = {
   MYTH:      'var(--r-myth)',
 }
 
+const miniBtn: React.CSSProperties = {
+  padding: '4px 10px',
+  borderRadius: 5,
+  fontSize: 11,
+  fontWeight: 700,
+  cursor: 'pointer',
+  background: 'var(--color-surface)',
+  color: 'var(--color-muted)',
+  border: '1px solid rgba(255,255,255,0.12)',
+}
+
+const chipBtn: React.CSSProperties = {
+  padding: '3px 9px',
+  borderRadius: 12,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: 0.4,
+  cursor: 'pointer',
+  border: '1px solid rgba(255,255,255,0.1)',
+}
+
 function useHeroes() {
   return useQuery<Hero[]>({ queryKey: ['heroes'], queryFn: () => apiFetch('/heroes/mine'), staleTime: 5 * 60_000 })
 }
@@ -51,12 +72,39 @@ export default function BattleSetupRoute() {
   )
   const [interactive, setInteractive] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'ATK' | 'DEF' | 'SUP'>('ALL')
+  const [rarityFilter, setRarityFilter] = useState<'ALL' | HeroTemplate['rarity']>('ALL')
 
   const teamIds = team.filter((id): id is number => id !== null)
   const teamPower = teamIds
     .map(id => heroes.find(h => h.id === id))
     .filter(Boolean)
     .reduce((sum, h) => sum + (h!.power ?? 0), 0)
+
+  async function useLastTeam() {
+    try {
+      const res = await apiFetch<{ team: number[]; source: string }>('/me/last-team')
+      const owned = new Set(heroes.map(h => h.id))
+      const cleaned = res.team.filter(id => owned.has(id)).slice(0, 3)
+      if (cleaned.length === 0) {
+        addToast(res.source === 'empty' ? 'No prior battle yet' : 'Last team\'s heroes no longer owned', 'info')
+        return
+      }
+      const padded: (number | null)[] = [cleaned[0] ?? null, cleaned[1] ?? null, cleaned[2] ?? null]
+      setTeam(padded)
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Couldn\'t load last team', 'error')
+    }
+  }
+
+  function autoTeam() {
+    const top3 = [...heroes].sort((a, b) => (b.power ?? 0) - (a.power ?? 0)).slice(0, 3)
+    setTeam([top3[0]?.id ?? null, top3[1]?.id ?? null, top3[2]?.id ?? null])
+  }
+
+  function clearTeam() {
+    setTeam([null, null, null])
+  }
 
   function toggleHero(heroId: number) {
     setTeam(prev => {
@@ -168,9 +216,16 @@ export default function BattleSetupRoute() {
 
       {/* Team builder */}
       <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-          Your Team <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>— Power {teamPower}</span>
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
+            Your Team <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>— Power {teamPower}</span>
+          </h2>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={useLastTeam} style={miniBtn}>🕘 Last team</button>
+            <button onClick={autoTeam} style={miniBtn}>⚡ Auto (best power)</button>
+            <button onClick={clearTeam} style={miniBtn}>✕ Clear</button>
+          </div>
+        </div>
         <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           {team.map((heroId, idx) => {
             const hero = heroes.find(h => h.id === heroId)
@@ -204,8 +259,45 @@ export default function BattleSetupRoute() {
           })}
         </div>
 
+        {/* Filter chips — role + rarity */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+          {(['ALL', 'ATK', 'DEF', 'SUP'] as const).map(r => (
+            <button
+              key={r}
+              onClick={() => setRoleFilter(r)}
+              style={{
+                ...chipBtn,
+                background: roleFilter === r ? 'var(--color-accent)' : 'var(--color-surface)',
+                color: roleFilter === r ? '#fff' : 'var(--color-muted)',
+                borderColor: roleFilter === r ? 'var(--color-accent)' : 'rgba(255,255,255,0.1)',
+              }}
+            >{r === 'ALL' ? 'All roles' : r}</button>
+          ))}
+          <span style={{ width: 1, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
+          {(['ALL', 'COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTH'] as const).map(r => {
+            const active = rarityFilter === r
+            const c = r === 'ALL' ? null : RARITY_VAR[r as HeroTemplate['rarity']]
+            return (
+              <button
+                key={r}
+                onClick={() => setRarityFilter(r)}
+                style={{
+                  ...chipBtn,
+                  background: active && c ? `color-mix(in srgb, ${c} 30%, var(--color-surface))` : (active ? 'var(--color-accent)' : 'var(--color-surface)'),
+                  color: active && c ? c : (active ? '#fff' : 'var(--color-muted)'),
+                  borderColor: active && c ? c : (active ? 'var(--color-accent)' : 'rgba(255,255,255,0.1)'),
+                }}
+              >{r === 'ALL' ? 'All rarities' : r}</button>
+            )
+          })}
+        </div>
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {[...heroes].sort((a, b) => (b.power ?? 0) - (a.power ?? 0)).map(h => {
+          {[...heroes]
+            .filter(h => roleFilter === 'ALL' || h.template.role === roleFilter)
+            .filter(h => rarityFilter === 'ALL' || h.template.rarity === rarityFilter)
+            .sort((a, b) => (b.power ?? 0) - (a.power ?? 0))
+            .map(h => {
             const selected = team.includes(h.id)
             const rarityColor = RARITY_VAR[h.template.rarity]
             return (

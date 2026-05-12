@@ -28,6 +28,10 @@ export interface Battle3DSceneProps {
   lastEvent: Record<string, unknown> | null;
   done: boolean;
   templateByUid?: Record<string, string>;
+  /** Optional: when the actor is waiting, valid target UIDs that can be clicked. */
+  validTargets?: string[];
+  /** Optional: invoked with a target UID when the player clicks a valid hero. */
+  onAct?: (targetUid: string) => void;
 }
 
 function detectWebGL(): boolean {
@@ -52,6 +56,11 @@ export function Battle3DScene(props: Battle3DSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rigsRef = useRef<Map<string, UnitRig>>(new Map());
   const lastEventSeenRef = useRef<Record<string, unknown> | null>(null);
+  // Mutable mirror of props so the canvas click handler (registered
+  // once with deps=[webglOk]) always reads the current valid-targets
+  // and onAct without re-attaching listeners on every render.
+  const propsRef = useRef(props);
+  propsRef.current = props;
 
   useEffect(() => {
     if (!webglOk || !containerRef.current) return;
@@ -115,6 +124,10 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           // scene is already cloned by heroLoader.
           scene.position.set(slot[0], slot[1], slot[2]);
           scene.scale.setScalar(0.55);
+          // Stamp uid/side on the root so raycast can identify which
+          // unit was clicked by walking up from the intersected mesh.
+          scene.userData.uid = unit.uid;
+          scene.userData.side = side;
           // Face teammates toward each other across the battle line.
           // Models actually export facing -z (typical glTF "forward"),
           // not +z, so flipping the previous signs here. Team A
@@ -200,6 +213,47 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     }
     tick();
 
+    // Raycast: click a hero in the 3D scene to act on it. Reads valid
+    // targets + onAct from propsRef so the handler can stay registered
+    // across React re-renders without re-binding.
+    const raycaster = new THREE.Raycaster();
+    const mouseNdc = new THREE.Vector2();
+    function pickUidAt(clientX: number, clientY: number): string | null {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouseNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouseNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouseNdc, camera);
+      const hits = raycaster.intersectObjects(threeScene.children, true);
+      for (const hit of hits) {
+        let obj: THREE.Object3D | null = hit.object;
+        while (obj && !obj.userData?.uid) obj = obj.parent;
+        if (obj && typeof obj.userData.uid === "string") {
+          return obj.userData.uid;
+        }
+      }
+      return null;
+    }
+    function onCanvasClick(e: MouseEvent) {
+      const p = propsRef.current;
+      if (!p.onAct || !p.validTargets?.length) return;
+      const uid = pickUidAt(e.clientX, e.clientY);
+      if (uid && p.validTargets.includes(uid)) {
+        p.onAct(uid);
+      }
+    }
+    function onCanvasMove(e: MouseEvent) {
+      const p = propsRef.current;
+      if (!p.onAct || !p.validTargets?.length) {
+        renderer.domElement.style.cursor = "default";
+        return;
+      }
+      const uid = pickUidAt(e.clientX, e.clientY);
+      renderer.domElement.style.cursor =
+        uid && p.validTargets.includes(uid) ? "pointer" : "default";
+    }
+    renderer.domElement.addEventListener("click", onCanvasClick);
+    renderer.domElement.addEventListener("mousemove", onCanvasMove);
+
     function onResize() {
       if (!container) return;
       camera.aspect = container.clientWidth / container.clientHeight;
@@ -213,6 +267,8 @@ export function Battle3DScene(props: Battle3DSceneProps) {
       disposed = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
+      renderer.domElement.removeEventListener("click", onCanvasClick);
+      renderer.domElement.removeEventListener("mousemove", onCanvasMove);
       threeScene.traverse(o => {
         const mesh = o as THREE.Mesh;
         if (mesh.isMesh) {
