@@ -19,6 +19,9 @@ export interface InteractiveUnit {
   template_code?: string;
   faction?: string;
   side?: "A" | "B";
+  hp?: number;
+  max_hp?: number;
+  dead?: boolean;
 }
 
 export interface Battle3DSceneProps {
@@ -98,6 +101,27 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     let raf = 0;
     let disposed = false;
 
+    // World-space HP bars: HTML overlay sibling to the canvas, one bar
+    // per hero. Each frame we project the hero's head position to CSS
+    // pixels and update the bar's transform + fill from latest props.
+    const barsRoot = document.createElement("div");
+    barsRoot.style.cssText = "position:absolute;inset:0;pointer-events:none;overflow:hidden;";
+    container.appendChild(barsRoot);
+    const bars = new Map<string, { el: HTMLDivElement; fill: HTMLDivElement; anchor: THREE.Object3D }>();
+    const HEAD_OFFSET = new THREE.Vector3(0, 2.6, 0);
+    const tmpProj = new THREE.Vector3();
+
+    function makeBar(uid: string): { el: HTMLDivElement; fill: HTMLDivElement } {
+      const el = document.createElement("div");
+      el.style.cssText = "position:absolute;left:0;top:0;width:64px;height:6px;margin:-3px 0 0 -32px;background:rgba(0,0,0,0.65);border:1px solid rgba(0,0,0,0.85);border-radius:3px;overflow:hidden;will-change:transform;display:none;";
+      const fill = document.createElement("div");
+      fill.style.cssText = "height:100%;background:#4caf50;transition:width 0.25s, background 0.25s;";
+      el.appendChild(fill);
+      barsRoot.appendChild(el);
+      bars.set(uid, { el, fill, anchor: new THREE.Object3D() }); // anchor replaced after load
+      return { el, fill };
+    }
+
     // Diorama backdrop
     loadDiorama(themeForStage(props.stageCode))
       .then(({ scene }) => {
@@ -129,6 +153,9 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           // unit was clicked by walking up from the intersected mesh.
           scene.userData.uid = unit.uid;
           scene.userData.side = side;
+          // Reserve an HP bar element + remember the scene as its anchor.
+          makeBar(unit.uid);
+          bars.get(unit.uid)!.anchor = scene;
           // Face teammates toward each other across the battle line.
           // Models actually export facing -z (typical glTF "forward"),
           // not +z, so flipping the previous signs here. Team A
@@ -202,10 +229,37 @@ export function Battle3DScene(props: Battle3DSceneProps) {
         );
     }
 
+    function updateBars() {
+      if (bars.size === 0) return;
+      const p = propsRef.current;
+      const units = [...p.teamA, ...p.teamB];
+      const byUid = new Map(units.map(u => [u.uid, u]));
+      const cw = container.clientWidth;
+      const ch = container.clientHeight;
+      for (const [uid, b] of bars) {
+        const u = byUid.get(uid);
+        if (!u || !b.anchor) { b.el.style.display = "none"; continue; }
+        if (u.dead) { b.el.style.display = "none"; continue; }
+        tmpProj.copy(b.anchor.position).add(HEAD_OFFSET).project(camera);
+        // Skip if behind camera (z > 1) or off-screen.
+        if (tmpProj.z > 1) { b.el.style.display = "none"; continue; }
+        const px = (tmpProj.x * 0.5 + 0.5) * cw;
+        const py = (-tmpProj.y * 0.5 + 0.5) * ch;
+        b.el.style.display = "block";
+        b.el.style.transform = `translate(${px}px, ${py}px)`;
+        if (u.max_hp != null && u.max_hp > 0 && u.hp != null) {
+          const pct = Math.max(0, Math.min(1, u.hp / u.max_hp));
+          b.fill.style.width = `${pct * 100}%`;
+          b.fill.style.background = pct > 0.5 ? "#4caf50" : pct > 0.25 ? "#e8a35a" : "#e85a78";
+        }
+      }
+    }
+
     function tick() {
       const dt = clock.getDelta();
       mixers.forEach(m => m.update(dt));
       renderer.render(threeScene, camera);
+      updateBars();
       if (!firstFrameDone) {
         markFirstFrame(mountStart);
         firstFrameDone = true;
@@ -300,6 +354,10 @@ export function Battle3DScene(props: Battle3DSceneProps) {
       if (renderer.domElement.parentNode === container) {
         container.removeChild(renderer.domElement);
       }
+      if (barsRoot.parentNode === container) {
+        container.removeChild(barsRoot);
+      }
+      bars.clear();
       rigsRef.current.clear();
     };
     // Mount-only: team rosters change via lastEvent/HP, not re-mount.

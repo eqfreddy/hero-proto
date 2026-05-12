@@ -74,9 +74,21 @@ export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorU
   const validSet = new Set(validTargets)
 
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 16 }}>
-      {/* Team B (enemies) — top */}
-      <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto' }}>
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', padding: 16 }}>
+      {/* Team A (player) — bottom left */}
+      <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', gap: 8, pointerEvents: 'auto' }}>
+        {teamA.map(u => (
+          <UnitCard
+            key={u.uid}
+            unit={u}
+            isTarget={false}
+            templateCode={templateByUid?.[u.uid]}
+          />
+        ))}
+      </div>
+
+      {/* Team B (enemies) — bottom right, compact */}
+      <div style={{ position: 'absolute', bottom: 16, right: 16, display: 'flex', gap: 6, pointerEvents: 'auto' }}>
         {teamB.map(u => (
           <UnitCard
             key={u.uid}
@@ -84,18 +96,6 @@ export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorU
             isTarget={!!onAct && validSet.has(u.uid)}
             templateCode={templateByUid?.[u.uid]}
             onSelect={onAct ? () => onAct(u.uid) : undefined}
-          />
-        ))}
-      </div>
-
-      {/* Team A (player) — bottom */}
-      <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto' }}>
-        {teamA.map(u => (
-          <UnitCard
-            key={u.uid}
-            unit={u}
-            isTarget={false}
-            templateCode={templateByUid?.[u.uid]}
           />
         ))}
       </div>
