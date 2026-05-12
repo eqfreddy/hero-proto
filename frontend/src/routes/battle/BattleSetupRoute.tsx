@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../api/client'
 import { postBattle, postInteractiveStart } from '../../api/battles'
 import { useUiStore } from '../../store/ui'
 import { TierBadge } from '../../components/TierBadge'
 import type { Hero, HeroTemplate, Stage } from '../../types'
+
+interface TeamPreset {
+  id: number
+  name: string
+  team: number[]
+  updated_at: string
+}
 
 // Tier color theming — mirrors TierBadge so stage buttons match the
 // badge inside them. Used for grouped <details> sections + per-stage
@@ -59,12 +66,22 @@ function useStages() {
   return useQuery<Stage[]>({ queryKey: ['stages'], queryFn: () => apiFetch('/stages'), staleTime: 10 * 60_000 })
 }
 
+function useTeamPresets() {
+  return useQuery<TeamPreset[]>({
+    queryKey: ['team-presets'],
+    queryFn: () => apiFetch('/me/team-presets'),
+    staleTime: 30_000,
+  })
+}
+
 export default function BattleSetupRoute() {
   const navigate = useNavigate()
   const location = useLocation()
   const addToast = useUiStore(s => s.addToast)
+  const queryClient = useQueryClient()
   const { data: heroes = [] } = useHeroes()
   const { data: stages = [] } = useStages()
+  const { data: presets = [] } = useTeamPresets()
 
   const [team, setTeam] = useState<(number | null)[]>([null, null, null])
   const [selectedStageId, setSelectedStageId] = useState<number | null>(
@@ -104,6 +121,35 @@ export default function BattleSetupRoute() {
 
   function clearTeam() {
     setTeam([null, null, null])
+  }
+
+  function loadPreset(p: TeamPreset) {
+    const owned = new Set(heroes.map(h => h.id))
+    const clean = p.team.filter(id => owned.has(id)).slice(0, 3)
+    if (clean.length === 0) {
+      addToast(`Preset "${p.name}" — none of its heroes are still owned`, 'info')
+      return
+    }
+    setTeam([clean[0] ?? null, clean[1] ?? null, clean[2] ?? null])
+  }
+
+  async function savePreset() {
+    if (teamIds.length === 0) {
+      addToast('Pick at least one hero to save', 'info')
+      return
+    }
+    const name = window.prompt('Preset name:', presets[0]?.name ?? 'My team')
+    if (!name) return
+    try {
+      await apiFetch('/me/team-presets', {
+        method: 'POST',
+        body: JSON.stringify({ name: name.trim().slice(0, 32), team: teamIds }),
+      })
+      queryClient.invalidateQueries({ queryKey: ['team-presets'] })
+      addToast(`Saved "${name}"`, 'success')
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Couldn\'t save preset', 'error')
+    }
   }
 
   function toggleHero(heroId: number) {
@@ -219,13 +265,44 @@ export default function BattleSetupRoute() {
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
           <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
             Your Team <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>— Power {teamPower}</span>
+            {selectedStage?.recommended_power != null && teamIds.length > 0 && (() => {
+              const rec = selectedStage.recommended_power
+              const delta = teamPower - rec
+              const ok = delta >= 0
+              const tag = ok ? '✓ above rec' : `${Math.round((1 - teamPower / rec) * 100)}% below rec`
+              return (
+                <span style={{
+                  marginLeft: 8, fontSize: 11, fontWeight: 700,
+                  color: ok ? '#7fc88a' : (delta > -rec * 0.2 ? '#e8a35a' : '#e85a78'),
+                }}>· {tag}</span>
+              )
+            })()}
           </h2>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button onClick={useLastTeam} style={miniBtn}>🕘 Last team</button>
-            <button onClick={autoTeam} style={miniBtn}>⚡ Auto (best power)</button>
+            <button onClick={autoTeam} style={miniBtn}>⚡ Auto</button>
+            <button onClick={savePreset} style={miniBtn}>💾 Save preset</button>
             <button onClick={clearTeam} style={miniBtn}>✕ Clear</button>
           </div>
         </div>
+        {presets.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: 'var(--color-muted)', alignSelf: 'center', marginRight: 2 }}>Presets:</span>
+            {presets.map(p => (
+              <button
+                key={p.id}
+                onClick={() => loadPreset(p)}
+                style={{
+                  ...chipBtn,
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text)',
+                  borderColor: 'rgba(255,255,255,0.18)',
+                }}
+                title={`Load preset: ${p.name}`}
+              >📋 {p.name}</button>
+            ))}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           {team.map((heroId, idx) => {
             const hero = heroes.find(h => h.id === heroId)
