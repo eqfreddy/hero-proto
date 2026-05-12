@@ -37,6 +37,19 @@ const RARITY_VAR: Record<HeroTemplate['rarity'], string> = {
   MYTH:      'var(--r-myth)',
 }
 
+const RARITY_ORDER: HeroTemplate['rarity'][] = [
+  'COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTH',
+]
+
+// A hero is "vanilla" when nothing distinguishes it from another copy of
+// the same template — no XP, no skill-up, no ascension above its rarity
+// baseline. Vanilla copies stack into a single button with a ×N badge;
+// any modification splits them back out so the player can pick the
+// stronger one.
+function isVanilla(h: Hero): boolean {
+  return h.level === 1 && h.special_level === 0 && h.stars === 1
+}
+
 const miniBtn: React.CSSProperties = {
   padding: '4px 10px',
   borderRadius: 5,
@@ -369,30 +382,108 @@ export default function BattleSetupRoute() {
           })}
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {[...heroes]
-            .filter(h => roleFilter === 'ALL' || h.template.role === roleFilter)
-            .filter(h => rarityFilter === 'ALL' || h.template.rarity === rarityFilter)
-            .sort((a, b) => (b.power ?? 0) - (a.power ?? 0))
-            .map(h => {
-            const selected = team.includes(h.id)
-            const rarityColor = RARITY_VAR[h.template.rarity]
+        {/* Roster — grouped by rarity, each group a color-coded
+            collapsible section. Vanilla duplicates (level 1, 1★, no
+            skill-ups) stack into one button with a ×N badge; modified
+            copies show separately so the player can pick the stronger
+            one. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {RARITY_ORDER.map(rarity => {
+            if (rarityFilter !== 'ALL' && rarityFilter !== rarity) return null
+            const rarityHeroes = heroes
+              .filter(h => h.template.rarity === rarity)
+              .filter(h => roleFilter === 'ALL' || h.template.role === roleFilter)
+            if (rarityHeroes.length === 0) return null
+            const rarityColor = RARITY_VAR[rarity]
+
+            // Bucket: vanilla copies share a key per template; modified
+            // heroes each get their own bucket (unique by instance id).
+            const buckets = new Map<string, Hero[]>()
+            for (const h of rarityHeroes) {
+              const key = isVanilla(h) ? `T${h.template.id}` : `I${h.id}`
+              const arr = buckets.get(key) ?? []
+              arr.push(h)
+              buckets.set(key, arr)
+            }
+            const entries = [...buckets.values()].sort(
+              (a, b) => (b[0].power ?? 0) - (a[0].power ?? 0),
+            )
+
             return (
-              <button
-                key={h.id}
-                onClick={() => toggleHero(h.id)}
+              <details
+                key={rarity}
+                open={rarityFilter === rarity || rarityHeroes.some(h => team.includes(h.id))}
                 style={{
-                  padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  background: selected
-                    ? `color-mix(in srgb, ${rarityColor} 35%, var(--color-surface))`
-                    : `color-mix(in srgb, ${rarityColor} 10%, var(--color-surface))`,
-                  color: rarityColor,
-                  border: `1px solid ${selected ? rarityColor : `color-mix(in srgb, ${rarityColor} 45%, transparent)`}`,
-                  boxShadow: selected ? `0 0 0 1px ${rarityColor}` : 'none',
+                  background: `color-mix(in srgb, ${rarityColor} 6%, var(--color-surface))`,
+                  border: `1px solid color-mix(in srgb, ${rarityColor} 35%, transparent)`,
+                  borderRadius: 8,
+                  overflow: 'hidden',
                 }}
               >
-                {h.template.name} <span style={{ opacity: 0.7, fontWeight: 500 }}>({h.power})</span>
-              </button>
+                <summary style={{
+                  padding: '8px 14px', cursor: 'pointer', userSelect: 'none',
+                  background: `color-mix(in srgb, ${rarityColor} 18%, var(--color-surface))`,
+                  color: rarityColor,
+                  fontSize: 12, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <span>{rarity} <span style={{ opacity: 0.7, fontWeight: 600, marginLeft: 6 }}>({rarityHeroes.length})</span></span>
+                  <span style={{ fontSize: 11, opacity: 0.6, fontWeight: 600 }}>{entries.length} unique</span>
+                </summary>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: 10 }}>
+                  {entries.map(bucket => {
+                    const rep = bucket[0]
+                    const stacked = bucket.length > 1
+                    // For a stack, "selected" reflects how many of its
+                    // instances are currently slotted; clicking adds the
+                    // next un-slotted instance.
+                    const slottedCount = bucket.filter(h => team.includes(h.id)).length
+                    const remaining = bucket.length - slottedCount
+                    const onClick = () => {
+                      const next = bucket.find(h => !team.includes(h.id))
+                      if (next) toggleHero(next.id)
+                      else if (slottedCount > 0) {
+                        // All slotted — pop the most-recently slotted one off.
+                        const last = [...bucket].reverse().find(h => team.includes(h.id))
+                        if (last) toggleHero(last.id)
+                      }
+                    }
+                    const fullySelected = remaining === 0 && slottedCount > 0
+                    return (
+                      <button
+                        key={stacked ? `stack-${rep.template.id}` : `inst-${rep.id}`}
+                        onClick={onClick}
+                        style={{
+                          padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          background: fullySelected
+                            ? `color-mix(in srgb, ${rarityColor} 35%, var(--color-surface))`
+                            : slottedCount > 0
+                            ? `color-mix(in srgb, ${rarityColor} 22%, var(--color-surface))`
+                            : `color-mix(in srgb, ${rarityColor} 10%, var(--color-surface))`,
+                          color: rarityColor,
+                          border: `1px solid ${slottedCount > 0 ? rarityColor : `color-mix(in srgb, ${rarityColor} 45%, transparent)`}`,
+                          boxShadow: fullySelected ? `0 0 0 1px ${rarityColor}` : 'none',
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                        }}
+                        title={stacked
+                          ? `${bucket.length} vanilla copies — click to add the next, click again to remove`
+                          : `Lv ${rep.level} · ${rep.stars}★ · skill ${rep.special_level + 1}`}
+                      >
+                        <span>{rep.template.name}</span>
+                        {stacked ? (
+                          <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.85 }}>
+                            ×{remaining}{slottedCount > 0 ? ` (${slottedCount} in team)` : ''}
+                          </span>
+                        ) : (
+                          <span style={{ opacity: 0.7, fontWeight: 500 }}>
+                            Lv{rep.level}·{rep.stars}★ ({rep.power})
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </details>
             )
           })}
         </div>
