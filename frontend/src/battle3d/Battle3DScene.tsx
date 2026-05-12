@@ -9,6 +9,7 @@ import { markFirstFrame, recordBattle3DMetric } from "./telemetry";
 import {
   SLOT_POSITIONS_TEAM_A, SLOT_POSITIONS_TEAM_B,
   CAMERA_POSITION, CAMERA_LOOKAT,
+  ZOOM_MIN_DIST, ZOOM_MAX_DIST, ZOOM_WHEEL_STEP,
   AMBIENT_INTENSITY, DIRECTIONAL_INTENSITY, DIRECTIONAL_POSITION,
 } from "./constants";
 
@@ -254,6 +255,22 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     renderer.domElement.addEventListener("click", onCanvasClick);
     renderer.domElement.addEventListener("mousemove", onCanvasMove);
 
+    // Wheel zoom: move camera along the lookAt→camera vector, clamp
+    // distance to [ZOOM_MIN_DIST, ZOOM_MAX_DIST]. Pinch-zoom on touch
+    // devices triggers wheel events too, so this covers both inputs.
+    function onCanvasWheel(e: WheelEvent) {
+      e.preventDefault();
+      const offset = new THREE.Vector3().subVectors(camera.position, CAMERA_LOOKAT);
+      const currentDist = offset.length();
+      const nextDist = Math.min(
+        ZOOM_MAX_DIST,
+        Math.max(ZOOM_MIN_DIST, currentDist + e.deltaY * ZOOM_WHEEL_STEP * currentDist),
+      );
+      offset.setLength(nextDist);
+      camera.position.copy(CAMERA_LOOKAT).add(offset);
+    }
+    renderer.domElement.addEventListener("wheel", onCanvasWheel, { passive: false });
+
     function onResize() {
       if (!container) return;
       camera.aspect = container.clientWidth / container.clientHeight;
@@ -269,6 +286,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
       window.removeEventListener("resize", onResize);
       renderer.domElement.removeEventListener("click", onCanvasClick);
       renderer.domElement.removeEventListener("mousemove", onCanvasMove);
+      renderer.domElement.removeEventListener("wheel", onCanvasWheel);
       threeScene.traverse(o => {
         const mesh = o as THREE.Mesh;
         if (mesh.isMesh) {

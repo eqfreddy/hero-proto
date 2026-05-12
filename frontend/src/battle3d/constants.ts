@@ -14,12 +14,17 @@ export const SLOT_POSITIONS_TEAM_B: [number, number, number][] = SLOT_POSITIONS_
   ([x, y, z]) => [-x, y, z],
 );
 
-// Camera pulled back ~60% from (0,3.5,9) so heroes don't dominate
-// the frame, and the lookAt raised from y=1 to y=3 so the characters
-// fall toward the bottom third of the screen (showing more diorama
-// above them).
-export const CAMERA_POSITION = new THREE.Vector3(0, 5, 10);
+// Camera pulled back further (was 0,5,10) so the wider Quaternius rigs
+// don't dominate the frame; lookAt y=3 keeps characters in the bottom
+// third with more diorama above them.
+export const CAMERA_POSITION = new THREE.Vector3(0, 6, 14);
 export const CAMERA_LOOKAT   = new THREE.Vector3(0, 3, 0);
+
+// Zoom range — wheel listener moves the camera along the lookAt→camera
+// vector and clamps the resulting distance into this interval.
+export const ZOOM_MIN_DIST = 7;
+export const ZOOM_MAX_DIST = 24;
+export const ZOOM_WHEEL_STEP = 0.001; // distance delta per wheel pixel
 
 export const AMBIENT_INTENSITY     = 0.6;
 export const DIRECTIONAL_INTENSITY = 0.8;
