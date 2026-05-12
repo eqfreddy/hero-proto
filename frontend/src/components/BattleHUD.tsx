@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CombatUnit } from '../types/battle'
 
 const BUST_BASE = '/app/static/heroes/busts/'
@@ -14,6 +14,39 @@ interface BattleHUDProps {
   rewards: Record<string, number> | null
   onClose: () => void
   templateByUid?: Record<string, string>
+  /** Unix epoch seconds when the current waiting turn started (server-side). */
+  turnStartedAt?: number | null
+  /** Server-side per-turn timeout (constant per session). */
+  turnTimeoutS?: number
+}
+
+/** Live per-turn countdown banner. Drives a once-per-second tick so the
+ * UI shows the player how long they have before the server forfeits the
+ * battle. Hidden when no turn is in progress. */
+function TurnTimer({ startedAt, timeoutS }: { startedAt: number; timeoutS: number }) {
+  const [now, setNow] = useState(() => Date.now() / 1000)
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now() / 1000), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+  const remaining = Math.max(0, Math.ceil(timeoutS - (now - startedAt)))
+  const lowFraction = remaining <= timeoutS * 0.25
+  const critical = remaining <= 10
+  const color = critical ? '#e85a78' : lowFraction ? '#e8a35a' : '#cfd6dd'
+  return (
+    <div style={{
+      position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+      background: 'rgba(0,0,0,0.65)', border: `1px solid ${color}`,
+      borderRadius: 16, padding: '4px 14px',
+      fontSize: 13, fontWeight: 800, color,
+      display: 'flex', alignItems: 'center', gap: 6,
+      pointerEvents: 'none', letterSpacing: 0.5, fontVariantNumeric: 'tabular-nums',
+    }}>
+      <span>⏱</span>
+      <span>{remaining}s</span>
+      {critical && <span style={{ fontSize: 10, opacity: 0.85, marginLeft: 4 }}>FORFEIT IMMINENT</span>}
+    </div>
+  )
 }
 
 function UnitCard({
@@ -70,11 +103,13 @@ function UnitCard({
   )
 }
 
-export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorUid, validTargets, acting, done, rewards, onClose, templateByUid }: BattleHUDProps) {
+export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorUid, validTargets, acting, done, rewards, onClose, templateByUid, turnStartedAt, turnTimeoutS }: BattleHUDProps) {
   const validSet = new Set(validTargets)
+  const showTimer = !done && turnStartedAt != null && (turnTimeoutS ?? 0) > 0
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', padding: 16 }}>
+      {showTimer && <TurnTimer startedAt={turnStartedAt!} timeoutS={turnTimeoutS!} />}
       {/* Team A (player) — bottom left */}
       <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', gap: 8, pointerEvents: 'auto' }}>
         {teamA.map(u => (

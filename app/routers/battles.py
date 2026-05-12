@@ -861,6 +861,8 @@ from app.interactive import (
     create_stage_session,
     get_session,
     session_log_delta,
+    expire_if_stale,
+    TURN_TIMEOUT_S,
 )
 from app.schemas import UnitSnapshot
 
@@ -899,6 +901,8 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
         battle_id=battle_id,
         stage_code=session.stage_code,
         last_event=session.last_event,
+        turn_started_at=session.turn_started_at,
+        turn_timeout_s=TURN_TIMEOUT_S,
     )
 
 
@@ -1091,6 +1095,27 @@ def interactive_start(
     return _state_out(session)
 
 
+@router.get("/interactive/{session_id}", response_model=InteractiveStateOut)
+def interactive_state(
+    session_id: str,
+    account: Annotated[Account, Depends(get_current_account)],
+    db: Annotated[Session, Depends(get_db)],
+) -> InteractiveStateOut:
+    """Read-only state poll. Returns the current snapshot; if the per-turn
+    timer has expired, lazily finalizes the session as a LOSS and runs
+    reward calc so the client can show the timeout outcome on the next
+    fetch instead of getting wedged."""
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found or expired")
+    if session.account_id != account.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "not your session")
+    rewards = None
+    if expire_if_stale(session):
+        rewards = _finalize_stage(session, account, db)
+    return _state_out(session, rewards=rewards)
+
+
 @router.post("/interactive/{session_id}/act", response_model=InteractiveStateOut)
 def interactive_act(
     session_id: str,
@@ -1106,6 +1131,11 @@ def interactive_act(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found or expired")
     if session.account_id != account.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "not your session")
+    # Lazy-expire stuck turns: if the timer elapsed, the next /act has
+    # already lost the battle. Finalize once, then 409 on retry.
+    if expire_if_stale(session):
+        rewards = _finalize_stage(session, account, db)
+        raise HTTPException(status.HTTP_409_CONFLICT, "turn timeout — battle forfeited")  # noqa: B904
     if session.status == "DONE":
         raise HTTPException(status.HTTP_409_CONFLICT, "battle already finished")
 

@@ -461,8 +461,10 @@ def _distribute_rewards(db: Session, raid: Raid) -> dict:
 
 from app.interactive import (
     InteractiveSession as _ISession,
+    TURN_TIMEOUT_S,
     advance_session as _adv_session,
     create_raid_session,
+    expire_if_stale,
     get_session as _get_session,
     session_log_delta,
 )
@@ -505,6 +507,8 @@ def _raid_state_out(session: _ISession, rewards: dict | None = None) -> Interact
         # The 3D viewer falls back to DEFAULT_THEME (server-closet) for raids.
         stage_code=session.stage_code,
         last_event=session.last_event,
+        turn_started_at=session.turn_started_at,
+        turn_timeout_s=TURN_TIMEOUT_S,
     )
 
 
@@ -642,6 +646,10 @@ def raid_interactive_act(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "not your session")
     if session.kind != "raid":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "not a raid session")
+    # Lazy turn-timer expiry — falls through to the DONE-branch finalize
+    # below, which handles boss damage + raid state for a timed-out
+    # attempt (whatever damage was dealt before the freeze).
+    expire_if_stale(session)
     if session.status == "DONE":
         raise HTTPException(status.HTTP_409_CONFLICT, "battle already finished")
 

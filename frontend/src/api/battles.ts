@@ -22,6 +22,10 @@ export function postAct(sessionId: string, targetUid: string): Promise<Interacti
   })
 }
 
+export function fetchInteractiveState(sessionId: string): Promise<InteractiveStateOut> {
+  return apiFetch<InteractiveStateOut>(`/battles/interactive/${sessionId}`)
+}
+
 export function fetchBattle(battleId: string | number): Promise<BattleOut> {
   return apiFetch<BattleOut>(`/battles/${battleId}`)
 }

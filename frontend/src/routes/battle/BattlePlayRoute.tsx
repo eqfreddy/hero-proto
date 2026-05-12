@@ -76,6 +76,8 @@ export default function BattlePlayRoute() {
         rewards={rewards}
         onClose={() => navigate('/app/stages')}
         templateByUid={templateByUid}
+        turnStartedAt={state.turn_started_at ?? null}
+        turnTimeoutS={state.turn_timeout_s}
       />
 
       {error && (

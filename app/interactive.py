@@ -23,6 +23,12 @@ from app.combat import (
 
 SESSION_TTL = 30 * 60  # 30 minutes
 
+# Per-turn timeout. Safety hatch for crashed clients, network drops, or
+# generator loops — NOT a strategic timer. If the player doesn't /act
+# within TURN_TIMEOUT_S of the server entering WAITING, the next session
+# read (act or state-poll) marks the battle DONE with LOSS.
+TURN_TIMEOUT_S = 120
+
 
 @dataclass
 class InteractiveSession:
@@ -66,6 +72,12 @@ class InteractiveSession:
     # 3D viewer support — captured at session creation, echoed on every poll
     stage_code: str | None = None
     last_event: dict | None = None
+
+    # Per-turn timeout anchor. Set whenever status transitions to WAITING;
+    # cleared (None) when the session is DONE. Frontend uses this + the
+    # constant TURN_TIMEOUT_S to render a live countdown; server uses it
+    # to lazy-expire stuck sessions on next access.
+    turn_started_at: float | None = None
 
 
 # Session store — keyed by session_id
@@ -114,6 +126,7 @@ def _advance(session: InteractiveSession, target_uid: str | None = None) -> None
         session.pending = pause_event
         session.turn_number = pause_event["turn_number"]
         session.status = "WAITING"
+        session.turn_started_at = time.time()
     except StopIteration as exc:
         result: CombatResult = exc.value
         session.wave_result = result
@@ -145,6 +158,7 @@ def _advance(session: InteractiveSession, target_uid: str | None = None) -> None
             session.status = "DONE"
             session.pending = None
             session.outcome = result.outcome
+            session.turn_started_at = None
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +168,29 @@ def _advance(session: InteractiveSession, target_uid: str | None = None) -> None
 def get_session(session_id: str) -> InteractiveSession | None:
     _cleanup()
     return _sessions.get(session_id)
+
+
+def expire_if_stale(session: InteractiveSession) -> bool:
+    """Mark a WAITING session DONE with a LOSS outcome if the player's
+    turn-clock has elapsed. Returns True if this call performed the
+    expiry (caller may want to run finalize). Idempotent: calling on a
+    DONE or fresh session is a no-op."""
+    if session.status != "WAITING":
+        return False
+    if session.turn_started_at is None:
+        return False
+    if time.time() - session.turn_started_at <= TURN_TIMEOUT_S:
+        return False
+    session.combined_log.append({
+        "type": "TURN_TIMEOUT",
+        "turn_number": session.turn_number,
+        "actor": session.pending["actor"] if session.pending else None,
+    })
+    session.status = "DONE"
+    session.pending = None
+    session.outcome = BattleOutcome.LOSS
+    session.turn_started_at = None
+    return True
 
 
 def create_stage_session(

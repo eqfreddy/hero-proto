@@ -537,3 +537,9 @@ class InteractiveStateOut(BaseModel):
     # 3D viewer support (interactive mode only)
     stage_code: str | None = None
     last_event: dict | None = None
+    # Turn timer (interactive mode). turn_started_at is a Unix epoch
+    # seconds anchor; the client renders countdown = turn_timeout_s -
+    # (now - turn_started_at). Server lazy-expires stale sessions to
+    # LOSS on next read.
+    turn_started_at: float | None = None
+    turn_timeout_s: int = 120

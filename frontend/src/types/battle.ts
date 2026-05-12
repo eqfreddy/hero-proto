@@ -53,6 +53,12 @@ export interface InteractiveStateOut {
   stage_code?: string | null
   last_event?: Record<string, unknown> | null
   participants?: InteractiveParticipant[]
+  /** Unix epoch seconds when the current WAITING turn started.
+   * Null when not waiting. Client renders countdown =
+   * turn_timeout_s - (now - turn_started_at). */
+  turn_started_at?: number | null
+  /** Server-side turn timeout in seconds. Constant for the session. */
+  turn_timeout_s?: number
 }
 
 export interface PostBattlePayload {
