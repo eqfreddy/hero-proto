@@ -214,6 +214,11 @@ export function Battle3DScene(props: Battle3DSceneProps) {
       const frame = computeResponsiveFrame(w, h);
       camera.position.copy(frame.cameraPosition);
       camera.lookAt(frame.cameraLookAt);
+      console.log("[battle-3d:resize]", {
+        viewport: `${w}x${h}`,
+        camPos: frame.cameraPosition.toArray().map(n => Number(n.toFixed(2))),
+        lookAt: frame.cameraLookAt.toArray().map(n => Number(n.toFixed(2))),
+      });
     }
     window.addEventListener("resize", onResize);
 
