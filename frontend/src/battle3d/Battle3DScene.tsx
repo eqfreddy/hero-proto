@@ -108,6 +108,33 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     barsRoot.style.cssText = "position:absolute;inset:0;pointer-events:none;overflow:hidden;";
     container.appendChild(barsRoot);
     const bars = new Map<string, { el: HTMLDivElement; fill: HTMLDivElement; anchor: THREE.Object3D }>();
+    // Aura discs — glowing ring under each hero's feet. Team-colored so
+    // ally vs enemy is readable at a glance. Pulsed in the tick loop.
+    const auras = new Map<string, { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; baseScale: number; phase: number }>();
+    const auraGeom = new THREE.RingGeometry(0.55, 0.95, 32);
+    auraGeom.rotateX(-Math.PI / 2); // flatten onto the floor
+    function makeAura(uid: string, side: "A" | "B", anchor: THREE.Object3D) {
+      // Cyan for allies, magenta for enemies — matches faction palette tokens.
+      const color = side === "A" ? 0x00ffe0 : 0xff2d78;
+      const mat = new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.55,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(auraGeom, mat);
+      mesh.position.copy(anchor.position);
+      mesh.position.y = 0.02; // hover just above the floor to avoid z-fighting
+      threeScene.add(mesh);
+      auras.set(uid, { mesh, mat, baseScale: 1, phase: Math.random() * Math.PI * 2 });
+    }
+    function updateAuras(t: number) {
+      for (const a of auras.values()) {
+        // Slow pulse: scale 0.92 → 1.12, opacity 0.35 → 0.7.
+        const k = 0.5 + 0.5 * Math.sin(t * 2 + a.phase);
+        const s = 0.92 + 0.20 * k;
+        a.mesh.scale.set(s, s, s);
+        a.mat.opacity = 0.35 + 0.35 * k;
+      }
+    }
     const HEAD_OFFSET = new THREE.Vector3(0, 2.6, 0);
     const tmpProj = new THREE.Vector3();
 
@@ -163,6 +190,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
           // team B mirrors with -PI/2 to face -x toward team A.
           scene.rotation.y = side === "A" ? Math.PI / 2 : -Math.PI / 2;
           threeScene.add(scene);
+          makeAura(unit.uid, side, scene);
 
           const mixer = new THREE.AnimationMixer(scene);
           mixers.push(mixer);
@@ -258,6 +286,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     function tick() {
       const dt = clock.getDelta();
       mixers.forEach(m => m.update(dt));
+      updateAuras(clock.elapsedTime);
       renderer.render(threeScene, camera);
       updateBars();
       if (!firstFrameDone) {
@@ -358,6 +387,8 @@ export function Battle3DScene(props: Battle3DSceneProps) {
         container.removeChild(barsRoot);
       }
       bars.clear();
+      auras.clear();
+      auraGeom.dispose();
       rigsRef.current.clear();
     };
     // Mount-only: team rosters change via lastEvent/HP, not re-mount.

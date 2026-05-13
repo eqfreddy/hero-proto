@@ -100,10 +100,11 @@ export default function BattleSetupRoute() {
   const [selectedStageId, setSelectedStageId] = useState<number | null>(
     (location.state as { stageId?: number } | null)?.stageId ?? null
   )
-  // Default to the 3D interactive flow so stage battles get the new
-  // Quaternius scene + animation driver instead of the legacy
-  // CraftPix 2D arena. Unchecking falls back to the legacy auto-replay.
-  const [interactive, setInteractive] = useState(true)
+  // Default to the legacy CraftPix 2D arena (with particle auras the
+  // playerbase is used to). The new 3D scene is opt-in until it reaches
+  // visual parity — checking the box switches to the Quaternius 3D
+  // interactive flow.
+  const [interactive, setInteractive] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'ATK' | 'DEF' | 'SUP'>('ALL')
   const [rarityFilter, setRarityFilter] = useState<'ALL' | HeroTemplate['rarity']>('ALL')
@@ -501,7 +502,7 @@ export default function BattleSetupRoute() {
             onChange={e => setInteractive(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
           />
-          🎬 Watch in 3D (auto-play)
+          🎬 Try 3D mode (beta)
         </label>
         <button
           onClick={handleFight}
