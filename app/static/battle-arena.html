@@ -112,13 +112,18 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .abl-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:rgba(5,8,16,0.97);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:5px 9px;font-size:10px;color:#ddd;white-space:nowrap;pointer-events:none;display:none;z-index:200;font-weight:500;}
 .abl-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(5,8,16,0.97);}
 .abl-btn:hover .abl-tooltip{display:block;}
-.special-gauge-row{display:flex;align-items:center;gap:6px;width:100%;max-width:250px;}
-.special-label{font-size:9px;font-weight:800;color:#bb88ff;white-space:nowrap;letter-spacing:1px;}
-.special-gauge-track{flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;}
-.special-gauge-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#7722bb,#cc44ff,#ff88ff);transition:width 0.5s ease;}
-.special-btn{background:rgba(119,34,187,0.2) !important;border-color:rgba(187,136,255,0.3) !important;color:#bb88ff !important;font-size:8px !important;padding:5px 8px !important;white-space:nowrap;letter-spacing:1px;width:auto !important;}
-.special-btn:not(:disabled){background:rgba(119,34,187,0.5) !important;border-color:#cc44ff !important;color:#fff !important;animation:specialPulse 1.2s ease-in-out infinite alternate;}
-@keyframes specialPulse{from{box-shadow:0 0 6px rgba(187,68,255,0.4)}to{box-shadow:0 0 18px rgba(187,68,255,0.9),0 0 32px rgba(119,34,204,0.5)}}
+/* Special — floating bottom-right pill, hard to miss. Bigger label + button,
+   wider gauge bar so charge progress reads at a glance. */
+.special-gauge-row{position:fixed;bottom:18px;right:18px;z-index:60;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(20,8,36,0.85);border:1px solid rgba(187,136,255,0.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.special-label{font-size:11px;font-weight:900;color:#bb88ff;white-space:nowrap;letter-spacing:1.5px;}
+.special-gauge-track{width:120px;height:10px;background:rgba(255,255,255,0.08);border-radius:5px;overflow:hidden;border:1px solid rgba(187,136,255,0.2);}
+.special-gauge-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#7722bb,#cc44ff,#ff88ff);transition:width 0.4s ease;}
+#special-pct{font-size:11px;font-weight:800;color:#bb88ff;min-width:32px;text-align:right;}
+.special-btn{background:rgba(119,34,187,0.25) !important;border:1px solid rgba(187,136,255,0.35) !important;color:#bb88ff !important;font-size:12px !important;font-weight:900 !important;padding:8px 16px !important;border-radius:8px !important;white-space:nowrap;letter-spacing:1.2px;width:auto !important;cursor:pointer;transition:all 0.15s;}
+.special-btn:not(:disabled){background:linear-gradient(135deg,#7722bb,#cc44ff) !important;border-color:#cc44ff !important;color:#fff !important;animation:specialPulse 1.2s ease-in-out infinite alternate;}
+.special-btn:disabled{opacity:0.55;cursor:not-allowed;}
+@keyframes specialPulse{from{box-shadow:0 0 10px rgba(187,68,255,0.5)}to{box-shadow:0 0 24px rgba(187,68,255,1),0 0 48px rgba(119,34,204,0.6)}}
+@media (max-width:640px){.special-gauge-row{bottom:auto;right:auto;left:50%;top:auto;transform:translateX(-50%);bottom:90px;}}
 .panel-controls-block{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 12px;width:70px;flex-shrink:0;border-left:1px solid rgba(255,255,255,0.06);}
 .controls{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
 .ctrl-btn{font-size:10px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);cursor:pointer;font-family:inherit;color:#ccc;transition:all 0.15s;white-space:nowrap;}
@@ -555,7 +560,7 @@ function addSpecialProgress(amount) {
 }
 
 function fireSpecialAttack() {
-  if(specialGauge < 100 || battleOver) return;
+  if(specialGauge < 100 || battleOver) return Promise.resolve();
   specialGauge = 0;
   localStorage.setItem('heroproto_special_gauge', '0');
   updateSpecialGaugeUI();
@@ -563,16 +568,19 @@ function fireSpecialAttack() {
 
   const attackerUid = turnOrder[0];
   const attacker = units[attackerUid];
-  if(!attacker || attacker.side !== 'ally') return;
+  if(!attacker || attacker.side !== 'ally') return Promise.resolve();
 
   setAbilityButtonsEnabled(false);
   const liveEnemies = Object.values(units).filter(u => u.side === 'enemy' && u.hp > 0);
-  if(!liveEnemies.length) { setAbilityButtonsEnabled(true); return; }
+  if(!liveEnemies.length) { setAbilityButtonsEnabled(true); return Promise.resolve(); }
 
   flashScreen('rgba(187,68,255,0.35)');
   addLog('⚡ ' + attacker.name + ' UNLEASHES a special attack!', 'crit');
 
-  (async () => {
+  // Return the inner async block so auto-mode can await it before
+  // queuing the next regular attack — otherwise the loop overlapped
+  // animations and turns got out of sync.
+  return (async () => {
     for(const target of liveEnemies) {
       const amount = Math.floor((120 + Math.random() * 80));
       await animateAttack(attackerUid, target.uid, amount, true);
@@ -961,12 +969,15 @@ async function animateAttack(attackerUid, targetUid, amount, crit) {
     shakeStage();
     spawnCritText(center.x, center.y - 20);
     spawnParticles(center.x, center.y, '#ff4444', 10);
-    // fill special gauge on ally crits
-    if(atkU && atkU.side === 'ally') addSpecialProgress(25);
   } else {
     flashScreen('rgba(255,255,255,0.08)');
     spawnParticles(center.x, center.y, '#ffffff', 5);
   }
+  // Fill special gauge on every ally hit — was crit-only before, which
+  // meant short battles often ended with 0% gauge. 10% per normal hit
+  // + 25% on crit (15% bonus) = full gauge in ~7-10 actions, faster
+  // when crits land.
+  if(atkU && atkU.side === 'ally') addSpecialProgress(crit ? 25 : 10);
 
   // damage float
   spawnDmgFloat(center.x - 20, center.y - 40,
@@ -1144,7 +1155,10 @@ function setupDemoAbilities() {
     specialBtn.addEventListener('click', () => {
       const uid = turnOrder[0];
       const u = units[uid];
-      if(!u || u.side !== 'ally' || isAutoMode || isReplayMode) return;
+      // Allow special click even in auto-mode — the previous block here
+      // prevented users from ever firing a special unless they manually
+      // toggled auto off, which was the worst-of-both-worlds.
+      if(!u || u.side !== 'ally' || isReplayMode) return;
       fireSpecialAttack();
     });
   }
@@ -1252,6 +1266,13 @@ async function runAutoMode() {
     if(u.side === 'ally') {
       const liveEnemies = Object.values(units).filter(e => e.side === 'enemy' && e.hp > 0);
       if(liveEnemies.length === 0) break;
+      // Auto-fire special when the gauge is full. Otherwise the gauge
+      // just caps at 100% forever in auto-mode, which is silly.
+      if(specialGauge >= 100) {
+        await fireSpecialAttack();
+        if(checkBattleOver()) return;
+        continue;
+      }
       const target = liveEnemies[Math.floor(Math.random() * liveEnemies.length)];
       const base = 80 + Math.floor(Math.random() * 60);
       const crit = Math.random() < 0.2;
@@ -1290,7 +1311,9 @@ function setAbilityButtonsEnabled(enabled) {
     btn.disabled = !enabled || !isAllyTurn || isAutoMode || isReplayMode;
   });
   const specialBtn = $('btn-special');
-  if(specialBtn) specialBtn.disabled = !enabled || !isAllyTurn || isAutoMode || isReplayMode || specialGauge < 100;
+  // Special button stays clickable in auto-mode so the player can still
+  // pick the target — auto will resume after the special resolves.
+  if(specialBtn) specialBtn.disabled = !enabled || !isAllyTurn || isReplayMode || specialGauge < 100;
 }
 
 function startDemo() {
