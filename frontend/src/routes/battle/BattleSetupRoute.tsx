@@ -493,27 +493,51 @@ export default function BattleSetupRoute() {
         </div>
       </section>
 
-      {/* Interactive toggle + Fight button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--color-muted)' }}>
-          <input
-            type="checkbox"
-            checked={interactive}
-            onChange={e => setInteractive(e.target.checked)}
-            style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
-          />
-          🎬 Try 3D mode (beta)
-        </label>
+      {/* Mode selector — 2D/3D segmented pill, then Fight button */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <div role="radiogroup" aria-label="Battle viewer" style={{
+          display: 'inline-flex', padding: 3, borderRadius: 999,
+          background: 'rgba(12,16,26,0.6)', border: '1px solid var(--border)',
+          backdropFilter: 'blur(6px)',
+        }}>
+          <button
+            role="radio" aria-checked={!interactive}
+            onClick={() => setInteractive(false)}
+            style={{
+              padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: 0.4,
+              border: 'none', cursor: 'pointer',
+              background: !interactive ? 'var(--accent)' : 'transparent',
+              color: !interactive ? '#0b0d10' : 'var(--muted)',
+              transition: 'all 0.15s',
+            }}
+          >
+            🎞️ 2D Classic
+          </button>
+          <button
+            role="radio" aria-checked={interactive}
+            onClick={() => setInteractive(true)}
+            style={{
+              padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: 0.4,
+              border: 'none', cursor: 'pointer',
+              background: interactive ? 'var(--accent)' : 'transparent',
+              color: interactive ? '#0b0d10' : 'var(--muted)',
+              transition: 'all 0.15s',
+            }}
+          >
+            🎬 3D Beta
+          </button>
+        </div>
         <button
           onClick={handleFight}
           disabled={teamIds.length === 0 || !selectedStageId || submitting}
           style={{
-            padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 800, cursor: 'pointer',
-            background: 'var(--color-accent)', color: '#fff', border: 'none',
-            opacity: (teamIds.length === 0 || !selectedStageId || submitting) ? 0.5 : 1,
+            padding: '14px 48px', borderRadius: 10, fontSize: 16, fontWeight: 900, letterSpacing: 1.2, cursor: 'pointer',
+            background: 'var(--accent)', color: '#0b0d10', border: 'none',
+            boxShadow: '0 6px 24px rgba(0, 255, 224, 0.25)',
+            opacity: (teamIds.length === 0 || !selectedStageId || submitting) ? 0.4 : 1,
           }}
         >
-          {submitting ? 'Starting…' : 'Fight!'}
+          {submitting ? 'STARTING…' : '⚔ FIGHT!'}
         </button>
       </div>
     </div>

@@ -143,6 +143,127 @@ export function TowerRoute() {
           </table>
         )}
       </div>
+
+      {/* Next 5 floors reward ladder */}
+      <FloorLadder currentFloor={status.floor} />
+
+      {/* Season record card */}
+      <SeasonRecord
+        currentFloor={status.floor}
+        bestFloor={status.best_floor}
+        seasonKey={status.season_key}
+      />
+    </div>
+  )
+}
+
+// ── reward ladder ─────────────────────────────────────────────────────────────
+
+/** Returns a hardcoded reward description for a given floor number. */
+function floorReward(floor: number): string {
+  if (floor % 25 === 0) return `🪙 ${floor * 30} coins · 💎 5 gems · ✦ 2 shards · 🖼 cosmetic frame`
+  if (floor % 10 === 0) return `🪙 ${floor * 20} coins · 💎 2 gems · ✦ 1 epic gear shard`
+  if (floor % 5 === 0)  return `🪙 ${floor * 15} coins · ✦ 1 rare gear shard`
+  return `🪙 ${floor * 10} coins`
+}
+
+function FloorLadder({ currentFloor }: { currentFloor: number }) {
+  const floors = Array.from({ length: 5 }, (_, i) => currentFloor + 1 + i)
+
+  return (
+    <div className="card">
+      <h3 style={{ marginTop: 0, fontSize: 13 }}>🪜 Upcoming Floors</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {floors.map((f) => {
+          const isMilestone = f % 5 === 0
+          return (
+            <div
+              key={f}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '7px 0',
+                borderBottom: '1px solid var(--border)',
+                gap: 8,
+              }}
+            >
+              <span style={{
+                fontWeight: isMilestone ? 800 : 600,
+                fontSize: 13,
+                color: isMilestone ? 'var(--warn)' : 'inherit',
+                flexShrink: 0,
+              }}>
+                Floor {f}{isMilestone ? ' ★' : ''}
+              </span>
+              <span className="muted" style={{ fontSize: 11, textAlign: 'right' }}>
+                {floorReward(f)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>
+        Rewards shown are estimates — milestones (×5, ×10, ×25) grant bonus drops.
+      </div>
+    </div>
+  )
+}
+
+// ── season record card ────────────────────────────────────────────────────────
+
+function SeasonRecord({
+  currentFloor,
+  bestFloor,
+  seasonKey,
+}: {
+  currentFloor: number
+  bestFloor: number
+  seasonKey: string
+}) {
+  const isNewHigh = currentFloor > 0 && currentFloor >= bestFloor
+
+  return (
+    <div className="card">
+      <h3 style={{ marginTop: 0, fontSize: 13 }}>📊 Season Record</h3>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div className="muted" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Season
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{seasonKey}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Current floor: {currentFloor}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div className="muted" style={{ fontSize: 11 }}>All-time best</div>
+          <div style={{
+            fontSize: 32,
+            fontWeight: 900,
+            lineHeight: 1,
+            marginTop: 2,
+            color: isNewHigh ? 'var(--warn)' : 'inherit',
+            // pulse glow when at a new all-time high
+            animation: isNewHigh ? 'towerBestPulse 2s ease-in-out infinite' : 'none',
+          }}>
+            {bestFloor}
+          </div>
+          {isNewHigh && (
+            <div style={{ fontSize: 10, color: 'var(--warn)', marginTop: 2, fontWeight: 700 }}>
+              ★ New high!
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Inline keyframes for the pulse glow — injected once via a style tag */}
+      {isNewHigh && (
+        <style>{`
+          @keyframes towerBestPulse {
+            0%, 100% { text-shadow: 0 0 6px color-mix(in srgb, var(--warn) 60%, transparent); }
+            50%       { text-shadow: 0 0 18px color-mix(in srgb, var(--warn) 90%, transparent); }
+          }
+        `}</style>
+      )}
     </div>
   )
 }

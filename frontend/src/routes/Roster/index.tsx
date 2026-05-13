@@ -65,6 +65,39 @@ export function RosterRoute() {
             </CoachMark>
           ) : card
         })}
+
+        {/* Greyed "+" placeholder slots — give the page a sense of progression
+            for new players whose roster doesn't fill the viewport yet. Hidden
+            on a filtered view (would be misleading) and once the roster
+            comfortably fills 2 rows. */}
+        {activeRarity === 'ALL' && heroes.length < 12 && (
+          Array.from({ length: Math.max(0, 8 - heroes.length) }).map((_, i) => (
+            <button
+              key={`placeholder-${i}`}
+              onClick={() => navigate('/app/summon')}
+              style={{
+                aspectRatio: '5 / 6', minHeight: 140,
+                background: 'rgba(12,16,26,0.35)',
+                border: '1px dashed rgba(0,255,224,0.18)',
+                borderRadius: 8,
+                color: 'rgba(0,255,224,0.45)',
+                fontSize: 28, fontWeight: 300,
+                cursor: 'pointer', transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(0,255,224,0.5)'
+                e.currentTarget.style.color = 'var(--accent)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(0,255,224,0.18)'
+                e.currentTarget.style.color = 'rgba(0,255,224,0.45)'
+              }}
+              title="Summon a new hero"
+            >
+              +
+            </button>
+          ))
+        )}
       </div>
     </div>
   )

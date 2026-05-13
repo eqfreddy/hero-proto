@@ -254,6 +254,41 @@ export function StoryRoute() {
       {data.chapters.map((ch) => (
         <ChapterCard key={ch.code} ch={ch} />
       ))}
+
+      {/* Coming soon stub — locked chapter 4 placeholder */}
+      <div className="card" style={{
+        opacity: 0.55,
+        borderColor: 'var(--border)',
+        cursor: 'default',
+      }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 24 }}>❓</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>Chapter 4 — ???</div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                A new chapter is coming. What awaits beyond the known?
+              </div>
+              <div style={{
+                display: 'inline-block',
+                marginTop: 6,
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 99,
+                background: 'color-mix(in srgb, var(--muted) 12%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--muted) 25%, transparent)',
+                color: 'var(--muted)',
+              }}>
+                🔒 Unlocks at Account Level 50
+              </div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>0/? stages</div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

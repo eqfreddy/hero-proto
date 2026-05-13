@@ -5,9 +5,22 @@ import { toast } from '../store/ui'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
 import { CoachMark } from '../components/CoachMark'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TicketHeader } from '../components/Arena/TicketHeader'
 import { useMe } from '../hooks/useMe'
+
+/** Format seconds as "Xh Ym Zs", collapsing leading zero units. */
+function fmtTickCooldown(seconds: number): string {
+  if (seconds <= 0) return 'now'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  const parts: string[] = []
+  if (h > 0) parts.push(`${h}h`)
+  if (m > 0 || h > 0) parts.push(`${m}m`)
+  parts.push(`${s}s`)
+  return parts.join(' ')
+}
 
 export function ArenaRoute() {
   const qc = useQueryClient()
@@ -15,6 +28,19 @@ export function ArenaRoute() {
   const { data, isLoading } = useQuery({ queryKey: ['arena'], queryFn: fetchArena })
   const { data: me } = useMe()
   const [attacking, setAttacking] = useState<number | null>(null)
+
+  // Live countdown for ticket regen tick
+  const [tickCooldown, setTickCooldown] = useState<number>(
+    () => me?.arena_tickets_next_tick_in ?? 0
+  )
+  useEffect(() => {
+    setTickCooldown(me?.arena_tickets_next_tick_in ?? 0)
+  }, [me?.arena_tickets_next_tick_in])
+  useEffect(() => {
+    if (tickCooldown <= 0) return
+    const id = setInterval(() => setTickCooldown((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(id)
+  }, [tickCooldown])
 
   if (isLoading) return <SkeletonGrid />
 
@@ -44,6 +70,51 @@ export function ArenaRoute() {
     <div className="stack">
       <h2 style={{ margin: 0 }}>Arena</h2>
       {me && <TicketHeader me={me} />}
+
+      {/* Ticket refresh countdown — show when tickets are not full */}
+      {me && me.arena_tickets < me.arena_tickets_cap && (
+        <div style={{
+          padding: '8px 14px',
+          borderRadius: 'var(--radius)',
+          background: 'var(--bg-inset)',
+          border: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            ⏱ Next ticket in
+          </span>
+          <span style={{
+            fontSize: 13,
+            fontWeight: 700,
+            fontVariantNumeric: 'tabular-nums',
+            color: tickCooldown === 0 ? 'var(--good)' : 'var(--accent)',
+          }}>
+            {fmtTickCooldown(tickCooldown)}
+          </span>
+        </div>
+      )}
+
+      {/* Practice vs AI — placeholder */}
+      <div className="card" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>🤖 Practice vs AI</div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>
+              Test your team against a bot — no rating change, no ticket cost.
+            </div>
+          </div>
+          <button
+            className="secondary"
+            style={{ fontSize: 12 }}
+            onClick={() => toast.success('Coming soon — practice your team against bot opponents')}
+          >
+            Practice
+          </button>
+        </div>
+      </div>
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Available Opponents</h3>

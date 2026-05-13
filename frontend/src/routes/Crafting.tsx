@@ -36,30 +36,39 @@ export function CraftingRoute() {
     <div className="stack">
       <h2 style={{ margin: 0 }}>⚒️ Crafting</h2>
 
-      {/* Materials */}
-      <div className="card">
-        <h3 style={{ marginTop: 0, marginBottom: 10 }}>🧪 Materials</h3>
-        {data.materials.filter((m) => m.quantity > 0).length === 0 ? (
-          <div className="muted" style={{ fontSize: 12 }}>No materials yet — win battles and raids.</div>
-        ) : (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {data.materials.filter((m) => m.quantity > 0).map((m) => (
-              <div
-                key={m.code}
-                title={m.description}
-                style={{
-                  padding: '4px 10px', borderRadius: 6, fontSize: 12,
-                  background: 'var(--bg-inset)',
-                  border: `1px solid ${MATERIAL_RARITY_COLOR[m.rarity] ?? 'var(--border)'}`,
-                  color: MATERIAL_RARITY_COLOR[m.rarity] ?? 'var(--text)',
-                }}
-              >
-                {m.icon} {m.name} ×{m.quantity}
-              </div>
-            ))}
+      {/* Materials — when empty, collapse to a one-line subtitle instead of a
+          full-width card. Saves vertical space on a screen that's already sparse. */}
+      {(() => {
+        const owned = data.materials.filter((m) => m.quantity > 0)
+        if (owned.length === 0) {
+          return (
+            <div className="muted" style={{ fontSize: 12, marginTop: -4 }}>
+              🧪 No materials yet — win battles and raids to start collecting.
+            </div>
+          )
+        }
+        return (
+          <div className="card">
+            <h3 style={{ marginTop: 0, marginBottom: 10 }}>🧪 Materials</h3>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {owned.map((m) => (
+                <div
+                  key={m.code}
+                  title={m.description}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6, fontSize: 12,
+                    background: 'var(--bg-inset)',
+                    border: `1px solid ${MATERIAL_RARITY_COLOR[m.rarity] ?? 'var(--border)'}`,
+                    color: MATERIAL_RARITY_COLOR[m.rarity] ?? 'var(--text)',
+                  }}
+                >
+                  {m.icon} {m.name} ×{m.quantity}
+                </div>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
+        )
+      })()}
 
       {/* Gear recipes */}
       {gearRecipes.length > 0 && (

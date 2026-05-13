@@ -16,7 +16,7 @@ export function CurrencyBar() {
   if (!jwt) return null
 
   if (!me) {
-    return <div data-testid="currency-bar" style={{ height: 36, background: 'var(--panel)', borderBottom: '1px solid var(--border)' }} />
+    return <div className="currency-bar" data-testid="currency-bar" style={{ height: 36, background: 'var(--panel)', borderBottom: '1px solid var(--border)' }} />
   }
 
   const energyPct = Math.min(100, (me.energy / me.energy_cap) * 100)
@@ -26,6 +26,7 @@ export function CurrencyBar() {
 
   return (
     <div
+      className="currency-bar"
       data-testid="currency-bar"
       style={{
         display: 'flex', gap: 6, padding: '6px 14px',
