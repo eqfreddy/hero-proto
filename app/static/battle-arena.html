@@ -7,7 +7,11 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;overflow:hidden;}
-body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;color:#fff;}
+/* Switched off the Impact/Barlow Condensed stack — it reads as
+   permanently-bold and made every label feel shouty. Plain system stack
+   with normal weight is much more readable. Individual emphasis still
+   handled per-class. */
+body{background:#000;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff;font-weight:400;}
 .battle-stage{width:100%;height:100%;position:relative;overflow:hidden;}
 .battle-stage::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:5;}
 .battle-bg{position:absolute;top:0;left:0;right:0;bottom:210px;z-index:0;overflow:hidden;}
@@ -159,7 +163,10 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .role-atk .sprite-img{filter:drop-shadow(0 0 10px rgba(255,80,80,0.9)) drop-shadow(0 0 22px rgba(255,40,40,0.5));}
 .role-def .sprite-img{filter:drop-shadow(0 0 10px rgba(80,160,255,0.9)) drop-shadow(0 0 22px rgba(40,100,255,0.5)) hue-rotate(160deg) saturate(1.3);}
 .role-sup .sprite-img{filter:drop-shadow(0 0 10px rgba(255,215,0,0.9)) drop-shadow(0 0 22px rgba(255,180,0,0.5)) sepia(0.3) saturate(1.4) hue-rotate(30deg);}
-.replay-log{position:absolute;left:50%;bottom:calc(210px + 8px);transform:translateX(-50%);max-height:120px;overflow:hidden;z-index:25;pointer-events:none;display:flex;flex-direction:column-reverse;gap:3px;}
+/* Battle log strip — was floating 8px above the action panel, which
+   sat right under the unit row and felt cramped. Pulled it down so it
+   hugs the top edge of the action panel instead. */
+.replay-log{position:absolute;left:50%;bottom:calc(210px - 36px);transform:translateX(-50%);max-height:96px;overflow:hidden;z-index:25;pointer-events:none;display:flex;flex-direction:column-reverse;gap:3px;}
 .log-entry{background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:3px 10px;font-size:11px;color:#ccc;backdrop-filter:blur(4px);white-space:nowrap;animation:fadeIn 0.2s ease;}
 .log-entry.hit{color:#fff;}
 .log-entry.crit{color:#ff7070;font-weight:700;}
