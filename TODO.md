@@ -2,7 +2,7 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-05-11 PM (Battle 3D v1.1 layout pass + Battle Setup QoL — tier-grouped stage pulldowns, rarity-themed team, role/rarity filter chips, last-team/auto/save-preset/clear actions, team-power-vs-rec delta. 3D click-to-target raycast shipped. Telemetry sink: /telemetry/event → PostHog wrapper.)
+Last updated: 2026-05-12 PM (Shard remap Phases 1+2+3 shipped: dupe HeroInstances collapsed to template-shard balances; gacha dupes now credit shards instead of creating rows; skill_up converted to shards (5/15/40/100 per tier 1→5); fodder `/ascend` endpoint deleted. Quaternius rig migration — per-archetype embedded combat clips, KayKit shared-rig file dropped. Per-turn countdown timer (server-authoritative 120s) for interactive combat. Battle 3D: overhead HP bars + team B repositioned. Battle setup: rarity-grouped roster + duplicate stacking.)
 
 ---
 
@@ -13,13 +13,37 @@ Last updated: 2026-05-11 PM (Battle 3D v1.1 layout pass + Battle Setup QoL — t
 - **Frontend:** React SPA at `/app` (built with Vite, served from `app/static/spa/`). All routes wired. Auth guard redirects unauthenticated users to login. Login page: Sign In / Register / Forgot-password tabs. NavBar hides auth-required tabs when logged out; shows Sign-out button when logged in. 401 interceptor auto-clears JWT. Dashboard redesigned (two-column grid, profile banner, stat cells, hero mini-roster). Story route overhauled (expandable chapters, stage-level cutscene previews, alignment fork choice UI). Faction badge in profile banner. Original vanilla-JS shell still present at `/app/partials/*` but SPA is the primary client.
 - **Observability:** Prometheus `/metrics`, JSON logs, request IDs, Sentry (DSN-gated), worker supervisor + 9 alerts in RUNBOOK + 11-row PromQL cookbook + 7-row Grafana layout.
 - **Infra:** Redis-backed rate limiter (horizontal-scale ready). CI matrix on SQLite + Postgres per push.
-- **Tests:** **673 passed / 3 skipped** (backend, +30 from arena economy + arena payout + quest tests) + **47 passed** (frontend vitest, +10 from useCountdown + useDailyResetCountdown). `pytest` green; `vitest` green. Acceptance scripts:
+- **Tests:** **806 passed / 2 skipped** (backend, +5 from shard skill_up coverage) + **84 passed / 1 pre-existing dioramaLoader flake** (frontend vitest). `pytest` green (one unrelated rest_xp timing flake); `vitest` green except for unrelated Three.js Box3 mock. Acceptance scripts:
   - `scripts/startup_check.py` — admin/operator health check
   - `scripts/client_walkthrough.py` — 17-section feature tour (was 13; +4 Phase 2 surfaces)
   - `tests/test_phase1_acceptance.py`, `tests/test_phase2_acceptance.py` — bright-line e2e
 - **Mobile:** Capacitor scaffold in `mobile/` — `package.json` + `capacitor.config.ts` targeting `app/static/spa`. `POST/DELETE /notifications/device-token` endpoints live. `app/push.py` FCM stub (no-op without `FCM_SERVER_KEY`). `frontend/src/api/push.ts` — call `initPush()` after login. iOS builds go through Codemagic / GitHub mac runners.
 - **Docs:** `README.md`, `docs/RUNBOOK.md`, `docs/PRD.md`, `docs/PHASE_2_HUMAN_TEST.md`, `docs/PLAN_B_INTEGRATION.md`, `docs/BATTLE_RIG_EVENT_MAPPING.md`, `docs/BATTLE_VISUALS_STACK.md` all current.
 - **Art:** 33 trading-card portraits + 33 auto-cropped busts in `/app/static/heroes/`. Cluster-of-fuckery stick-figure animation pipeline available outside repo. DragonBones Mecha 1004B sample lives in repo as Plan B feasibility demo.
+
+### Shipped 2026-05-12
+
+**Shard remap — Phases 1+2+3** (commits `1cc56ef`, `ae5384a`; production live):
+- **Phase 1** — Alembic migration `f9fcd159c6dd` collapses duplicate `HeroInstance` rows per `(account_id, template_id)` to a single canonical row + per-template `template_shards_json` balance. Variance-aware tie-breaking picks the highest-stat dupe as canonical; the rest are deleted and credited as shards at their rarity rate. Gear with FK to deleted heroes auto-detaches via `ondelete=SET NULL`. Locally collapsed 1 duplicate + credited shards to 1 account; auto-runs on Fly via `alembic upgrade head` in `app/main.py`.
+- **Phase 2** — Gacha pulls (standard, event-banner, friend-points) now skip `HeroInstance` creation on dupes and grant shards instead. `SummonOut` schema extended with `is_duplicate` + `shards_granted` fields.
+- **Phase 3** — `skill_up` rewritten to spend template shards (5/15/40/100 per tier 1→5) via `app/template_shards.py::spend()`. The fodder-based `/heroes/{id}/ascend` endpoint deleted entirely (only `/ascend-with-shards` remains, established 2026-05-08). `AscendIn` + `SkillUpIn` schemas removed. `upgrade_preview` gates `special_up.available` on shard balance.
+- **Frontend**: HeroDetail's dead "⭐ Star Up (fodder)" button removed. Skill Up button shows `(have/cost shards)`, disables on insufficient balance, invalidates `template-shards` query on success.
+- **Tests**: +5 in `test_template_shards.py` (skill_up succeeds / 409 insufficient / 409 max-level + Phase 2 contract); `test_cross_account_ownership.py` updated; `test_phase2_acceptance.py` rewritten to validate shard credit instead of dupe-variance. Smokes `smoke_ascend.py` + `smoke_skill.py` rewritten against shard API. **806 passed, 1 pre-existing rest_xp flake unrelated.**
+
+**Quaternius rig migration**:
+- Migrated all 6 KayKit archetypes (knight/barbarian/mage/ranger/rogue/rogue_hooded) to Quaternius RPG Characters chibi pack. Each archetype now ships embedded per-class combat clips: `Sword_Attack` (knight/barbarian), `Staff_Attack` (mage), `Dagger_Attack` (rogue/rogue_hooded), `Bow_Shoot` (ranger). KayKit shared `kaykit_general.glb` + procedural arm-swing fallback (`proceduralClips.ts`) both removed.
+- Engineer/Monk rig staged at `frontend/public/battle-3d/heroes/monk.glb` with full clipset registered in `clipMap.ts`. Pure config wiring left to do when a template needs it.
+
+**Per-turn countdown timer for interactive combat**:
+- `InteractiveStateOut` extended with `turn_started_at` + `turn_timeout_s` (default 120s). Server-authoritative; lazy timeout enforcement on next poll. Client renders countdown; on expiry, server forfeits the actor's turn. Same flow wired into raid interactive attacks.
+
+**Battle 3D layout polish**:
+- Overhead world-space HP bars per unit (replaces HUD bars only).
+- Team B portrait stack moved to lower-right corner so it doesn't overlap the 3D render.
+
+**Battle Setup roster QoL**:
+- Roster groups by rarity (LEGENDARY → COMMON tiers visible at a glance).
+- Vanilla duplicates stack into a single chip with count + variance hint instead of N near-identical buttons.
 
 ### Shipped 2026-05-10
 
@@ -249,7 +273,7 @@ Feedback from the first UI walkthrough — long-term vision, not next-sprint wor
 
 Phase 1 is done. The product is now genuinely playable for a new user — tutorial flow, visual roster, team presets, dedicated Summon tab, starter pack. Phase 2 ("Feels like a real game") per `docs/PRD.md § 7` is now mostly shipped:
 
-- **2.1 Hero detail depth ✅** — per-slot WEAPON/HELMET/ARMOR/BOOTS/RING/AMULET shipped pre-Phase-2; star-up via `/heroes/{id}/ascend`, special-up via `/heroes/{id}/skill_up`. Phase 2 closer: `GET /heroes/{id}/preview` returns level-up / star-up / special-up projections (current vs after stats + delta + cost). UI can render "+10% power with one more copy" teasers from this. 6 tests in `test_hero_upgrade_preview.py`.
+- **2.1 Hero detail depth ✅** — per-slot WEAPON/HELMET/ARMOR/BOOTS/RING/AMULET shipped pre-Phase-2; star-up via `/heroes/{id}/ascend-with-shards`, special-up via `/heroes/{id}/skill_up` (both shard-based post 2026-05-12 remap; fodder paths removed). Phase 2 closer: `GET /heroes/{id}/preview` returns level-up / star-up / special-up projections (current vs after stats + delta + cost) gated on shard balance. UI can render "+10% power with one more copy" teasers from this. 6 tests in `test_hero_upgrade_preview.py`.
 - **2.2 Event content + dupe variance ✅** — Myth-tier wired end-to-end (TBFAM, Mother's Day Applecrumb event); scheduled future LiveOps via admin POST `/admin/liveops` w/ `starts_at` + `GET /liveops/scheduled?horizon_days=N`. Stat variance on duplicate summons: `HeroInstance.variance_pct_json` rolled triangular ±10% per stat on dupes only (first copy stays vanilla); applied in combat + roster. 5 tests in `test_stat_variance.py`.
 - **2.3 Analytics ✅** — PostHog wrapper at `app/analytics.py`, 12 events instrumented, RUNBOOK §Analytics, `scripts/verify_analytics.py` smoke tester, `scripts/posthog_dashboard.json` 10-insight starter. **Last step (ops):** set `HEROPROTO_POSTHOG_API_KEY` in prod, run verify_analytics from staging, import dashboard, run client_walkthrough.
 - **2.4 Store expansion ✅** — Apple StoreKit + Google Play Billing adapters in `app/payment_adapters.py` (real-mode lazy-imports SDKs; sandbox-mode shortcut for `fake-apple:`/`fake-google:` receipts). Endpoints `POST /shop/iap/{apple,google}` already wired. Phase 2 closer: PoE2-style QoL/cosmetic catalog — auto_battle, extra_team_presets, quick_summon, roster_sort_advanced; +25 hero / +100 gear slot packs (stackable); 4 cosmetic frames + a frame bundle. New `KNOWN_QOL_UNLOCKS` / `KNOWN_COSMETIC_FRAMES` registries in `app/store.py`; restore-purchases idempotent; misconfigured codes raise loudly. 8 tests in `test_iap_and_qol.py`.
