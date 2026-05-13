@@ -13,6 +13,10 @@ from app.db import get_db
 from app.models import HeroTemplate
 
 router = APIRouter(prefix="/app", tags=["ui"], include_in_schema=False)
+# Sibling router for the SPA's other top-level mount point at /battle/*.
+# Without this, refreshing or deep-linking /battle/setup or
+# /battle/{id}/play returned the FastAPI 404 JSON instead of the SPA.
+battle_router = APIRouter(prefix="/battle", tags=["ui"], include_in_schema=False)
 
 _SPA_DIR = Path(__file__).resolve().parents[1] / "static" / "spa"
 _INDEX = _SPA_DIR / "index.html"
@@ -71,4 +75,12 @@ def placeholder_hero(
 @router.get("/{full_path:path}", response_class=FileResponse)
 def spa_shell(full_path: str) -> FileResponse:
     """Catch-all: serve the SPA index for all /app/* routes."""
+    return FileResponse(str(_INDEX))
+
+
+@battle_router.get("/{full_path:path}", response_class=FileResponse)
+def spa_shell_battle(full_path: str) -> FileResponse:
+    """Catch-all for /battle/* — same SPA index. React Router handles the
+    actual route matching client-side. Lets users refresh mid-battle or
+    share/bookmark a battle URL without hitting the FastAPI 404 page."""
     return FileResponse(str(_INDEX))

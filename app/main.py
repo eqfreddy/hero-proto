@@ -171,6 +171,10 @@ if _STATIC_DIR.is_dir():
 
 # UI router (HTMX shell + partials) must register BEFORE any /app fallback.
 app.include_router(ui.router)
+# SPA also lives at /battle/* (React Router top-level mount). Without this
+# refreshes / deep-links to /battle/setup or /battle/{id}/play returned the
+# FastAPI 404 JSON instead of the SPA.
+app.include_router(ui.battle_router)
 
 # Explicit routes for the dashboard's static pages — the /app static mount was
 # moved to /app/static/ so root-level filenames here need direct routes.

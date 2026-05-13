@@ -112,9 +112,11 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .abl-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:rgba(5,8,16,0.97);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:5px 9px;font-size:10px;color:#ddd;white-space:nowrap;pointer-events:none;display:none;z-index:200;font-weight:500;}
 .abl-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(5,8,16,0.97);}
 .abl-btn:hover .abl-tooltip{display:block;}
-/* Special — floating bottom-right pill, hard to miss. Bigger label + button,
-   wider gauge bar so charge progress reads at a glance. */
-.special-gauge-row{position:fixed;bottom:18px;right:18px;z-index:60;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(20,8,36,0.85);border:1px solid rgba(187,136,255,0.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+/* Special — floating bottom-LEFT pill (allies are on the left side of
+   the arena so it sits near "your" team and clear of the enemy stack).
+   Wider gauge bar so charge progress reads at a glance. */
+.special-gauge-row{position:fixed;bottom:18px;left:18px;z-index:70;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(20,8,36,0.85);border:1px solid rgba(187,136,255,0.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.5);pointer-events:auto;}
+.special-gauge-row *{pointer-events:auto;}
 .special-label{font-size:11px;font-weight:900;color:#bb88ff;white-space:nowrap;letter-spacing:1.5px;}
 .special-gauge-track{width:120px;height:10px;background:rgba(255,255,255,0.08);border-radius:5px;overflow:hidden;border:1px solid rgba(187,136,255,0.2);}
 .special-gauge-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#7722bb,#cc44ff,#ff88ff);transition:width 0.4s ease;}
@@ -123,7 +125,7 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 .special-btn:not(:disabled){background:linear-gradient(135deg,#7722bb,#cc44ff) !important;border-color:#cc44ff !important;color:#fff !important;animation:specialPulse 1.2s ease-in-out infinite alternate;}
 .special-btn:disabled{opacity:0.55;cursor:not-allowed;}
 @keyframes specialPulse{from{box-shadow:0 0 10px rgba(187,68,255,0.5)}to{box-shadow:0 0 24px rgba(187,68,255,1),0 0 48px rgba(119,34,204,0.6)}}
-@media (max-width:640px){.special-gauge-row{bottom:auto;right:auto;left:50%;top:auto;transform:translateX(-50%);bottom:90px;}}
+@media (max-width:640px){.special-gauge-row{left:50%;transform:translateX(-50%);bottom:90px;}}
 .panel-controls-block{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 12px;width:70px;flex-shrink:0;border-left:1px solid rgba(255,255,255,0.06);}
 .controls{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
 .ctrl-btn{font-size:10px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);cursor:pointer;font-family:inherit;color:#ccc;transition:all 0.15s;white-space:nowrap;}
@@ -182,7 +184,7 @@ body{background:#000;font-family:"Barlow Condensed",Impact,system-ui,sans-serif;
 <div class="battle-stage" id="stage">
 
   <!-- Back button -->
-  <button class="back-btn" id="back-btn" onclick="history.length > 1 ? history.back() : (window.location.href='/app/stages')">← Back</button>
+  <button class="back-btn" id="back-btn" onclick="window.location.href='/app/stages'">← Back</button>
 
   <!-- Background -->
   <div class="battle-bg" id="battle-bg">
@@ -1097,7 +1099,7 @@ function showVictory(result, rewards) {
       ${rewardsHtml}
       ${narrationHtml}
       <div class="victory-btn-row">
-        ${isWin ? `<button class="victory-btn" style="background:#2266cc;color:#fff;" onclick="history.length > 1 ? history.back() : (window.location.href='/app/stages')">📦 COLLECT LOOT</button>` : ''}
+        ${isWin ? `<button class="victory-btn" style="background:#2266cc;color:#fff;" onclick="window.location.href='/app/stages'">📦 COLLECT LOOT</button>` : ''}
         <button class="victory-btn" onclick="isReplayMode ? history.back() : location.reload()">${isReplayMode ? 'BACK' : 'PLAY AGAIN'}</button>
       </div>
     </div>`;
