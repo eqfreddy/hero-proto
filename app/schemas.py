@@ -187,10 +187,6 @@ class GearOut(BaseModel):
     flavor: str | None = None     # one-line backstory shown on the gear card
 
 
-class AscendIn(BaseModel):
-    fodder_ids: list[int] = Field(min_length=1, max_length=5)
-
-
 class SweepIn(BaseModel):
     # Sweep uses the player's last winning team for this stage when `team`
     # is omitted — the most common UX is "I cleared this; sweep with the
@@ -211,10 +207,6 @@ class SweepOut(BaseModel):
 
 class EquipIn(BaseModel):
     hero_instance_id: int
-
-
-class SkillUpIn(BaseModel):
-    fodder_ids: list[int] = Field(min_length=1, max_length=4)
 
 
 class DefenseSetIn(BaseModel):

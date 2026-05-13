@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useHero } from '../../hooks/useHeroes'
 import {
-  ascendHero, ascendHeroWithShards, fetchTemplateShards, skillUpHero,
-  SHARDS_TO_ASCEND_FROM,
+  ascendHeroWithShards, fetchTemplateShards, skillUpHero,
+  SHARDS_TO_ASCEND_FROM, SHARDS_TO_SKILL_UP,
 } from '../../api/heroes'
 import {
   fetchGear, equipGear, unequipGear,
@@ -22,7 +22,7 @@ export function HeroDetailRoute() {
   const qc = useQueryClient()
   const { data: hero, isLoading } = useHero(heroIdNum)
   const { data: allGear } = useQuery({ queryKey: ['gear'], queryFn: fetchGear })
-  const [loading, setLoading] = useState<'ascend' | 'skill' | 'shards' | null>(null)
+  const [loading, setLoading] = useState<'skill' | 'shards' | null>(null)
   const [pickerSlot, setPickerSlot] = useState<GearSlot | null>(null)
   const { data: shards } = useQuery({ queryKey: ['template-shards'], queryFn: fetchTemplateShards })
 
@@ -44,16 +44,6 @@ export function HeroDetailRoute() {
 
   const t = hero.template
 
-  async function doAscend() {
-    setLoading('ascend')
-    try {
-      await ascendHero(hero!.id)
-      toast.success(`${t.name} ascended!`)
-      qc.invalidateQueries({ queryKey: ['heroes'] })
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
-    finally { setLoading(null) }
-  }
-
   async function doAscendWithShards() {
     setLoading('shards')
     try {
@@ -71,6 +61,7 @@ export function HeroDetailRoute() {
       await skillUpHero(hero!.id)
       toast.success(`${t.name} skill upgraded!`)
       qc.invalidateQueries({ queryKey: ['heroes'] })
+      qc.invalidateQueries({ queryKey: ['template-shards'] })
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
     finally { setLoading(null) }
   }
@@ -196,9 +187,6 @@ export function HeroDetailRoute() {
       <div className="card">
         <h3 style={{ marginTop: 0, fontSize: 13 }}>Upgrades</h3>
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={doAscend} disabled={!!loading} className="primary">
-            {loading === 'ascend' ? '…' : '⭐ Star Up (fodder)'}
-          </button>
           {hero.stars < 6 && (() => {
             const cost = SHARDS_TO_ASCEND_FROM[hero.stars] ?? 0
             const have = shards?.[t.code] ?? 0
@@ -215,9 +203,29 @@ export function HeroDetailRoute() {
               </button>
             )
           })()}
-          <button onClick={doSkillUp} disabled={!!loading} className="secondary">
-            {loading === 'skill' ? '…' : '🔮 Skill Up'}
-          </button>
+          {(() => {
+            const skillCost = SHARDS_TO_SKILL_UP[hero.special_level]
+            if (skillCost == null) {
+              return (
+                <button disabled className="secondary" title="Skill at max level">
+                  🔮 Skill Maxed
+                </button>
+              )
+            }
+            const have = shards?.[t.code] ?? 0
+            const ok = have >= skillCost
+            return (
+              <button
+                onClick={doSkillUp}
+                disabled={!!loading || !ok}
+                className="secondary"
+                style={{ background: ok ? undefined : 'var(--bg-inset)', color: ok ? undefined : 'var(--muted)' }}
+                title={`Spend ${skillCost} ${t.name} shards (you have ${have})`}
+              >
+                {loading === 'skill' ? '…' : `🔮 Skill Up (${have}/${skillCost} shards)`}
+              </button>
+            )
+          })()}
         </div>
         {hero.stars < 6 && (
           <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>

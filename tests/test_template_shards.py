@@ -96,6 +96,50 @@ def test_ascend_with_shards_at_max_stars_409(client):
     assert "max stars" in r.text.lower()
 
 
+def test_skill_up_with_shards_succeeds(client):
+    """Skill up spends shards (post 2026-05-12 remap)."""
+    tok, aid = _register(client, "skill")
+    client.post("/summon/x10", headers=_hdr(tok))
+    hero = client.get("/heroes/mine", headers=_hdr(tok)).json()[0]
+    _set_shards_balance(aid, hero["template"]["code"], 100)
+    starting_level = hero["special_level"]
+    r = client.post(f"/heroes/{hero['id']}/skill_up", headers=_hdr(tok))
+    assert r.status_code == 200, r.text
+    assert r.json()["special_level"] == starting_level + 1
+    # Cost at level 1 -> 2 is 5 shards.
+    from app.template_shards import shards_for_skill_up
+    expected_cost = shards_for_skill_up(starting_level)
+    bal = client.get("/heroes/template-shards", headers=_hdr(tok)).json()
+    assert bal[hero["template"]["code"]] == 100 - expected_cost
+
+
+def test_skill_up_with_insufficient_shards_409(client):
+    tok, aid = _register(client, "broke_skill")
+    client.post("/summon/x10", headers=_hdr(tok))
+    hero = client.get("/heroes/mine", headers=_hdr(tok)).json()[0]
+    _set_shards_balance(aid, hero["template"]["code"], 2)  # need 5
+    r = client.post(f"/heroes/{hero['id']}/skill_up", headers=_hdr(tok))
+    assert r.status_code == 409
+    assert "need 5" in r.text
+
+
+def test_skill_up_at_max_level_409(client):
+    """Cannot skill up at MAX_SPECIAL_LEVEL=5 even with shards."""
+    tok, aid = _register(client, "maxed_skill")
+    client.post("/summon/x10", headers=_hdr(tok))
+    hero = client.get("/heroes/mine", headers=_hdr(tok)).json()[0]
+    from app.db import SessionLocal
+    from app.models import HeroInstance
+    with SessionLocal() as db:
+        h = db.get(HeroInstance, hero["id"])
+        h.special_level = 5
+        db.commit()
+    _set_shards_balance(aid, hero["template"]["code"], 10000)
+    r = client.post(f"/heroes/{hero['id']}/skill_up", headers=_hdr(tok))
+    assert r.status_code == 409
+    assert "max special level" in r.text.lower()
+
+
 def test_six_star_level_cap_climbs():
     """Pure unit test — bumping stars to 6 raises the cap.
     (Pre-existing formula: 10 + 5*stars; 5★=35, 6★=40.)"""

@@ -10,7 +10,7 @@ from app.db import get_db
 from app.deps import get_current_account
 from app.gear_logic import completed_sets, gear_bonus_for
 from app.models import Account, HeroInstance, HeroTemplate, Rarity
-from app.schemas import AscendIn, HeroInstanceOut, HeroTemplateOut, SkillUpIn
+from app.schemas import HeroInstanceOut, HeroTemplateOut
 
 router = APIRouter(prefix="/heroes", tags=["heroes"])
 
@@ -117,92 +117,42 @@ MAX_SPECIAL_LEVEL = 5
 @router.post("/{hero_instance_id}/skill_up", response_model=HeroInstanceOut)
 def skill_up(
     hero_instance_id: int,
-    body: SkillUpIn,
     account: Annotated[Account, Depends(get_current_account)],
     db: Annotated[Session, Depends(get_db)],
 ) -> HeroInstanceOut:
+    """Spend template shards to bump a hero's special_level by 1.
+
+    Replaces the fodder-based model as of the 2026-05-12 shard remap
+    (see docs/superpowers/plans/2026-05-12-shard-remap.md). Costs come
+    from `SHARDS_TO_SKILL_UP`; the player's roster is no longer touched.
+    """
+    from app.template_shards import shards_for_skill_up, get_shards, spend
     hero = db.get(HeroInstance, hero_instance_id)
     if hero is None or hero.account_id != account.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "hero not found")
     if hero.special_level >= MAX_SPECIAL_LEVEL:
         raise HTTPException(status.HTTP_409_CONFLICT, "already at max special level")
 
-    # Fodder must be owned, distinct, same template, not this hero.
-    fodder_ids = list(dict.fromkeys(body.fodder_ids))  # dedup preserving order
-    if hero.id in fodder_ids:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot feed hero into itself")
-    fodder: list[HeroInstance] = []
-    for fid in fodder_ids:
-        f = db.get(HeroInstance, fid)
-        if f is None or f.account_id != account.id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"fodder {fid} not owned")
-        if f.template_id != hero.template_id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"fodder {fid} is a different hero template")
-        if f.gear:
-            raise HTTPException(status.HTTP_409_CONFLICT, f"fodder {fid} still has gear equipped")
-        fodder.append(f)
-
-    available_levels = MAX_SPECIAL_LEVEL - hero.special_level
-    if len(fodder) > available_levels:
+    cost = shards_for_skill_up(hero.special_level)
+    if cost is None:
         raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"too many fodder: can gain at most {available_levels} levels",
+            status.HTTP_409_CONFLICT,
+            f"no shard cost defined for special level {hero.special_level}",
+        )
+    if not spend(account, hero.template.code, cost):
+        have = get_shards(account, hero.template.code)
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"need {cost} {hero.template.code} shards, have {have}",
         )
 
-    hero.special_level += len(fodder)
-    for f in fodder:
-        db.delete(f)
+    hero.special_level += 1
     db.commit()
     db.refresh(hero)
     return instance_out(hero)
 
 
 MAX_STARS = 6
-
-
-@router.post("/{hero_instance_id}/ascend", response_model=HeroInstanceOut)
-def ascend(
-    hero_instance_id: int,
-    body: AscendIn,
-    account: Annotated[Account, Depends(get_current_account)],
-    db: Annotated[Session, Depends(get_db)],
-) -> HeroInstanceOut:
-    hero = db.get(HeroInstance, hero_instance_id)
-    if hero is None or hero.account_id != account.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "hero not found")
-    if hero.stars >= MAX_STARS:
-        raise HTTPException(status.HTTP_409_CONFLICT, "already at max stars")
-
-    # Ascending from N to N+1 requires exactly N fodder heroes of the same template
-    # (so 1->2 needs 1, 2->3 needs 2, etc.). Caller can also jump multiple tiers by
-    # providing the sum: n + (n+1) + ... fodder. Simplest: advance one tier at a time.
-    fodder_ids = list(dict.fromkeys(body.fodder_ids))
-    if hero.id in fodder_ids:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot feed hero into itself")
-    fodder: list[HeroInstance] = []
-    for fid in fodder_ids:
-        f = db.get(HeroInstance, fid)
-        if f is None or f.account_id != account.id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"fodder {fid} not owned")
-        if f.template_id != hero.template_id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"fodder {fid} different template")
-        if f.gear:
-            raise HTTPException(status.HTTP_409_CONFLICT, f"fodder {fid} still has gear equipped")
-        fodder.append(f)
-
-    needed = hero.stars  # N fodder to go from N to N+1
-    if len(fodder) != needed:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"need exactly {needed} fodder to ascend {hero.stars}* -> {hero.stars + 1}*",
-        )
-
-    hero.stars += 1
-    for f in fodder:
-        db.delete(f)
-    db.commit()
-    db.refresh(hero)
-    return instance_out(hero)
 
 
 @router.post("/{hero_instance_id}/ascend-with-shards", response_model=HeroInstanceOut)
@@ -309,8 +259,9 @@ class SellOut(_BM):
 #
 # Phase 2.1 — give the roster page numbers to chase. Returns the *current*
 # computed stats alongside the *projected* stats after each available
-# upgrade path: level-up (XP-driven, via /battles), star-up (via /ascend),
-# special-up (via /skill_up). Read-only.
+# upgrade path: level-up (XP-driven, via /battles), star-up (via
+# /ascend-with-shards), special-up (via /skill_up — now shard-based as
+# of the 2026-05-12 remap). Read-only.
 #
 # We keep the math here in step with instance_out (variance + gear + sets)
 # so a player sees the same numbers on the detail page that the battle
@@ -448,22 +399,19 @@ def upgrade_preview(
 
     # Special up — flat boost; doesn't change stat sheet, but we surface
     # the next special-level number + scale multiplier so the UI can show
-    # "your special hits +10% harder next level".
+    # "your special hits +10% harder next level". Post shard-remap
+    # (2026-05-12) availability gates on template-shard balance, not on
+    # whether a fodder dupe exists.
     if hero.special_level < MAX_SPECIAL_LEVEL:
-        from sqlalchemy import select as _sel
-        owned_dupes_count = db.scalar(
-            _sel(HeroInstance.id).where(
-                HeroInstance.account_id == account.id,
-                HeroInstance.template_id == hero.template_id,
-                HeroInstance.id != hero.id,
-            )
-            .limit(1)
-        )
+        from app.template_shards import shards_for_skill_up, get_shards
+        shards_needed = shards_for_skill_up(hero.special_level) or 0
+        shards_available = get_shards(account, hero.template.code)
         special_up = UpgradePreview(
-            available=owned_dupes_count is not None,
+            available=shards_needed > 0 and shards_available >= shards_needed,
             cost={
                 "target_special_level": hero.special_level + 1,
-                "fodder_needed": 1,
+                "shards_needed": shards_needed,
+                "shards_available": shards_available,
                 "max_special_level": MAX_SPECIAL_LEVEL,
                 # +10% per level beyond 1 in the resolver.
                 "scale_multiplier_after": round(1.0 + 0.10 * (hero.special_level + 1 - 1), 2),

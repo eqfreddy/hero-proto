@@ -29,6 +29,13 @@ SHARDS_TO_ASCEND_FROM: dict[int, int] = {
     1: 10, 2: 30, 3: 80, 4: 200, 5: 500,
 }
 
+# Shards needed to skill-up FROM the given special_level to the next.
+# Replaces the fodder-based model after the 2026-05-12 shard remap.
+# Cheap early, steep at cap so the final point feels earned.
+SHARDS_TO_SKILL_UP: dict[int, int] = {
+    1: 5, 2: 15, 3: 40, 4: 100,
+}
+
 
 def _load(account: Account) -> dict[str, int]:
     try:
@@ -77,6 +84,12 @@ def spend(account: Account, template_code: str, amount: int) -> bool:
 def shards_for_ascension(stars: int) -> int | None:
     """Returns shards needed to go from `stars` to `stars+1`, or None at cap."""
     return SHARDS_TO_ASCEND_FROM.get(stars)
+
+
+def shards_for_skill_up(special_level: int) -> int | None:
+    """Returns shards needed to go from `special_level` to `special_level+1`,
+    or None at cap. Mirrors the ascension helper signature."""
+    return SHARDS_TO_SKILL_UP.get(special_level)
 
 
 def grant_dupe_shards(account: Account, template_code: str, rarity: Rarity) -> int:

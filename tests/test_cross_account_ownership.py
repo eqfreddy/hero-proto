@@ -27,23 +27,15 @@ def test_skill_up_rejects_other_accounts_hero(client) -> None:
     alice_hdr, _ = _register(client)
     bob_hdr, _ = _register(client)
     bob_hero = _summon_one(client, bob_hdr)
-    r = client.post(
-        f"/heroes/{bob_hero}/skill_up",
-        headers=alice_hdr,
-        json={"fodder_ids": [1, 2]},
-    )
+    r = client.post(f"/heroes/{bob_hero}/skill_up", headers=alice_hdr)
     assert r.status_code == 404
 
 
-def test_ascend_rejects_other_accounts_hero(client) -> None:
+def test_ascend_with_shards_rejects_other_accounts_hero(client) -> None:
     alice_hdr, _ = _register(client)
     bob_hdr, _ = _register(client)
     bob_hero = _summon_one(client, bob_hdr)
-    r = client.post(
-        f"/heroes/{bob_hero}/ascend",
-        headers=alice_hdr,
-        json={"fodder_ids": [1]},
-    )
+    r = client.post(f"/heroes/{bob_hero}/ascend-with-shards", headers=alice_hdr)
     assert r.status_code == 404
 
 
