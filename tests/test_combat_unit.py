@@ -472,3 +472,31 @@ def test_trim_combat_log_long_truncates_middle() -> None:
     assert out[-1] == {"i": COMBAT_LOG_MAX_ENTRIES * 3 - 1}
     markers = [e for e in out if e.get("type") == "log_truncated"]
     assert len(markers) == 1 and markers[0]["skipped"] > 0
+
+def test_enemy_random_target_uses_rng_instead_of_first_enemy() -> None:
+    """enemy_random should sample live enemies, not always index 0.
+
+    We run multiple independent turns with different seeds and verify that
+    both enemies are selected over time.
+    """
+    from app.combat import _act
+
+    hits: set[str] = set()
+    for seed in range(20):
+        rng = random.Random(seed)
+        caster = _gremlin("a0", "A")
+        e0 = _gremlin("b0", "B")
+        e1 = _gremlin("b1", "B")
+        caster.special = {"type": "DAMAGE", "target": "enemy_random", "mult": 1.0}
+        caster.special_cooldown_max = 0
+        caster.special_cooldown_left = 0
+        for u in (caster, e0, e1):
+            u.base_atk = u.atk
+            u.base_def = u.def_
+        log: list[dict] = []
+        _act(caster, allies=[caster], enemies=[e0, e1], rng=rng, log=log)
+        dmg = next((e for e in log if e.get("type") == "DAMAGE"), None)
+        assert dmg is not None
+        hits.add(dmg["target"])
+
+    assert hits == {"b0", "b1"}

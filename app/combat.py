@@ -215,7 +215,7 @@ def _apply_damage(
     return amount
 
 
-def _pick_target(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit], selector: str) -> CombatUnit | None:
+def _pick_target(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit], selector: str, rng: random.Random | None = None) -> CombatUnit | None:
     pool_live = [u for u in (enemies if selector.startswith("enemy") else allies) if not u.dead]
     if selector == "self":
         return actor
@@ -224,7 +224,7 @@ def _pick_target(actor: CombatUnit, allies: list[CombatUnit], enemies: list[Comb
     if selector in ("enemy_lowest_hp", "ally_lowest_hp"):
         return min(pool_live, key=lambda u: (u.hp, u.uid))
     if selector == "enemy_random":
-        return pool_live[0]  # deterministic; randomness lives in roll_rng
+        return (rng or random).choice(pool_live)
     if selector in ("all_enemies", "all_allies"):
         # Caller handles AOE.
         return pool_live[0]
@@ -429,7 +429,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
             return {**eff, "value": float(eff.get("value", 0.25)) * scale}
 
         if stype == "DAMAGE":
-            tgt = _pick_target(actor, allies, enemies, selector)
+            tgt = _pick_target(actor, allies, enemies, selector, rng=rng)
             if tgt is not None:
                 hits = int(spec.get("hits", 1))
                 mult = float(spec.get("mult", actor.basic_mult * 1.5)) * scale
@@ -468,7 +468,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
                     _apply_effect(tgt, _scaled_effect(spec["effect"]), log)
 
         elif stype == "HEAL":
-            tgt = _pick_target(actor, allies, enemies, selector)
+            tgt = _pick_target(actor, allies, enemies, selector, rng=rng)
             if tgt is not None:
                 amount = max(1, int(tgt.max_hp * float(spec.get("frac", 0.25))))
                 _heal(actor, tgt, amount, log)
@@ -484,7 +484,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
                     _apply_effect(tgt, _scaled_effect(spec["effect"]), log)
 
         elif stype == "BUFF":
-            tgt = _pick_target(actor, allies, enemies, selector)
+            tgt = _pick_target(actor, allies, enemies, selector, rng=rng)
             if tgt is not None:
                 _apply_effect(tgt, _scaled_effect(spec["effect"]), log)
 
@@ -493,7 +493,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
                 _apply_effect(tgt, _scaled_effect(spec["effect"]), log)
 
         elif stype == "DEBUFF":
-            tgt = _pick_target(actor, allies, enemies, selector)
+            tgt = _pick_target(actor, allies, enemies, selector, rng=rng)
             if tgt is not None:
                 _apply_effect(tgt, _scaled_effect(spec["effect"]), log)
 
@@ -502,13 +502,13 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
                 _apply_effect(tgt, _scaled_effect(spec["effect"]), log)
 
         elif stype == "SHIELD":
-            tgt = _pick_target(actor, allies, enemies, selector)
+            tgt = _pick_target(actor, allies, enemies, selector, rng=rng)
             if tgt is not None:
                 tgt.shielded = True
                 log.append({"type": "STATUS_APPLIED", "unit": tgt.uid, "kind": "SHIELD", "turns": 1, "value": 1.0})
 
         elif stype == "CLEANSE":
-            tgt = _pick_target(actor, allies, enemies, selector)
+            tgt = _pick_target(actor, allies, enemies, selector, rng=rng)
             if tgt is not None:
                 _CLEANSABLE = (
                     StatusEffectKind.POISON,
