@@ -23,6 +23,18 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
+            // Take over from the previous SW immediately on every deploy
+            // (default behavior needs a second reload). Without these flags
+            // users see stale precached bundles even after Ctrl+Shift+R until
+            // they reload twice — which is what bit the Quaternius rollout.
+            workbox: {
+                clientsClaim: true,
+                skipWaiting: true,
+                // Don't precache the giant 3D assets — they have ?v=__APP_VERSION__
+                // cache-busting on the URL already (see heroLoader.ts) and
+                // precaching them inflates the SW manifest by megabytes.
+                globIgnores: ['**/battle-3d/**'],
+            },
             manifest: {
                 name: 'hero-proto',
                 short_name: 'hero-proto',
