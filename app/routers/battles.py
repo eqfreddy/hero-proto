@@ -227,6 +227,14 @@ def fight(
     _pity_end(account, stage.code, stage.difficulty_tier, won=outcome == BattleOutcome.WIN)
 
     first_clear = mark_cleared(account, stage.code) if outcome == BattleOutcome.WIN else False
+
+    # Milestone unlock check — pure read, no mutation. Only meaningful on first_clear
+    # because subsequent re-runs of a stage cannot raise the cleared-count.
+    _milestone_unlocks: list[int] = []
+    if first_clear:
+        from app.milestones import check_milestone_unlocks as _check_ms
+        _milestone_unlocks = _check_ms(account, db)
+
     rewards = award_rewards(
         account=account,
         stage=stage,
@@ -500,6 +508,7 @@ def fight(
         rewards=rewards_extra,
         created_at=battle.created_at,
         auto_resolved=auto_resolved,
+        milestone_unlocks=_milestone_unlocks,
     )
 
 
@@ -924,6 +933,12 @@ def _finalize_stage(session: InteractiveSession, account: Account, db: Session) 
     won = outcome == BattleOutcome.WIN
     first_clear = mark_cleared(account, stage.code) if won else False
 
+    # Milestone unlock check — pure read, no mutation.
+    _milestone_unlocks: list[int] = []
+    if first_clear:
+        from app.milestones import check_milestone_unlocks as _check_ms
+        _milestone_unlocks = _check_ms(account, db)
+
     rewards = award_rewards(
         account=account, stage=stage, heroes_on_team=heroes,
         won=won, first_clear=first_clear, rng=session.rng,
@@ -1022,6 +1037,7 @@ def _finalize_stage(session: InteractiveSession, account: Account, db: Session) 
     db.commit()
     db.refresh(battle)
     rewards_extra["_battle_id"] = battle.id
+    rewards_extra["milestone_unlocks"] = _milestone_unlocks
     return rewards_extra
 
 

@@ -20,7 +20,7 @@ from app.observability import (
     configure_logging,
     metrics_response,
 )
-from app.routers import achievements, admin, afk as afk_router, ai, announcements, arena, auth, battle_pass, battles, collections as collections_router, crafting, daily, events, friend_points as friend_points_router, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, monthly_card as monthly_card_router, notifications, quests, raids, shop, stages, story, summon, telemetry as telemetry_router, tower as tower_router, ui, vip as vip_router
+from app.routers import achievements, admin, afk as afk_router, ai, announcements, arena, auth, battle_pass, battles, collections as collections_router, crafting, daily, events, friend_points as friend_points_router, friends, gear, guilds, heroes, i18n as i18n_router, inventory, liveops, me, milestones as milestones_router, monthly_card as monthly_card_router, notifications, quests, raids, shop, stages, story, summon, telemetry as telemetry_router, tower as tower_router, ui, vip as vip_router
 from app.worker import health as worker_health, supervised_worker_loop
 
 configure_logging(json_logs=settings.json_logs)
@@ -219,6 +219,10 @@ app.include_router(me.router)
 app.include_router(ai.router)
 app.include_router(heroes.router)
 app.include_router(summon.router)
+# milestones must register BEFORE stages — both share /stages prefix but
+# stages.router has a /stages/{stage_id:int} param route that would otherwise
+# shadow /stages/milestones and /stages/milestones/{id}/claim.
+app.include_router(milestones_router.router)
 app.include_router(stages.router)
 app.include_router(battles.router)
 app.include_router(gear.router)

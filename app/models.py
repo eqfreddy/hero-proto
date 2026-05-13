@@ -381,6 +381,12 @@ class Account(Base):
     # Lets the client hide already-seen cutscenes on replay.
     story_state_json: Mapped[str] = mapped_column(String(2048), default="{}")
 
+    # Milestone rewards — see app/milestones.py for service logic.
+    # legend_boss_shards: cross-template currency earned from milestone rolls.
+    # milestone_legend_pity: consecutive non-award claims; resets to 0 on award.
+    legend_boss_shards: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    milestone_legend_pity: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
     # Progression flag: have we granted the tutorial-clear reward for this
     # account yet? Prevents double-dipping via delete + re-register loops on
     # the same email address in SQLite dev setups. Stage clears themselves are
@@ -438,6 +444,9 @@ class HeroTemplate(Base):
     mana_cost: Mapped[int] = mapped_column(Integer, default=10)
     mana_regen_per_turn: Mapped[int] = mapped_column(Integer, default=15)
     rig: Mapped[str] = mapped_column(String(64), default="stick-figure")
+    # Milestone legend-boss summon pool. Only MYTH-rarity templates with this
+    # flag set are eligible for the legend-boss summon (30 legend_boss_shards).
+    is_legend_boss_pool: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
 
 class HeroInstance(Base):
@@ -1364,3 +1373,49 @@ class GuildAchievementProgress(Base):
     __table_args__ = (
         UniqueConstraint("guild_id", "achievement_code", name="uq_guild_achievement_progress"),
     )
+
+
+# ---------------------------------------------------------------------------
+# Milestone rewards — see docs/milestone-rewards-spec-2026-05-13.md
+# ---------------------------------------------------------------------------
+
+
+class StageMilestone(Base):
+    """Static reward configuration row for each milestone threshold.
+    Content-as-data so rewards can be adjusted without a code deploy.
+    Seeded by the a3c8e1f2d9b4 migration.
+    """
+
+    __tablename__ = "stage_milestones"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stage_count: Mapped[int] = mapped_column(Integer, nullable=False, unique=True, index=True)
+    template_shards: Mapped[int] = mapped_column(Integer, nullable=False)
+    legend_shard_chance: Mapped[float] = mapped_column(Float, nullable=False)
+    label: Mapped[str] = mapped_column(String(64), default="")
+
+    claims: Mapped[list["AccountMilestoneClaim"]] = relationship(back_populates="milestone")
+
+
+class AccountMilestoneClaim(Base):
+    """Per-account record of a claimed milestone. The UNIQUE constraint on
+    (account_id, milestone_id) enforces idempotency at the DB level.
+    """
+
+    __tablename__ = "account_milestone_claims"
+    __table_args__ = (
+        UniqueConstraint("account_id", "milestone_id", name="uq_amc_account_milestone"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    milestone_id: Mapped[int] = mapped_column(
+        ForeignKey("stage_milestones.id"), nullable=False
+    )
+    claimed_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
+    template_shards_granted: Mapped[int] = mapped_column(Integer, nullable=False)
+    legend_shards_granted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    milestone: Mapped[StageMilestone] = relationship(back_populates="claims")

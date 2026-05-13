@@ -458,6 +458,9 @@ class BattleOut(BaseModel):
     # Phase 2.4 — true when the player asked for auto-resolve AND owned
     # the QoL unlock. UI uses this to skip the watch step.
     auto_resolved: bool = False
+    # Milestone hook: IDs of milestones that just became claimable after this
+    # stage clear (empty on losses / re-runs where nothing new unlocked).
+    milestone_unlocks: list[int] = []
 
 
 class SummonOut(BaseModel):
@@ -541,3 +544,53 @@ class InteractiveStateOut(BaseModel):
     # LOSS on next read.
     turn_started_at: float | None = None
     turn_timeout_s: int = 120
+
+
+# ---------------------------------------------------------------------------
+# Milestone reward schemas
+# ---------------------------------------------------------------------------
+
+
+class NextMilestoneOut(BaseModel):
+    id: int
+    stage_count: int
+    stages_to_go: int
+    template_shards: int
+    legend_shard_chance: float
+    label: str
+
+
+class MilestoneOut(BaseModel):
+    id: int
+    stage_count: int
+    template_shards: int
+    # Published verbatim per Rule #1 transparency requirement.
+    legend_shard_chance: float
+    label: str
+    unlocked: bool
+    claimed: bool
+    claimed_at: str | None = None
+    legend_shards_granted: int | None = None
+
+
+class MilestoneListOut(BaseModel):
+    stages_cleared_count: int
+    next_milestone: NextMilestoneOut | None = None
+    milestones: list[MilestoneOut]
+    legend_boss_shards: int
+    legend_summon_cost: int
+    pity_counter: int
+    pity_floor: int
+
+
+class MilestoneClaimOut(BaseModel):
+    milestone_id: int
+    template_shards_granted: int
+    legend_shards_granted: int
+    legend_boss_shards_balance: int
+    pity_counter: int
+
+
+class LegendBossSummonOut(BaseModel):
+    hero: HeroInstanceOut
+    legend_boss_shards_balance: int
