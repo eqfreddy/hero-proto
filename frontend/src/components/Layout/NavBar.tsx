@@ -120,11 +120,11 @@ export function NavBar() {
   return (
     <>
       <header style={{
-        background: 'var(--panel)',
+        background: 'rgba(12, 16, 26, 0.72)',
         borderBottom: '1px solid var(--border)',
         position: 'sticky', top: 0, zIndex: 50,
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
       }}>
         {/* Top bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px' }}>

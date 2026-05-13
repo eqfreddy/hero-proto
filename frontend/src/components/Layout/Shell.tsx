@@ -17,7 +17,6 @@ export function Shell() {
   const jwt = useAuthStore((s) => s.jwt)
   const location = useLocation()
   const pushInitialized = useRef(false)
-  const isLobby = location.pathname === '/app/me' || location.pathname === '/app/'
 
   useEffect(() => {
     if (jwt && !pushInitialized.current) {
@@ -29,17 +28,6 @@ export function Shell() {
 
   if (!jwt && !PUBLIC_PATHS.has(location.pathname)) {
     return <Navigate to="/app/login" replace state={{ from: location }} />
-  }
-
-  if (isLobby) {
-    return (
-      <AgeGate>
-        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Outlet />
-          <ToastContainer />
-        </div>
-      </AgeGate>
-    )
   }
 
   return (

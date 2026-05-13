@@ -5,10 +5,12 @@
 
 body {
   margin: 0;
-  /* Tech / cyber gradient — deep void with two off-axis accent glows. */
+  /* Tech / cyber gradient — deep void with two off-axis accent glows.
+     Glows bumped to be readable behind translucent chrome. */
   background:
-    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(0, 255, 224, 0.08), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 85% 100%, rgba(155, 48, 255, 0.06), transparent 65%),
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(0, 255, 224, 0.22), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 100%, rgba(155, 48, 255, 0.18), transparent 65%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0, 100, 180, 0.12), transparent 70%),
     linear-gradient(180deg, #050811 0%, var(--bg) 50%, #02030a 100%);
   background-attachment: fixed;
   color: var(--text);
@@ -23,12 +25,12 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(0, 255, 224, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 224, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(0, 255, 224, 0.13) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 224, 0.13) 1px, transparent 1px);
   background-size: 48px 48px;
   background-position: 0 0;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 30%, transparent 90%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 30%, transparent 90%);
+  mask-image: radial-gradient(ellipse 100% 80% at 50% 40%, #000 20%, transparent 95%);
+  -webkit-mask-image: radial-gradient(ellipse 100% 80% at 50% 40%, #000 20%, transparent 95%);
   pointer-events: none;
   z-index: 0;
   animation: tech-grid-drift 60s linear infinite;
@@ -100,7 +102,9 @@ a:hover { text-decoration: underline; }
 
 .muted { color: var(--muted); }
 .card {
-  background: var(--panel);
+  background: rgba(12, 16, 26, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;

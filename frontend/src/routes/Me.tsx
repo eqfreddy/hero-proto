@@ -14,7 +14,6 @@ import { RecurringResources } from '../components/Me/RecurringResources'
 import { MonthlyCardCard } from '../components/MonthlyCardCard'
 import { AfkCard } from '../components/AfkCard'
 import { VipCard } from '../components/VipCard'
-import { useAuthStore } from '../store/auth'
 import type { ShopProduct } from '../types'
 
 const LOG_ENTRIES = [
@@ -35,63 +34,9 @@ function formatRemaining(seconds: number): string {
   return `${m}m`
 }
 
-// ── Top bar ──────────────────────────────────────────────────────────────────
-
-function TopBar() {
-  const { data: me } = useMe()
-  const clearJwt = useAuthStore((s) => s.clearJwt)
-  const qc = useQueryClient()
-  const [clock, setClock] = useState('')
-
-  useEffect(() => {
-    const tick = () => setClock(new Date().toTimeString().slice(0, 8))
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  function logout() {
-    clearJwt()
-    qc.clear()
-    window.location.href = '/'
-  }
-
-  return (
-    <div className="topbar">
-      <div className="row">
-        <div className="status-dot online" />
-        <span className="mono text-sm fw-bold text-accent teal-glow" style={{ letterSpacing: '0.12em' }}>
-          SYSTEM::HERO-PROTO
-        </span>
-      </div>
-
-      {me && (
-        <span className="mono text-xs text-muted hide-mobile" style={{ letterSpacing: '0.06em' }}>
-          USER <span className="text-accent" style={{ opacity: 0.6 }}>{me.email.split('@')[0]}</span>
-          {' | '}LVL <span className="text-accent">{me.account_level}</span>
-          {' | '}{me.faction === 'RESISTANCE' ? '📡' : me.faction === 'CORP_GREED' ? '📈' : '🌑'} {me.faction}
-        </span>
-      )}
-
-      <div className="row" style={{ marginLeft: 'auto', gap: 12 }}>
-        {me && (
-          <div className="currency-row hide-mobile">
-            <span className="gem">💎 {me.gems.toLocaleString()}</span>
-            <span className="coin">🪙 {me.coins.toLocaleString()}</span>
-            <span className="shard">✦ {me.shards.toLocaleString()}</span>
-            <span className="energy">⚡ {me.energy}/{me.energy_cap}</span>
-          </div>
-        )}
-        <span className="mono text-xs text-muted" style={{ paddingLeft: 12, borderLeft: '1px solid var(--border-subtle)' }}>
-          {clock}
-        </span>
-        <button onClick={logout} className="text-muted text-sm fw-bold" style={{ padding: '4px 10px' }}>
-          ⏻
-        </button>
-      </div>
-    </div>
-  )
-}
+// Bespoke TopBar retired 2026-05-13 — Home now uses the shared Shell
+// chrome (NavBar + CurrencyBar) like every other route. Currency + clock
+// + sign-out all live in the persistent header now.
 
 // ── Zone tabs ─────────────────────────────────────────────────────────────────
 
@@ -670,10 +615,8 @@ export function MeRoute() {
   const claimableBadge = (daily ?? []).filter((q) => q.status === 'COMPLETE').length
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <TopBar />
-
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)' }}>
+      <div style={{ display: 'flex', flex: 1, gap: 12 }}>
         <RootlordSidebar />
 
         {/* Center */}

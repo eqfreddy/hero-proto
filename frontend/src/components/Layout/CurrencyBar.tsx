@@ -30,7 +30,9 @@ export function CurrencyBar() {
       style={{
         display: 'flex', gap: 6, padding: '6px 14px',
         borderBottom: '1px solid var(--border)',
-        background: 'linear-gradient(180deg, var(--panel) 0%, var(--bg) 100%)',
+        background: 'linear-gradient(180deg, rgba(12,16,26,0.68) 0%, rgba(4,6,12,0.55) 100%)',
+        backdropFilter: 'blur(12px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(140%)',
         fontSize: 12, flexWrap: 'nowrap', alignItems: 'center',
         overflowX: 'auto', scrollbarWidth: 'none',
       }}
