@@ -439,6 +439,10 @@ Output format for everything on this list: **paste the final file(s) back here i
 
 ### Content
 - [ ] See Sprint D
+- [ ] **Brainstorm Exile + other races** — what races/origins exist in the world, how they slot into the alignment fork (light/dark), unique mechanics or stat profiles per race, naming + lore hooks. Exile is the seed concept; expand outward from there.
+- [ ] **Wire alignment-themed BGM** — 6 tracks staged in `sound/` (3 dark / 3 light), pick stage/scene mappings.
+  - **Dark side** — `Abyssal_Echoes.mp3`, `Wrath_of_Ares.mp3`, `dark_dungeon_music.mp3`
+  - **Light side** — `Cartoon_Chaos_Fast-Paced_Chase_Scene_Music.mp3`, `Mischief_Maker.mp3`, `The_Ancient_Map_-_Epic_Fantasy_Adventure_Trailer.mp3`
 
 ### Combat
 - [x] More status effects (FREEZE / BURN / HEAL_BLOCK / REFLECT) — see "Combat depth (2026-04-25)" below
