@@ -500,3 +500,24 @@ def test_enemy_random_target_uses_rng_instead_of_first_enemy() -> None:
         hits.add(dmg["target"])
 
     assert hits == {"b0", "b1"}
+
+
+def test_simulate_is_deterministic_for_same_seed_and_inputs() -> None:
+    team_a = [_gremlin(f"a{i}", "A", level=12, stars=3) for i in range(3)]
+    team_b = [_gremlin(f"b{i}", "B", level=12, stars=3) for i in range(3)]
+
+    run1 = simulate([u for u in team_a], [u for u in team_b], random.Random(4242))
+    run2 = simulate([_gremlin(f"a{i}", "A", level=12, stars=3) for i in range(3)], [_gremlin(f"b{i}", "B", level=12, stars=3) for i in range(3)], random.Random(4242))
+
+    assert run1.log_hash == run2.log_hash
+    assert run1.outcome == run2.outcome
+
+
+def test_simulate_varies_across_different_seeds() -> None:
+    team_a = [_gremlin(f"a{i}", "A", level=12, stars=3) for i in range(3)]
+    team_b = [_gremlin(f"b{i}", "B", level=12, stars=3) for i in range(3)]
+
+    run1 = simulate([u for u in team_a], [u for u in team_b], random.Random(101))
+    run2 = simulate([_gremlin(f"a{i}", "A", level=12, stars=3) for i in range(3)], [_gremlin(f"b{i}", "B", level=12, stars=3) for i in range(3)], random.Random(202))
+
+    assert run1.log_hash != run2.log_hash

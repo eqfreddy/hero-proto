@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom'
 
 const PageWrap = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ maxWidth: 720, margin: '0 auto', padding: '8px 4px 40px' }}>
+  <div style={{ maxWidth: 720, margin: '0 auto', padding: '6px 10px 24px' }}>
     {children}
-    <div style={{ marginTop: 32, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
+    <div style={{ marginTop: 20, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
       Questions? <a href="mailto:privacy@hero-proto.local" style={{ color: 'var(--accent)' }}>privacy@hero-proto.local</a>
-      <div style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 8 }}>
         <Link to="/app/me" style={{ color: 'var(--muted)' }}>← Back to game</Link>
       </div>
     </div>
@@ -16,16 +16,16 @@ const H1 = ({ children }: { children: React.ReactNode }) => (
   <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>{children}</h1>
 )
 const Lead = ({ children }: { children: React.ReactNode }) => (
-  <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0, marginBottom: 20 }}>{children}</p>
+  <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0, marginBottom: 14 }}>{children}</p>
 )
 const H2 = ({ children }: { children: React.ReactNode }) => (
-  <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginTop: 22, marginBottom: 8 }}>{children}</h2>
+  <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginTop: 16, marginBottom: 6 }}>{children}</h2>
 )
 const P = ({ children }: { children: React.ReactNode }) => (
-  <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', margin: '8px 0' }}>{children}</p>
+  <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text)', margin: '6px 0' }}>{children}</p>
 )
 const UL = ({ children }: { children: React.ReactNode }) => (
-  <ul style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', paddingLeft: 22, margin: '8px 0' }}>{children}</ul>
+  <ul style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text)', paddingLeft: 20, margin: '6px 0' }}>{children}</ul>
 )
 
 export function PrivacyRoute() {
