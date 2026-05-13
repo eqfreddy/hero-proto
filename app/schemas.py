@@ -129,6 +129,9 @@ class MeOut(BaseModel):
     rest_xp_banked_seconds: int = 0
     # Rare-collections currency: consumable 8-track cassette packs.
     eight_tracks: int = 0
+    # Consecutive-day PvE win streak — used by the Stages header pill for
+    # loss-aversion framing. 0 when the player has never won or the streak lapsed.
+    win_streak_days: int = 0
 
 
 class HeroTemplateOut(BaseModel):

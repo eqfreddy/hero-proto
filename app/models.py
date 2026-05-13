@@ -268,6 +268,12 @@ class Account(Base):
     last_daily_claim_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     daily_streak: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Consecutive-days battle-win streak. Used by the Stages header pill for
+    # loss-aversion framing. Incremented on the first PvE win each UTC day;
+    # a gap day resets to 1 on the next win.
+    win_streak_days: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    win_streak_last_date: Mapped[str] = mapped_column(String(10), default="", server_default="")
+
     # Energy refills spent today (UTC day key). Resets on first refill of a new day.
     # Exists to cap refills-per-day so gems aren't a direct energy firehose.
     refills_today_key: Mapped[str] = mapped_column(String(10), default="")

@@ -30,6 +30,7 @@ export interface Me {
   is_admin: boolean
   rest_xp_banked_seconds: number
   eight_tracks: number
+  win_streak_days: number
 }
 
 export interface HeroTemplate {

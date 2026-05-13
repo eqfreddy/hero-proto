@@ -107,7 +107,11 @@ export default function BattlePlayRoute() {
         acting={acting}
         done={done}
         rewards={rewards}
-        onClose={() => navigate('/app/stages')}
+        onClose={() => {
+          const r = state.rewards as (Record<string, unknown> | null | undefined)
+          const unlocks = Array.isArray(r?.milestone_unlocks) ? (r!.milestone_unlocks as number[]) : []
+          navigate('/app/stages', unlocks.length > 0 ? { state: { milestoneUnlocks: unlocks } } : undefined)
+        }}
         templateByUid={templateByUid}
         turnStartedAt={state.turn_started_at ?? null}
         turnTimeoutS={state.turn_timeout_s}

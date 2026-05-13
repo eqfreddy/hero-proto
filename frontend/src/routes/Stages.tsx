@@ -10,7 +10,7 @@
  *   - Anticipation: gate node pulse glow + header countdown badge
  *   - Variable reward: Legendary Boss Shard row with published odds on every stage
  *   - Competence: READY badge + cyan pulse on next-unlocked node
- *   - Loss aversion: win streak pill (TODO: wire me.win_streak_days when backend exposes it)
+ *   - Loss aversion: win streak pill (consecutive PvE-win days, from me.win_streak_days)
  *   - Anchoring: legendary boss shard row appears even on locked panels as silhouette
  *
  * HOOK: After battle returns to /app/stages, check BattleOut.milestone_unlocks
@@ -19,7 +19,7 @@
  */
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useStages, useTeamPower } from '../hooks/useStages'
 import { useMilestones } from '../hooks/useMilestones'
@@ -468,7 +468,7 @@ function HeaderStrip({
 
       <div style={{ width: 1, height: 24, background: 'var(--border-strong)', flexShrink: 0 }} />
 
-      {/* Win streak — TODO: wire to me.win_streak_days once backend exposes it */}
+      {/* Win streak — consecutive PvE-win days, from me.win_streak_days */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 5,
         padding: '3px 10px', borderRadius: 999,
@@ -538,7 +538,7 @@ interface SidePanelProps {
 function SidePanel({ node, tier, teamPower, milestonesData, onFight, onClaimMilestone }: SidePanelProps) {
   if (!node) {
     return (
-      <div style={sidePanelStyle}>
+      <div className="stages-side-panel-anchor" style={sidePanelStyle}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--muted)', gap: 10 }}>
           <div style={{ fontSize: 28, opacity: 0.3 }}>🗺️</div>
           <div style={{ fontSize: 11, textAlign: 'center', maxWidth: 180 }}>Select a stage node to view details</div>
@@ -623,7 +623,7 @@ function StagePanel({
   const stagesCleared = milestonesData?.stages_cleared_count ?? 0
 
   return (
-    <div style={sidePanelStyle}>
+    <div className="stages-side-panel-anchor" style={sidePanelStyle}>
       {/* Header */}
       <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>
@@ -766,7 +766,7 @@ function MilestonePanelContent({
   const summonCost = milestonesData?.legend_summon_cost ?? 30
 
   return (
-    <div style={sidePanelStyle}>
+    <div className="stages-side-panel-anchor" style={sidePanelStyle}>
       <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>
           Milestone Gate — {node.stageCount} stages
@@ -838,7 +838,7 @@ function VaultPanel({ stagesCleared }: { tier: string; stagesCleared: number }) 
   const unlocked = remaining === 0
 
   return (
-    <div style={sidePanelStyle}>
+    <div className="stages-side-panel-anchor" style={sidePanelStyle}>
       <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Chapter Vault</div>
         <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', lineHeight: 1.2, marginBottom: 2 }}>The Vault — Endgame Summon</div>
@@ -1015,6 +1015,7 @@ function BoardLegend() {
 
 export function StagesRoute() {
   const navigate    = useNavigate()
+  const location    = useLocation()
   const qc          = useQueryClient()
   const { data: stages,     isLoading: stagesLoading }     = useStages()
   const { data: milestonesData, isLoading: msLoading }     = useMilestones()
@@ -1110,11 +1111,31 @@ export function StagesRoute() {
     readyScrolled.current = true
   }, [firstReady])
 
+  // Auto-open milestone claim modal when navigating back from battle with
+  // newly-unlocked milestone IDs in location.state (BattleOut.milestone_unlocks).
+  const autoOpenedRef = useRef(false)
+  useEffect(() => {
+    if (autoOpenedRef.current) return
+    const unlocks = (location.state as { milestoneUnlocks?: number[] } | null)?.milestoneUnlocks
+    if (!unlocks || unlocks.length === 0) return
+    if (!positioned.length) return
+    const firstId = unlocks[0]
+    const target = positioned.find(
+      (p) => p._kind === 'milestone' && p.milestoneId === firstId,
+    ) as PositionedMilestone | undefined
+    if (!target) return
+    autoOpenedRef.current = true
+    setSelectedId(target.id)
+    setClaimResult(null)
+    setModalNode(target)
+    // Clear the state so a refresh doesn't re-open the modal.
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location, positioned, navigate])
+
   // ── Header data ──────────────────────────────────────────────────────────
   const clearedCount  = useMemo(() => byTier.filter((s) => s.cleared).length, [byTier])
   const totalCount    = byTier.length
-  // TODO: wire me.win_streak_days when backend exposes it on the Me schema
-  const winStreak     = (me as unknown as { win_streak_days?: number })?.win_streak_days ?? 0
+  const winStreak     = me?.win_streak_days ?? 0
 
   const nextMs        = milestonesData?.next_milestone
   const stagesToNextMs = nextMs?.stages_to_go ?? null

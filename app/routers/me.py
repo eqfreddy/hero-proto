@@ -107,6 +107,7 @@ def get_me(
         monthly_card=_mc_status(account),
         rest_xp_banked_seconds=account.rest_xp_banked_seconds or 0,
         eight_tracks=account.eight_tracks or 0,
+        win_streak_days=account.win_streak_days or 0,
     )
 
 

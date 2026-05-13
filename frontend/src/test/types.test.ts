@@ -12,6 +12,7 @@ const me: Me = {
   faction: 'EXILE', alignment_chosen_at: null, email_verified: true, totp_enabled: false, is_admin: false,
   rest_xp_banked_seconds: 0,
   eight_tracks: 0,
+  win_streak_days: 0,
 }
 
 const tmpl: HeroTemplate = {

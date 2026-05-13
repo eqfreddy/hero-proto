@@ -32,6 +32,29 @@ from app.schemas import BattleIn, BattleOut, BattleParticipant, InteractiveActIn
 router = APIRouter(prefix="/battles", tags=["battles"])
 
 
+def _bump_win_streak(account: Account) -> None:
+    """Update account.win_streak_days on a PvE win. Counts consecutive UTC
+    days with at least one win. A skipped day resets the streak to 1."""
+    from datetime import datetime, timezone, timedelta
+    today = datetime.now(timezone.utc).date().isoformat()
+    last = account.win_streak_last_date or ""
+    if last == today:
+        return  # already counted today
+    if last:
+        try:
+            last_d = datetime.fromisoformat(last).date()
+            today_d = datetime.fromisoformat(today).date()
+            if (today_d - last_d) == timedelta(days=1):
+                account.win_streak_days = (account.win_streak_days or 0) + 1
+            else:
+                account.win_streak_days = 1
+        except ValueError:
+            account.win_streak_days = 1
+    else:
+        account.win_streak_days = 1
+    account.win_streak_last_date = today
+
+
 def _template_faction(t: HeroTemplate) -> Faction | None:
     f = t.faction
     if f is None:
@@ -227,6 +250,8 @@ def fight(
     _pity_end(account, stage.code, stage.difficulty_tier, won=outcome == BattleOutcome.WIN)
 
     first_clear = mark_cleared(account, stage.code) if outcome == BattleOutcome.WIN else False
+    if outcome == BattleOutcome.WIN:
+        _bump_win_streak(account)
 
     # Milestone unlock check — pure read, no mutation. Only meaningful on first_clear
     # because subsequent re-runs of a stage cannot raise the cleared-count.
@@ -932,6 +957,8 @@ def _finalize_stage(session: InteractiveSession, account: Account, db: Session) 
     outcome = session.outcome
     won = outcome == BattleOutcome.WIN
     first_clear = mark_cleared(account, stage.code) if won else False
+    if won:
+        _bump_win_streak(account)
 
     # Milestone unlock check — pure read, no mutation.
     _milestone_unlocks: list[int] = []
