@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UPRISE — Stage Select</title>
+<style>
+/* ── Design tokens (mirrors tokens.css) ───────────────────────── */
+:root {
+  --bg:          #04060c;
+  --bg-inset:    #080d18;
+  --panel:       #0c101a;
+  --panel-2:     #10141f;
+  --border:      rgba(0,255,224,0.08);
+  --border-strong: rgba(0,255,224,0.22);
+  --text:        #dde4f0;
+  --muted:       #4a5a72;
+  --accent:      #00ffe0;
+  --magenta:     #ff2d78;
+  --gold:        #ffd700;
+  --void-purple: #9b30ff;
+  --good:        #22c55e;
+  --bad:         #ef4444;
+  --warn:        #f59e0b;
+  --crimson:     #c8102e;
+  --r-legendary: #ffd700;
+  --r-epic:      #9b30ff;
+  --r-rare:      #00ffe0;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 0%,  rgba(0,255,224,0.18), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 100%, rgba(155,48,255,0.16), transparent 65%),
+    radial-gradient(ellipse 50% 40% at 50% 50%,  rgba(0,100,180,0.10), transparent 70%),
+    linear-gradient(180deg, #050811 0%, var(--bg) 50%, #02030a 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Tech grid */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,224,0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,224,0.11) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 110% 90% at 50% 40%, #000 20%, transparent 95%);
+  -webkit-mask-image: radial-gradient(ellipse 110% 90% at 50% 40%, #000 20%, transparent 95%);
+  pointer-events: none;
+  z-index: 0;
+  animation: grid-drift 60s linear infinite;
+}
+
+/* Scanline vignette */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,224,0.012) 2px, rgba(0,255,224,0.012) 3px),
+    radial-gradient(ellipse 130% 110% at 50% 50%, transparent 45%, rgba(0,0,0,0.6) 100%);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+@keyframes grid-drift {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 48px 48px, 48px 48px; }
+}
+
+/* ── Layout shell ─────────────────────────────────────────────── */
+#app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Header bar ───────────────────────────────────────────────── */
+#header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  height: 52px;
+  background: rgba(4,6,12,0.95);
+  border-bottom: 1px solid var(--border-strong);
+  flex-shrink: 0;
+  z-index: 20;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.chapter-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chapter-tag .chapter-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--accent), #7c5fff);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  box-shadow: 0 0 14px rgba(0,255,224,0.35);
+  flex-shrink: 0;
+}
+.chapter-tag .chapter-name {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 0 10px rgba(0,255,224,0.55);
+}
+
+.header-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+
+.header-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.header-stat .val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.header-stat .icon { font-size: 14px; }
+
+/* Progress bar in header */
+.header-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 240px;
+}
+.progress-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), #7c5fff);
+  box-shadow: 0 0 8px rgba(0,255,224,0.45);
+  transition: width 0.6s cubic-bezier(.4,0,.2,1);
+}
+
+/* Streak counter */
+.streak-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255,215,0,0.1);
+  border: 1px solid rgba(255,215,0,0.25);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.streak-pill .fire { font-size: 13px; }
+
+/* Milestone countdown */
+.milestone-countdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(155,48,255,0.12);
+  border: 1px solid rgba(155,48,255,0.35);
+  color: #c47aff;
+  animation: milestone-pulse-border 2.5s ease-in-out infinite;
+}
+@keyframes milestone-pulse-border {
+  0%,100% { border-color: rgba(155,48,255,0.35); box-shadow: none; }
+  50% { border-color: rgba(155,48,255,0.7); box-shadow: 0 0 10px rgba(155,48,255,0.3); }
+}
+
+/* Win streak loss aversion */
+.reset-warn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--warn);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  animation: warn-flash 3s ease-in-out infinite;
+}
+@keyframes warn-flash {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+/* ── Main content area ────────────────────────────────────────── */
+#main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Board canvas ─────────────────────────────────────────────── */
+#board-wrap {
+  flex: 1;
+  overflow: auto;
+  padding: 32px 24px 60px;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,224,0.2) transparent;
+}
+#board-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+#board-wrap::-webkit-scrollbar-track { background: transparent; }
+#board-wrap::-webkit-scrollbar-thumb { background: rgba(0,255,224,0.2); border-radius: 3px; }
+
+#board-svg-layer {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#board-nodes {
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Node styles ──────────────────────────────────────────────── */
+.node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  transform: translate(-50%, -50%);
+  transition: filter 0.2s, transform 0.18s;
+}
+.node:hover { transform: translate(-50%, -50%) scale(1.12); }
+
+.node-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+/* Size variants */
+.node-sm .node-ring { width: 42px; height: 42px; font-size: 16px; }
+.node-md .node-ring { width: 52px; height: 52px; font-size: 20px; }
+.node-lg .node-ring { width: 68px; height: 68px; font-size: 28px; }
+.node-xl .node-ring { width: 82px; height: 82px; font-size: 32px; }
+
+/* State: cleared */
+.node-cleared .node-ring {
+  background: rgba(34,197,94,0.12);
+  border-color: var(--good);
+  box-shadow: 0 0 10px rgba(34,197,94,0.3), inset 0 0 8px rgba(34,197,94,0.08);
+}
+.node-cleared:hover .node-ring {
+  box-shadow: 0 0 20px rgba(34,197,94,0.5), inset 0 0 12px rgba(34,197,94,0.1);
+}
+
+/* State: ready (next up) */
+.node-ready .node-ring {
+  background: rgba(0,255,224,0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0 rgba(0,255,224,0.5);
+  animation: node-ready-pulse 1.8s ease-in-out infinite;
+}
+@keyframes node-ready-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,255,224,0.55), 0 0 16px rgba(0,255,224,0.25); }
+  50%      { box-shadow: 0 0 0 10px rgba(0,255,224,0), 0 0 28px rgba(0,255,224,0.45); }
+}
+
+/* State: locked */
+.node-locked .node-ring {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.1);
+  opacity: 0.45;
+}
+.node-locked { cursor: not-allowed; }
+.node-locked:hover { transform: translate(-50%, -50%) scale(1.04); }
+
+/* State: milestone */
+.node-milestone .node-ring {
+  background: rgba(155,48,255,0.14);
+  border-color: var(--void-purple);
+  box-shadow: 0 0 14px rgba(155,48,255,0.4), inset 0 0 10px rgba(155,48,255,0.08);
+}
+.node-milestone-active .node-ring {
+  animation: milestone-glow 2s ease-in-out infinite;
+}
+@keyframes milestone-glow {
+  0%,100% { box-shadow: 0 0 14px rgba(155,48,255,0.4), inset 0 0 10px rgba(155,48,255,0.08); }
+  50%      { box-shadow: 0 0 32px rgba(155,48,255,0.7), 0 0 60px rgba(155,48,255,0.25), inset 0 0 14px rgba(155,48,255,0.15); }
+}
+.node-milestone-claimed .node-ring {
+  background: rgba(155,48,255,0.08);
+  border-color: rgba(155,48,255,0.4);
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+/* State: boss */
+.node-boss .node-ring {
+  background: rgba(200,16,46,0.14);
+  border-color: var(--crimson);
+  box-shadow: 0 0 18px rgba(200,16,46,0.45), inset 0 0 12px rgba(200,16,46,0.1);
+}
+.node-boss-cleared .node-ring {
+  background: rgba(34,197,94,0.1);
+  border-color: var(--good);
+  box-shadow: 0 0 12px rgba(34,197,94,0.35);
+}
+
+/* State: vault (end chapter) */
+.node-vault .node-ring {
+  background: rgba(0,255,224,0.07);
+  border-color: rgba(0,255,224,0.4);
+  border-style: dashed;
+  animation: vault-breathe 3.5s ease-in-out infinite;
+}
+@keyframes vault-breathe {
+  0%,100% { box-shadow: 0 0 12px rgba(0,255,224,0.2); border-color: rgba(0,255,224,0.3); }
+  50%      { box-shadow: 0 0 32px rgba(0,255,224,0.45), 0 0 60px rgba(0,255,224,0.1); border-color: rgba(0,255,224,0.65); }
+}
+
+/* Node label */
+.node-label {
+  margin-top: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  max-width: 80px;
+  line-height: 1.2;
+  color: var(--muted);
+  pointer-events: none;
+}
+.node-cleared .node-label   { color: rgba(34,197,94,0.8); }
+.node-ready .node-label     { color: var(--accent); }
+.node-boss .node-label      { color: rgba(200,16,46,0.85); }
+.node-milestone .node-label { color: rgba(155,48,255,0.85); }
+.node-vault .node-label     { color: rgba(0,255,224,0.7); }
+
+/* Ready badge */
+.node-ready-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #04060c;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  box-shadow: 0 0 8px rgba(0,255,224,0.6);
+}
+
+/* Score badge on cleared nodes */
+.node-score {
+  position: absolute;
+  bottom: -8px;
+  right: -4px;
+  background: rgba(34,197,94,0.2);
+  border: 1px solid rgba(34,197,94,0.45);
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--good);
+  padding: 1px 5px;
+  line-height: 1.3;
+}
+
+/* Milestone progress badge */
+.node-milestone-badge {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(155,48,255,0.2);
+  border: 1px solid rgba(155,48,255,0.5);
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 800;
+  color: #c47aff;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+/* ── SVG connector lines ───────────────────────────────────────── */
+.connector-line {
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.connector-cleared {
+  stroke: rgba(34,197,94,0.5);
+}
+.connector-active {
+  stroke: rgba(0,255,224,0.4);
+}
+.connector-locked {
+  stroke: rgba(255,255,255,0.07);
+  stroke-dasharray: 5 6;
+}
+
+/* Animated data packets along cleared paths */
+.data-packet {
+  r: 3;
+  fill: var(--accent);
+  filter: drop-shadow(0 0 4px rgba(0,255,224,0.9));
+}
+
+/* ── Floating tooltip ─────────────────────────────────────────── */
+#tooltip {
+  position: fixed;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  min-width: 160px;
+  max-width: 220px;
+}
+#tooltip.visible { opacity: 1; }
+.tooltip-body {
+  background: rgba(12,16,26,0.97);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,255,224,0.06);
+}
+.tooltip-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.tooltip-row .val { color: var(--text); font-weight: 600; }
+.tooltip-locked-msg {
+  font-size: 10px;
+  color: var(--bad);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* ── Side panel ───────────────────────────────────────────────── */
+#side-panel {
+  width: 300px;
+  min-width: 300px;
+  background: rgba(12,16,26,0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-left: 1px solid var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,224,0.15) transparent;
+}
+
+.panel-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-stage-num {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.panel-stage-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+.panel-stage-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 6px;
+}
+
+/* Tier colors */
+.tier-normal    { background: rgba(0,255,224,0.1);  color: var(--accent);     border: 1px solid rgba(0,255,224,0.25); }
+.tier-hard      { background: rgba(245,158,11,0.1); color: var(--warn);       border: 1px solid rgba(245,158,11,0.25); }
+.tier-nightmare { background: rgba(155,48,255,0.1); color: var(--void-purple);border: 1px solid rgba(155,48,255,0.25); }
+.tier-legendary { background: rgba(255,215,0,0.1);  color: var(--gold);       border: 1px solid rgba(255,215,0,0.25); }
+
+.panel-body {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+/* Info rows */
+.info-section-title {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.info-row:last-child { border-bottom: none; }
+.info-row .lbl { display: flex; align-items: center; gap: 5px; }
+.info-row .v { font-weight: 600; color: var(--text); }
+.info-row .v.good { color: var(--good); }
+.info-row .v.warn { color: var(--warn); }
+.info-row .v.bad  { color: var(--bad); }
+.info-row .v.gold { color: var(--gold); }
+.info-row .v.acc  { color: var(--accent); }
+
+/* Reward rows with odds */
+.reward-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.reward-row:last-child { margin-bottom: 0; }
+.reward-icon { font-size: 16px; flex-shrink: 0; }
+.reward-details { flex: 1; }
+.reward-name { font-weight: 600; color: var(--text); font-size: 11px; }
+.reward-odds { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.reward-odds .odds-highlight { font-weight: 700; }
+.reward-odds .odds-legendary { color: var(--gold); }
+.reward-odds .odds-epic      { color: var(--void-purple); }
+.reward-odds .odds-common    { color: var(--accent); }
+
+/* Legendary hidden vault row */
+.reward-row.legendary-chance {
+  background: rgba(255,215,0,0.05);
+  border-color: rgba(255,215,0,0.2);
+  animation: reward-legendary-shimmer 3s ease-in-out infinite;
+}
+@keyframes reward-legendary-shimmer {
+  0%,100% { border-color: rgba(255,215,0,0.2); }
+  50%      { border-color: rgba(255,215,0,0.45); box-shadow: 0 0 10px rgba(255,215,0,0.1); }
+}
+
+/* FIGHT button */
+.fight-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--accent), #00c4ae);
+  color: #04060c;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 4px 24px rgba(0,255,224,0.3), 0 0 0 1px rgba(0,255,224,0.3);
+}
+.fight-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+  border-radius: inherit;
+}
+.fight-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,255,224,0.45), 0 0 0 1px rgba(0,255,224,0.45);
+}
+.fight-btn:active { transform: translateY(0); }
+.fight-btn:disabled {
+  background: rgba(255,255,255,0.08);
+  color: var(--muted);
+  box-shadow: none;
+  cursor: not-allowed;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.fight-btn:disabled::before { display: none; }
+.fight-btn .energy-cost {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 600; opacity: 0.75;
+}
+
+/* Locked / cleared state in panel */
+.panel-state-locked {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 20px 0; text-align: center; color: var(--muted);
+}
+.panel-state-locked .lock-icon { font-size: 28px; opacity: 0.4; }
+.panel-state-locked .lock-msg  { font-size: 11px; line-height: 1.4; max-width: 200px; }
+
+.panel-cleared-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 7px;
+  font-size: 12px; font-weight: 700; color: var(--good);
+}
+
+/* Zeigarnik progress meter */
+.zeigarnik-bar {
+  padding: 12px 14px;
+  background: rgba(155,48,255,0.07);
+  border: 1px solid rgba(155,48,255,0.2);
+  border-radius: 8px;
+}
+.z-bar-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #c47aff;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.z-bar-title .z-count { font-size: 13px; color: var(--text); font-weight: 800; }
+.z-track {
+  height: 6px;
+  background: rgba(155,48,255,0.15);
+  border-radius: 3px;
+  overflow: visible;
+  position: relative;
+}
+.z-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--void-purple), #c47aff);
+  box-shadow: 0 0 8px rgba(155,48,255,0.5);
+  position: relative;
+  transition: width 0.8s cubic-bezier(.4,0,.2,1);
+}
+.z-nodes {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+.z-node-pip {
+  font-size: 8px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.z-node-pip.reached { color: #c47aff; }
+
+/* ── Floating particles along SVG paths ───────────────────────── */
+.packet-anim {
+  animation: packet-travel 4s linear infinite;
+}
+@keyframes packet-travel {
+  0%   { opacity: 0; offset-distance: 0%; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { opacity: 0; offset-distance: 100%; }
+}
+
+/* ── Chapter tier tabs ────────────────────────────────────────── */
+#tier-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 20px 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(4,6,12,0.8);
+  flex-shrink: 0;
+  z-index: 10;
+}
+.tier-tab {
+  padding: 7px 18px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  bottom: -1px;
+}
+.tier-tab:hover { color: var(--text); background: var(--panel-2); }
+.tier-tab.active-normal    { background: var(--bg-inset); color: var(--accent); border-color: rgba(0,255,224,0.35); }
+.tier-tab.active-hard      { background: var(--bg-inset); color: var(--warn);   border-color: rgba(245,158,11,0.35); }
+.tier-tab.active-nightmare { background: var(--bg-inset); color: var(--void-purple); border-color: rgba(155,48,255,0.35); }
+.tier-tab.active-legendary { background: var(--bg-inset); color: var(--gold);   border-color: rgba(255,215,0,0.35); }
+
+/* Legend in corner of board */
+#board-legend {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(12,16,26,0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  z-index: 5;
+}
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.legend-row:last-child { margin-bottom: 0; }
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+.ld-cleared    { border-color: var(--good);        background: rgba(34,197,94,0.2); }
+.ld-ready      { border-color: var(--accent);       background: rgba(0,255,224,0.15); }
+.ld-locked     { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
+.ld-milestone  { border-color: var(--void-purple);  background: rgba(155,48,255,0.15); }
+.ld-boss       { border-color: var(--crimson);      background: rgba(200,16,46,0.15); }
+.ld-vault      { border-color: var(--accent);       background: transparent; border-style: dashed; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Header bar ── -->
+  <div id="header">
+    <div class="chapter-tag">
+      <div class="chapter-icon">⚡</div>
+      <div class="chapter-name">Chapter 1 — Uprise Protocol</div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-stat">
+      <span class="icon">🗺️</span>
+      <span>Progress</span>
+      <span class="val" id="hdr-count">12 / 26</span>
+    </div>
+    <div class="header-progress">
+      <div class="progress-track">
+        <div class="progress-fill" id="hdr-fill" style="width:46%"></div>
+      </div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="streak-pill">
+      <span class="fire">🔥</span>
+      <span id="streak-val">7 Win Streak</span>
+    </div>
+    <div class="milestone-countdown" id="milestone-cdown">
+      ◈ 3 stages to Gate 15
+    </div>
+    <div class="reset-warn" id="reset-warn">
+      ⚠ Streak resets in 04:12:30
+    </div>
+  </div>
+
+  <!-- ── Tier tabs ── -->
+  <div id="tier-tabs">
+    <button class="tier-tab active-normal" onclick="switchTier('NORMAL',this)">Floppy Disk</button>
+    <button class="tier-tab" onclick="switchTier('HARD',this)" style="color:var(--warn)">Hard Disk</button>
+    <button class="tier-tab" onclick="switchTier('NIGHTMARE',this)" style="color:var(--void-purple)">RAID-0</button>
+    <button class="tier-tab" onclick="switchTier('LEGENDARY',this)" style="color:var(--gold)">Legen-wait-dary</button>
+  </div>
+
+  <!-- ── Main area ── -->
+  <div id="main">
+    <!-- Board -->
+    <div id="board-wrap">
+      <svg id="board-svg-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="board-nodes"></div>
+
+      <!-- Board legend -->
+      <div id="board-legend">
+        <div class="legend-row"><div class="legend-dot ld-cleared"></div> Cleared</div>
+        <div class="legend-row"><div class="legend-dot ld-ready"></div> Ready</div>
+        <div class="legend-row"><div class="legend-dot ld-locked"></div> Locked</div>
+        <div class="legend-row"><div class="legend-dot ld-milestone"></div> Milestone Gate</div>
+        <div class="legend-row"><div class="legend-dot ld-boss"></div> Boss</div>
+        <div class="legend-row"><div class="legend-dot ld-vault"></div> Chapter Vault</div>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div id="side-panel">
+      <div class="panel-header">
+        <div class="panel-stage-num" id="panel-num">Stage 13 of 26</div>
+        <div class="panel-stage-name" id="panel-name">Prod Is Down</div>
+        <div class="panel-stage-tier tier-normal" id="panel-tier">Floppy Disk</div>
+      </div>
+      <div class="panel-body" id="panel-body">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip">
+  <div class="tooltip-body" id="tooltip-body"></div>
+</div>
+
+<script>
+// ── Mock data ─────────────────────────────────────────────────────
+const STAGES = [
+  // order 0
+  { id:1,  order:0,  code:'tutorial_first_ticket', name:'First Ticket',          recommended_power:60,    energy_cost:0,  coin_reward:50,    first_clear_gems:10,  first_clear_shards:0, state:'cleared', score:'S', cleared_at:'May 12, 01:44' },
+  { id:2,  order:1,  code:'onboarding_day',         name:'Onboarding Day',        recommended_power:150,   energy_cost:5,  coin_reward:120,   first_clear_gems:25,  first_clear_shards:1, state:'cleared', score:'A', cleared_at:'May 12, 01:52' },
+  { id:3,  order:2,  code:'first_outage',           name:'First Outage',          recommended_power:260,   energy_cost:5,  coin_reward:180,   first_clear_gems:25,  first_clear_shards:1, state:'cleared', score:'A', cleared_at:'May 12, 02:05' },
+  { id:4,  order:3,  code:'quarterly_audit',        name:'Quarterly Audit',       recommended_power:420,   energy_cost:6,  coin_reward:240,   first_clear_gems:40,  first_clear_shards:2, state:'cleared', score:'B', cleared_at:'May 12, 02:18' },
+  { id:5,  order:4,  code:'legacy_server_room',     name:'Legacy Server Room',    recommended_power:620,   energy_cost:6,  coin_reward:320,   first_clear_gems:55,  first_clear_shards:2, state:'cleared', score:'A', cleared_at:'May 12, 02:41' },
+  // milestone at 5 — cleared
+  { id:'m5', order:'m5', milestone:true, mLabel:'Gate Alpha', mStage:5, claimed:true },
+  { id:6,  order:5,  code:'ceos_one_on_one',        name:"The CEO's 1:1",         recommended_power:900,   energy_cost:8,  coin_reward:500,   first_clear_gems:75,  first_clear_shards:3, state:'cleared', score:'S', cleared_at:'May 12, 03:10' },
+  { id:7,  order:6,  code:'reorg_announcement',     name:'The Reorg Announcement',recommended_power:1100,  energy_cost:9,  coin_reward:650,   first_clear_gems:90,  first_clear_shards:3, state:'cleared', score:'B', cleared_at:'May 12, 03:31' },
+  { id:8,  order:7,  code:'migration_weekend',      name:'Migration Weekend',     recommended_power:1350,  energy_cost:10, coin_reward:800,   first_clear_gems:100, first_clear_shards:4, state:'cleared', score:'A', cleared_at:'May 12, 04:05' },
+  { id:9,  order:8,  code:'pager_storm',            name:'The Pager Storm',       recommended_power:1600,  energy_cost:10, coin_reward:1000,  first_clear_gems:120, first_clear_shards:4, state:'cleared', score:'A', cleared_at:'May 12, 04:44' },
+  { id:10, order:9,  code:'hostile_acquisition',    name:'Hostile Acquisition',   recommended_power:1900,  energy_cost:12, coin_reward:1300,  first_clear_gems:150, first_clear_shards:5, state:'cleared', score:'S', cleared_at:'May 12, 05:02' },
+  // boss at 10 — cleared
+  { id:'b10', order:'b10', boss:true, bLabel:'The Singularity', bStage:10, state:'cleared', recommended_power:2400, energy_cost:15, coin_reward:1700, first_clear_gems:200, first_clear_shards:6, score:'A', cleared_at:'May 12, 05:49' },
+  // milestone at 10 — claimed
+  { id:'m10', order:'m10', milestone:true, mLabel:'Gate Beta', mStage:10, claimed:true },
+  { id:11, order:11, code:'tape_room_breach',       name:'Tape Room Breach',      recommended_power:2800,  energy_cost:15, coin_reward:2100,  first_clear_gems:220, first_clear_shards:7, state:'cleared', score:'B', cleared_at:'May 12, 07:20' },
+  { id:12, order:12, code:'boardroom_coup',         name:'The Boardroom Coup',    recommended_power:3100,  energy_cost:16, coin_reward:2400,  first_clear_gems:250, first_clear_shards:8, state:'cleared', score:'A', cleared_at:'May 12, 08:03' },
+  // node 13 is READY
+  { id:13, order:13, code:'prod_is_down',           name:'Prod Is Down',          recommended_power:3400,  energy_cost:16, coin_reward:2700,  first_clear_gems:275, first_clear_shards:8, state:'ready' },
+  { id:14, order:14, code:'the_unauthorized_tool',  name:'The Unauthorized Tool', recommended_power:3700,  energy_cost:17, coin_reward:3000,  first_clear_gems:300, first_clear_shards:9, state:'locked' },
+  // milestone at 15 — pulsing, unclaimed
+  { id:'m15', order:'m15', milestone:true, mLabel:'Gate Gamma', mStage:15, claimed:false, active:true },
+  { id:15, order:15, code:'the_all_hands',          name:'The All-Hands',         recommended_power:4100,  energy_cost:18, coin_reward:3400,  first_clear_gems:350, first_clear_shards:10, state:'locked' },
+  { id:16, order:16, code:'resistance_breach',      name:'Breach — Through the Lobby', recommended_power:4200, energy_cost:18, coin_reward:3500, first_clear_gems:400, first_clear_shards:12, state:'locked' },
+  { id:17, order:17, code:'resistance_server_room', name:'The Metrics Server',    recommended_power:4600,  energy_cost:19, coin_reward:3900,  first_clear_gems:450, first_clear_shards:13, state:'locked' },
+  { id:18, order:18, code:'resistance_boardroom',   name:'Storm the Boardroom',   recommended_power:5000,  energy_cost:20, coin_reward:4300,  first_clear_gems:500, first_clear_shards:14, state:'locked' },
+  // boss at 20 — locked
+  { id:'b20', order:'b20', boss:true, bLabel:'C-Suite Hydra', bStage:20, state:'locked', recommended_power:5400, energy_cost:20, coin_reward:4800, first_clear_gems:550, first_clear_shards:15 },
+  { id:19, order:19, code:'resistance_coup',        name:'Topple the Corp',       recommended_power:5400,  energy_cost:20, coin_reward:4800,  first_clear_gems:550, first_clear_shards:15, state:'locked' },
+  { id:20, order:20, code:'midnight_transmission',  name:'Midnight Transmission', recommended_power:5800,  energy_cost:21, coin_reward:5200,  first_clear_gems:600, first_clear_shards:16, state:'locked' },
+  // vault at end of chapter — locked
+  { id:'vault', order:'vault', vault:true, vLabel:'Chapter Vault', state:'locked' },
+];
+
+// Current team power (mock)
+const TEAM_POWER = 3200;
+
+// ── Layout engine — snaking board path ─────────────────────────
+// Board is ~1000px wide. Nodes snake left→right then right→left.
+// We lay them out in rows of ~5 nodes, with milestone gates as
+// wider "landmark" nodes sitting in the path.
+
+const COLS_PER_ROW = 5;
+const H_SPACING    = 140;   // horizontal gap between nodes
+const V_SPACING    = 130;   // vertical gap between rows
+const ROW_X_START  = 120;   // left margin for left-flowing rows
+const BOARD_WIDTH  = 860;
+
+function computeLayout(stages) {
+  // Assign x,y position to each stage node, snaking left↔right
+  const positions = [];
+  let col = 0;
+  let row = 0;
+  let goingRight = true;
+
+  stages.forEach((s, i) => {
+    // Milestone gates get their own column slot but are slightly larger
+    // Boss nodes also sit in-path
+    const isMilestone = !!s.milestone;
+    const isBoss      = !!s.boss;
+    const isVault     = !!s.vault;
+
+    let x, y;
+    if (goingRight) {
+      x = ROW_X_START + col * H_SPACING;
+    } else {
+      x = ROW_X_START + (COLS_PER_ROW - 1 - col) * H_SPACING;
+    }
+    y = 80 + row * V_SPACING;
+
+    positions.push({ ...s, x, y, col, row });
+
+    col++;
+    if (col >= COLS_PER_ROW) {
+      col = 0;
+      row++;
+      goingRight = !goingRight;
+    }
+  });
+
+  return positions;
+}
+
+// ── Determine node visual type + size ─────────────────────────
+function nodeClass(s) {
+  if (s.vault)      return 'node-vault node-lg';
+  if (s.boss)       return (s.state === 'cleared' ? 'node-boss-cleared' : 'node-boss') + ' node-lg';
+  if (s.milestone) {
+    if (s.claimed)  return 'node-milestone node-milestone-claimed node-md';
+    if (s.active)   return 'node-milestone node-milestone-active node-md';
+    return 'node-milestone node-md';
+  }
+  if (s.state === 'cleared') return 'node-cleared node-sm';
+  if (s.state === 'ready')   return 'node-ready node-sm';
+  return 'node-locked node-sm';
+}
+
+function nodeIcon(s) {
+  if (s.vault)      return '?';
+  if (s.boss)       return s.state === 'cleared' ? '☠' : '💀';
+  if (s.milestone) {
+    if (s.claimed)  return '✓';
+    if (s.active)   return '🎁';
+    return '⬡';
+  }
+  if (s.state === 'cleared') return '✓';
+  if (s.state === 'ready')   return '▶';
+  return '🔒';
+}
+
+function nodeLabel(s) {
+  if (s.vault)     return 'Chapter Vault';
+  if (s.boss)      return s.bLabel || 'Boss';
+  if (s.milestone) return s.mLabel || 'Milestone';
+  return s.name || '';
+}
+
+// ── Render board ───────────────────────────────────────────────
+let selectedId = 13; // prod_is_down is pre-selected
+const positioned = computeLayout(STAGES);
+const boardWidth  = ROW_X_START + (COLS_PER_ROW - 1) * H_SPACING + 120;
+const boardHeight = (Math.max(...positioned.map(p => p.row)) + 1) * V_SPACING + 120;
+
+function renderBoard() {
+  const nodesEl = document.getElementById('board-nodes');
+  const svgEl   = document.getElementById('board-svg-layer');
+
+  // Size the SVG
+  svgEl.setAttribute('width',  boardWidth);
+  svgEl.setAttribute('height', boardHeight);
+  nodesEl.style.width  = boardWidth  + 'px';
+  nodesEl.style.height = boardHeight + 'px';
+
+  // ── Draw connector lines ────────────────────────────────
+  let svgContent = '';
+
+  // Define animated gradient defs
+  svgContent += `<defs>
+    <linearGradient id="flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="rgba(0,255,224,0.0)"/>
+      <stop offset="50%"  stop-color="rgba(0,255,224,0.7)"/>
+      <stop offset="100%" stop-color="rgba(0,255,224,0.0)"/>
+    </linearGradient>
+    <filter id="glow-sm" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-lg" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+
+  // Draw lines between consecutive nodes
+  for (let i = 0; i < positioned.length - 1; i++) {
+    const a = positioned[i];
+    const b = positioned[i + 1];
+
+    // Determine line style based on states
+    const aCleared = a.state === 'cleared' || a.claimed || (a.boss && a.state === 'cleared');
+    const bCleared = b.state === 'cleared' || b.claimed || (b.boss && b.state === 'cleared');
+    const bReady   = b.state === 'ready';
+
+    let strokeClass, strokeColor;
+    if (aCleared && bCleared) {
+      strokeClass = 'connector-cleared';
+      strokeColor = 'rgba(34,197,94,0.45)';
+    } else if (aCleared && bReady) {
+      strokeClass = 'connector-active';
+      strokeColor = 'rgba(0,255,224,0.5)';
+    } else {
+      strokeClass = 'connector-locked';
+      strokeColor = 'rgba(255,255,255,0.08)';
+    }
+
+    // Build a smooth bezier between nodes
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    // For row changes, add a slight control-point bow
+    const bend = (a.row !== b.row) ? 30 : 0;
+    const cx1 = mx;
+    const cy1 = a.y + bend;
+    const cx2 = mx;
+    const cy2 = b.y - bend;
+
+    const pathD = `M ${a.x} ${a.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${b.x} ${b.y}`;
+    const pathId = `path-${i}`;
+    const dashArray = (strokeClass === 'connector-locked') ? 'stroke-dasharray="5 7"' : '';
+
+    svgContent += `
+      <path id="${pathId}" d="${pathD}" stroke="${strokeColor}" stroke-width="2"
+        fill="none" stroke-linecap="round" ${dashArray} opacity="0.8"/>`;
+
+    // Data packets on cleared paths
+    if (aCleared && bCleared) {
+      const delay = (i * 0.37).toFixed(2);
+      const dur   = (3.5 + (i % 3) * 0.8).toFixed(1);
+      svgContent += `
+        <circle r="2.5" fill="#00ffe0" filter="url(#glow-sm)" opacity="0.9">
+          <animateMotion dur="${dur}s" begin="${delay}s" repeatCount="indefinite" path="${pathD}"/>
+        </circle>`;
+    }
+
+    // Active/ready line gets its own bright packet
+    if (aCleared && bReady) {
+      svgContent += `
+        <circle r="3" fill="#00ffe0" filter="url(#glow-lg)" opacity="0.95">
+          <animateMotion dur="2.2s" repeatCount="indefinite" path="${pathD}"/>
+        </circle>`;
+    }
+  }
+
+  svgEl.innerHTML = svgContent;
+
+  // ── Render nodes ─────────────────────────────────────────
+  nodesEl.innerHTML = '';
+  positioned.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'node ' + nodeClass(s);
+    div.style.left = s.x + 'px';
+    div.style.top  = s.y + 'px';
+    div.dataset.id = s.id;
+
+    let ringContent = '';
+
+    // Ready badge
+    if (s.state === 'ready') {
+      ringContent += `<div class="node-ready-badge">READY</div>`;
+    }
+
+    // Score badge for cleared
+    if (s.state === 'cleared' && s.score) {
+      ringContent += `<div class="node-score">${s.score}</div>`;
+    }
+
+    // Milestone progress badge
+    if (s.milestone && !s.claimed) {
+      const stagesNeeded = s.active ? 3 : 5;
+      const stagesReached = s.active ? 2 : 0;
+      ringContent += `<div class="node-milestone-badge">${stagesReached}/${stagesNeeded}</div>`;
+    }
+
+    const icon = nodeIcon(s);
+    const label = nodeLabel(s);
+
+    div.innerHTML = `
+      <div class="node-ring">${ringContent}<span>${icon}</span></div>
+      <div class="node-label">${label}</div>
+    `;
+
+    div.addEventListener('click', () => selectNode(s));
+    div.addEventListener('mouseenter', (e) => showTooltip(e, s));
+    div.addEventListener('mousemove',  (e) => moveTooltip(e));
+    div.addEventListener('mouseleave', hideTooltip);
+
+    nodesEl.appendChild(div);
+  });
+
+  // Highlight selected
+  highlightSelected();
+}
+
+function highlightSelected() {
+  document.querySelectorAll('.node').forEach(el => {
+    el.style.outline = 'none';
+    el.style.outlineOffset = '';
+  });
+  const sel = document.querySelector(`.node[data-id="${selectedId}"]`);
+  if (sel) {
+    sel.style.outline = '2px solid rgba(0,255,224,0.6)';
+    sel.style.outlineOffset = '4px';
+    sel.style.borderRadius = '50%';
+  }
+}
+
+// ── Side panel rendering ───────────────────────────────────────
+function selectNode(s) {
+  if (s.state === 'locked') return; // locked nodes don't open panel
+  selectedId = s.id;
+  highlightSelected();
+  renderPanel(s);
+}
+
+function renderPanel(s) {
+  const numEl   = document.getElementById('panel-num');
+  const nameEl  = document.getElementById('panel-name');
+  const tierEl  = document.getElementById('panel-tier');
+  const bodyEl  = document.getElementById('panel-body');
+
+  // Determine display name and order number
+  if (s.vault) {
+    numEl.textContent  = 'Chapter Vault';
+    nameEl.textContent = 'The Vault — Endgame Summon';
+    tierEl.textContent = '? Unknown';
+    tierEl.className   = 'panel-stage-tier tier-legendary';
+    bodyEl.innerHTML   = renderVaultPanel(s);
+    return;
+  }
+
+  if (s.boss) {
+    numEl.textContent  = `Boss — Stage ${s.bStage}`;
+    nameEl.textContent = s.bLabel || 'Boss';
+    tierEl.textContent = 'Boss Encounter';
+    tierEl.className   = 'panel-stage-tier tier-nightmare';
+  } else if (s.milestone) {
+    numEl.textContent  = `Milestone Gate — ${s.mStage} stages`;
+    nameEl.textContent = s.mLabel || 'Milestone';
+    tierEl.textContent = s.claimed ? '✓ Claimed' : s.active ? '⬡ Ready to Claim' : '⬡ Upcoming';
+    tierEl.className   = 'panel-stage-tier tier-epic';
+    bodyEl.innerHTML   = renderMilestonePanel(s);
+    return;
+  } else {
+    const orderNum = typeof s.order === 'number' ? s.order + 1 : '?';
+    numEl.textContent  = `Stage ${orderNum} of 26`;
+    nameEl.textContent = s.name;
+    tierEl.textContent = 'Floppy Disk';
+    tierEl.className   = 'panel-stage-tier tier-normal';
+  }
+
+  bodyEl.innerHTML = renderStagePanel(s);
+}
+
+function powerColor(rec) {
+  const ratio = TEAM_POWER / rec;
+  if (ratio >= 1.2) return 'good';
+  if (ratio >= 0.8) return 'warn';
+  return 'bad';
+}
+
+function renderStagePanel(s) {
+  const pc = powerColor(s.recommended_power);
+  const isReady   = s.state === 'ready';
+  const isCleared = s.state === 'cleared';
+  const isLocked  = s.state === 'locked';
+
+  let html = '';
+
+  // Zeigarnik bar — stages to next milestone
+  const nextMilestoneStages = 3;
+  const doneTowardsMilestone = 2;
+  const pct = (doneTowardsMilestone / (nextMilestoneStages + doneTowardsMilestone)) * 100;
+  html += `
+    <div class="zeigarnik-bar">
+      <div class="z-bar-title">
+        <span>Next Milestone — Gate Gamma</span>
+        <span class="z-count">${nextMilestoneStages} stages to go</span>
+      </div>
+      <div class="z-track">
+        <div class="z-fill" style="width:${pct.toFixed(0)}%"></div>
+      </div>
+      <div class="z-nodes">
+        <span class="z-node-pip reached">13 ✓</span>
+        <span class="z-node-pip reached">14 ✓</span>
+        <span class="z-node-pip">15</span>
+        <span class="z-node-pip">◈ Gate</span>
+      </div>
+    </div>
+  `;
+
+  // Cleared badge
+  if (isCleared) {
+    html += `
+      <div class="panel-cleared-badge">
+        <span>✅</span>
+        <div>
+          <div>Cleared — Score: ${s.score || 'B'}</div>
+          <div style="font-size:10px;font-weight:400;color:var(--good);opacity:0.8">${s.cleared_at || 'Unknown'}</div>
+        </div>
+      </div>`;
+  }
+
+  // Locked state
+  if (isLocked) {
+    html += `
+      <div class="panel-state-locked">
+        <div class="lock-icon">🔒</div>
+        <div class="lock-msg">Clear the previous stage to unlock this node.</div>
+      </div>`;
+  }
+
+  // Stats section
+  html += `<div>
+    <div class="info-section-title">Stage Info</div>
+    <div class="info-row"><span class="lbl">⚡ Energy cost</span><span class="v">${s.energy_cost}</span></div>
+    <div class="info-row"><span class="lbl">🎯 Rec. power</span><span class="v ${pc}">${s.recommended_power.toLocaleString()}</span></div>
+    <div class="info-row"><span class="lbl">⚔ Your power</span><span class="v">${TEAM_POWER.toLocaleString()}</span></div>
+    ${s.cleared_at ? `<div class="info-row"><span class="lbl">🕐 Last clear</span><span class="v" style="font-size:10px">${s.cleared_at}</span></div>` : ''}
+  </div>`;
+
+  // Rewards section
+  html += `<div>
+    <div class="info-section-title">Expected Rewards</div>
+    <div class="reward-row">
+      <div class="reward-icon">🪙</div>
+      <div class="reward-details">
+        <div class="reward-name">${s.coin_reward.toLocaleString()} Coins</div>
+        <div class="reward-odds"><span class="odds-highlight odds-common">100%</span> — guaranteed</div>
+      </div>
+    </div>
+    <div class="reward-row">
+      <div class="reward-icon">🔷</div>
+      <div class="reward-details">
+        <div class="reward-name">${s.first_clear_shards} Shard Credit${s.first_clear_shards !== 1 ? 's' : ''}</div>
+        <div class="reward-odds"><span class="odds-highlight odds-common">First clear only</span></div>
+      </div>
+    </div>
+    <div class="reward-row">
+      <div class="reward-icon">💎</div>
+      <div class="reward-details">
+        <div class="reward-name">${s.first_clear_gems} Gems</div>
+        <div class="reward-odds"><span class="odds-highlight odds-common">First clear only</span></div>
+      </div>
+    </div>
+    <div class="reward-row">
+      <div class="reward-icon">⚙️</div>
+      <div class="reward-details">
+        <div class="reward-name">Rare+ Gear Drop</div>
+        <div class="reward-odds"><span class="odds-highlight odds-epic">~28%</span> per run</div>
+      </div>
+    </div>
+    <div class="reward-row legendary-chance">
+      <div class="reward-icon">✨</div>
+      <div class="reward-details">
+        <div class="reward-name" style="color:var(--gold)">Legendary Boss Shard</div>
+        <div class="reward-odds"><span class="odds-highlight odds-legendary">12% chance</span> · Honest published odds</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Fight button
+  const canFight = isReady || isCleared;
+  const btnLabel = isCleared ? '⟳ REPLAY' : '⚡ FIGHT';
+  html += `
+    <button class="fight-btn" ${canFight ? '' : 'disabled'} onclick="startBattle(${s.id})">
+      <span>${btnLabel}</span>
+      <span class="energy-cost">⚡${s.energy_cost}</span>
+    </button>
+  `;
+
+  return html;
+}
+
+function renderMilestonePanel(s) {
+  const isClaimed = s.claimed;
+  const isActive  = s.active;
+
+  let html = '';
+
+  html += `<div>
+    <div class="info-section-title">Milestone Rewards</div>
+    <div class="reward-row">
+      <div class="reward-icon">🔮</div>
+      <div class="reward-details">
+        <div class="reward-name">5× Shard Credits</div>
+        <div class="reward-odds"><span class="odds-highlight odds-common">Guaranteed</span> on claim</div>
+      </div>
+    </div>
+    <div class="reward-row">
+      <div class="reward-icon">💎</div>
+      <div class="reward-details">
+        <div class="reward-name">150 Gems</div>
+        <div class="reward-odds"><span class="odds-highlight odds-common">Guaranteed</span> on claim</div>
+      </div>
+    </div>
+    <div class="reward-row legendary-chance">
+      <div class="reward-icon">🌟</div>
+      <div class="reward-details">
+        <div class="reward-name" style="color:var(--gold)">Legendary Boss Shard</div>
+        <div class="reward-odds"><span class="odds-highlight odds-legendary">12% chance</span> · Honest published odds</div>
+      </div>
+    </div>
+    <div class="reward-row" style="background:rgba(155,48,255,0.07);border-color:rgba(155,48,255,0.2)">
+      <div class="reward-icon">🎲</div>
+      <div class="reward-details">
+        <div class="reward-name" style="color:#c47aff">Epic Equipment Chest</div>
+        <div class="reward-odds"><span class="odds-highlight odds-epic">35%</span> chance per gate</div>
+      </div>
+    </div>
+  </div>`;
+
+  if (isClaimed) {
+    html += `<div class="panel-cleared-badge" style="background:rgba(155,48,255,0.1);border-color:rgba(155,48,255,0.3);color:#c47aff">
+      ✓ Gate Claimed — rewards collected
+    </div>`;
+  } else if (isActive) {
+    html += `
+      <button class="fight-btn" style="background:linear-gradient(135deg,var(--void-purple),#7c5fff)" onclick="claimMilestone('${s.id}')">
+        🎁 CLAIM GATE GAMMA
+      </button>`;
+  } else {
+    html += `<div class="panel-state-locked">
+      <div class="lock-icon">⬡</div>
+      <div class="lock-msg">Complete all stages up to ${s.mLabel} to unlock this gate.</div>
+    </div>`;
+  }
+
+  return html;
+}
+
+function renderVaultPanel(s) {
+  return `
+    <div style="padding:20px 0;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px;animation:vault-breathe 3.5s ease-in-out infinite">?</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;max-width:220px;margin:0 auto">
+        Chapter Vault unseals when all 26 stages are cleared.<br><br>
+        Contains a guaranteed draw from the <span style="color:var(--gold);font-weight:700">Legendary Boss Summon pool</span> — one pull per chapter.
+      </div>
+    </div>
+    <div class="reward-row legendary-chance" style="margin-top:12px">
+      <div class="reward-icon">✨</div>
+      <div class="reward-details">
+        <div class="reward-name" style="color:var(--gold)">1× Legendary Guaranteed Pull</div>
+        <div class="reward-odds"><span class="odds-highlight odds-legendary">100%</span> one per chapter clear</div>
+      </div>
+    </div>
+    <button class="fight-btn" disabled style="margin-top:12px">
+      🔒 LOCKED — 14 stages remain
+    </button>
+  `;
+}
+
+// ── Tooltip ────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+const tooltipBody = document.getElementById('tooltip-body');
+
+function showTooltip(e, s) {
+  let html = `<div class="tooltip-name">${nodeLabel(s)}</div>`;
+
+  if (!s.milestone && !s.vault) {
+    if (s.recommended_power) {
+      const pc = powerColor(s.recommended_power);
+      html += `<div class="tooltip-row"><span>Rec. power</span><span class="val" style="color:var(--${pc === 'good' ? 'good' : pc === 'warn' ? 'warn' : 'bad'})">${s.recommended_power.toLocaleString()}</span></div>`;
+    }
+    if (s.energy_cost !== undefined) {
+      html += `<div class="tooltip-row"><span>Energy</span><span class="val">⚡${s.energy_cost}</span></div>`;
+    }
+    if (s.state === 'cleared' && s.score) {
+      html += `<div class="tooltip-row"><span>Best score</span><span class="val">${s.score}</span></div>`;
+    }
+  }
+
+  if (s.milestone && !s.claimed) {
+    html += `<div class="tooltip-row"><span>Reward</span><span class="val" style="color:#c47aff">5 Shards + Gems</span></div>`;
+    html += `<div class="tooltip-row"><span>Leg. chance</span><span class="val" style="color:var(--gold)">12%</span></div>`;
+  }
+
+  if (s.state === 'locked') {
+    html += `<div class="tooltip-locked-msg">🔒 Clear previous stage first</div>`;
+  }
+  if (s.vault) {
+    html += `<div class="tooltip-row"><span>Req.</span><span class="val">All 26 stages</span></div>`;
+  }
+
+  tooltipBody.innerHTML = html;
+  tooltip.classList.add('visible');
+  moveTooltip(e);
+}
+
+function moveTooltip(e) {
+  const x = e.clientX + 16;
+  const y = e.clientY + 16;
+  const tw = 230;
+  const th = 120;
+  const fx = (x + tw > window.innerWidth)  ? e.clientX - tw - 8 : x;
+  const fy = (y + th > window.innerHeight) ? e.clientY - th - 8 : y;
+  tooltip.style.left = fx + 'px';
+  tooltip.style.top  = fy + 'px';
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+// ── Actions ────────────────────────────────────────────────────
+function startBattle(id) {
+  const stage = STAGES.find(s => s.id === id);
+  if (!stage) return;
+  alert(`Launching battle: "${stage.name || stage.bLabel}"\nThis would navigate to /battle/setup?stageId=${id}`);
+}
+
+function claimMilestone(id) {
+  const gate = STAGES.find(s => s.id === id);
+  if (!gate) return;
+  alert(`Claiming Gate ${gate.mLabel}!\n+5 Shard Credits, +150 Gems\n(12% chance legendary boss shard — rolling...)`);
+}
+
+// ── Tier switching (stub — reloads with different mock data) ───
+function switchTier(tier, btn) {
+  document.querySelectorAll('.tier-tab').forEach(t => {
+    t.classList.remove('active-normal','active-hard','active-nightmare','active-legendary');
+  });
+  const cls = {NORMAL:'active-normal', HARD:'active-hard', NIGHTMARE:'active-nightmare', LEGENDARY:'active-legendary'}[tier];
+  btn.classList.add(cls);
+  // In production this re-fetches/re-renders with that tier's stages
+  // For the mockup, just acknowledge
+  if (tier !== 'NORMAL') {
+    alert(`"${tier}" tier would load its own stage board.\nMockup shows NORMAL tier only.`);
+    // Re-set tab to NORMAL
+    document.querySelectorAll('.tier-tab').forEach(t => t.classList.remove(cls));
+    document.querySelectorAll('.tier-tab')[0].classList.add('active-normal');
+  }
+}
+
+// ── Win streak countdown ───────────────────────────────────────
+function updateCountdown() {
+  // Fake countdown from 4h 12m 30s
+  const el = document.getElementById('reset-warn');
+  if (!el) return;
+  const match = el.textContent.match(/(\d{2}):(\d{2}):(\d{2})/);
+  if (!match) return;
+  let h = parseInt(match[1]), m = parseInt(match[2]), sec = parseInt(match[3]);
+  sec--;
+  if (sec < 0) { sec = 59; m--; }
+  if (m < 0)   { m = 59;  h--; }
+  if (h < 0)   return;
+  const pad = n => String(n).padStart(2,'0');
+  el.textContent = `⚠ Streak resets in ${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+setInterval(updateCountdown, 1000);
+
+// ── Initial render ─────────────────────────────────────────────
+renderBoard();
+
+// Pre-select "Prod Is Down" (stage 13 = ready node)
+const readyStage = STAGES.find(s => s.state === 'ready');
+if (readyStage) {
+  renderPanel(readyStage);
+}
+</script>
+</body>
+</html>
