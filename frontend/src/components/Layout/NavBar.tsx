@@ -20,6 +20,7 @@ const NAV_GROUPS: { label: string; tabs: Tab[] }[] = [
     { path: '/app/roster',    label: 'Roster',    icon: '🦸' },
     { path: '/app/summon',    label: 'Summon',    icon: '🌀' },
     { path: '/app/inventory', label: 'Inventory', icon: '📦' },
+    { path: '/app/shards',    label: 'Shards',    icon: '💎' },
     { path: '/app/crafting',  label: 'Crafting',  icon: '🔨' },
   ]},
   { label: 'Combat', tabs: [

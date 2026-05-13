@@ -28,6 +28,7 @@ import { BattlePassRoute } from './routes/BattlePass'
 import { TowerRoute } from './routes/Tower'
 import { PrivacyRoute, TermsRoute } from './routes/Legal'
 import CollectionsRoute from './routes/Collections'
+import ShardsRoute from './routes/Shards'
 import BattleSetupRoute from './routes/battle/BattleSetupRoute'
 import BattleReplayRoute from './routes/battle/BattleReplayRoute'
 import BattlePlayRoute from './routes/battle/BattlePlayRoute'
@@ -52,6 +53,7 @@ const router = createBrowserRouter([
       { path: 'summon', element: <SummonRoute /> },
       { path: 'crafting', element: <CraftingRoute /> },
       { path: 'inventory', element: <InventoryRoute /> },
+      { path: 'shards', element: <ShardsRoute /> },
       { path: 'stages', element: <StagesRoute /> },
       { path: 'daily', element: <DailyRoute /> },
       { path: 'battle-pass', element: <BattlePassRoute /> },
