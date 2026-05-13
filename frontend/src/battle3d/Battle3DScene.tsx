@@ -110,29 +110,49 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     const bars = new Map<string, { el: HTMLDivElement; fill: HTMLDivElement; anchor: THREE.Object3D }>();
     // Aura discs — glowing ring under each hero's feet. Team-colored so
     // ally vs enemy is readable at a glance. Pulsed in the tick loop.
-    const auras = new Map<string, { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; baseScale: number; phase: number }>();
-    const auraGeom = new THREE.RingGeometry(0.55, 0.95, 32);
-    auraGeom.rotateX(-Math.PI / 2); // flatten onto the floor
+    // Stacked discs per unit: a bright inner core + a wider outer ring.
+    // Each layer pulses on its own offset so the aura "breathes" rather
+    // than just scaling uniformly. Additive blending so it reads as light.
+    interface AuraLayer { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; baseOpacity: number; pulseScale: number; phase: number }
+    const auras = new Map<string, AuraLayer[]>();
+    const auraGeomOuter = new THREE.RingGeometry(0.85, 1.45, 48);
+    const auraGeomInner = new THREE.RingGeometry(0.30, 0.85, 48);
+    const auraGeomCore  = new THREE.CircleGeometry(0.65, 48);
+    auraGeomOuter.rotateX(-Math.PI / 2);
+    auraGeomInner.rotateX(-Math.PI / 2);
+    auraGeomCore.rotateX(-Math.PI / 2);
     function makeAura(uid: string, side: "A" | "B", anchor: THREE.Object3D) {
       // Cyan for allies, magenta for enemies — matches faction palette tokens.
       const color = side === "A" ? 0x00ffe0 : 0xff2d78;
-      const mat = new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity: 0.55,
-        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
-      });
-      const mesh = new THREE.Mesh(auraGeom, mat);
-      mesh.position.copy(anchor.position);
-      mesh.position.y = 0.02; // hover just above the floor to avoid z-fighting
-      threeScene.add(mesh);
-      auras.set(uid, { mesh, mat, baseScale: 1, phase: Math.random() * Math.PI * 2 });
+      const layers: AuraLayer[] = [];
+      // Outer wide ring — slow, low opacity, big scale swing.
+      const outerMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+      const outer = new THREE.Mesh(auraGeomOuter, outerMat);
+      outer.position.copy(anchor.position); outer.position.y = 0.02;
+      threeScene.add(outer);
+      layers.push({ mesh: outer, mat: outerMat, baseOpacity: 0.65, pulseScale: 0.25, phase: Math.random() * Math.PI * 2 });
+      // Inner ring — brighter, faster pulse.
+      const innerMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+      const inner = new THREE.Mesh(auraGeomInner, innerMat);
+      inner.position.copy(anchor.position); inner.position.y = 0.03;
+      threeScene.add(inner);
+      layers.push({ mesh: inner, mat: innerMat, baseOpacity: 0.85, pulseScale: 0.18, phase: Math.random() * Math.PI * 2 });
+      // Soft glow core under the feet — fixed scale, gentle opacity pulse.
+      const coreMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+      const core = new THREE.Mesh(auraGeomCore, coreMat);
+      core.position.copy(anchor.position); core.position.y = 0.015;
+      threeScene.add(core);
+      layers.push({ mesh: core, mat: coreMat, baseOpacity: 0.55, pulseScale: 0, phase: Math.random() * Math.PI * 2 });
+      auras.set(uid, layers);
     }
     function updateAuras(t: number) {
-      for (const a of auras.values()) {
-        // Slow pulse: scale 0.92 → 1.12, opacity 0.35 → 0.7.
-        const k = 0.5 + 0.5 * Math.sin(t * 2 + a.phase);
-        const s = 0.92 + 0.20 * k;
-        a.mesh.scale.set(s, s, s);
-        a.mat.opacity = 0.35 + 0.35 * k;
+      for (const layers of auras.values()) {
+        for (const l of layers) {
+          const k = 0.5 + 0.5 * Math.sin(t * 2.2 + l.phase);
+          const s = 1 + l.pulseScale * (k - 0.5) * 2; // 1 ± pulseScale
+          l.mesh.scale.set(s, s, s);
+          l.mat.opacity = l.baseOpacity * (0.7 + 0.3 * k);
+        }
       }
     }
     const HEAD_OFFSET = new THREE.Vector3(0, 2.6, 0);
@@ -388,7 +408,9 @@ export function Battle3DScene(props: Battle3DSceneProps) {
       }
       bars.clear();
       auras.clear();
-      auraGeom.dispose();
+      auraGeomOuter.dispose();
+      auraGeomInner.dispose();
+      auraGeomCore.dispose();
       rigsRef.current.clear();
     };
     // Mount-only: team rosters change via lastEvent/HP, not re-mount.
