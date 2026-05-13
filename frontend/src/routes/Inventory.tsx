@@ -67,14 +67,8 @@ export function InventoryRoute() {
   const { data: crafting, isLoading: craftLoading } = useQuery({ queryKey: ['crafting'], queryFn: fetchCrafting })
   const { data: heroes } = useHeroes()
 
-  const isLoading = gearLoading || craftLoading
-  if (isLoading) return <SkeletonGrid count={8} height={72} />
-
-  const heroById = new Map((heroes ?? []).map((h) => [h.id, h]))
-  const namedCount = (gear ?? []).filter((g) => !!g.name).length
-  const materials = (crafting?.materials ?? []).filter((m) => m.quantity > 0)
-
-  // Apply slot/named/armor filter, then group by rarity
+  // Apply slot/named/armor filter, then group by rarity. MUST run on every
+  // render (no early return above) — React error #310 fires otherwise.
   const filteredGear = useMemo(() => {
     const items = gear ?? []
     let out = items
@@ -84,7 +78,6 @@ export function InventoryRoute() {
     return out
   }, [gear, slotFilter])
 
-  // Group into rarity sections, each sorted named-first then by power desc
   const raritySections = useMemo(() => {
     return RARITY_ORDER
       .map((rarity) => {
@@ -98,6 +91,13 @@ export function InventoryRoute() {
       })
       .filter((s) => s.items.length > 0)
   }, [filteredGear])
+
+  const isLoading = gearLoading || craftLoading
+  if (isLoading) return <SkeletonGrid count={8} height={72} />
+
+  const heroById = new Map((heroes ?? []).map((h) => [h.id, h]))
+  const namedCount = (gear ?? []).filter((g) => !!g.name).length
+  const materials = (crafting?.materials ?? []).filter((m) => m.quantity > 0)
 
   const toggleCollapse = (r: GearRarity) => {
     setCollapsedRarities((prev) => {
