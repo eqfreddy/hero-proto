@@ -6,6 +6,12 @@ import * as THREE from "three";
 
 const HERO_BASE = `${import.meta.env.BASE_URL}battle-3d/heroes`;
 
+// Cache-bust GLB URLs whenever the SPA rebuilds. The Workbox service
+// worker keys cache entries by URL; without a versioned query the same
+// filename (e.g. knight.glb) is served from cache forever even after we
+// swap the underlying bytes (KayKit → Quaternius migration regression).
+const GLB_VERSION = __APP_VERSION__;
+
 export interface HeroAssets {
   scene: THREE.Group;            // CLONED — caller owns it
   animations: THREE.AnimationClip[]; // shared array reference (caller does not mutate)
@@ -28,7 +34,7 @@ function loadGLTF(url: string): Promise<GLTF> {
 export async function loadHero(archetype: string): Promise<HeroAssets> {
   let p = heroCache.get(archetype);
   if (!p) {
-    p = loadGLTF(`${HERO_BASE}/${archetype}.glb`);
+    p = loadGLTF(`${HERO_BASE}/${archetype}.glb?v=${GLB_VERSION}`);
     heroCache.set(archetype, p);
   }
   const gltf = await p;

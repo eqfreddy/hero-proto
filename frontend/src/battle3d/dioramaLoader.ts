@@ -5,6 +5,9 @@ import * as THREE from "three";
 
 const DIORAMA_BASE = `${import.meta.env.BASE_URL}battle-3d/props`;
 
+// Cache-bust on rebuild — same fix as heroLoader.ts; Workbox keys by URL.
+const GLB_VERSION = __APP_VERSION__;
+
 export const DEFAULT_THEME = "server-closet";
 
 // V1.1 ships 5 themes. Every seeded stage gets an explicit theme assigned
@@ -84,7 +87,7 @@ const TARGET_DIORAMA_DEPTH = 22;   // z
 export async function loadDiorama(theme: string): Promise<DioramaAssets> {
   let p = dioramaCache.get(theme);
   if (!p) {
-    p = loadGLTF(`${DIORAMA_BASE}/${theme}.glb`);
+    p = loadGLTF(`${DIORAMA_BASE}/${theme}.glb?v=${GLB_VERSION}`);
     dioramaCache.set(theme, p);
   }
   const gltf = await p;
