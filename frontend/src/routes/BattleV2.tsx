@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMe } from '../hooks/useMe'
 import { useHeroes } from '../hooks/useHeroes'
 import { useStages } from '../hooks/useStages'
 import { postBattle } from '../api/battles'
 import { toast } from '../store/ui'
+import { useSoundStore, bgmForStageTier } from '../store/sound'
 import type { Hero, Stage } from '../types'
 import './Lobby.css'
 import './BattleV2.css'
@@ -30,6 +31,12 @@ export function BattleV2Route() {
   const stage = useMemo(() => pickStage(stages), [stages])
   const team = useMemo(() => pickTeam(heroes), [heroes])
   const faction = me?.faction ?? 'EXILE'
+
+  const playBgm = useSoundStore((s) => s.playBgm)
+  useEffect(() => {
+    if (!stage) return
+    playBgm(bgmForStageTier(stage.difficulty_tier))
+  }, [stage, playBgm])
 
   async function deploy() {
     if (!stage || team.length === 0 || deploying) return

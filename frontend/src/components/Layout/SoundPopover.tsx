@@ -3,7 +3,7 @@ import { useSoundStore } from '../../store/sound'
 
 export function SoundButton() {
   const [open, setOpen] = useState(false)
-  const { muted, master, sfx, setMute, setMaster, setSfx } = useSoundStore()
+  const { muted, master, sfx, bgm, setMute, setMaster, setSfx, setBgm } = useSoundStore()
 
   return (
     <div style={{ position: 'relative' }}>
@@ -32,10 +32,15 @@ export function SoundButton() {
             <input type="range" min={0} max={100} value={Math.round(master * 100)}
               onChange={(e) => setMaster(Number(e.target.value) / 100)} style={{ flex: 1 }} />
           </label>
-          <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 12 }}>
+          <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 8 }}>
             <span>SFX {Math.round(sfx * 100)}%</span>
             <input type="range" min={0} max={100} value={Math.round(sfx * 100)}
               onChange={(e) => setSfx(Number(e.target.value) / 100)} style={{ flex: 1 }} />
+          </label>
+          <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <span>BGM {Math.round(bgm * 100)}%</span>
+            <input type="range" min={0} max={100} value={Math.round(bgm * 100)}
+              onChange={(e) => setBgm(Number(e.target.value) / 100)} style={{ flex: 1 }} />
           </label>
         </div>
       )}
