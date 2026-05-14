@@ -23,7 +23,7 @@ const tmpl: HeroTemplate = {
 
 const hero: Hero = {
   id: 1, template: tmpl, level: 1, stars: 1, special_level: 1,
-  power: 100, hp: 100, atk: 10, def_: 10, spd: 10,
+  power: 100, hp: 100, atk: 10, def: 10, spd: 10,
   has_variance: false, variance_net: 0, dupe_count: 1, instance_ids: [1],
 }
 

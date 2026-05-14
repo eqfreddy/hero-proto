@@ -116,7 +116,7 @@ export function HeroDetailRoute() {
       <div className="card">
         <h3 style={{ marginTop: 0, fontSize: 13 }}>Stats</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {[['❤️ HP', hero.hp], ['⚔️ ATK', hero.atk], ['🛡️ DEF', hero.def_], ['💨 SPD', hero.spd], ['⚡ Power', hero.power]].map(([label, val]) => (
+          {[['❤️ HP', hero.hp], ['⚔️ ATK', hero.atk], ['🛡️ DEF', hero.def], ['💨 SPD', hero.spd], ['⚡ Power', hero.power]].map(([label, val]) => (
             <div key={String(label)}>
               <div className="muted" style={{ fontSize: 11 }}>{label}</div>
               <div style={{ fontSize: 18, fontWeight: 700 }}>{val}</div>

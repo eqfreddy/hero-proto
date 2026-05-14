@@ -124,7 +124,7 @@ export function LobbyRoute() {
               </span>
               <div className="stats">
                 <span className="k">ATK</span><span className="v c">{(featured.atk ?? 0).toLocaleString()}</span>
-                <span className="k">DEF</span><span className="v">{(featured.def_ ?? (featured as unknown as { def?: number }).def ?? 0).toLocaleString()}</span>
+                <span className="k">DEF</span><span className="v">{(featured.def ?? 0).toLocaleString()}</span>
                 <span className="k">SPD</span><span className="v p">{featured.spd ?? 0}</span>
                 <span className="k">HP</span><span className="v">{(featured.hp ?? 0).toLocaleString()}</span>
               </div>

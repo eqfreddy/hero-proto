@@ -10,7 +10,7 @@ const hero: Hero = {
     attack_kind: 'melee', base_hp: 100, base_atk: 10, base_def: 10, base_spd: 10,
   },
   level: 5, stars: 2, special_level: 1,
-  power: 450, hp: 200, atk: 30, def_: 20, spd: 15,
+  power: 450, hp: 200, atk: 30, def: 20, spd: 15,
   has_variance: false, variance_net: 0, dupe_count: 1, instance_ids: [1],
 }
 

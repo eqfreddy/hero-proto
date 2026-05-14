@@ -56,7 +56,7 @@ export interface Hero {
   power: number
   hp: number
   atk: number
-  def_: number
+  def: number
   spd: number
   has_variance: boolean
   variance_net: number
