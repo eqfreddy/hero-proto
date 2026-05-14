@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>hero-proto · direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #04060c;
+    --bg-2:      #070a14;
+    --ink:       #c9d2e3;
+    --ink-dim:   #6b7894;
+    --ink-faint: #2d3548;
+    --cyan:      #00ffe0;
+    --cyan-deep: #007f72;
+    --purple:    #9b30ff;
+    --purple-deep:#4a1380;
+    --gold:      #ffd700;
+    --crimson:   #c8102e;
+
+    --display: "Space Grotesk", system-ui, sans-serif;
+    --mono:    "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--display);
+    min-height: 100vh;
+    background:
+      radial-gradient(900px 600px at 12% -10%, rgba(155,48,255,0.10), transparent 60%),
+      radial-gradient(900px 700px at 90% 110%, rgba(0,255,224,0.06), transparent 60%),
+      var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* CRT scanline overlay */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0 1px,
+      transparent 1px 3px
+    );
+    mix-blend-mode: overlay;
+    opacity: 0.6;
+    z-index: 9999;
+  }
+
+  .page {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 56px 48px 96px;
+  }
+
+  /* ---------- header ---------- */
+  .hdr {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    border-bottom: 1px solid var(--ink-faint);
+    padding-bottom: 20px;
+    margin-bottom: 56px;
+  }
+  .hdr h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 36px;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .hdr h1 .slash { color: var(--cyan); }
+  .hdr .sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-top: 6px;
+  }
+  .hdr .meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-align: right;
+    line-height: 1.7;
+    letter-spacing: 0.05em;
+  }
+  .hdr .meta .ok { color: var(--cyan); }
+
+  /* ---------- section frame ---------- */
+  .section { margin-bottom: 64px; }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 28px;
+  }
+  .section-label::before,
+  .section-label::after {
+    content: "";
+    height: 1px;
+    background: var(--ink-faint);
+    flex: 1;
+  }
+
+  .panel {
+    position: relative;
+    background: linear-gradient(180deg, rgba(7,10,20,0.85), rgba(4,6,12,0.85));
+    border: 1px solid var(--ink-faint);
+    padding: 32px;
+  }
+  /* corner ticks */
+  .panel::before, .panel::after,
+  .panel > .tick-bl, .panel > .tick-br {
+    content: "";
+    position: absolute;
+    width: 10px; height: 10px;
+    border: 1px solid var(--cyan);
+  }
+  .panel::before { top: -1px; left: -1px;  border-right: 0; border-bottom: 0; }
+  .panel::after  { top: -1px; right: -1px; border-left: 0;  border-bottom: 0; }
+  .panel > .tick-bl { bottom: -1px; left: -1px;  border-right: 0; border-top: 0; }
+  .panel > .tick-br { bottom: -1px; right: -1px; border-left: 0;  border-top: 0; }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 20px;
+  }
+  .panel-title .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--cyan);
+    margin-right: 8px;
+    box-shadow: 0 0 8px var(--cyan);
+    vertical-align: 2px;
+  }
+
+  /* ---------- icon section ---------- */
+  .icon-grid {
+    display: grid;
+    grid-template-columns: minmax(420px, 1fr) 380px;
+    gap: 32px;
+  }
+  .icon-hero {
+    aspect-ratio: 1 / 1;
+    position: relative;
+    background: #04060c;
+    border: 1px solid var(--ink-faint);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .icon-hero svg { width: 92%; height: 92%; display: block; }
+  .icon-hero .corner-label {
+    position: absolute;
+    top: 14px; left: 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+  }
+  .icon-hero .corner-label .px { color: var(--cyan); }
+  .icon-hero .corner-r {
+    position: absolute;
+    top: 14px; right: 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+  }
+
+  .icon-meta { display: flex; flex-direction: column; gap: 20px; }
+
+  .size-row {
+    display: flex; align-items: flex-end; gap: 20px;
+    padding: 24px;
+    background: rgba(255,255,255,0.015);
+    border: 1px solid var(--ink-faint);
+  }
+  .size-tile {
+    background: #04060c;
+    border: 1px solid var(--ink-faint);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .size-tile svg { width: 86%; height: 86%; }
+  .size-tile.s48  { width: 48px;  height: 48px; }
+  .size-tile.s96  { width: 96px;  height: 96px; }
+  .size-tile.s192 { width: 192px; height: 192px; }
+  .size-caption {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.14em;
+    margin-top: 8px;
+    text-align: center;
+  }
+  .size-stack { display: flex; flex-direction: column; align-items: center; }
+
+  /* annotation list */
+  .anno {
+    border: 1px solid var(--ink-faint);
+    padding: 22px 24px;
+    background: rgba(255,255,255,0.012);
+  }
+  .anno h3 {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin: 0 0 14px;
+    font-weight: 500;
+  }
+  .anno ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 11px; }
+  .anno li {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 12px;
+    font-family: var(--display);
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  .anno li .marker {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    line-height: 1.6;
+    letter-spacing: 0.06em;
+  }
+  .anno li b { color: var(--cyan); font-weight: 500; }
+  .anno li i { color: var(--purple); font-style: normal; font-weight: 500; }
+  .anno li u { color: var(--gold); text-decoration: none; font-weight: 500; }
+
+  /* ---------- mood board ---------- */
+  .mood-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr 1.05fr;
+    gap: 24px;
+  }
+
+  .mood-tile {
+    position: relative;
+    border: 1px solid var(--ink-faint);
+    background: linear-gradient(180deg, rgba(7,10,20,0.92), rgba(4,6,12,0.92));
+    padding: 28px;
+    min-height: 520px;
+    display: flex;
+    flex-direction: column;
+  }
+  .mood-tile::before, .mood-tile::after,
+  .mood-tile > .tbl, .mood-tile > .tbr {
+    content: "";
+    position: absolute;
+    width: 9px; height: 9px;
+    border: 1px solid var(--cyan);
+  }
+  .mood-tile::before { top: -1px; left: -1px;  border-right: 0; border-bottom: 0; }
+  .mood-tile::after  { top: -1px; right: -1px; border-left: 0;  border-bottom: 0; }
+  .mood-tile > .tbl { bottom: -1px; left: -1px;  border-right: 0; border-top: 0; }
+  .mood-tile > .tbr { bottom: -1px; right: -1px; border-left: 0;  border-top: 0; }
+
+  .tile-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  .tile-head .id { color: var(--cyan); }
+
+  .tile-caption {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px dashed var(--ink-faint);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    line-height: 1.65;
+    letter-spacing: 0.04em;
+  }
+  .tile-caption b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- HERO CARD ---------- */
+  .hero-card-stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+  }
+
+  .hero-card {
+    width: 268px;
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(0,255,224,0.05) 0%, rgba(0,255,224,0) 35%),
+      linear-gradient(180deg, #06101a 0%, #040810 100%);
+    border: 1px solid rgba(0,255,224,0.55);
+    box-shadow:
+      0 0 0 1px rgba(0,255,224,0.08),
+      0 0 22px rgba(0,255,224,0.18),
+      inset 0 0 40px rgba(0,255,224,0.04);
+    padding: 14px 14px 16px;
+  }
+  /* circuit ornament corners */
+  .hero-card .corner {
+    position: absolute;
+    width: 18px; height: 18px;
+    pointer-events: none;
+  }
+  .hero-card .corner.tl { top: -1px; left: -1px;
+    border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+  .hero-card .corner.tr { top: -1px; right: -1px;
+    border-top: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+  .hero-card .corner.bl { bottom: -1px; left: -1px;
+    border-bottom: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+  .hero-card .corner.br { bottom: -1px; right: -1px;
+    border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+
+  .hc-top {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    color: var(--ink-dim);
+  }
+  .hc-top .faction {
+    color: var(--cyan);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .hc-top .faction .pip {
+    width: 6px; height: 6px; background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+  }
+  .hc-top .rar {
+    display: inline-flex; gap: 3px;
+  }
+  .hc-top .rar i {
+    width: 4px; height: 9px; background: var(--gold);
+    transform: skewX(-18deg);
+    box-shadow: 0 0 4px rgba(255,215,0,0.8);
+  }
+
+  .hc-portrait {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    background:
+      radial-gradient(120% 90% at 50% 110%, rgba(0,255,224,0.18), transparent 60%),
+      repeating-linear-gradient(135deg,
+        rgba(0,255,224,0.05) 0 2px,
+        transparent 2px 10px),
+      linear-gradient(180deg, #0a1620 0%, #050a14 100%);
+    border: 1px solid rgba(0,255,224,0.25);
+    overflow: hidden;
+  }
+  .hc-portrait .placeholder {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: rgba(0,255,224,0.45);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.7;
+  }
+  .hc-portrait .placeholder span {
+    display: block;
+    color: var(--ink-dim);
+    margin-top: 4px;
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+    text-transform: none;
+  }
+  /* scanline on portrait */
+  .hc-portrait::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.06) 0 1px,
+      transparent 1px 4px);
+    pointer-events: none;
+  }
+  /* faction watermark glyph */
+  .hc-portrait .glyph {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 28px; height: 28px;
+    opacity: 0.55;
+  }
+  /* hero figure (placeholder silhouette) */
+  .hc-portrait .figure {
+    position: absolute;
+    inset: 14px;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+
+  .hc-name {
+    margin-top: 12px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.005em;
+    color: #e8efff;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .hc-name .lvl {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--cyan);
+    letter-spacing: 0.12em;
+  }
+  .hc-handle {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    margin-top: 2px;
+    letter-spacing: 0.06em;
+  }
+  .hc-handle b { color: var(--purple); font-weight: 500; }
+
+  .hc-stats {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: rgba(0,255,224,0.18);
+    border: 1px solid rgba(0,255,224,0.22);
+  }
+  .hc-stats .cell {
+    background: #050a14;
+    padding: 8px 6px;
+    text-align: center;
+  }
+  .hc-stats .k {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+  }
+  .hc-stats .v {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 15px;
+    color: #e8efff;
+    margin-top: 2px;
+  }
+  .hc-stats .v.c { color: var(--cyan); }
+  .hc-stats .v.p { color: var(--purple); }
+
+  .hc-foot {
+    margin-top: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.14em;
+  }
+  .hc-foot .ascend {
+    display: inline-flex; gap: 3px;
+  }
+  .hc-foot .ascend .s { width: 8px; height: 8px; border: 1px solid var(--gold); transform: rotate(45deg); }
+  .hc-foot .ascend .s.on { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+
+  /* ---------- BUTTON TILE ---------- */
+  .button-stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 22px;
+    padding: 12px 0;
+  }
+  .btn-row { display: flex; flex-direction: column; gap: 6px; }
+  .btn-row .lbl {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #04060c;
+    background: linear-gradient(180deg, #00ffe0 0%, #00b8a4 100%);
+    border: 1px solid #00ffe0;
+    cursor: pointer;
+    box-shadow:
+      0 0 0 1px rgba(0,255,224,0.2),
+      0 0 22px rgba(0,255,224,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.35),
+      inset 0 -10px 18px rgba(0,0,0,0.18);
+    width: 100%;
+    /* notched corner via clip-path */
+    clip-path: polygon(
+      10px 0, calc(100% - 10px) 0, 100% 10px,
+      100% 100%, 10px 100%, 0 calc(100% - 10px), 0 0);
+  }
+  .btn .meta {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: rgba(4,6,12,0.6);
+  }
+  .btn .meta b { color: #04060c; font-weight: 700; }
+
+  .btn--secondary {
+    background: linear-gradient(180deg, rgba(155,48,255,0.18), rgba(155,48,255,0.06));
+    border: 1px solid rgba(155,48,255,0.65);
+    color: #f0e5ff;
+    box-shadow:
+      0 0 22px rgba(155,48,255,0.25),
+      inset 0 0 18px rgba(155,48,255,0.08);
+  }
+  .btn--secondary .meta { color: rgba(240,229,255,0.6); }
+  .btn--secondary .meta b { color: var(--purple); font-weight: 600; }
+
+  .btn--corp {
+    background: linear-gradient(180deg, #1a1306 0%, #0f0a02 100%);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    box-shadow:
+      0 0 22px rgba(255,215,0,0.25),
+      inset 0 0 14px rgba(255,215,0,0.08);
+  }
+  .btn--corp .meta { color: rgba(255,215,0,0.55); }
+  .btn--corp .meta b { color: var(--crimson); font-weight: 700; }
+
+  .btn--disabled {
+    background: #0a0e16;
+    border: 1px solid var(--ink-faint);
+    color: var(--ink-dim);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  .btn--disabled .meta { color: var(--ink-faint); }
+
+  /* ---------- STAGE NODE TILE ---------- */
+  .stage-viewport {
+    flex: 1;
+    position: relative;
+    margin: 0 -28px;
+    overflow: hidden;
+    background:
+      radial-gradient(70% 50% at 50% 50%, rgba(0,255,224,0.05), transparent 70%),
+      linear-gradient(180deg, #06101a 0%, #03060c 100%);
+    border-top: 1px solid var(--ink-faint);
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .stage-viewport svg { width: 100%; height: 100%; display: block; }
+  .stage-viewport .legend {
+    position: absolute;
+    bottom: 10px; left: 14px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .stage-viewport .legend .c { color: var(--cyan); }
+  .stage-viewport .legend .p { color: var(--purple); }
+  .stage-viewport .legend .g { color: var(--gold); }
+  .stage-viewport .breadcrumb {
+    position: absolute;
+    top: 12px; left: 14px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .stage-viewport .breadcrumb b { color: var(--cyan); font-weight: 500; }
+
+  /* ---------- footer ---------- */
+  .footer {
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .footer .right b { color: var(--cyan); }
+
+  @media (max-width: 1100px) {
+    .icon-grid { grid-template-columns: 1fr; }
+    .mood-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- ============ HEADER ============ -->
+    <header class="hdr">
+      <div>
+        <h1>hero<span class="slash">/</span>proto<span style="color:var(--ink-dim);font-weight:400;font-size:24px;letter-spacing:0;"> &nbsp;visual direction</span></h1>
+        <div class="sub">app icon · 3-tile mood board · v0.1 internal</div>
+      </div>
+      <div class="meta">
+        <div>build · <span class="ok">0x002a · ready</span></div>
+        <div>palette · void · cyan · gold · purple</div>
+        <div>type · space grotesk + jetbrains mono</div>
+      </div>
+    </header>
+
+    <!-- ============ APP ICON ============ -->
+    <section class="section">
+      <div class="section-label">01 &nbsp;·&nbsp; app icon</div>
+
+      <div class="icon-grid">
+        <!-- HERO 1024 ICON -->
+        <div class="icon-hero">
+          <span class="corner-label"><span class="px">1024</span> · master</span>
+          <span class="corner-r">hero-proto.icns</span>
+
+          <!-- ICON SVG -->
+          <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-label="hero-proto app icon">
+            <defs>
+              <radialGradient id="bgGlow" cx="50%" cy="55%" r="55%">
+                <stop offset="0%"  stop-color="#1a0a3a" stop-opacity="0.85" />
+                <stop offset="55%" stop-color="#070414" stop-opacity="1" />
+                <stop offset="100%" stop-color="#04060c" stop-opacity="1" />
+              </radialGradient>
+              <linearGradient id="hexStroke" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%"   stop-color="#00ffe0" />
+                <stop offset="55%"  stop-color="#00ffe0" />
+                <stop offset="100%" stop-color="#9b30ff" />
+              </linearGradient>
+              <linearGradient id="glyphStroke" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#7afff0" />
+                <stop offset="100%" stop-color="#00ffe0" />
+              </linearGradient>
+              <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1"/>
+                <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur2"/>
+                <feMerge>
+                  <feMergeNode in="blur2"/>
+                  <feMergeNode in="blur1"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+              <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <pattern id="scanlines" width="6" height="6" patternUnits="userSpaceOnUse">
+                <rect width="6" height="1" fill="#ffffff" opacity="0.04"/>
+              </pattern>
+            </defs>
+
+            <!-- background -->
+            <rect x="0" y="0" width="1024" height="1024" fill="url(#bgGlow)"/>
+
+            <!-- subtle radial bloom behind glyph -->
+            <circle cx="512" cy="540" r="240" fill="#9b30ff" opacity="0.18" filter="url(#softGlow)"/>
+            <circle cx="512" cy="500" r="170" fill="#00ffe0" opacity="0.14" filter="url(#softGlow)"/>
+
+            <!-- circuit traces leading IN from edges to hex corners -->
+            <g stroke="#00ffe0" stroke-width="3" fill="none" opacity="0.55" stroke-linecap="square">
+              <!-- top-left trace -->
+              <path d="M 70 200 L 200 200 L 280 280 L 305 305"/>
+              <circle cx="70" cy="200" r="6" fill="#00ffe0"/>
+              <!-- top-right trace -->
+              <path d="M 954 240 L 820 240 L 745 315 L 719 341"/>
+              <circle cx="954" cy="240" r="6" fill="#00ffe0"/>
+              <!-- bottom-left trace -->
+              <path d="M 70 824 L 220 824 L 305 740 L 320 725"/>
+              <circle cx="70" cy="824" r="6" fill="#00ffe0"/>
+              <!-- bottom-right trace -->
+              <path d="M 954 784 L 820 784 L 745 712 L 720 686"/>
+              <circle cx="954" cy="784" r="6" fill="#00ffe0"/>
+              <!-- left/right side taps -->
+              <path d="M 50 512 L 180 512"/>
+              <circle cx="50" cy="512" r="6" fill="#9b30ff"/>
+              <path d="M 974 512 L 844 512"/>
+              <circle cx="974" cy="512" r="6" fill="#9b30ff"/>
+            </g>
+
+            <!-- HEX FRAME (outer) -->
+            <g filter="url(#neonGlow)">
+              <polygon
+                points="512,128 832,308 832,716 512,896 192,716 192,308"
+                fill="none"
+                stroke="url(#hexStroke)"
+                stroke-width="6"
+                stroke-linejoin="miter"/>
+            </g>
+            <!-- inner hex (thin offset) -->
+            <polygon
+              points="512,176 790,332 790,692 512,848 234,692 234,332"
+              fill="rgba(0,255,224,0.03)"
+              stroke="rgba(0,255,224,0.45)"
+              stroke-width="1.5"
+              stroke-linejoin="miter"/>
+
+            <!-- HEX corner solder pads -->
+            <g fill="#04060c" stroke="#00ffe0" stroke-width="3">
+              <circle cx="512" cy="128" r="11"/>
+              <circle cx="832" cy="308" r="11"/>
+              <circle cx="832" cy="716" r="11"/>
+              <circle cx="512" cy="896" r="11"/>
+              <circle cx="192" cy="716" r="11"/>
+              <circle cx="192" cy="308" r="11"/>
+            </g>
+
+            <!-- inner ring telemetry ticks -->
+            <g stroke="rgba(0,255,224,0.35)" stroke-width="2">
+              <line x1="512" y1="200" x2="512" y2="220"/>
+              <line x1="512" y1="804" x2="512" y2="824"/>
+              <line x1="260" y1="512" x2="282" y2="512"/>
+              <line x1="742" y1="512" x2="764" y2="512"/>
+            </g>
+
+            <!-- ====== OPERATOR GLYPH ======
+                 An abstract, runic "agent" — built from angular circuit segments.
+                 Reads as: a person, a cursor, a sigil. -->
+            <g filter="url(#neonGlow)">
+              <!-- head — diamond solder node -->
+              <polygon points="512,300 562,360 512,420 462,360"
+                       fill="#04060c"
+                       stroke="url(#glyphStroke)" stroke-width="7" stroke-linejoin="miter"/>
+              <!-- head inner pip -->
+              <circle cx="512" cy="360" r="9" fill="#00ffe0"/>
+
+              <!-- neck trace -->
+              <line x1="512" y1="420" x2="512" y2="448" stroke="#00ffe0" stroke-width="7"/>
+
+              <!-- shoulders / horizontal bus -->
+              <line x1="392" y1="478" x2="632" y2="478" stroke="#00ffe0" stroke-width="7"/>
+              <!-- shoulder solder pads -->
+              <rect x="380" y="466" width="24" height="24" fill="#04060c" stroke="#00ffe0" stroke-width="5"/>
+              <rect x="620" y="466" width="24" height="24" fill="#04060c" stroke="#00ffe0" stroke-width="5"/>
+
+              <!-- body — angular torso / chevron -->
+              <path d="M 512 478 L 512 590 L 432 660 L 432 692"
+                    fill="none" stroke="#00ffe0" stroke-width="7" stroke-linejoin="miter"/>
+              <path d="M 512 590 L 592 660 L 592 692"
+                    fill="none" stroke="#00ffe0" stroke-width="7" stroke-linejoin="miter"/>
+
+              <!-- chest core — gold solder pip (unaligned faction marker) -->
+              <rect x="500" y="510" width="24" height="24" fill="#04060c" stroke="#ffd700" stroke-width="4"/>
+              <rect x="506" y="516" width="12" height="12" fill="#ffd700"/>
+
+              <!-- foot pads -->
+              <rect x="418" y="692" width="28" height="10" fill="#00ffe0"/>
+              <rect x="578" y="692" width="28" height="10" fill="#00ffe0"/>
+            </g>
+
+            <!-- purple under-glow ghost (slight offset for depth) -->
+            <g opacity="0.55" filter="url(#softGlow)">
+              <polygon points="512,304 558,360 512,416 466,360"
+                       fill="none" stroke="#9b30ff" stroke-width="3"/>
+              <line x1="512" y1="478" x2="512" y2="590" stroke="#9b30ff" stroke-width="3"/>
+            </g>
+
+            <!-- scanline overlay (very subtle) -->
+            <rect x="0" y="0" width="1024" height="1024" fill="url(#scanlines)" opacity="0.7"/>
+          </svg>
+        </div>
+
+        <!-- META COLUMN -->
+        <div class="icon-meta">
+          <div class="size-row">
+            <div class="size-stack">
+              <div class="size-tile s192" data-icon="1"></div>
+              <div class="size-caption">192 px</div>
+            </div>
+            <div class="size-stack">
+              <div class="size-tile s96" data-icon="1"></div>
+              <div class="size-caption">96 px</div>
+            </div>
+            <div class="size-stack">
+              <div class="size-tile s48" data-icon="1"></div>
+              <div class="size-caption">48 px</div>
+            </div>
+          </div>
+
+          <div class="anno">
+            <h3>// reads at every size</h3>
+            <ul>
+              <li><span class="marker">01</span><div><b>hex frame</b> reads as motherboard component + faction badge. Strong silhouette retained at 48px.</div></li>
+              <li><span class="marker">02</span><div><b>operator glyph</b> — abstracted person made of circuit segments. Not a face, not a sword.</div></li>
+              <li><span class="marker">03</span><div><u>gold chest pip</u> — single warm anchor; signals “unaligned / new player.” Last thing to drop at smallest sizes.</div></li>
+              <li><span class="marker">04</span><div><i>purple under-glow</i> + cyan stroke = the 3-faction blend with no faction yet picked.</div></li>
+              <li><span class="marker">05</span><div>Circuit traces only on master export; pruned on the masked 1024 store version (kept inside hex).</div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MOOD BOARD ============ -->
+    <section class="section">
+      <div class="section-label">02 &nbsp;·&nbsp; ui mood board</div>
+
+      <div class="mood-grid">
+
+        <!-- ======== TILE 1 — HERO CARD ======== -->
+        <div class="mood-tile">
+          <span class="tbl"></span><span class="tbr"></span>
+          <div class="tile-head">
+            <span>hero card</span>
+            <span class="id">RES · 5★</span>
+          </div>
+
+          <div class="hero-card-stage">
+            <div class="hero-card">
+              <span class="corner tl"></span><span class="corner tr"></span>
+              <span class="corner bl"></span><span class="corner br"></span>
+
+              <div class="hc-top">
+                <span class="faction"><span class="pip"></span>RESISTANCE</span>
+                <span class="rar"><i></i><i></i><i></i><i></i><i></i></span>
+              </div>
+
+              <div class="hc-portrait">
+                <!-- faction watermark hex -->
+                <svg class="glyph" viewBox="0 0 32 32">
+                  <polygon points="16,3 28,10 28,22 16,29 4,22 4,10"
+                           fill="none" stroke="#00ffe0" stroke-width="1.5"/>
+                  <circle cx="16" cy="16" r="2.5" fill="#00ffe0"/>
+                </svg>
+
+                <!-- hero silhouette placeholder built as SVG (no photo, no anime) -->
+                <div class="figure">
+                  <svg viewBox="0 0 120 150" width="80%" height="92%">
+                    <!-- ground glow disk -->
+                    <ellipse cx="60" cy="140" rx="42" ry="6" fill="#00ffe0" opacity="0.25"/>
+                    <!-- body silhouette: hoodie sysadmin -->
+                    <g fill="#0a1a26" stroke="#00ffe0" stroke-width="1.3" stroke-linejoin="round">
+                      <!-- legs -->
+                      <path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/>
+                      <path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/>
+                      <!-- torso / hoodie -->
+                      <path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/>
+                      <!-- hood -->
+                      <path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/>
+                      <!-- head shadow -->
+                      <path d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z" fill="#04060c"/>
+                    </g>
+                    <!-- glasses glint -->
+                    <line x1="52" y1="70" x2="58" y2="70" stroke="#00ffe0" stroke-width="1.3"/>
+                    <line x1="62" y1="70" x2="68" y2="70" stroke="#00ffe0" stroke-width="1.3"/>
+                    <!-- shirt slogan placeholder bar -->
+                    <rect x="48" y="86" width="24" height="3" fill="#ffd700" opacity="0.7"/>
+                    <!-- terminal scroll on torso -->
+                    <rect x="48" y="92" width="24" height="6" fill="none" stroke="#00ffe0" stroke-width="0.8" opacity="0.6"/>
+                  </svg>
+                </div>
+
+                <div class="placeholder" style="bottom:6px; top:auto; height:auto;">
+                  <div>
+                    [ hero render slot ]
+                    <span>1024×1280 · alpha · 3-pose anim</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="hc-name">
+                <span>J4N3T-L2</span>
+                <span class="lvl">LV 47</span>
+              </div>
+              <div class="hc-handle">tier · <b>RAID-0</b> &nbsp;·&nbsp; class · helpdesk-MAGE</div>
+
+              <div class="hc-stats">
+                <div class="cell"><div class="k">ATK</div><div class="v c">2,840</div></div>
+                <div class="cell"><div class="k">DEF</div><div class="v">1,612</div></div>
+                <div class="cell"><div class="k">SPD</div><div class="v p">94</div></div>
+              </div>
+
+              <div class="hc-foot">
+                <span>ASC</span>
+                <span class="ascend">
+                  <span class="s on"></span><span class="s on"></span>
+                  <span class="s on"></span><span class="s"></span><span class="s"></span>
+                </span>
+                <span>SHARDS · 14/30</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tile-caption">
+            <b>Card frame is the faction.</b> Cyan stroke + cyan corner brackets = Resistance.
+            Swap stroke to <span style="color:var(--gold)">gold/crimson</span> for Corp, <span style="color:var(--purple)">purple/grey</span> for Exile.
+            Hero art is a slotted render — silhouette here is placeholder only.
+            Rarity = gold prism count. Stats use mono. Tier reads as <b>RAID-0</b>, not “5-star”.
+          </div>
+        </div>
+
+        <!-- ======== TILE 2 — BUTTONS ======== -->
+        <div class="mood-tile">
+          <span class="tbl"></span><span class="tbr"></span>
+          <div class="tile-head">
+            <span>button system</span>
+            <span class="id">FACTION-TINTED</span>
+          </div>
+
+          <div class="button-stage">
+            <div class="btn-row">
+              <span class="lbl">// primary · resistance</span>
+              <button class="btn">
+                <span>SUMMON × 10</span>
+                <span class="meta"><b>2,700</b> gems</span>
+              </button>
+            </div>
+
+            <div class="btn-row">
+              <span class="lbl">// secondary · exile</span>
+              <button class="btn btn--secondary">
+                <span>VIEW HEROES</span>
+                <span class="meta"><b>247</b> roster</span>
+              </button>
+            </div>
+
+            <div class="btn-row">
+              <span class="lbl">// commerce · corp</span>
+              <button class="btn btn--corp">
+                <span>BUY GEM PACK</span>
+                <span class="meta"><b>$4.99</b></span>
+              </button>
+            </div>
+
+            <div class="btn-row">
+              <span class="lbl">// disabled · locked</span>
+              <button class="btn btn--disabled">
+                <span>BATTLE PASS</span>
+                <span class="meta">LV 12 REQ</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="tile-caption">
+            <b>One shape, three voltages.</b> Notched top-left + bottom-right corner clip is the constant —
+            it's the button's silhouette. Fill/glow shifts by faction context, never by importance alone.
+            Mono captions on the right edge carry telemetry (cost · count · req). Pricing in <span style="color:var(--gold)">gold</span> when it's a real-money pack.
+          </div>
+        </div>
+
+        <!-- ======== TILE 3 — STAGE NODE ======== -->
+        <div class="mood-tile">
+          <span class="tbl"></span><span class="tbr"></span>
+          <div class="tile-head">
+            <span>stage node</span>
+            <span class="id">RAID-0 · 14</span>
+          </div>
+
+          <div class="stage-viewport">
+            <span class="breadcrumb">HARD&nbsp;DISK &gt; <b>RAID-0</b> &gt; NODE.14</span>
+
+            <svg viewBox="0 0 480 360" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#00ffe0" stop-opacity="0.9"/>
+                  <stop offset="100%" stop-color="#00ffe0" stop-opacity="0"/>
+                </radialGradient>
+                <filter id="sg2" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3" result="b"/>
+                  <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <pattern id="grid2" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,255,224,0.06)" stroke-width="1"/>
+                </pattern>
+              </defs>
+
+              <!-- circuit-board grid -->
+              <rect width="480" height="360" fill="url(#grid2)"/>
+
+              <!-- main bus trace running through -->
+              <g stroke="rgba(0,255,224,0.55)" stroke-width="2" fill="none">
+                <path d="M 20 280 L 90 280 L 130 240 L 200 240 L 240 200 L 320 200 L 360 160 L 460 160"/>
+                <!-- branch downward -->
+                <path d="M 240 200 L 240 130 L 280 90"/>
+                <!-- branch up-left -->
+                <path d="M 130 240 L 130 180 L 90 140"/>
+              </g>
+
+              <!-- inactive (cleared) nodes -->
+              <g>
+                <!-- node A (cleared) -->
+                <polygon points="90,280 105,288 105,302 90,310 75,302 75,288"
+                         fill="#04060c" stroke="rgba(0,255,224,0.4)" stroke-width="1.5"/>
+                <text x="90" y="328" text-anchor="middle"
+                      font-family="JetBrains Mono" font-size="8"
+                      fill="rgba(107,120,148,0.9)" letter-spacing="1.2">12 ✓</text>
+
+                <!-- node B (cleared) -->
+                <polygon points="200,240 215,248 215,262 200,270 185,262 185,248"
+                         fill="#04060c" stroke="rgba(0,255,224,0.4)" stroke-width="1.5"/>
+                <text x="200" y="288" text-anchor="middle"
+                      font-family="JetBrains Mono" font-size="8"
+                      fill="rgba(107,120,148,0.9)" letter-spacing="1.2">13 ✓</text>
+
+                <!-- branch nodes (locked) -->
+                <polygon points="90,140 105,148 105,162 90,170 75,162 75,148"
+                         fill="#04060c" stroke="rgba(155,48,255,0.35)" stroke-width="1.5"
+                         stroke-dasharray="3 2"/>
+                <text x="90" y="188" text-anchor="middle"
+                      font-family="JetBrains Mono" font-size="8"
+                      fill="rgba(107,120,148,0.7)" letter-spacing="1.2">13a · 🔒</text>
+
+                <polygon points="280,90 295,98 295,112 280,120 265,112 265,98"
+                         fill="#04060c" stroke="rgba(255,215,0,0.45)" stroke-width="1.5"
+                         stroke-dasharray="3 2"/>
+                <text x="280" y="138" text-anchor="middle"
+                      font-family="JetBrains Mono" font-size="8"
+                      fill="rgba(255,215,0,0.8)" letter-spacing="1.2">BOSS · 13c</text>
+              </g>
+
+              <!-- ACTIVE node (the focus) -->
+              <g filter="url(#sg2)">
+                <!-- aura -->
+                <circle cx="320" cy="200" r="58" fill="url(#nodeGlow)" opacity="0.6"/>
+                <!-- outer hex ring -->
+                <polygon points="320,160 354,180 354,220 320,240 286,220 286,180"
+                         fill="none" stroke="#00ffe0" stroke-width="2.5"/>
+                <!-- mid ring -->
+                <polygon points="320,170 346,184 346,216 320,230 294,216 294,184"
+                         fill="rgba(0,255,224,0.06)" stroke="rgba(0,255,224,0.7)" stroke-width="1.2"/>
+                <!-- core -->
+                <polygon points="320,184 335,192 335,208 320,216 305,208 305,192"
+                         fill="#00ffe0" stroke="#04060c" stroke-width="1"/>
+                <!-- corner pads -->
+                <g fill="#04060c" stroke="#00ffe0" stroke-width="1.5">
+                  <circle cx="320" cy="160" r="3"/>
+                  <circle cx="354" cy="180" r="3"/>
+                  <circle cx="354" cy="220" r="3"/>
+                  <circle cx="320" cy="240" r="3"/>
+                  <circle cx="286" cy="220" r="3"/>
+                  <circle cx="286" cy="180" r="3"/>
+                </g>
+              </g>
+
+              <!-- label block under active node -->
+              <g font-family="JetBrains Mono" font-size="9" fill="#00ffe0" letter-spacing="1.5">
+                <text x="320" y="262" text-anchor="middle" font-weight="700">NODE.14</text>
+                <text x="320" y="276" text-anchor="middle" fill="#c9d2e3" font-weight="400">KERNEL_PANIC</text>
+                <text x="320" y="290" text-anchor="middle" fill="#6b7894" font-weight="400">3 WAVES · BOSS</text>
+              </g>
+
+              <!-- next node teaser -->
+              <g>
+                <polygon points="430,160 445,168 445,182 430,190 415,182 415,168"
+                         fill="#04060c" stroke="rgba(0,255,224,0.25)" stroke-width="1.5"
+                         stroke-dasharray="2 2"/>
+                <text x="430" y="208" text-anchor="middle"
+                      font-family="JetBrains Mono" font-size="8"
+                      fill="rgba(107,120,148,0.9)" letter-spacing="1.2">15</text>
+              </g>
+
+              <!-- telemetry corner -->
+              <g font-family="JetBrains Mono" font-size="8" fill="#6b7894" letter-spacing="1.4">
+                <text x="464" y="20" text-anchor="end">SECTOR · 0x0E</text>
+                <text x="464" y="32" text-anchor="end" fill="#00ffe0">UPTIME · 14:22:08</text>
+              </g>
+            </svg>
+
+            <div class="legend">
+              <span class="c">● cleared</span> &nbsp;·&nbsp;
+              <span style="color:#00ffe0">◆ active</span> &nbsp;·&nbsp;
+              <span class="p">▢ branch</span> &nbsp;·&nbsp;
+              <span class="g">★ boss</span>
+            </div>
+          </div>
+
+          <div class="tile-caption">
+            <b>Map = circuit board.</b> Stages are hex solder nodes wired on a thin grid bus.
+            Cleared = dim cyan outline + tick. Active = full cyan, glow + animated pulse. Boss = gold dashed hex.
+            Path branches read as PCB traces. Tier names (<b>HARD DISK &gt; RAID-0</b>) live in mono breadcrumb at top.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="footer">
+      <div class="left">hero-proto · visual direction · v0.1</div>
+      <div class="right">render targets · <b>1024 · 192 · 96 · 48</b> · alpha</div>
+    </footer>
+
+  </div>
+
+  <!-- duplicate icon SVG into smaller proof tiles -->
+  <script>
+    (function () {
+      var master = document.querySelector('.icon-hero svg');
+      if (!master) return;
+      document.querySelectorAll('.size-tile[data-icon="1"]').forEach(function (slot) {
+        var clone = master.cloneNode(true);
+        // strip ids that would collide
+        clone.querySelectorAll('[id]').forEach(function (el) {
+          el.removeAttribute('id');
+        });
+        slot.appendChild(clone);
+      });
+    })();
+  </script>
+</body>
+</html>

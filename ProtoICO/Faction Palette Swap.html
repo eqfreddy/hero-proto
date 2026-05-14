@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>hero-proto · faction palette swap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #04060c;
+    --ink:       #c9d2e3;
+    --ink-dim:   #6b7894;
+    --ink-faint: #2d3548;
+
+    --display: "Space Grotesk", system-ui, sans-serif;
+    --mono:    "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--display);
+    min-height: 100vh;
+    background:
+      radial-gradient(900px 600px at 12% -10%, rgba(155,48,255,0.08), transparent 60%),
+      radial-gradient(900px 700px at 90% 110%, rgba(0,255,224,0.05), transparent 60%),
+      var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0 1px,
+      transparent 1px 3px);
+    mix-blend-mode: overlay;
+    opacity: 0.6;
+    z-index: 9999;
+  }
+
+  .page {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 56px 48px 96px;
+  }
+
+  /* ---- header ---- */
+  .hdr {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    border-bottom: 1px solid var(--ink-faint);
+    padding-bottom: 20px;
+    margin-bottom: 48px;
+  }
+  .hdr h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 32px;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .hdr h1 .slash { color: #00ffe0; }
+  .hdr .sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-top: 6px;
+  }
+  .hdr .meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-align: right;
+    line-height: 1.7;
+    letter-spacing: 0.05em;
+  }
+
+  /* ---- section label ---- */
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 36px;
+  }
+  .section-label::before,
+  .section-label::after {
+    content: "";
+    height: 1px;
+    background: var(--ink-faint);
+    flex: 1;
+  }
+
+  /* ---- card sheet layout ---- */
+  .sheet {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+
+  .slot {
+    display: flex;
+    flex-direction: column;
+  }
+  .slot-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+  }
+  .slot-head .id { color: var(--frame); }
+  .slot-stage {
+    flex: 1;
+    background: linear-gradient(180deg, rgba(7,10,20,0.4), rgba(4,6,12,0.4));
+    border: 1px solid var(--ink-faint);
+    padding: 36px 24px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  /* tile corner ticks */
+  .slot-stage::before, .slot-stage::after,
+  .slot-stage > .tbl, .slot-stage > .tbr {
+    content: "";
+    position: absolute;
+    width: 9px; height: 9px;
+    border: 1px solid var(--frame);
+  }
+  .slot-stage::before { top: -1px; left: -1px;  border-right: 0; border-bottom: 0; }
+  .slot-stage::after  { top: -1px; right: -1px; border-left: 0;  border-bottom: 0; }
+  .slot-stage > .tbl { bottom: -1px; left: -1px;  border-right: 0; border-top: 0; }
+  .slot-stage > .tbr { bottom: -1px; right: -1px; border-left: 0;  border-top: 0; }
+
+  .slot-cap {
+    margin-top: 18px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    line-height: 1.65;
+    letter-spacing: 0.04em;
+  }
+  .slot-cap b { color: var(--ink); font-weight: 500; }
+  .slot-cap em { font-style: normal; color: var(--frame); }
+
+  /* =========================================================
+     HERO CARD — uses theme CSS variables, no per-faction CSS.
+     ========================================================= */
+  .hero-card {
+    --frame:   #00ffe0;
+    --frame-2: rgba(0,255,224,0.55);
+    --under:   #9b30ff;
+    --tele:    #00ffe0;
+    --accent:  #00ffe0;
+    --portrait-tint-a: rgba(0,255,224,0.18);
+    --portrait-tint-b: rgba(0,255,224,0.05);
+    --portrait-line:   rgba(0,255,224,0.25);
+    --glow:    rgba(0,255,224,0.18);
+    --glow-inner: rgba(0,255,224,0.04);
+    --stat-bar: rgba(0,255,224,0.22);
+    --frame-flat: false;   /* not used directly; semantic */
+
+    width: 268px;
+    position: relative;
+    background:
+      linear-gradient(180deg, var(--portrait-tint-b) 0%, transparent 35%),
+      linear-gradient(180deg, #06101a 0%, #040810 100%);
+    border: 1px solid var(--frame-2);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.02),
+      0 0 22px var(--glow),
+      inset 0 0 40px var(--glow-inner);
+    padding: 14px 14px 16px;
+  }
+
+  /* corner ticks */
+  .hero-card .corner {
+    position: absolute;
+    width: 18px; height: 18px;
+    pointer-events: none;
+  }
+  .hero-card .corner.tl { top: -1px; left: -1px;
+    border-top: 2px solid var(--frame); border-left: 2px solid var(--frame); }
+  .hero-card .corner.tr { top: -1px; right: -1px;
+    border-top: 2px solid var(--frame); border-right: 2px solid var(--frame); }
+  .hero-card .corner.bl { bottom: -1px; left: -1px;
+    border-bottom: 2px solid var(--frame); border-left: 2px solid var(--frame); }
+  .hero-card .corner.br { bottom: -1px; right: -1px;
+    border-bottom: 2px solid var(--frame); border-right: 2px solid var(--frame); }
+
+  .hc-top {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    color: var(--ink-dim);
+  }
+  .hc-top .faction {
+    color: var(--frame);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .hc-top .faction .pip {
+    width: 6px; height: 6px; background: var(--frame);
+    box-shadow: 0 0 6px var(--frame);
+  }
+  .hc-top .rar {
+    display: inline-flex; gap: 3px;
+  }
+  .hc-top .rar i {
+    width: 4px; height: 9px; background: #ffd700;
+    transform: skewX(-18deg);
+    box-shadow: 0 0 4px rgba(255,215,0,0.75);
+  }
+
+  /* HP bar */
+  .hc-hp {
+    margin: 0 0 10px;
+    display: grid;
+    grid-template-columns: 22px 1fr 40px;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.14em;
+  }
+  .hc-hp .label { color: var(--ink-dim); }
+  .hc-hp .bar {
+    height: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--ink-faint);
+    position: relative;
+    overflow: hidden;
+  }
+  .hc-hp .bar .fill {
+    position: absolute; inset: 0 30% 0 0;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .hc-hp .bar .seg {
+    position: absolute; top: 0; bottom: 0;
+    width: 1px; background: rgba(0,0,0,0.55);
+  }
+  .hc-hp .val { color: var(--accent); text-align: right; font-weight: 500; }
+
+  .hc-portrait {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    background:
+      radial-gradient(120% 90% at 50% 110%, var(--portrait-tint-a), transparent 60%),
+      repeating-linear-gradient(135deg,
+        var(--portrait-tint-b) 0 2px,
+        transparent 2px 10px),
+      linear-gradient(180deg, #0a1620 0%, #050a14 100%);
+    border: 1px solid var(--portrait-line);
+    overflow: hidden;
+  }
+  .hc-portrait::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.06) 0 1px,
+      transparent 1px 4px);
+    pointer-events: none;
+  }
+  .hc-portrait .glyph {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 28px; height: 28px;
+    opacity: 0.55;
+  }
+  .hc-portrait .glyph polygon { stroke: var(--frame); }
+  .hc-portrait .glyph circle  { fill:   var(--frame); }
+
+  /* alert tag (top-left of portrait) */
+  .hc-portrait .alert {
+    position: absolute;
+    top: 8px; left: 8px;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 6px;
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    background: rgba(0,0,0,0.4);
+  }
+  .hc-portrait .alert .dot {
+    width: 5px; height: 5px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 4px var(--accent);
+  }
+
+  .hc-portrait .figure {
+    position: absolute;
+    inset: 14px;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .hc-portrait .figure .silhouette {
+    fill: #0a1a26;
+    stroke: var(--frame);
+    stroke-width: 1.3;
+    stroke-linejoin: round;
+  }
+  .hc-portrait .figure .head-shadow { fill: #04060c; stroke: none; }
+  .hc-portrait .figure .ground { fill: var(--frame); opacity: 0.25; }
+  .hc-portrait .figure .glasses { stroke: var(--frame); stroke-width: 1.3; }
+  .hc-portrait .figure .slogan  { fill: #ffd700; opacity: 0.7; }
+  .hc-portrait .figure .terminal{ stroke: var(--frame); stroke-width: 0.8; fill: none; opacity: 0.6; }
+
+  .hc-name {
+    margin-top: 12px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.005em;
+    color: #e8efff;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .hc-name .lvl {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--tele);
+    letter-spacing: 0.12em;
+  }
+  .hc-handle {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    margin-top: 2px;
+    letter-spacing: 0.06em;
+  }
+  .hc-handle b { color: var(--under); font-weight: 500; }
+
+  .hc-stats {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--stat-bar);
+    border: 1px solid var(--stat-bar);
+  }
+  .hc-stats .cell {
+    background: #050a14;
+    padding: 8px 6px;
+    text-align: center;
+  }
+  .hc-stats .k {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+  }
+  .hc-stats .v {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 15px;
+    color: #e8efff;
+    margin-top: 2px;
+  }
+  .hc-stats .v.c { color: var(--frame); }
+  .hc-stats .v.p { color: var(--under); }
+
+  .hc-foot {
+    margin-top: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.14em;
+  }
+  .hc-foot .ascend {
+    display: inline-flex; gap: 3px;
+  }
+  .hc-foot .ascend .s {
+    width: 8px; height: 8px;
+    border: 1px solid #ffd700;
+    transform: rotate(45deg);
+  }
+  .hc-foot .ascend .s.on {
+    background: #ffd700;
+    box-shadow: 0 0 6px #ffd700;
+  }
+
+  /* ===========================================================
+     FACTION THEMES — override only the variables.
+     =========================================================== */
+
+  /* CORP_GREED — polished menace, flat gold structural, crimson accent */
+  .hero-card[data-faction="corp"] {
+    --frame:   #ffd700;
+    --frame-2: rgba(255,215,0,0.7);
+    --under:   #c8102e;
+    --tele:    #c8102e;
+    --accent:  #c8102e;
+    --portrait-tint-a: rgba(200,16,46,0.16);
+    --portrait-tint-b: rgba(255,215,0,0.04);
+    --portrait-line:   rgba(255,215,0,0.35);
+    --glow:    rgba(255,215,0,0.08);   /* deliberately low — gold is flat */
+    --glow-inner: rgba(255,215,0,0.02);
+    --stat-bar: rgba(255,215,0,0.25);
+    background:
+      linear-gradient(180deg, rgba(255,215,0,0.025) 0%, transparent 35%),
+      linear-gradient(180deg, #0a0805 0%, #050402 100%);
+  }
+  /* gold corner ticks render as a single highlight notch — kill the glow */
+  .hero-card[data-faction="corp"] .corner { filter: none; }
+  /* gold silhouette stroke is too warm on a charcoal figure — keep stroke gold but soften fill */
+  .hero-card[data-faction="corp"] .hc-portrait .figure .silhouette {
+    fill: #1a1408;
+    stroke: #ffd700;
+  }
+  .hero-card[data-faction="corp"] .hc-portrait .figure .ground   { fill: #c8102e; opacity: 0.3; }
+  .hero-card[data-faction="corp"] .hc-portrait .figure .glasses  { stroke: #ffd700; }
+  .hero-card[data-faction="corp"] .hc-portrait .figure .slogan   { fill: #c8102e; opacity: 0.85; }
+  .hero-card[data-faction="corp"] .hc-portrait .figure .terminal { stroke: #ffd700; opacity: 0.55; }
+
+  /* EXILE — desaturated, lower contrast, dim cyan telemetry */
+  .hero-card[data-faction="exile"] {
+    --frame:   #9b30ff;
+    --frame-2: rgba(155,48,255,0.45);   /* softer than resistance */
+    --under:   #3a3f4d;
+    --tele:    rgba(0,255,224,0.55);    /* dim cyan */
+    --accent:  #9b30ff;
+    --portrait-tint-a: rgba(155,48,255,0.12);
+    --portrait-tint-b: rgba(58,63,77,0.10);
+    --portrait-line:   rgba(155,48,255,0.20);
+    --glow:    rgba(155,48,255,0.10);   /* lower than resistance on purpose */
+    --glow-inner: rgba(155,48,255,0.02);
+    --stat-bar: rgba(155,48,255,0.18);
+    background:
+      linear-gradient(180deg, rgba(58,63,77,0.10) 0%, transparent 35%),
+      linear-gradient(180deg, #0a0a12 0%, #050509 100%);
+  }
+  .hero-card[data-faction="exile"] .hc-portrait .figure .silhouette {
+    fill: #161620;
+    stroke: rgba(155,48,255,0.75);
+  }
+  .hero-card[data-faction="exile"] .hc-portrait .figure .ground   { fill: #9b30ff; opacity: 0.18; }
+  .hero-card[data-faction="exile"] .hc-portrait .figure .glasses  { stroke: rgba(155,48,255,0.7); }
+  .hero-card[data-faction="exile"] .hc-portrait .figure .slogan   { fill: #6b7894; opacity: 0.7; }   /* not gold — exile has no banner */
+  .hero-card[data-faction="exile"] .hc-portrait .figure .terminal { stroke: rgba(155,48,255,0.5); }
+
+  /* ---- assessment block ---- */
+  .assess {
+    margin-top: 64px;
+    padding: 28px 32px;
+    border: 1px solid var(--ink-faint);
+    background: rgba(255,255,255,0.012);
+    position: relative;
+  }
+  .assess::before, .assess::after, .assess .tbl, .assess .tbr {
+    content: "";
+    position: absolute;
+    width: 9px; height: 9px;
+    border: 1px solid #00ffe0;
+  }
+  .assess::before { top: -1px; left: -1px;  border-right: 0; border-bottom: 0; }
+  .assess::after  { top: -1px; right: -1px; border-left: 0;  border-bottom: 0; }
+  .assess .tbl { bottom: -1px; left: -1px;  border-right: 0; border-top: 0; }
+  .assess .tbr { bottom: -1px; right: -1px; border-left: 0;  border-top: 0; }
+
+  .assess h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #00ffe0;
+    margin: 0 0 18px;
+    font-weight: 500;
+  }
+  .assess-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  .assess-col h4 {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--ink);
+    margin: 0 0 10px;
+    font-weight: 500;
+  }
+  .assess-col h4 .verdict {
+    margin-left: 10px;
+    padding: 2px 7px;
+    border: 1px solid currentColor;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+  }
+  .assess-col p {
+    font-family: var(--display);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink);
+    margin: 0 0 10px;
+  }
+  .assess-col p.note {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    letter-spacing: 0.04em;
+  }
+  .assess-col p b { font-weight: 500; }
+  .v-hold   { color: #00ffe0; }
+  .v-watch  { color: #ffd700; }
+  .v-rebal  { color: #c8102e; }
+
+  .footer {
+    margin-top: 48px;
+    padding-top: 22px;
+    border-top: 1px solid var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .footer b { color: #00ffe0; }
+
+  @media (max-width: 1100px) {
+    .sheet, .assess-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+
+    <header class="hdr">
+      <div>
+        <h1>hero<span class="slash">/</span>proto<span style="color:var(--ink-dim);font-weight:400;font-size:22px;letter-spacing:0;"> &nbsp;faction palette swap</span></h1>
+        <div class="sub">same hero · same spec · three chromatic systems</div>
+      </div>
+      <div class="meta">
+        <div>card spec · J4N3T-L2 · LV 47</div>
+        <div>constants · grotesk + mono · 4% scanline · void #04060c</div>
+        <div>variables · frame · under · tele · accent</div>
+      </div>
+    </header>
+
+    <div class="section-label">card.sheet &nbsp;·&nbsp; 03 variants</div>
+
+    <!-- ================= SHEET ================= -->
+    <div class="sheet">
+
+      <!-- ====== RESISTANCE ====== -->
+      <div class="slot">
+        <div class="slot-head">
+          <span>01 · resistance</span>
+          <span class="id" style="--frame:#00ffe0;">#00ffe0 · #9b30ff</span>
+        </div>
+        <div class="slot-stage" style="--frame:#00ffe0;">
+          <span class="tbl"></span><span class="tbr"></span>
+
+          <div class="hero-card" data-faction="resistance">
+            <span class="corner tl"></span><span class="corner tr"></span>
+            <span class="corner bl"></span><span class="corner br"></span>
+
+            <div class="hc-top">
+              <span class="faction"><span class="pip"></span>RESISTANCE</span>
+              <span class="rar"><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+
+            <div class="hc-hp">
+              <span class="label">HP</span>
+              <span class="bar">
+                <span class="fill"></span>
+                <span class="seg" style="left:25%"></span>
+                <span class="seg" style="left:50%"></span>
+                <span class="seg" style="left:75%"></span>
+              </span>
+              <span class="val">7,420</span>
+            </div>
+
+            <div class="hc-portrait">
+              <span class="alert"><span class="dot"></span>READY</span>
+              <svg class="glyph" viewBox="0 0 32 32">
+                <polygon points="16,3 28,10 28,22 16,29 4,22 4,10" fill="none" stroke-width="1.5"/>
+                <circle cx="16" cy="16" r="2.5"/>
+              </svg>
+              <div class="figure">
+                <svg viewBox="0 0 120 150" width="80%" height="92%">
+                  <ellipse class="ground" cx="60" cy="140" rx="42" ry="6"/>
+                  <g class="silhouette">
+                    <path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/>
+                    <path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/>
+                    <path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/>
+                    <path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/>
+                    <path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/>
+                  </g>
+                  <line class="glasses" x1="52" y1="70" x2="58" y2="70"/>
+                  <line class="glasses" x1="62" y1="70" x2="68" y2="70"/>
+                  <rect class="slogan" x="48" y="86" width="24" height="3"/>
+                  <rect class="terminal" x="48" y="92" width="24" height="6"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="hc-name">
+              <span>J4N3T-L2</span>
+              <span class="lvl">LV 47</span>
+            </div>
+            <div class="hc-handle">tier · <b>RAID-0</b> &nbsp;·&nbsp; class · helpdesk-MAGE</div>
+
+            <div class="hc-stats">
+              <div class="cell"><div class="k">ATK</div><div class="v c">2,840</div></div>
+              <div class="cell"><div class="k">DEF</div><div class="v">1,612</div></div>
+              <div class="cell"><div class="k">SPD</div><div class="v p">94</div></div>
+            </div>
+
+            <div class="hc-foot">
+              <span>ASC</span>
+              <span class="ascend">
+                <span class="s on"></span><span class="s on"></span>
+                <span class="s on"></span><span class="s"></span><span class="s"></span>
+              </span>
+              <span>SHARDS · 14/30</span>
+            </div>
+          </div>
+        </div>
+        <div class="slot-cap" style="--frame:#00ffe0;">
+          <b>shipped baseline.</b> Cyan frame, void-purple undertint in handle <em>RAID-0</em>.
+          Telemetry green = LV / HP. Highest contrast of the three — the “picked a side” card.
+        </div>
+      </div>
+
+      <!-- ====== CORP_GREED ====== -->
+      <div class="slot">
+        <div class="slot-head">
+          <span>02 · corp_greed</span>
+          <span class="id" style="--frame:#ffd700;">#ffd700 · #c8102e</span>
+        </div>
+        <div class="slot-stage" style="--frame:#ffd700;">
+          <span class="tbl"></span><span class="tbr"></span>
+
+          <div class="hero-card" data-faction="corp">
+            <span class="corner tl"></span><span class="corner tr"></span>
+            <span class="corner bl"></span><span class="corner br"></span>
+
+            <div class="hc-top">
+              <span class="faction"><span class="pip"></span>CORP_GREED</span>
+              <span class="rar"><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+
+            <div class="hc-hp">
+              <span class="label">HP</span>
+              <span class="bar">
+                <span class="fill"></span>
+                <span class="seg" style="left:25%"></span>
+                <span class="seg" style="left:50%"></span>
+                <span class="seg" style="left:75%"></span>
+              </span>
+              <span class="val">7,420</span>
+            </div>
+
+            <div class="hc-portrait">
+              <span class="alert"><span class="dot"></span>ASSET</span>
+              <svg class="glyph" viewBox="0 0 32 32">
+                <polygon points="16,3 28,10 28,22 16,29 4,22 4,10" fill="none" stroke-width="1.5"/>
+                <circle cx="16" cy="16" r="2.5"/>
+              </svg>
+              <div class="figure">
+                <svg viewBox="0 0 120 150" width="80%" height="92%">
+                  <ellipse class="ground" cx="60" cy="140" rx="42" ry="6"/>
+                  <g class="silhouette">
+                    <path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/>
+                    <path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/>
+                    <path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/>
+                    <path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/>
+                    <path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/>
+                  </g>
+                  <line class="glasses" x1="52" y1="70" x2="58" y2="70"/>
+                  <line class="glasses" x1="62" y1="70" x2="68" y2="70"/>
+                  <rect class="slogan" x="48" y="86" width="24" height="3"/>
+                  <rect class="terminal" x="48" y="92" width="24" height="6"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="hc-name">
+              <span>J4N3T-L2</span>
+              <span class="lvl">LV 47</span>
+            </div>
+            <div class="hc-handle">tier · <b>RAID-0</b> &nbsp;·&nbsp; class · helpdesk-MAGE</div>
+
+            <div class="hc-stats">
+              <div class="cell"><div class="k">ATK</div><div class="v c">2,840</div></div>
+              <div class="cell"><div class="k">DEF</div><div class="v">1,612</div></div>
+              <div class="cell"><div class="k">SPD</div><div class="v p">94</div></div>
+            </div>
+
+            <div class="hc-foot">
+              <span>ASC</span>
+              <span class="ascend">
+                <span class="s on"></span><span class="s on"></span>
+                <span class="s on"></span><span class="s"></span><span class="s"></span>
+              </span>
+              <span>SHARDS · 14/30</span>
+            </div>
+          </div>
+        </div>
+        <div class="slot-cap" style="--frame:#ffd700;">
+          <b>polished menace.</b> Flat gold structure — no glow, no gradient, single highlight tick on the corners.
+          Crimson is reserved: HP fill, alert tag <em>ASSET</em>, tier <em>RAID-0</em>. Faction label reads as
+          a corporate inventory line, not a casino badge.
+        </div>
+      </div>
+
+      <!-- ====== EXILE ====== -->
+      <div class="slot">
+        <div class="slot-head">
+          <span>03 · exile</span>
+          <span class="id" style="--frame:#9b30ff;">#9b30ff · #3a3f4d</span>
+        </div>
+        <div class="slot-stage" style="--frame:#9b30ff;">
+          <span class="tbl"></span><span class="tbr"></span>
+
+          <div class="hero-card" data-faction="exile">
+            <span class="corner tl"></span><span class="corner tr"></span>
+            <span class="corner bl"></span><span class="corner br"></span>
+
+            <div class="hc-top">
+              <span class="faction"><span class="pip"></span>EXILE</span>
+              <span class="rar"><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+
+            <div class="hc-hp">
+              <span class="label">HP</span>
+              <span class="bar">
+                <span class="fill"></span>
+                <span class="seg" style="left:25%"></span>
+                <span class="seg" style="left:50%"></span>
+                <span class="seg" style="left:75%"></span>
+              </span>
+              <span class="val">7,420</span>
+            </div>
+
+            <div class="hc-portrait">
+              <span class="alert"><span class="dot"></span>DRIFT</span>
+              <svg class="glyph" viewBox="0 0 32 32">
+                <polygon points="16,3 28,10 28,22 16,29 4,22 4,10" fill="none" stroke-width="1.5"/>
+                <circle cx="16" cy="16" r="2.5"/>
+              </svg>
+              <div class="figure">
+                <svg viewBox="0 0 120 150" width="80%" height="92%">
+                  <ellipse class="ground" cx="60" cy="140" rx="42" ry="6"/>
+                  <g class="silhouette">
+                    <path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/>
+                    <path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/>
+                    <path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/>
+                    <path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/>
+                    <path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/>
+                  </g>
+                  <line class="glasses" x1="52" y1="70" x2="58" y2="70"/>
+                  <line class="glasses" x1="62" y1="70" x2="68" y2="70"/>
+                  <rect class="slogan" x="48" y="86" width="24" height="3"/>
+                  <rect class="terminal" x="48" y="92" width="24" height="6"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="hc-name">
+              <span>J4N3T-L2</span>
+              <span class="lvl">LV 47</span>
+            </div>
+            <div class="hc-handle">tier · <b>RAID-0</b> &nbsp;·&nbsp; class · helpdesk-MAGE</div>
+
+            <div class="hc-stats">
+              <div class="cell"><div class="k">ATK</div><div class="v c">2,840</div></div>
+              <div class="cell"><div class="k">DEF</div><div class="v">1,612</div></div>
+              <div class="cell"><div class="k">SPD</div><div class="v p">94</div></div>
+            </div>
+
+            <div class="hc-foot">
+              <span>ASC</span>
+              <span class="ascend">
+                <span class="s on"></span><span class="s on"></span>
+                <span class="s on"></span><span class="s"></span><span class="s"></span>
+              </span>
+              <span>SHARDS · 14/30</span>
+            </div>
+          </div>
+        </div>
+        <div class="slot-cap" style="--frame:#9b30ff;">
+          <b>unaligned drift.</b> Purple stroke @ 45% alpha vs. 55% on the other two — reads as “hasn't committed.”
+          Undertint is cool grey, not purple — keeps the card from feeling factional.
+          Dim cyan telemetry (LV 47) is the only saturated mark; <em>DRIFT</em> tag instead of READY/ASSET.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= HONEST ASSESSMENT ================= -->
+    <div class="assess">
+      <span class="tbl"></span><span class="tbr"></span>
+      <h3>// does the system hold up?</h3>
+
+      <div class="assess-grid">
+        <div class="assess-col">
+          <h4>RESISTANCE <span class="verdict v-hold">HOLDS</span></h4>
+          <p>Cyan does the most work — frame, HP fill, glow, telemetry all stack on one hue. Risk is monotony, not failure.
+            The void-purple <b>RAID-0</b> in the handle is the only non-cyan saturated mark and earns its place.</p>
+          <p class="note">// no rebalance needed</p>
+        </div>
+
+        <div class="assess-col">
+          <h4>CORP_GREED <span class="verdict v-watch">WATCH</span></h4>
+          <p>Polished menace works <b>because</b> gold is flat. The moment you add a glow it slides into casino-loot.
+            Crimson is small but loud (HP, alert, tier) — that's the whole point. The faction label "CORP_GREED" reads as
+            inventory tagging, not branding.</p>
+          <p class="note">// risk: gold rarity stars (top-right) now blend into the gold frame — they read as decoration.
+            Either swap rarity to <span style="color:#c8102e">crimson prisms</span> on this faction only, or replace stars with a numeric "5★" mono tag.</p>
+        </div>
+
+        <div class="assess-col">
+          <h4>EXILE <span class="verdict v-rebal">REBALANCE</span></h4>
+          <p>The "hasn't picked a side" intent reads — but exile is the rarity card the player <b>sees first</b> at low levels.
+            At 45% stroke alpha + grey undertint the card looks like a disabled state next to the other two. The hero stops feeling
+            cool and starts feeling locked.</p>
+          <p class="note">// fix: push exile purple to 60% stroke alpha (still under Resistance) and add a single warm
+            anchor — keep the gold rarity stars, but maybe one gold stitch on the ASC track. Currently zero warm pixels on this card,
+            and the eye reads that as broken.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <div>hero-proto · faction sheet · v0.1</div>
+      <div>spec lock · <b>card geometry · grid · type</b> · variables only swap</div>
+    </footer>
+
+  </div>
+</body>
+</html>
