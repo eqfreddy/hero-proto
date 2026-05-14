@@ -132,8 +132,8 @@ export function LobbyRoute() {
                 className="deploy"
                 role="button"
                 tabIndex={0}
-                onClick={() => navigate('/battle/setup')}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/battle/setup') }}
+                onClick={() => navigate('/app/battle-v2')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/app/battle-v2') }}
               >
                 DEPLOY
               </div>
