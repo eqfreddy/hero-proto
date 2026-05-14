@@ -39,12 +39,12 @@ const qc = new QueryClient({
 })
 
 const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/app/me" replace /> },
+  { path: '/', element: <Navigate to="/app/lobby" replace /> },
   {
     path: '/app',
     element: <Shell />,
     children: [
-      { index: true, element: <Navigate to="/app/me" replace /> },
+      { index: true, element: <Navigate to="/app/lobby" replace /> },
       { path: 'login', element: <Login /> },
       { path: 'me', element: <MeRoute /> },
       { path: 'lobby', element: <LobbyRoute /> },

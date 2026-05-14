@@ -14,7 +14,7 @@ type Tab = { path: string; label: string; icon: string }
 
 const NAV_GROUPS: { label: string; tabs: Tab[] }[] = [
   { label: '', tabs: [
-    { path: '/app/me', label: 'Home', icon: '🏠' },
+    { path: '/app/lobby', label: 'Home', icon: '🏠' },
   ]},
   { label: 'Heroes', tabs: [
     { path: '/app/roster',    label: 'Roster',    icon: '🦸' },
@@ -128,7 +128,7 @@ export function NavBar() {
       }}>
         {/* Top bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px' }}>
-          <button onClick={() => navigate('/app/me')} className="brand-btn" aria-label="hero-proto home">
+          <button onClick={() => navigate('/app/lobby')} className="brand-btn" aria-label="hero-proto home">
             <span className="brand-mark">H</span>
             <span className="brand-text">hero-proto</span>
           </button>

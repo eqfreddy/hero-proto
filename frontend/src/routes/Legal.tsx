@@ -6,7 +6,7 @@ const PageWrap = ({ children }: { children: React.ReactNode }) => (
     <div style={{ marginTop: 20, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
       Questions? <a href="mailto:privacy@hero-proto.local" style={{ color: 'var(--accent)' }}>privacy@hero-proto.local</a>
       <div style={{ marginTop: 8 }}>
-        <Link to="/app/me" style={{ color: 'var(--muted)' }}>← Back to game</Link>
+        <Link to="/app/lobby" style={{ color: 'var(--muted)' }}>← Back to game</Link>
       </div>
     </div>
   </div>

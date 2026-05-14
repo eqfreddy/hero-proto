@@ -23,7 +23,7 @@ export function Login() {
   const setJwt = useAuthStore((s) => s.setJwt)
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/app/me'
+  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/app/lobby'
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
