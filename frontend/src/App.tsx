@@ -6,6 +6,7 @@ import { Login } from './routes/Login'
 import { MeRoute } from './routes/Me'
 import { LobbyRoute } from './routes/Lobby'
 import { SummonV2Route } from './routes/SummonV2'
+import { SummonV2ResultsRoute } from './routes/SummonV2Results'
 import { RosterRoute } from './routes/Roster'
 import { HeroDetailRoute } from './routes/Roster/HeroDetail'
 import { StagesRoute } from './routes/Stages'
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
       { path: 'me', element: <MeRoute /> },
       { path: 'lobby', element: <LobbyRoute /> },
       { path: 'summon-v2', element: <SummonV2Route /> },
+      { path: 'summon-v2/results', element: <SummonV2ResultsRoute /> },
       { path: 'roster', children: [
         { index: true, element: <RosterRoute /> },
         { path: ':heroId', element: <HeroDetailRoute /> },

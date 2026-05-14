@@ -56,13 +56,9 @@ export function SummonV2Route() {
     try {
       const res = await pullStandard(count)
       setLastPull(res.heroes)
-      const order = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTH']
-      const best = res.heroes.reduce((a, b) =>
-        order.indexOf(b.template.rarity) > order.indexOf(a.template.rarity) ? b : a,
-      )
-      toast.success(`${best.template.rarity} · ${best.template.name}`)
       qc.invalidateQueries({ queryKey: ['me'] })
       qc.invalidateQueries({ queryKey: ['heroes'] })
+      navigate('/app/summon-v2/results', { state: { heroes: res.heroes, pullCount: count } })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'pull failed')
     } finally {
