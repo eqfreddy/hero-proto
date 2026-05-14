@@ -23,8 +23,7 @@
   --lb-display: "Space Grotesk", system-ui, sans-serif;
   --lb-mono:    "JetBrains Mono", ui-monospace, monospace;
 
-  /* negate Shell padding so we render full-bleed */
-  margin: -18px;
+  /* Shell sets padding:0 on v2 routes, so render edge-to-edge */
   min-height: calc(100vh - 100px);
   background:
     radial-gradient(900px 600px at 12% -10%, rgba(155,48,255,0.10), transparent 60%),

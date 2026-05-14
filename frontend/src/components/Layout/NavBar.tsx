@@ -46,7 +46,7 @@ const NAV_GROUPS: { label: string; tabs: Tab[] }[] = [
   ]},
 ]
 
-export function NavBar() {
+export function NavBar({ compact = false }: { compact?: boolean } = {}) {
   const jwt = useAuthStore((s) => s.jwt)
   const clearJwt = useAuthStore((s) => s.clearJwt)
   const qc = useQueryClient()
@@ -152,8 +152,8 @@ export function NavBar() {
           </div>
         </div>
 
-        {/* Tab strip — desktop only */}
-        <nav className="nav-strip" aria-label="Primary">
+        {/* Tab strip — desktop only, hidden in compact mode */}
+        {!compact && <nav className="nav-strip" aria-label="Primary">
           {NAV_GROUPS.map(({ tabs }, gi) => (
             <span key={gi} style={{ display: 'contents' }}>
               {gi > 0 && <span className="nav-divider" aria-hidden="true" />}
@@ -178,7 +178,7 @@ export function NavBar() {
               <span className="nav-tab-dot" aria-hidden="true" style={{ background: 'var(--warn)' }} />
             </NavLink>
           )}
-        </nav>
+        </nav>}
       </header>
 
       {/* Mobile drawer */}
