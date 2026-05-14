@@ -1,7 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Hero } from '../types'
 import { useMe } from '../hooks/useMe'
+import { pullStandard } from '../api/summon'
+import { toast } from '../store/ui'
 import './Lobby.css'
 import './SummonV2Results.css'
 
@@ -31,11 +34,34 @@ interface ResultsState {
 export function SummonV2ResultsRoute() {
   const location = useLocation()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { data: me } = useMe()
   const state = location.state as ResultsState | null
   const heroes = state?.heroes ?? []
   const pullCount = state?.pullCount ?? heroes.length
   const faction = me?.faction ?? 'EXILE'
+  const [repulling, setRepulling] = useState(false)
+
+  const repullCost = pullCount === 10 ? 10 : 1
+  const canRepull = !repulling && (me?.shards ?? 0) >= repullCost
+
+  async function repull() {
+    if (!canRepull) return
+    setRepulling(true)
+    try {
+      const count = (pullCount === 10 ? 10 : 1) as 1 | 10
+      const res = await pullStandard(count)
+      qc.invalidateQueries({ queryKey: ['me'] })
+      qc.invalidateQueries({ queryKey: ['heroes'] })
+      navigate('/app/summon/results', {
+        replace: true,
+        state: { heroes: res.heroes, pullCount: count },
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'pull failed')
+      setRepulling(false)
+    }
+  }
 
   const headliner = useMemo(() => {
     if (!heroes.length) return null
@@ -162,9 +188,10 @@ export function SummonV2ResultsRoute() {
         <button
           type="button"
           className="primary"
-          onClick={() => navigate('/app/summon', { state: { repeat: pullCount } })}
+          disabled={!canRepull}
+          onClick={repull}
         >
-          {pullCount === 10 ? 'SUMMON ×10' : 'AGAIN'}
+          {repulling ? '…' : (pullCount === 10 ? `SUMMON ×10 (${repullCost} ✦)` : `AGAIN (${repullCost} ✦)`)}
         </button>
       </div>
 
