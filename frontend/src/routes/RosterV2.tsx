@@ -6,7 +6,7 @@ import type { Hero } from '../types'
 import './Lobby.css'
 import './RosterV2.css'
 
-type FilterKey = 'ALL' | 'RESISTANCE' | 'CORP_GREED' | 'EXILE' | 'NEUTRAL' | 'EPIC_PLUS'
+type FilterKey = 'ALL' | 'EPIC_PLUS' | string
 type SortKey = 'POWER' | 'LEVEL' | 'RARITY' | 'RECENT'
 
 const RARITY_TIER: Record<string, string> = {
@@ -32,6 +32,20 @@ const NEXT_SORT: Record<SortKey, SortKey> = {
   RECENT: 'POWER',
 }
 
+function shortFactionLabel(f: string): string {
+  const map: Record<string, string> = {
+    RESISTANCE: 'RES',
+    CORP_GREED: 'CORP',
+    EXILE: 'EXILE',
+    NEUTRAL: 'NEUT',
+    LEGACY: 'LEG',
+    HELPDESK: 'HELP',
+    SHADOW_IT: 'SHADOW',
+    GREYHAT: 'GREY',
+  }
+  return map[f] ?? f.slice(0, 6).toUpperCase()
+}
+
 export function RosterV2Route() {
   const navigate = useNavigate()
   const { data: me } = useMe()
@@ -43,16 +57,23 @@ export function RosterV2Route() {
   const playerFaction = me?.faction ?? 'EXILE'
 
   const factionCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: 0, RESISTANCE: 0, CORP_GREED: 0, EXILE: 0, NEUTRAL: 0, EPIC_PLUS: 0 }
+    const counts: Record<string, number> = { ALL: 0, EPIC_PLUS: 0 }
     if (!heroes) return counts
     for (const h of heroes) {
       counts.ALL++
       const f = (h.template.faction ?? 'NEUTRAL') as string
-      if (counts[f] != null) counts[f]++
+      counts[f] = (counts[f] ?? 0) + 1
       if (['EPIC', 'LEGENDARY', 'MYTH'].includes(h.template.rarity)) counts.EPIC_PLUS++
     }
     return counts
   }, [heroes])
+
+  const dynamicFactions = useMemo(() => {
+    if (!heroes) return [] as string[]
+    const seen = new Set<string>()
+    for (const h of heroes) seen.add((h.template.faction ?? 'NEUTRAL') as string)
+    return Array.from(seen).sort((a, b) => (factionCounts[b] ?? 0) - (factionCounts[a] ?? 0))
+  }, [heroes, factionCounts])
 
   const filtered = useMemo(() => {
     if (!heroes) return []
@@ -79,9 +100,7 @@ export function RosterV2Route() {
 
   const factionChips: Array<{ key: FilterKey; label: string; data?: string }> = [
     { key: 'ALL', label: 'ALL' },
-    { key: 'RESISTANCE', label: 'RES', data: 'RESISTANCE' },
-    { key: 'CORP_GREED', label: 'CORP', data: 'CORP_GREED' },
-    { key: 'EXILE', label: 'EXILE', data: 'EXILE' },
+    ...dynamicFactions.map((f) => ({ key: f, label: shortFactionLabel(f), data: f })),
     { key: 'EPIC_PLUS', label: 'EPIC+' },
   ]
 
