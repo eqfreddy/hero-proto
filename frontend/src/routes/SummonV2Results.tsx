@@ -77,7 +77,7 @@ export function SummonV2ResultsRoute() {
           <button type="button" className="item" onClick={() => navigate('/app/lobby')}>
             <span className="ico">H</span>HOME
           </button>
-          <button type="button" className="item" onClick={() => navigate('/app/roster')}>
+          <button type="button" className="item" onClick={() => navigate('/app/roster-v2')}>
             <span className="ico">R</span>ROSTER
           </button>
           <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>
@@ -158,7 +158,7 @@ export function SummonV2ResultsRoute() {
       </div>
 
       <div className="res-cta">
-        <button type="button" onClick={() => navigate('/app/roster')}>VIEW ROSTER</button>
+        <button type="button" onClick={() => navigate('/app/roster-v2')}>VIEW ROSTER</button>
         <button
           type="button"
           className="primary"
@@ -172,7 +172,7 @@ export function SummonV2ResultsRoute() {
         <button type="button" className="item" onClick={() => navigate('/app/lobby')}>
           <span className="ico">H</span>HOME
         </button>
-        <button type="button" className="item" onClick={() => navigate('/app/roster')}>
+        <button type="button" className="item" onClick={() => navigate('/app/roster-v2')}>
           <span className="ico">R</span>ROSTER
         </button>
         <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>
