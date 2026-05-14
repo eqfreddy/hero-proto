@@ -123,10 +123,10 @@ export function LobbyRoute() {
                 {RARITY_TIER[featured.template.rarity] ?? featured.template.rarity} · {featured.template.role}-{featured.template.attack_kind}
               </span>
               <div className="stats">
-                <span className="k">ATK</span><span className="v c">{featured.atk.toLocaleString()}</span>
-                <span className="k">DEF</span><span className="v">{featured.def_.toLocaleString()}</span>
-                <span className="k">SPD</span><span className="v p">{featured.spd}</span>
-                <span className="k">HP</span><span className="v">{featured.hp.toLocaleString()}</span>
+                <span className="k">ATK</span><span className="v c">{(featured.atk ?? 0).toLocaleString()}</span>
+                <span className="k">DEF</span><span className="v">{(featured.def_ ?? (featured as unknown as { def?: number }).def ?? 0).toLocaleString()}</span>
+                <span className="k">SPD</span><span className="v p">{featured.spd ?? 0}</span>
+                <span className="k">HP</span><span className="v">{(featured.hp ?? 0).toLocaleString()}</span>
               </div>
               <div
                 className="deploy"
