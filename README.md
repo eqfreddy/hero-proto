@@ -17,6 +17,22 @@ Full operator docs: **[`docs/RUNBOOK.md`](docs/RUNBOOK.md)**.
 
 ---
 
+## v2 mobile-first surfaces
+
+5-screen flow shipped 2026-05-14. Mobile-first phone-app shell — slim top bar with hamburger drawer for secondary nav, faction-tinted accents, corner-tick + scanline chrome throughout. Captured at iPhone 14 (390×844) against live prod.
+
+| Lobby | Summon · standard | Summon · friend |
+|---|---|---|
+| ![Lobby](docs/screenshots/v2/v2-01-lobby.png) | ![Summon standard](docs/screenshots/v2/v2-02-summon-std.png) | ![Summon friend](docs/screenshots/v2/v2-03-summon-friend.png) |
+
+| Results | Roster | Battle loadout |
+|---|---|---|
+| ![Results](docs/screenshots/v2/v2-04-results-empty.png) | ![Roster](docs/screenshots/v2/v2-05-roster.png) | ![Battle](docs/screenshots/v2/v2-06-battle.png) |
+
+Routes: `/app/lobby` (default landing) · `/app/summon` (+ `/summon/results`, friend-banner tab) · `/app/roster` · `/app/battle-v2`. Legacy surfaces preserved at `/app/me`, `/app/summon/legacy`, `/app/roster/legacy`, `/app/stages`.
+
+---
+
 ## Feature surface
 
 Every endpoint below is covered by either unit tests or an end-to-end smoke script; most by both.
