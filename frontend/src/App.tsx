@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Shell } from './components/Layout/Shell'
 import { Login } from './routes/Login'
 import { MeRoute } from './routes/Me'
+import { LobbyRoute } from './routes/Lobby'
 import { RosterRoute } from './routes/Roster'
 import { HeroDetailRoute } from './routes/Roster/HeroDetail'
 import { StagesRoute } from './routes/Stages'
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/app/me" replace /> },
       { path: 'login', element: <Login /> },
       { path: 'me', element: <MeRoute /> },
+      { path: 'lobby', element: <LobbyRoute /> },
       { path: 'roster', children: [
         { index: true, element: <RosterRoute /> },
         { path: ':heroId', element: <HeroDetailRoute /> },
