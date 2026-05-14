@@ -223,7 +223,7 @@ export function LobbyRoute() {
         <button type="button" className="item" onClick={() => navigate('/app/roster')}>
           <span className="ico">R</span>ROSTER
         </button>
-        <button type="button" className="item" onClick={() => navigate('/app/summon')}>
+        <button type="button" className="item" onClick={() => navigate('/app/summon-v2')}>
           <span className="ico summon">S</span>SUMMON
         </button>
         <button type="button" className="item" onClick={() => navigate('/app/stages')}>
