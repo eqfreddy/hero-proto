@@ -83,7 +83,7 @@ export function SummonV2ResultsRoute() {
           <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>
             <span className="ico summon">S</span>SUMMON
           </button>
-          <button type="button" className="item" onClick={() => navigate('/app/stages')}>
+          <button type="button" className="item" onClick={() => navigate('/app/battle-v2')}>
             <span className="ico">B</span>BATTLE
           </button>
           <button type="button" className="item" onClick={() => navigate('/app/shop')}>
@@ -178,7 +178,7 @@ export function SummonV2ResultsRoute() {
         <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>
           <span className="ico summon">S</span>SUMMON
         </button>
-        <button type="button" className="item" onClick={() => navigate('/app/stages')}>
+        <button type="button" className="item" onClick={() => navigate('/app/battle-v2')}>
           <span className="ico">B</span>BATTLE
         </button>
         <button type="button" className="item" onClick={() => navigate('/app/shop')}>
