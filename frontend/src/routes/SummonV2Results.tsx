@@ -71,13 +71,13 @@ export function SummonV2ResultsRoute() {
         <div className="res-empty">
           NO PULL DATA IN SESSION
           <br />
-          <Link className="link" to="/app/summon-v2">‹ BACK TO SUMMON</Link>
+          <Link className="link" to="/app/summon">‹ BACK TO SUMMON</Link>
         </div>
         <nav className="lobby-bnav">
           <button type="button" className="item" onClick={() => navigate('/app/lobby')}>
             <span className="ico">H</span>HOME
           </button>
-          <button type="button" className="item" onClick={() => navigate('/app/roster-v2')}>
+          <button type="button" className="item" onClick={() => navigate('/app/roster')}>
             <span className="ico">R</span>ROSTER
           </button>
           <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>
@@ -158,11 +158,11 @@ export function SummonV2ResultsRoute() {
       </div>
 
       <div className="res-cta">
-        <button type="button" onClick={() => navigate('/app/roster-v2')}>VIEW ROSTER</button>
+        <button type="button" onClick={() => navigate('/app/roster')}>VIEW ROSTER</button>
         <button
           type="button"
           className="primary"
-          onClick={() => navigate('/app/summon-v2', { state: { repeat: pullCount } })}
+          onClick={() => navigate('/app/summon', { state: { repeat: pullCount } })}
         >
           {pullCount === 10 ? 'SUMMON ×10' : 'AGAIN'}
         </button>
@@ -172,7 +172,7 @@ export function SummonV2ResultsRoute() {
         <button type="button" className="item" onClick={() => navigate('/app/lobby')}>
           <span className="ico">H</span>HOME
         </button>
-        <button type="button" className="item" onClick={() => navigate('/app/roster-v2')}>
+        <button type="button" className="item" onClick={() => navigate('/app/roster')}>
           <span className="ico">R</span>ROSTER
         </button>
         <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>

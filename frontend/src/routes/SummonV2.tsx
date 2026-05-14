@@ -58,7 +58,7 @@ export function SummonV2Route() {
       setLastPull(res.heroes)
       qc.invalidateQueries({ queryKey: ['me'] })
       qc.invalidateQueries({ queryKey: ['heroes'] })
-      navigate('/app/summon-v2/results', { state: { heroes: res.heroes, pullCount: count } })
+      navigate('/app/summon/results', { state: { heroes: res.heroes, pullCount: count } })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'pull failed')
     } finally {
@@ -176,7 +176,7 @@ export function SummonV2Route() {
         <button type="button" className="item" onClick={() => navigate('/app/lobby')}>
           <span className="ico">H</span>HOME
         </button>
-        <button type="button" className="item" onClick={() => navigate('/app/roster-v2')}>
+        <button type="button" className="item" onClick={() => navigate('/app/roster')}>
           <span className="ico">R</span>ROSTER
         </button>
         <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>

@@ -195,7 +195,7 @@ export function RosterV2Route() {
         <button type="button" className="item on">
           <span className="ico">R</span>ROSTER
         </button>
-        <button type="button" className="item" onClick={() => navigate('/app/summon-v2')}>
+        <button type="button" className="item" onClick={() => navigate('/app/summon')}>
           <span className="ico summon">S</span>SUMMON
         </button>
         <button type="button" className="item" onClick={() => navigate('/app/battle-v2')}>

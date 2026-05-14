@@ -66,14 +66,14 @@ export function BattleV2Route() {
             ? 'NO HEROES IN ROSTER'
             : 'NO STAGE UNLOCKED'}
           <br />
-          <span className="link" onClick={() => navigate(team.length === 0 ? '/app/summon-v2' : '/app/lobby')}>
+          <span className="link" onClick={() => navigate(team.length === 0 ? '/app/summon' : '/app/lobby')}>
             ‹ {team.length === 0 ? 'GO TO SUMMON' : 'BACK TO LOBBY'}
           </span>
         </div>
         <nav className="lobby-bnav">
           <button type="button" className="item" onClick={() => navigate('/app/lobby')}><span className="ico">H</span>HOME</button>
-          <button type="button" className="item" onClick={() => navigate('/app/roster-v2')}><span className="ico">R</span>ROSTER</button>
-          <button type="button" className="item" onClick={() => navigate('/app/summon-v2')}><span className="ico summon">S</span>SUMMON</button>
+          <button type="button" className="item" onClick={() => navigate('/app/roster')}><span className="ico">R</span>ROSTER</button>
+          <button type="button" className="item" onClick={() => navigate('/app/summon')}><span className="ico summon">S</span>SUMMON</button>
           <button type="button" className="item on"><span className="ico">B</span>BATTLE</button>
           <button type="button" className="item" onClick={() => navigate('/app/shop')}><span className="ico">$</span>SHOP</button>
         </nav>
@@ -200,8 +200,8 @@ export function BattleV2Route() {
 
       <nav className="lobby-bnav">
         <button type="button" className="item" onClick={() => navigate('/app/lobby')}><span className="ico">H</span>HOME</button>
-        <button type="button" className="item" onClick={() => navigate('/app/roster-v2')}><span className="ico">R</span>ROSTER</button>
-        <button type="button" className="item" onClick={() => navigate('/app/summon-v2')}><span className="ico summon">S</span>SUMMON</button>
+        <button type="button" className="item" onClick={() => navigate('/app/roster')}><span className="ico">R</span>ROSTER</button>
+        <button type="button" className="item" onClick={() => navigate('/app/summon')}><span className="ico summon">S</span>SUMMON</button>
         <button type="button" className="item on"><span className="ico">B</span>BATTLE</button>
         <button type="button" className="item" onClick={() => navigate('/app/shop')}><span className="ico">$</span>SHOP</button>
       </nav>
