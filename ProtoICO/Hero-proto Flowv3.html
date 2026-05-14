@@ -1,0 +1,1966 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>hero-proto · 5-screen flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #04060c;
+    --bg-2:      #070a14;
+    --ink:       #c9d2e3;
+    --ink-2:     #e8efff;
+    --ink-dim:   #6b7894;
+    --ink-faint: #2d3548;
+    --cyan:      #00ffe0;
+    --purple:    #9b30ff;
+    --gold:      #ffd700;
+    --crimson:   #c8102e;
+
+    --display: "Space Grotesk", system-ui, sans-serif;
+    --mono:    "JetBrains Mono", ui-monospace, monospace;
+
+    --phone-w: 340px;
+    --phone-h: 720px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--display);
+    background:
+      radial-gradient(900px 600px at 12% -10%, rgba(155,48,255,0.10), transparent 60%),
+      radial-gradient(900px 700px at 90% 110%, rgba(0,255,224,0.06), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: auto;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0 1px,
+      transparent 1px 3px);
+    mix-blend-mode: overlay;
+    opacity: 0.6;
+    z-index: 9999;
+  }
+
+  /* ---- header ---- */
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(4,6,12,0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--ink-faint);
+    padding: 18px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 24px;
+  }
+  .top h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .top h1 .slash { color: var(--cyan); }
+  .top h1 .tag {
+    color: var(--ink-dim); font-weight: 400; font-size: 14px;
+    letter-spacing: 0;
+  }
+  .top .legend {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    display: flex; gap: 18px;
+  }
+  .top .legend b { color: var(--cyan); font-weight: 500; }
+  .top .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .top .legend .sw { width: 10px; height: 10px; }
+
+  /* ---- flow strip ---- */
+  .flow {
+    display: flex;
+    align-items: flex-start;
+    padding: 48px 40px 80px;
+    gap: 0;
+    min-width: max-content;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .col-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .col-label .num {
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+    padding: 2px 6px;
+    font-weight: 500;
+  }
+  .col-label .name { color: var(--ink-2); font-weight: 500; }
+
+  /* ---- phone frame ---- */
+  .phone {
+    width: var(--phone-w);
+    height: var(--phone-h);
+    background: #02040a;
+    border: 1px solid #1a1f2e;
+    border-radius: 38px;
+    padding: 6px;
+    position: relative;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.6),
+      0 30px 60px rgba(0,0,0,0.6),
+      inset 0 0 20px rgba(0,0,0,0.7);
+    flex-shrink: 0;
+  }
+  .phone .screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 32px;
+    background: #04060c;
+    overflow: hidden;
+    position: relative;
+  }
+  /* notch */
+  .phone .screen::before {
+    content: "";
+    position: absolute;
+    top: 8px; left: 50%; transform: translateX(-50%);
+    width: 100px; height: 24px;
+    background: #02040a;
+    border-radius: 14px;
+    z-index: 30;
+  }
+  /* scanlines per screen */
+  .phone .screen::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0 1px,
+      transparent 1px 3px);
+    pointer-events: none;
+    z-index: 25;
+  }
+
+  /* status bar */
+  .sbar {
+    position: relative;
+    height: 36px;
+    padding: 12px 26px 0;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink);
+    z-index: 20;
+    letter-spacing: 0.04em;
+  }
+  .sbar .right { display: inline-flex; gap: 6px; align-items: center; }
+  .sbar .right svg { display: block; }
+
+  /* home indicator */
+  .home-i {
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 110px; height: 4px;
+    background: var(--ink);
+    border-radius: 4px;
+    opacity: 0.6;
+    z-index: 26;
+  }
+
+  /* app surface */
+  .app {
+    position: absolute;
+    top: 36px;
+    left: 0; right: 0; bottom: 24px;
+    padding: 6px 14px 0;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  /* shared ui chrome */
+  .corner-ticks {
+    position: relative;
+  }
+  .corner-ticks::before, .corner-ticks::after,
+  .corner-ticks > .tbl, .corner-ticks > .tbr {
+    content: "";
+    position: absolute;
+    width: 7px; height: 7px;
+    border: 1px solid var(--cyan);
+    pointer-events: none;
+  }
+  .corner-ticks::before { top: -1px; left: -1px;  border-right: 0; border-bottom: 0; }
+  .corner-ticks::after  { top: -1px; right: -1px; border-left: 0;  border-bottom: 0; }
+  .corner-ticks > .tbl { bottom: -1px; left: -1px;  border-right: 0; border-top: 0; }
+  .corner-ticks > .tbr { bottom: -1px; right: -1px; border-left: 0;  border-top: 0; }
+
+  /* ----------- BOTTOM NAV (reused) ----------- */
+  .bnav {
+    flex-shrink: 0;
+    margin: auto -14px 0;
+    padding: 10px 8px 4px;
+    border-top: 1px solid var(--ink-faint);
+    background: linear-gradient(180deg, rgba(0,255,224,0.04), rgba(0,0,0,0));
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.2em;
+  }
+  .bnav .item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--ink-dim);
+    padding: 4px 0;
+  }
+  .bnav .item .ico {
+    width: 18px; height: 18px;
+    border: 1.5px solid currentColor;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-family: var(--display); font-weight: 600;
+  }
+  .bnav .item.on { color: var(--cyan); }
+
+  /* common card chrome */
+  .panel {
+    position: relative;
+    background: linear-gradient(180deg, rgba(7,10,20,0.85), rgba(4,6,12,0.85));
+    border: 1px solid var(--ink-faint);
+    padding: 10px 12px;
+  }
+  .panel-head {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel-head b { color: var(--cyan); font-weight: 500; }
+
+  /* generic mono pill */
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border: 1px solid var(--ink-faint);
+    background: rgba(0,0,0,0.4);
+    color: var(--ink);
+  }
+  .pill .ic { width: 8px; height: 8px; }
+  .pill.gold   { border-color: var(--gold);   color: var(--gold); }
+  .pill.cyan   { border-color: var(--cyan);   color: var(--cyan); }
+  .pill.purple { border-color: var(--purple); color: var(--purple); }
+  .pill.crimson{ border-color: var(--crimson);color: var(--crimson); }
+
+  /* ============================================================
+     01 — LOBBY
+     ============================================================ */
+  .lobby-hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 2px 10px;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .lobby-hdr .player {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+  .lobby-hdr .player .badge {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lobby-hdr .player .who { display: flex; flex-direction: column; gap: 1px; }
+  .lobby-hdr .player .who .name { color: var(--ink-2); font-weight: 500; }
+  .lobby-hdr .player .who .fac { color: var(--cyan); font-size: 8px; letter-spacing: 0.18em; }
+  .lobby-hdr .curr {
+    display: inline-flex; gap: 6px;
+  }
+  .lobby-hdr .curr .c {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink);
+  }
+  .lobby-hdr .curr .c .dot {
+    width: 7px; height: 7px;
+  }
+  .lobby-hdr .curr .c .dot.g { background: var(--gold); box-shadow: 0 0 4px var(--gold); }
+  .lobby-hdr .curr .c .dot.p { background: var(--purple); box-shadow: 0 0 4px var(--purple); }
+  .lobby-hdr .curr .c .dot.c { background: var(--cyan); box-shadow: 0 0 4px var(--cyan); }
+
+  .lobby-news {
+    margin-top: 10px;
+    padding: 7px 10px;
+    border: 1px solid rgba(200,16,46,0.45);
+    background: linear-gradient(90deg, rgba(200,16,46,0.10), rgba(0,0,0,0));
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    color: var(--ink-2);
+  }
+  .lobby-news .dot {
+    width: 6px; height: 6px;
+    background: var(--crimson);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--crimson);
+    animation: pulse 1.4s infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+  }
+  .lobby-news .label { color: var(--crimson); font-weight: 500; }
+  .lobby-news .time { color: var(--ink-dim); margin-left: auto; }
+
+  .lobby-hero {
+    margin-top: 10px;
+    flex-shrink: 0;
+    height: 220px;
+    border: 1px solid rgba(0,255,224,0.45);
+    background:
+      radial-gradient(120% 90% at 50% 110%, rgba(0,255,224,0.16), transparent 60%),
+      linear-gradient(180deg, #06101a 0%, #040810 100%);
+    box-shadow:
+      0 0 16px rgba(0,255,224,0.18),
+      inset 0 0 32px rgba(0,255,224,0.04);
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 12px;
+  }
+  .lobby-hero .lh-portrait {
+    position: relative;
+    background:
+      repeating-linear-gradient(135deg,
+        rgba(0,255,224,0.05) 0 2px,
+        transparent 2px 10px),
+      linear-gradient(180deg, #0a1620 0%, #050a14 100%);
+    border: 1px solid rgba(0,255,224,0.3);
+  }
+  .lobby-hero .lh-portrait::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.05) 0 1px,
+      transparent 1px 4px);
+    pointer-events: none;
+  }
+  .lobby-hero .lh-portrait .fig {
+    position: absolute; inset: 6px;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .lobby-hero .lh-info {
+    display: flex; flex-direction: column;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.06em;
+  }
+  .lobby-hero .lh-info .name {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--ink-2);
+    letter-spacing: -0.005em;
+  }
+  .lobby-hero .lh-info .tier {
+    margin-top: 2px;
+    color: var(--cyan);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+  }
+  .lobby-hero .lh-info .stats {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 8px;
+    font-size: 10px;
+  }
+  .lobby-hero .lh-info .stats .k { color: var(--ink-dim); }
+  .lobby-hero .lh-info .stats .v { color: var(--ink-2); text-align: right; }
+  .lobby-hero .lh-info .stats .v.c { color: var(--cyan); }
+  .lobby-hero .lh-info .stats .v.p { color: var(--purple); }
+  .lobby-hero .lh-info .deploy {
+    margin-top: auto;
+    padding: 9px 0;
+    text-align: center;
+    background: linear-gradient(180deg, #00ffe0, #00b8a4);
+    color: #04060c;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    border: 1px solid #00ffe0;
+    clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px), 0 0);
+    box-shadow: 0 0 14px rgba(0,255,224,0.45);
+  }
+
+  .lobby-tasks {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--ink-faint);
+    background: rgba(255,255,255,0.012);
+  }
+  .lobby-tasks .h {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.2em;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .lobby-tasks .h b { color: var(--cyan); font-weight: 500; }
+  .lobby-tasks .row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0;
+    border-top: 1px dashed var(--ink-faint);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+  .lobby-tasks .row .bar {
+    width: 60px; height: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--ink-faint);
+    position: relative;
+    overflow: hidden;
+  }
+  .lobby-tasks .row .bar i {
+    position: absolute; inset: 0;
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+  }
+  .lobby-tasks .row .reward { color: var(--gold); }
+
+  .lobby-map {
+    margin-top: 10px;
+    flex: 1;
+    border: 1px solid var(--ink-faint);
+    background: linear-gradient(180deg, rgba(7,10,20,0.6), rgba(4,6,12,0.6));
+    padding: 6px;
+    position: relative;
+    min-height: 60px;
+  }
+  .lobby-map svg { width: 100%; height: 100%; display: block; }
+  .lobby-map .label {
+    position: absolute;
+    top: 8px; left: 12px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--cyan);
+    letter-spacing: 0.18em;
+  }
+  .lobby-map .label .dim { color: var(--ink-dim); }
+
+  /* ============================================================
+     02 — SUMMON
+     ============================================================ */
+  .sum-hdr {
+    padding: 4px 2px 10px;
+    border-bottom: 1px solid var(--ink-faint);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--ink-dim);
+  }
+  .sum-hdr .back { color: var(--cyan); }
+  .sum-hdr .title { color: var(--ink-2); font-weight: 500; }
+  .sum-hdr .right .pill { font-size: 9px; padding: 2px 6px; }
+
+  .sum-banner {
+    margin-top: 12px;
+    aspect-ratio: 16/10;
+    border: 1px solid rgba(155,48,255,0.5);
+    background:
+      radial-gradient(120% 100% at 80% 30%, rgba(155,48,255,0.32), transparent 60%),
+      radial-gradient(80% 80% at 20% 90%, rgba(0,255,224,0.18), transparent 60%),
+      linear-gradient(180deg, #0a0a18 0%, #050510 100%);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(155,48,255,0.2);
+  }
+  .sum-banner .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(155,48,255,0.10) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(155,48,255,0.10) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.5;
+  }
+  .sum-banner .banner-art {
+    position: absolute; right: 14px; bottom: 0;
+    width: 160px; height: 100%;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .sum-banner .banner-title {
+    position: absolute;
+    top: 10px; left: 12px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--purple);
+    text-transform: uppercase;
+  }
+  .sum-banner .banner-name {
+    position: absolute;
+    bottom: 10px; left: 12px;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    color: var(--ink-2);
+    line-height: 1.05;
+  }
+  .sum-banner .banner-name .sub {
+    display: block;
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 9px;
+    color: var(--purple);
+    letter-spacing: 0.16em;
+    margin-top: 4px;
+  }
+  .sum-banner .corner-ticks::before,
+  .sum-banner .corner-ticks::after,
+  .sum-banner .corner-ticks > .tbl,
+  .sum-banner .corner-ticks > .tbr {
+    border-color: var(--purple);
+  }
+
+  .sum-pity {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--ink-faint);
+    background: rgba(255,255,255,0.012);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+  }
+  .sum-pity .row { display: flex; justify-content: space-between; align-items: center; }
+  .sum-pity .label { letter-spacing: 0.18em; }
+  .sum-pity .label b { color: var(--gold); font-weight: 500; }
+  .sum-pity .val { color: var(--gold); font-weight: 500; font-size: 12px; }
+  .sum-pity .val .max { color: var(--ink-dim); font-size: 10px; }
+  .sum-pity .bar {
+    margin-top: 7px;
+    height: 5px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--ink-faint);
+    position: relative;
+    overflow: hidden;
+  }
+  .sum-pity .bar .fill {
+    position: absolute; inset: 0 47.78% 0 0;
+    background: linear-gradient(90deg, var(--cyan), var(--gold));
+    box-shadow: 0 0 6px rgba(255,215,0,0.45);
+  }
+
+  .sum-cta {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 8px;
+  }
+  .sum-btn {
+    padding: 12px 10px;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border: 1px solid var(--cyan);
+    background: linear-gradient(180deg, rgba(0,255,224,0.08), rgba(0,0,0,0));
+    color: var(--cyan);
+    clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px), 0 0);
+    text-align: center;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+  .sum-btn .cost {
+    display: block;
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 9.5px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+  }
+  .sum-btn.lg {
+    background: linear-gradient(180deg, #00ffe0, #00b8a4);
+    color: #04060c;
+    box-shadow: 0 0 16px rgba(0,255,224,0.4);
+  }
+  .sum-btn.lg .cost { color: rgba(4,6,12,0.7); }
+  .sum-btn.lg .cost b { color: #04060c; font-weight: 700; }
+
+  .sum-rates {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border: 1px dashed var(--ink-faint);
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.1em;
+    line-height: 1.6;
+  }
+  .sum-rates .row { display: flex; justify-content: space-between; }
+  .sum-rates .r b { color: var(--ink-2); font-weight: 500; }
+  .sum-rates .m { color: var(--gold); }
+  .sum-rates .l { color: var(--purple); }
+
+  /* ============================================================
+     03 — RESULTS
+     ============================================================ */
+  .res-hdr {
+    padding: 4px 2px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .res-hdr .eyebrow {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.28em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .res-hdr .title {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--ink-2);
+    letter-spacing: -0.01em;
+    margin-top: 2px;
+  }
+  .res-hdr .title .accent { color: var(--gold); }
+
+  .res-hero {
+    margin-top: 10px;
+    height: 160px;
+    border: 1px solid var(--gold);
+    background:
+      radial-gradient(140% 110% at 50% 100%, rgba(255,215,0,0.22), transparent 60%),
+      radial-gradient(80% 80% at 50% 0%, rgba(200,16,46,0.18), transparent 60%),
+      linear-gradient(180deg, #0a0805 0%, #050402 100%);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 22px rgba(255,215,0,0.35);
+  }
+  .res-hero .pulse {
+    position: absolute; inset: -20px;
+    background: radial-gradient(80% 60% at 50% 60%, rgba(255,215,0,0.25), transparent 70%);
+    animation: bloom 2s ease-in-out infinite;
+  }
+  @keyframes bloom {
+    0%, 100% { opacity: 0.6; }
+    50%      { opacity: 1; }
+  }
+  .res-hero .label {
+    position: absolute;
+    top: 8px; left: 12px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    color: var(--gold);
+    text-transform: uppercase;
+    z-index: 2;
+  }
+  .res-hero .name {
+    position: absolute;
+    bottom: 10px; left: 12px;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--ink-2);
+    letter-spacing: -0.01em;
+    z-index: 2;
+  }
+  .res-hero .name .sub {
+    display: block;
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 9px;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    margin-top: 3px;
+  }
+  .res-hero .rays {
+    position: absolute; inset: 0;
+    background-image: conic-gradient(
+      from 0deg,
+      transparent 0deg, rgba(255,215,0,0.08) 12deg, transparent 24deg,
+      transparent 36deg, rgba(255,215,0,0.08) 48deg, transparent 60deg);
+    mix-blend-mode: screen;
+    z-index: 1;
+  }
+  .res-hero .fig-slot {
+    position: absolute;
+    right: 10px; bottom: 0;
+    width: 110px; height: 100%;
+    display: flex; align-items: flex-end; justify-content: center;
+    z-index: 2;
+  }
+
+  .res-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+  }
+  .mini {
+    position: relative;
+    aspect-ratio: 0.7 / 1;
+    background: linear-gradient(180deg, #0a0e16, #050810);
+    border: 1px solid var(--ink-faint);
+    padding: 4px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .mini[data-rar="c"]  { border-color: rgba(120,134,160,0.6); }
+  .mini[data-rar="u"]  { border-color: rgba(155,48,255,0.55); box-shadow: 0 0 6px rgba(155,48,255,0.15); }
+  .mini[data-rar="r"]  { border-color: rgba(0,255,224,0.65); box-shadow: 0 0 8px rgba(0,255,224,0.2); }
+  .mini[data-rar="l"]  { border-color: rgba(255,215,0,0.75); box-shadow: 0 0 10px rgba(255,215,0,0.3); }
+  .mini[data-rar="m"]  {
+    border-color: var(--gold);
+    box-shadow: 0 0 14px rgba(255,215,0,0.45);
+    background:
+      radial-gradient(100% 100% at 50% 100%, rgba(255,215,0,0.18), transparent 60%),
+      linear-gradient(180deg, #1a1408, #050402);
+  }
+  .mini .rar-mark {
+    position: absolute;
+    top: 3px; right: 3px;
+    font-family: var(--mono);
+    font-size: 7px;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+  }
+  .mini[data-rar="c"]  .rar-mark { color: #7886a0; }
+  .mini[data-rar="u"]  .rar-mark { color: var(--purple); }
+  .mini[data-rar="r"]  .rar-mark { color: var(--cyan); }
+  .mini[data-rar="l"]  .rar-mark { color: var(--gold); }
+  .mini[data-rar="m"]  .rar-mark { color: var(--gold); }
+  .mini .silhouette-mini {
+    flex: 1;
+    display: flex; align-items: flex-end; justify-content: center;
+    position: relative;
+  }
+  .mini .silhouette-mini svg { width: 80%; height: 90%; }
+  .mini .nm {
+    font-family: var(--mono);
+    font-size: 7px;
+    text-align: center;
+    color: var(--ink-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+
+  .res-summary {
+    margin-top: 8px;
+    padding: 7px 10px;
+    border: 1px dashed var(--ink-faint);
+    display: flex; justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.12em;
+  }
+  .res-summary b { color: var(--ink-2); font-weight: 500; }
+  .res-summary .new { color: var(--gold); }
+
+  .res-cta {
+    margin-top: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .res-cta button {
+    padding: 11px 10px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border: 1px solid var(--ink-faint);
+    background: rgba(255,255,255,0.01);
+    color: var(--ink);
+    cursor: pointer;
+    clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px), 0 0);
+  }
+  .res-cta button.primary {
+    background: linear-gradient(180deg, #00ffe0, #00b8a4);
+    border-color: #00ffe0;
+    color: #04060c;
+    box-shadow: 0 0 14px rgba(0,255,224,0.4);
+  }
+
+  /* ============================================================
+     04 — ROSTER
+     ============================================================ */
+  .ros-hdr {
+    padding: 4px 2px 10px;
+    border-bottom: 1px solid var(--ink-faint);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--ink-dim);
+  }
+  .ros-hdr .title { color: var(--ink-2); font-weight: 500; }
+  .ros-hdr .title b { color: var(--cyan); font-weight: 500; }
+
+  .ros-chips {
+    margin-top: 10px;
+    display: flex; gap: 5px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  .ros-chips::-webkit-scrollbar { display: none; }
+  .ros-chips .chip {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    padding: 5px 9px;
+    border: 1px solid var(--ink-faint);
+    color: var(--ink-dim);
+    background: rgba(255,255,255,0.01);
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .ros-chips .chip.on {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: rgba(0,255,224,0.07);
+  }
+  .ros-chips .chip[data-f="corp"].on  { border-color: var(--gold);  color: var(--gold);  background: rgba(255,215,0,0.06); }
+  .ros-chips .chip[data-f="exile"].on { border-color: var(--purple);color: var(--purple);background: rgba(155,48,255,0.07); }
+
+  .ros-sort {
+    margin-top: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .ros-sort .right { color: var(--cyan); }
+
+  .ros-grid {
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    flex: 1;
+    overflow: hidden;
+  }
+  .ros-card {
+    position: relative;
+    background: linear-gradient(180deg, #06101a 0%, #040810 100%);
+    border: 1px solid;
+    padding: 5px 5px 6px;
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .ros-card[data-fac="res"]   { border-color: rgba(0,255,224,0.55); }
+  .ros-card[data-fac="corp"]  { border-color: rgba(255,215,0,0.65); background: linear-gradient(180deg,#0a0805,#050402); }
+  .ros-card[data-fac="exile"] { border-color: rgba(155,48,255,0.55); background: linear-gradient(180deg,#0a0a12,#050509); }
+  .ros-card.sel {
+    box-shadow:
+      0 0 0 1px var(--cyan),
+      0 0 14px rgba(0,255,224,0.4);
+    transform: translateY(-2px);
+  }
+  .ros-card .por {
+    aspect-ratio: 1 / 1.05;
+    background:
+      repeating-linear-gradient(135deg,
+        rgba(255,255,255,0.04) 0 1px,
+        transparent 1px 7px),
+      linear-gradient(180deg, #0a1620 0%, #050a14 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .ros-card[data-fac="corp"] .por { background:
+      repeating-linear-gradient(135deg, rgba(255,215,0,0.05) 0 1px, transparent 1px 7px),
+      linear-gradient(180deg, #100a04 0%, #050402 100%); }
+  .ros-card[data-fac="exile"] .por { background:
+      repeating-linear-gradient(135deg, rgba(155,48,255,0.05) 0 1px, transparent 1px 7px),
+      linear-gradient(180deg, #0d0a18 0%, #050509 100%); }
+  .ros-card .por .fig {
+    position: absolute; inset: 2px;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .ros-card .por .rar {
+    position: absolute;
+    top: 2px; right: 2px;
+    display: inline-flex; gap: 1px;
+  }
+  .ros-card .por .rar i {
+    width: 2.5px; height: 6px;
+    background: var(--gold);
+    transform: skewX(-18deg);
+    box-shadow: 0 0 2px rgba(255,215,0,0.7);
+  }
+  .ros-card[data-fac="corp"] .por .rar i { background: var(--crimson); box-shadow: 0 0 2px rgba(200,16,46,0.7); }
+  .ros-card .por .lv {
+    position: absolute;
+    bottom: 2px; left: 2px;
+    font-family: var(--mono);
+    font-size: 7px;
+    color: var(--cyan);
+    background: rgba(4,6,12,0.7);
+    padding: 1px 3px;
+    letter-spacing: 0.06em;
+  }
+  .ros-card[data-fac="corp"]  .por .lv { color: var(--crimson); }
+  .ros-card[data-fac="exile"] .por .lv { color: rgba(0,255,224,0.6); }
+  .ros-card .nm {
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 8px;
+    text-align: center;
+    color: var(--ink-2);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ros-card .tier-mini {
+    font-family: var(--mono);
+    font-size: 7px;
+    text-align: center;
+    color: var(--ink-dim);
+    letter-spacing: 0.16em;
+    margin-top: 1px;
+  }
+  .ros-card[data-fac="res"].sel .tier-mini   { color: var(--cyan); }
+
+  .ros-action {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--cyan);
+    background: rgba(0,255,224,0.05);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--cyan);
+  }
+  .ros-action .arrow { font-size: 14px; }
+
+  /* ============================================================
+     05 — BATTLE
+     ============================================================ */
+  .bat-app {
+    padding: 0;
+  }
+  .bat-hud {
+    padding: 8px 14px 6px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    color: var(--ink-dim);
+    border-bottom: 1px solid var(--ink-faint);
+    background: rgba(0,0,0,0.4);
+  }
+  .bat-hud .turn { color: var(--cyan); }
+  .bat-hud .turn b { color: var(--gold); font-weight: 500; }
+
+  .bat-enemies {
+    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    background: linear-gradient(180deg, rgba(200,16,46,0.06), rgba(0,0,0,0));
+  }
+  .enemy {
+    border: 1px solid rgba(200,16,46,0.55);
+    background: linear-gradient(180deg, #110505, #050202);
+    padding: 4px;
+    position: relative;
+  }
+  .enemy[data-st="boss"] {
+    border-color: var(--gold);
+    background: linear-gradient(180deg, #1a1408, #050402);
+  }
+  .enemy .por-mini {
+    aspect-ratio: 1 / 0.9;
+    background:
+      repeating-linear-gradient(135deg, rgba(200,16,46,0.07) 0 1px, transparent 1px 7px),
+      linear-gradient(180deg, #150505 0%, #050202 100%);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(200,16,46,0.3);
+  }
+  .enemy[data-st="boss"] .por-mini {
+    background:
+      repeating-linear-gradient(135deg, rgba(255,215,0,0.07) 0 1px, transparent 1px 7px),
+      linear-gradient(180deg, #1a1408 0%, #050402 100%);
+    border-color: rgba(255,215,0,0.4);
+  }
+  .enemy .por-mini .fig {
+    position: absolute; inset: 2px;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .enemy .hp-mini {
+    margin-top: 3px;
+    height: 4px;
+    background: rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+  }
+  .enemy .hp-mini .f {
+    position: absolute; inset: 0;
+    background: var(--crimson);
+    box-shadow: 0 0 4px var(--crimson);
+  }
+  .enemy[data-st="boss"] .hp-mini .f { background: var(--gold); box-shadow: 0 0 4px var(--gold); }
+  .enemy .nm {
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 7px;
+    text-align: center;
+    color: var(--crimson);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+  .enemy[data-st="boss"] .nm { color: var(--gold); }
+  .enemy .lvtag {
+    position: absolute;
+    top: 2px; left: 2px;
+    font-family: var(--mono);
+    font-size: 6.5px;
+    color: var(--ink-dim);
+    letter-spacing: 0.1em;
+    background: rgba(0,0,0,0.6);
+    padding: 1px 3px;
+  }
+
+  .bat-stage {
+    position: relative;
+    margin: 6px 14px 0;
+    height: 180px;
+    border: 1px solid var(--ink-faint);
+    background:
+      radial-gradient(80% 60% at 50% 50%, rgba(0,255,224,0.05), transparent 70%),
+      linear-gradient(180deg, #06101a 0%, #03060c 100%);
+    overflow: hidden;
+  }
+  .bat-stage svg { width: 100%; height: 100%; display: block; }
+  .bat-stage .label-cnr {
+    position: absolute;
+    top: 6px; left: 8px;
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--ink-dim);
+    letter-spacing: 0.16em;
+  }
+  .bat-stage .label-cnr b { color: var(--cyan); font-weight: 500; }
+  .bat-stage .tel-cnr {
+    position: absolute;
+    top: 6px; right: 8px;
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--ink-dim);
+    letter-spacing: 0.14em;
+    text-align: right;
+    line-height: 1.5;
+  }
+  .bat-stage .tel-cnr .ok { color: var(--cyan); }
+
+  .bat-team {
+    padding: 6px 14px 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .ally {
+    border: 1px solid rgba(0,255,224,0.55);
+    background: linear-gradient(180deg, #06101a, #040810);
+    padding: 5px 6px;
+    position: relative;
+  }
+  .ally.sel {
+    box-shadow: 0 0 0 1px var(--cyan), 0 0 12px rgba(0,255,224,0.45);
+  }
+  .ally .nm {
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--ink-2);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .ally .hp, .ally .ene {
+    margin-top: 3px;
+    height: 4px;
+    background: rgba(255,255,255,0.04);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--ink-faint);
+  }
+  .ally .hp .f { position: absolute; inset: 0 28% 0 0; background: var(--cyan); box-shadow: 0 0 4px var(--cyan); }
+  .ally .ene .f { position: absolute; inset: 0 0 0 0; background: var(--purple); box-shadow: 0 0 4px var(--purple); }
+  .ally .vals {
+    margin-top: 2px;
+    display: flex; justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 7px;
+    color: var(--ink-dim);
+    letter-spacing: 0.06em;
+  }
+  .ally .vals .cyan { color: var(--cyan); }
+  .ally .vals .purp { color: var(--purple); }
+
+  .bat-actions {
+    margin: 8px 14px 0;
+    padding-top: 6px;
+    border-top: 1px solid var(--ink-faint);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr) 1.2fr;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .act {
+    aspect-ratio: 1 / 1;
+    border: 1px solid var(--ink-faint);
+    background: rgba(255,255,255,0.015);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+    font-family: var(--mono);
+    font-size: 7px;
+    color: var(--ink-dim);
+    letter-spacing: 0.1em;
+    text-align: center;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+  .act .icn {
+    width: 18px; height: 18px;
+    border: 1px solid var(--cyan);
+    margin-bottom: 4px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--cyan);
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 10px;
+  }
+  .act.basic .icn { border-color: var(--cyan); color: var(--cyan); }
+  .act.skill .icn { border-color: var(--cyan); color: var(--cyan); }
+  .act.skill[data-cd="2"]  .icn { border-color: var(--ink-faint); color: var(--ink-dim); }
+  .act.skill[data-cd="2"]  { opacity: 0.5; }
+  .act.skill[data-cd="2"]::after {
+    content: "CD 2";
+    position: absolute; top: 2px; right: 3px;
+    font-size: 6.5px; color: var(--ink-dim);
+    letter-spacing: 0.06em;
+  }
+  .act.ulti {
+    border-color: var(--gold);
+    background: linear-gradient(180deg, rgba(255,215,0,0.10), rgba(255,215,0,0));
+    color: var(--gold);
+  }
+  .act.ulti .icn {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(255,215,0,0.12);
+  }
+  .act .name { font-size: 6.5px; }
+
+  /* ============================================================
+     FLOW ARROW
+     ============================================================ */
+  .arr {
+    width: 110px;
+    height: var(--phone-h);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 0 6px;
+    margin-top: 25px;   /* offset to match phone top */
+  }
+  .arr .line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    width: 100%;
+    margin: 8px 0;
+    box-shadow: 0 0 6px rgba(0,255,224,0.4);
+    position: relative;
+  }
+  .arr .line::after {
+    content: "";
+    position: absolute;
+    right: 0; top: 50%;
+    transform: translate(0,-50%) rotate(45deg);
+    width: 8px; height: 8px;
+    border-right: 1px solid var(--cyan);
+    border-top: 1px solid var(--cyan);
+  }
+  .arr .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-align: center;
+    color: var(--ink);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    line-height: 1.5;
+  }
+  .arr .label b { color: var(--cyan); font-weight: 500; }
+  .arr .label .meta {
+    display: block;
+    color: var(--ink-dim);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+
+  /* ===== HERO SILHOUETTE — reused as small svg ===== */
+  .silh { width: 70%; height: 95%; }
+  .silh .ground { fill: var(--cyan); opacity: 0.25; }
+  .silh .body   { fill: #0a1a26; stroke: var(--cyan); stroke-width: 1.3; stroke-linejoin: round; }
+  .silh .head-shadow { fill: #04060c; stroke: none; }
+  .silh .glasses { stroke: var(--cyan); stroke-width: 1.3; }
+  .silh .slogan  { fill: var(--gold); opacity: 0.7; }
+  .silh.purp .body   { stroke: rgba(155,48,255,0.85); fill: #161620; }
+  .silh.purp .ground { fill: var(--purple); opacity: 0.2; }
+  .silh.purp .glasses{ stroke: rgba(155,48,255,0.8); }
+  .silh.gold .body   { stroke: var(--gold); fill: #1a1408; }
+  .silh.gold .ground { fill: var(--crimson); opacity: 0.3; }
+  .silh.gold .slogan { fill: var(--crimson); opacity: 0.85; }
+  .silh.grey .body   { stroke: #7886a0; fill: #0e1218; }
+  .silh.grey .ground { fill: #7886a0; opacity: 0.18; }
+  .silh.grey .glasses{ stroke: #7886a0; }
+  .silh.grey .slogan { fill: #7886a0; opacity: 0.5; }
+  .silh.crim .body   { stroke: var(--crimson); fill: #100404; }
+  .silh.crim .ground { fill: var(--crimson); opacity: 0.3; }
+  .silh.crim .glasses{ stroke: var(--crimson); }
+  .silh.crim .slogan { fill: var(--gold); opacity: 0.7; }
+
+  .footer {
+    border-top: 1px solid var(--ink-faint);
+    padding: 18px 40px;
+    display: flex; justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .footer b { color: var(--cyan); }
+</style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="top">
+    <div>
+      <h1>hero<span class="slash">/</span>proto <span class="tag">· 5-screen flow · v0.1</span></h1>
+    </div>
+    <div class="legend">
+      <span class="key"><span class="sw" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></span><b>resistance</b></span>
+      <span class="key"><span class="sw" style="background:var(--gold)"></span>corp</span>
+      <span class="key"><span class="sw" style="background:var(--purple)"></span>exile</span>
+      <span class="key"><span class="sw" style="background:var(--crimson);box-shadow:0 0 6px var(--crimson)"></span>alert</span>
+      <span>· scroll &#x2194; to walk the flow</span>
+    </div>
+  </header>
+
+  <!-- ============ FLOW STRIP ============ -->
+  <div class="flow">
+
+    <!-- ============ 01 · LOBBY ============ -->
+    <div class="col" data-screen-label="01 Lobby">
+      <div class="col-label"><span class="num">01</span><span class="name">LOBBY</span></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sbar">
+            <span>9:41</span>
+            <span class="right">
+              <svg width="14" height="10" viewBox="0 0 14 10"><rect x="0" y="6" width="2" height="4" fill="currentColor"/><rect x="3" y="4" width="2" height="6" fill="currentColor"/><rect x="6" y="2" width="2" height="8" fill="currentColor"/><rect x="9" y="0" width="2" height="10" fill="currentColor"/></svg>
+              <svg width="22" height="10" viewBox="0 0 22 10"><rect x="0" y="0" width="18" height="10" rx="2" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="6" fill="currentColor"/><rect x="19" y="3" width="2" height="4" fill="currentColor"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <!-- header strip -->
+            <div class="lobby-hdr">
+              <div class="player">
+                <svg class="badge" viewBox="0 0 32 32" style="overflow:visible">
+                  <polygon points="16,3 28,10 28,22 16,29 4,22 4,10" fill="none" stroke="#00ffe0" stroke-width="2"/>
+                  <circle cx="16" cy="16" r="3" fill="#00ffe0"/>
+                </svg>
+                <div class="who">
+                  <span class="name">J4N3T-L2</span>
+                  <span class="fac">RESISTANCE · LV 47</span>
+                </div>
+              </div>
+              <div class="curr">
+                <span class="c"><span class="dot c"></span>7</span>
+                <span class="c"><span class="dot p"></span>4,820</span>
+                <span class="c"><span class="dot g"></span>12k</span>
+              </div>
+            </div>
+
+            <!-- news ticker -->
+            <div class="lobby-news">
+              <span class="dot"></span>
+              <span class="label">KERNEL_PANIC</span>
+              <span>NODE.14 · resistance forces engaging</span>
+              <span class="time">2h 47m</span>
+            </div>
+
+            <!-- featured hero -->
+            <div class="lobby-hero">
+              <div class="lh-portrait">
+                <div class="fig">
+                  <svg class="silh" viewBox="0 0 120 150">
+                    <ellipse class="ground" cx="60" cy="140" rx="42" ry="6"/>
+                    <g class="body">
+                      <path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/>
+                      <path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/>
+                      <path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/>
+                      <path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/>
+                      <path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/>
+                    </g>
+                    <line class="glasses" x1="52" y1="70" x2="58" y2="70"/>
+                    <line class="glasses" x1="62" y1="70" x2="68" y2="70"/>
+                    <rect class="slogan" x="48" y="86" width="24" height="3"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="lh-info">
+                <span class="name">J4N3T-L2</span>
+                <span class="tier">RAID-0 · helpdesk-MAGE</span>
+                <div class="stats">
+                  <span class="k">ATK</span><span class="v c">2,840</span>
+                  <span class="k">DEF</span><span class="v">1,612</span>
+                  <span class="k">SPD</span><span class="v p">94</span>
+                  <span class="k">HP</span><span class="v">7,420</span>
+                </div>
+                <div class="deploy">DEPLOY</div>
+              </div>
+            </div>
+
+            <!-- daily tasks -->
+            <div class="lobby-tasks">
+              <div class="h"><span>DAILY.queue</span><b>2 of 3</b></div>
+              <div class="row">
+                <span>clear 3 nodes</span>
+                <span class="bar"><i style="right:25%"></i></span>
+                <span class="reward">+200 ⬢</span>
+              </div>
+              <div class="row">
+                <span>summon ×1</span>
+                <span class="bar"><i style="right:0%"></i></span>
+                <span class="reward">+30 ⬡</span>
+              </div>
+              <div class="row" style="opacity:0.55">
+                <span>log 5 logins</span>
+                <span class="bar"><i style="right:80%"></i></span>
+                <span class="reward">+1 TKT</span>
+              </div>
+            </div>
+
+            <!-- world map preview -->
+            <div class="lobby-map">
+              <span class="label"><span class="dim">SECTOR</span> 0x0E · HARD_DISK</span>
+              <svg viewBox="0 0 280 90">
+                <defs>
+                  <pattern id="grid-lobby" width="14" height="14" patternUnits="userSpaceOnUse">
+                    <path d="M 14 0 L 0 0 0 14" fill="none" stroke="rgba(0,255,224,0.07)" stroke-width="1"/>
+                  </pattern>
+                </defs>
+                <rect width="280" height="90" fill="url(#grid-lobby)"/>
+                <g stroke="rgba(0,255,224,0.45)" stroke-width="1.5" fill="none">
+                  <path d="M 20 70 L 70 70 L 100 50 L 150 50 L 180 30 L 240 30"/>
+                  <path d="M 100 50 L 100 30 L 80 18"/>
+                </g>
+                <g>
+                  <polygon points="70,70 78,74 78,82 70,86 62,82 62,74" fill="#04060c" stroke="rgba(0,255,224,0.4)" stroke-width="1"/>
+                  <polygon points="150,50 158,54 158,62 150,66 142,62 142,54" fill="#04060c" stroke="rgba(0,255,224,0.4)" stroke-width="1"/>
+                  <!-- active -->
+                  <circle cx="180" cy="30" r="14" fill="rgba(0,255,224,0.18)"/>
+                  <polygon points="180,18 195,26 195,42 180,50 165,42 165,26" fill="rgba(0,255,224,0.08)" stroke="#00ffe0" stroke-width="1.5"/>
+                  <polygon points="180,24 188,28 188,40 180,44 172,40 172,28" fill="#00ffe0"/>
+                  <!-- next -->
+                  <polygon points="240,30 248,34 248,42 240,46 232,42 232,34" fill="#04060c" stroke="rgba(0,255,224,0.25)" stroke-width="1" stroke-dasharray="2 2"/>
+                </g>
+                <text x="180" y="58" text-anchor="middle" font-family="JetBrains Mono" font-size="6.5" fill="#00ffe0" letter-spacing="1">NODE.14</text>
+              </svg>
+            </div>
+
+            <!-- bottom nav -->
+            <div class="bnav">
+              <div class="item on"><span class="ico">H</span>HOME</div>
+              <div class="item"><span class="ico">R</span>ROSTER</div>
+              <div class="item"><span class="ico" style="border-color:var(--purple);color:var(--purple)">S</span>SUMMON</div>
+              <div class="item"><span class="ico">B</span>BATTLE</div>
+              <div class="item"><span class="ico">$</span>SHOP</div>
+            </div>
+          </div>
+          <div class="home-i"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- arrow -->
+    <div class="arr">
+      <div class="label">tap <b>SUMMON</b><span class="meta">→ 02 banner</span></div>
+      <div class="line"></div>
+    </div>
+
+    <!-- ============ 02 · SUMMON ============ -->
+    <div class="col" data-screen-label="02 Summon">
+      <div class="col-label"><span class="num">02</span><span class="name">SUMMON</span></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sbar">
+            <span>9:42</span>
+            <span class="right">
+              <svg width="14" height="10" viewBox="0 0 14 10"><rect x="0" y="6" width="2" height="4" fill="currentColor"/><rect x="3" y="4" width="2" height="6" fill="currentColor"/><rect x="6" y="2" width="2" height="8" fill="currentColor"/><rect x="9" y="0" width="2" height="10" fill="currentColor"/></svg>
+              <svg width="22" height="10" viewBox="0 0 22 10"><rect x="0" y="0" width="18" height="10" rx="2" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="6" fill="currentColor"/><rect x="19" y="3" width="2" height="4" fill="currentColor"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <div class="sum-hdr">
+              <span class="back">‹ LOBBY</span>
+              <span class="title">SUMMON.exe</span>
+              <span class="right"><span class="pill cyan">4,820 ⬡</span></span>
+            </div>
+
+            <div class="sum-banner corner-ticks">
+              <span class="tbl"></span><span class="tbr"></span>
+              <div class="grid"></div>
+              <div class="banner-title">// BANNER.03 · LIMITED</div>
+              <div class="banner-name">NETOPS DRIFTERS
+                <span class="sub">3 featured · 5★ rate-up · ends 4d 12h</span></div>
+              <div class="banner-art">
+                <svg class="silh purp" viewBox="0 0 120 150" style="width:90%; height:100%">
+                  <ellipse class="ground" cx="60" cy="142" rx="44" ry="6"/>
+                  <g class="body">
+                    <path d="M48 140 L 50 100 L 60 100 L 60 140 Z"/>
+                    <path d="M72 140 L 70 100 L 60 100 L 60 140 Z"/>
+                    <path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z"/>
+                    <path d="M42 56 Q 60 32 78 56 L 76 60 Q 60 44 44 60 Z"/>
+                    <path class="head-shadow" d="M50 60 Q 60 50 70 60 L 70 76 Q 60 78 50 76 Z"/>
+                  </g>
+                  <line class="glasses" x1="52" y1="70" x2="58" y2="70"/>
+                  <line class="glasses" x1="62" y1="70" x2="68" y2="70"/>
+                  <rect class="slogan" x="46" y="86" width="28" height="3"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="sum-pity">
+              <div class="row">
+                <span class="label">PITY · <b>KERNEL_DUMP</b></span>
+                <span class="val">47<span class="max">/90</span></span>
+              </div>
+              <div class="bar"><span class="fill"></span></div>
+              <div class="row" style="margin-top:6px; font-size:8.5px; letter-spacing:0.16em;">
+                <span>guaranteed <span style="color:var(--gold)">MYTH</span> at 90</span>
+                <span>+43 pulls</span>
+              </div>
+            </div>
+
+            <div class="sum-cta">
+              <button class="sum-btn">
+                SUMMON ×1
+                <span class="cost">270 ⬡</span>
+              </button>
+              <button class="sum-btn lg">
+                SUMMON ×10
+                <span class="cost"><b>2,700 ⬡</b> · 1 GUARANTEED 4★+</span>
+              </button>
+            </div>
+
+            <div class="sum-rates">
+              <div class="row r"><span><b>C</b> common</span>     <span>65.0%</span></div>
+              <div class="row r"><span><b>U</b> uncommon</span>   <span>25.0%</span></div>
+              <div class="row r"><span style="color:var(--cyan)"><b>R</b> rare</span>       <span>8.0%</span></div>
+              <div class="row r l"><span><b>L</b> legendary</span>  <span>1.8%</span></div>
+              <div class="row r m"><span><b>M</b> myth</span>      <span>0.2%</span></div>
+            </div>
+
+            <div class="bnav">
+              <div class="item"><span class="ico">H</span>HOME</div>
+              <div class="item"><span class="ico">R</span>ROSTER</div>
+              <div class="item on" style="color:var(--purple)"><span class="ico" style="border-color:var(--purple);color:var(--purple)">S</span>SUMMON</div>
+              <div class="item"><span class="ico">B</span>BATTLE</div>
+              <div class="item"><span class="ico">$</span>SHOP</div>
+            </div>
+          </div>
+          <div class="home-i"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">
+      <div class="label">pull <b>×10</b><span class="meta">→ 03 reveal</span></div>
+      <div class="line"></div>
+    </div>
+
+    <!-- ============ 03 · RESULTS ============ -->
+    <div class="col" data-screen-label="03 Results">
+      <div class="col-label"><span class="num">03</span><span class="name">RESULTS</span></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sbar">
+            <span>9:43</span>
+            <span class="right">
+              <svg width="14" height="10" viewBox="0 0 14 10"><rect x="0" y="6" width="2" height="4" fill="currentColor"/><rect x="3" y="4" width="2" height="6" fill="currentColor"/><rect x="6" y="2" width="2" height="8" fill="currentColor"/><rect x="9" y="0" width="2" height="10" fill="currentColor"/></svg>
+              <svg width="22" height="10" viewBox="0 0 22 10"><rect x="0" y="0" width="18" height="10" rx="2" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="6" fill="currentColor"/><rect x="19" y="3" width="2" height="4" fill="currentColor"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <div class="res-hdr">
+              <div class="eyebrow">// 10× pull · complete</div>
+              <div class="title">MYTHIC <span class="accent">PULLED</span></div>
+            </div>
+
+            <div class="res-hero corner-ticks" style="--cyan:var(--gold);">
+              <span class="tbl"></span><span class="tbr"></span>
+              <div class="rays"></div>
+              <div class="pulse"></div>
+              <div class="label">// MYTH · 0.2% rate</div>
+              <div class="name">SUDO-K3RN3L
+                <span class="sub">CORP_GREED · 5★ · rootkit_ASSASSIN</span></div>
+              <div class="fig-slot">
+                <svg class="silh gold" viewBox="0 0 120 150" style="width:90%;height:100%">
+                  <ellipse class="ground" cx="60" cy="142" rx="44" ry="6"/>
+                  <g class="body">
+                    <path d="M48 140 L 50 100 L 60 100 L 60 140 Z"/>
+                    <path d="M72 140 L 70 100 L 60 100 L 60 140 Z"/>
+                    <path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z"/>
+                    <path d="M42 56 Q 60 30 78 56 L 76 60 Q 60 42 44 60 Z"/>
+                    <path class="head-shadow" d="M50 60 Q 60 50 70 60 L 70 76 Q 60 78 50 76 Z"/>
+                  </g>
+                  <line class="glasses" x1="52" y1="70" x2="58" y2="70"/>
+                  <line class="glasses" x1="62" y1="70" x2="68" y2="70"/>
+                  <rect class="slogan" x="46" y="86" width="28" height="3"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="res-grid">
+              <div class="mini" data-rar="c"><span class="rar-mark">C</span>
+                <div class="silhouette-mini"><svg class="silh grey" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">grunt_03</div></div>
+              <div class="mini" data-rar="c"><span class="rar-mark">C</span>
+                <div class="silhouette-mini"><svg class="silh grey" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">grunt_07</div></div>
+              <div class="mini" data-rar="u"><span class="rar-mark">U</span>
+                <div class="silhouette-mini"><svg class="silh purp" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">cyl-r1</div></div>
+              <div class="mini" data-rar="c"><span class="rar-mark">C</span>
+                <div class="silhouette-mini"><svg class="silh grey" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">grunt_08</div></div>
+              <div class="mini" data-rar="r"><span class="rar-mark">R</span>
+                <div class="silhouette-mini"><svg class="silh" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">awk-WIZARD</div></div>
+              <div class="mini" data-rar="c"><span class="rar-mark">C</span>
+                <div class="silhouette-mini"><svg class="silh grey" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">grunt_11</div></div>
+              <div class="mini" data-rar="c"><span class="rar-mark">C</span>
+                <div class="silhouette-mini"><svg class="silh grey" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">grunt_12</div></div>
+              <div class="mini" data-rar="u"><span class="rar-mark">U</span>
+                <div class="silhouette-mini"><svg class="silh purp" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">cyl-r4</div></div>
+              <div class="mini" data-rar="l"><span class="rar-mark">L</span>
+                <div class="silhouette-mini"><svg class="silh purp" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                <div class="nm">grep-REAPER</div></div>
+              <div class="mini" data-rar="m"><span class="rar-mark">★ M</span>
+                <div class="silhouette-mini"><svg class="silh gold" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z"/><path d="M42 56 Q 60 30 78 56 L 76 60 Q 60 42 44 60 Z"/><path class="head-shadow" d="M50 60 Q 60 50 70 60 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/><rect class="slogan" x="46" y="86" width="28" height="3"/></svg></div>
+                <div class="nm" style="color:var(--gold)">sudo-K3RN3L</div></div>
+            </div>
+
+            <div class="res-summary">
+              <span>NEW · <b class="new">2</b></span>
+              <span>DUPES · <b>8</b></span>
+              <span>SHARDS · <b style="color:var(--gold)">+24</b></span>
+            </div>
+
+            <div class="res-cta">
+              <button>VIEW ROSTER</button>
+              <button class="primary">SUMMON ×10</button>
+            </div>
+          </div>
+          <div class="home-i"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">
+      <div class="label">tap <b>VIEW ROSTER</b><span class="meta">→ 04 collection</span></div>
+      <div class="line"></div>
+    </div>
+
+    <!-- ============ 04 · ROSTER ============ -->
+    <div class="col" data-screen-label="04 Roster">
+      <div class="col-label"><span class="num">04</span><span class="name">ROSTER</span></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sbar">
+            <span>9:44</span>
+            <span class="right">
+              <svg width="14" height="10" viewBox="0 0 14 10"><rect x="0" y="6" width="2" height="4" fill="currentColor"/><rect x="3" y="4" width="2" height="6" fill="currentColor"/><rect x="6" y="2" width="2" height="8" fill="currentColor"/><rect x="9" y="0" width="2" height="10" fill="currentColor"/></svg>
+              <svg width="22" height="10" viewBox="0 0 22 10"><rect x="0" y="0" width="18" height="10" rx="2" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="6" fill="currentColor"/><rect x="19" y="3" width="2" height="4" fill="currentColor"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <div class="ros-hdr">
+              <span class="title">ROSTER · <b>247</b> HEROES</span>
+              <span style="color:var(--cyan)">⌕</span>
+            </div>
+
+            <div class="ros-chips">
+              <span class="chip on">ALL · 247</span>
+              <span class="chip">RES · 89</span>
+              <span class="chip" data-f="corp">CORP · 64</span>
+              <span class="chip" data-f="exile">EXILE · 94</span>
+              <span class="chip">MYTH+ · 12</span>
+            </div>
+
+            <div class="ros-sort">
+              <span>// sorted by</span>
+              <span class="right">POWER ▼</span>
+            </div>
+
+            <div class="ros-grid">
+
+              <!-- row 1 -->
+              <div class="ros-card sel" data-fac="res">
+                <div class="por">
+                  <span class="rar"><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="lv">L47</span>
+                  <div class="fig"><svg class="silh" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/><rect class="slogan" x="48" y="86" width="24" height="3"/></svg></div>
+                </div>
+                <div class="nm">J4N3T-L2</div>
+                <div class="tier-mini">RAID-0</div>
+              </div>
+              <div class="ros-card" data-fac="corp">
+                <div class="por">
+                  <span class="rar"><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="lv">L42</span>
+                  <div class="fig"><svg class="silh gold" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z"/><path d="M42 56 Q 60 30 78 56 L 76 60 Q 60 42 44 60 Z"/><path class="head-shadow" d="M50 60 Q 60 50 70 60 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/><rect class="slogan" x="46" y="86" width="28" height="3"/></svg></div>
+                </div>
+                <div class="nm">sudo-K3RN3L</div>
+                <div class="tier-mini">RAID-0</div>
+              </div>
+              <div class="ros-card" data-fac="exile">
+                <div class="por">
+                  <span class="rar"><i></i><i></i><i></i><i></i></span>
+                  <span class="lv">L38</span>
+                  <div class="fig"><svg class="silh purp" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/><rect class="slogan" x="48" y="86" width="24" height="3"/></svg></div>
+                </div>
+                <div class="nm">grep-REAPER</div>
+                <div class="tier-mini">HARD-DISK</div>
+              </div>
+
+              <!-- row 2 -->
+              <div class="ros-card" data-fac="res">
+                <div class="por">
+                  <span class="rar"><i></i><i></i><i></i><i></i></span>
+                  <span class="lv">L35</span>
+                  <div class="fig"><svg class="silh" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/><rect class="slogan" x="48" y="86" width="24" height="3"/></svg></div>
+                </div>
+                <div class="nm">awk-WIZARD</div>
+                <div class="tier-mini">HARD-DISK</div>
+              </div>
+              <div class="ros-card" data-fac="corp">
+                <div class="por">
+                  <span class="rar"><i></i><i></i><i></i><i></i></span>
+                  <span class="lv">L33</span>
+                  <div class="fig"><svg class="silh gold" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/><rect class="slogan" x="48" y="86" width="24" height="3"/></svg></div>
+                </div>
+                <div class="nm">ldap-BARON</div>
+                <div class="tier-mini">HARD-DISK</div>
+              </div>
+              <div class="ros-card" data-fac="exile">
+                <div class="por">
+                  <span class="rar"><i></i><i></i><i></i></span>
+                  <span class="lv">L29</span>
+                  <div class="fig"><svg class="silh purp" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/><rect class="slogan" x="48" y="86" width="24" height="3"/></svg></div>
+                </div>
+                <div class="nm">tmux-TWIN</div>
+                <div class="tier-mini">FLOPPY</div>
+              </div>
+
+              <!-- row 3 -->
+              <div class="ros-card" data-fac="res">
+                <div class="por">
+                  <span class="rar"><i></i><i></i><i></i></span>
+                  <span class="lv">L26</span>
+                  <div class="fig"><svg class="silh" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                </div>
+                <div class="nm">vim-LANCER</div>
+                <div class="tier-mini">FLOPPY</div>
+              </div>
+              <div class="ros-card" data-fac="exile">
+                <div class="por">
+                  <span class="rar"><i></i><i></i><i></i></span>
+                  <span class="lv">L24</span>
+                  <div class="fig"><svg class="silh purp" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                </div>
+                <div class="nm">cyl-r1</div>
+                <div class="tier-mini">FLOPPY</div>
+              </div>
+              <div class="ros-card" data-fac="res">
+                <div class="por">
+                  <span class="rar"><i></i><i></i></span>
+                  <span class="lv">L18</span>
+                  <div class="fig"><svg class="silh" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div>
+                </div>
+                <div class="nm">grunt_03</div>
+                <div class="tier-mini">FLOPPY</div>
+              </div>
+            </div>
+
+            <div class="ros-action">
+              <span>SELECT · J4N3T-L2</span>
+              <span class="arrow">›</span>
+            </div>
+
+            <div class="bnav">
+              <div class="item"><span class="ico">H</span>HOME</div>
+              <div class="item on"><span class="ico">R</span>ROSTER</div>
+              <div class="item"><span class="ico" style="border-color:var(--purple);color:var(--purple)">S</span>SUMMON</div>
+              <div class="item"><span class="ico">B</span>BATTLE</div>
+              <div class="item"><span class="ico">$</span>SHOP</div>
+            </div>
+          </div>
+          <div class="home-i"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">
+      <div class="label">deploy <b>3-TEAM</b><span class="meta">→ 05 battle</span></div>
+      <div class="line"></div>
+    </div>
+
+    <!-- ============ 05 · BATTLE ============ -->
+    <div class="col" data-screen-label="05 Battle">
+      <div class="col-label"><span class="num">05</span><span class="name">BATTLE</span></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sbar">
+            <span>9:46</span>
+            <span class="right">
+              <svg width="14" height="10" viewBox="0 0 14 10"><rect x="0" y="6" width="2" height="4" fill="currentColor"/><rect x="3" y="4" width="2" height="6" fill="currentColor"/><rect x="6" y="2" width="2" height="8" fill="currentColor"/><rect x="9" y="0" width="2" height="10" fill="currentColor"/></svg>
+              <svg width="22" height="10" viewBox="0 0 22 10"><rect x="0" y="0" width="18" height="10" rx="2" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="6" fill="currentColor"/><rect x="19" y="3" width="2" height="4" fill="currentColor"/></svg>
+            </span>
+          </div>
+          <div class="app bat-app">
+            <div class="bat-hud">
+              <span>NODE.14 · KERNEL_PANIC</span>
+              <span class="turn">TURN · <b>03</b> · YOUR PHASE</span>
+            </div>
+
+            <!-- enemies -->
+            <div class="bat-enemies">
+              <div class="enemy">
+                <span class="lvtag">L46</span>
+                <div class="por-mini"><div class="fig"><svg class="silh crim" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div></div>
+                <div class="hp-mini"><span class="f" style="right:35%"></span></div>
+                <div class="nm">cron-DAEMON</div>
+              </div>
+              <div class="enemy" data-st="boss">
+                <span class="lvtag">L50 ★</span>
+                <div class="por-mini"><div class="fig"><svg class="silh gold" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="44" ry="6"/><g class="body"><path d="M48 140 L 50 100 L 60 100 L 60 140 Z"/><path d="M72 140 L 70 100 L 60 100 L 60 140 Z"/><path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z"/><path d="M42 56 Q 60 30 78 56 L 76 60 Q 60 42 44 60 Z"/><path class="head-shadow" d="M50 60 Q 60 50 70 60 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/><rect class="slogan" x="46" y="86" width="28" height="3"/></svg></div></div>
+                <div class="hp-mini"><span class="f" style="right:18%"></span></div>
+                <div class="nm">rm-rf · CEO</div>
+              </div>
+              <div class="enemy">
+                <span class="lvtag">L44</span>
+                <div class="por-mini"><div class="fig"><svg class="silh crim" viewBox="0 0 120 150"><ellipse class="ground" cx="60" cy="140" rx="40" ry="5"/><g class="body"><path d="M48 138 L 50 100 L 60 100 L 60 138 Z"/><path d="M72 138 L 70 100 L 60 100 L 60 138 Z"/><path d="M40 100 L 36 70 Q 36 60 44 56 L 76 56 Q 84 60 84 70 L 80 100 Z"/><path d="M44 60 Q 60 40 76 60 L 74 64 Q 60 50 46 64 Z"/><path class="head-shadow" d="M50 64 Q 60 56 70 64 L 70 76 Q 60 78 50 76 Z"/></g><line class="glasses" x1="52" y1="70" x2="58" y2="70"/><line class="glasses" x1="62" y1="70" x2="68" y2="70"/></svg></div></div>
+                <div class="hp-mini"><span class="f" style="right:60%"></span></div>
+                <div class="nm">grub-GRUNT</div>
+              </div>
+            </div>
+
+            <!-- stage -->
+            <div class="bat-stage">
+              <span class="label-cnr">STAGE · <b>RAID-0/14</b></span>
+              <span class="tel-cnr">UPTIME · <span class="ok">00:42</span><br>SECTOR · 0x0E</span>
+              <svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                  <pattern id="grid-bat" width="16" height="16" patternUnits="userSpaceOnUse">
+                    <path d="M 16 0 L 0 0 0 16" fill="none" stroke="rgba(0,255,224,0.06)" stroke-width="1"/>
+                  </pattern>
+                  <radialGradient id="impact-glow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#00ffe0" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#00ffe0" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+                <rect width="320" height="180" fill="url(#grid-bat)"/>
+
+                <!-- bus traces -->
+                <g stroke="rgba(0,255,224,0.4)" stroke-width="1.5" fill="none">
+                  <path d="M 30 90 L 90 90 L 130 60 L 200 60 L 240 90 L 290 90"/>
+                  <path d="M 130 60 L 130 120 L 90 130"/>
+                  <path d="M 200 60 L 240 30"/>
+                </g>
+
+                <!-- enemy slots (top) -->
+                <g>
+                  <polygon points="90,40 105,48 105,62 90,70 75,62 75,48" fill="#150505" stroke="rgba(200,16,46,0.55)" stroke-width="1.5"/>
+                  <polygon points="160,30 178,40 178,58 160,68 142,58 142,40" fill="#1a1408" stroke="var(--gold)" stroke-width="2"/>
+                  <polygon points="230,40 245,48 245,62 230,70 215,62 215,48" fill="#150505" stroke="rgba(200,16,46,0.55)" stroke-width="1.5"/>
+                  <!-- boss center pip -->
+                  <rect x="155" y="44" width="10" height="10" fill="var(--gold)"/>
+                </g>
+
+                <!-- ally slots (bottom) -->
+                <g>
+                  <circle cx="90" cy="140" r="22" fill="url(#impact-glow)" opacity="0.6"/>
+                  <polygon points="90,120 105,128 105,142 90,150 75,142 75,128" fill="rgba(0,255,224,0.08)" stroke="#00ffe0" stroke-width="2"/>
+                  <polygon points="90,126 100,132 100,140 90,146 80,140 80,132" fill="#00ffe0"/>
+                  <polygon points="160,128 175,136 175,150 160,158 145,150 145,136" fill="#06101a" stroke="rgba(0,255,224,0.7)" stroke-width="1.5"/>
+                  <polygon points="230,128 245,136 245,150 230,158 215,150 215,136" fill="#06101a" stroke="rgba(0,255,224,0.7)" stroke-width="1.5"/>
+                </g>
+
+                <!-- attack arc from J4N3T → boss -->
+                <path d="M 90 120 Q 130 80 160 50" stroke="#00ffe0" stroke-width="1.5" stroke-dasharray="4 3" fill="none" opacity="0.85"/>
+                <circle cx="160" cy="50" r="3" fill="#00ffe0"/>
+
+                <!-- damage number -->
+                <text x="172" y="34" font-family="Space Grotesk" font-weight="700" font-size="14" fill="var(--gold)" letter-spacing="0">-1,840</text>
+                <text x="172" y="44" font-family="JetBrains Mono" font-size="6" fill="var(--gold)" letter-spacing="1">CRIT</text>
+              </svg>
+            </div>
+
+            <!-- team -->
+            <div class="bat-team">
+              <div class="ally sel">
+                <div class="nm">J4N3T-L2</div>
+                <div class="hp"><span class="f" style="right:28%"></span></div>
+                <div class="ene"><span class="f" style="right:0%"></span></div>
+                <div class="vals">
+                  <span class="cyan">5320 hp</span>
+                  <span class="purp">100 EN</span>
+                </div>
+              </div>
+              <div class="ally">
+                <div class="nm">awk-WIZARD</div>
+                <div class="hp"><span class="f" style="right:55%"></span></div>
+                <div class="ene"><span class="f" style="right:30%"></span></div>
+                <div class="vals">
+                  <span class="cyan">2410 hp</span>
+                  <span class="purp">70 EN</span>
+                </div>
+              </div>
+              <div class="ally">
+                <div class="nm">vim-LANCER</div>
+                <div class="hp"><span class="f" style="right:12%"></span></div>
+                <div class="ene"><span class="f" style="right:60%"></span></div>
+                <div class="vals">
+                  <span class="cyan">3900 hp</span>
+                  <span class="purp">40 EN</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- action bar -->
+            <div class="bat-actions">
+              <div class="act basic">
+                <span class="icn">›_</span>
+                <span class="name">PING</span>
+              </div>
+              <div class="act skill">
+                <span class="icn">+</span>
+                <span class="name">PATCH</span>
+              </div>
+              <div class="act skill" data-cd="2">
+                <span class="icn">!</span>
+                <span class="name">SEGFAULT</span>
+              </div>
+              <div class="act skill">
+                <span class="icn">⌥</span>
+                <span class="name">ROLLBACK</span>
+              </div>
+              <div class="act ulti">
+                <span class="icn">★</span>
+                <span class="name">K_PANIC</span>
+              </div>
+            </div>
+          </div>
+          <div class="home-i"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div>hero-proto · flow prototype · v0.1</div>
+    <div>5 screens · <b>lobby</b> → summon → results → roster → <b>battle</b></div>
+  </footer>
+
+  <script>
+    // make ros chips and tabs simulate selection
+    document.querySelectorAll('.ros-chips').forEach(function(group){
+      group.querySelectorAll('.chip').forEach(function(chip){
+        chip.addEventListener('click', function(){
+          group.querySelectorAll('.chip').forEach(function(c){c.classList.remove('on');});
+          chip.classList.add('on');
+        });
+      });
+    });
+    // ros cards selection
+    document.querySelectorAll('.ros-grid').forEach(function(grid){
+      grid.querySelectorAll('.ros-card').forEach(function(card){
+        card.addEventListener('click', function(){
+          grid.querySelectorAll('.ros-card').forEach(function(c){c.classList.remove('sel');});
+          card.classList.add('sel');
+          var nm = card.querySelector('.nm');
+          var act = card.closest('.app').querySelector('.ros-action span');
+          if (act && nm) act.textContent = 'SELECT · ' + nm.textContent;
+        });
+      });
+    });
+  </script>
+</body>
+</html>
