@@ -120,7 +120,7 @@ export function LobbyRoute() {
             <>
               <span className="name">{featured.template.name}</span>
               <span className="tier">
-                {RARITY_TIER[featured.template.rarity] ?? featured.template.rarity} · {featured.template.role}-{featured.template.attack_kind}
+                {RARITY_TIER[featured.template.rarity] ?? featured.template.rarity} · {featured.template.role}{featured.template.attack_kind ? `-${featured.template.attack_kind}` : ''}
               </span>
               <div className="stats">
                 <span className="k">ATK</span><span className="v c">{(featured.atk ?? 0).toLocaleString()}</span>
