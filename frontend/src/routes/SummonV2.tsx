@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../hooks/useMe'
 import { useHeroes } from '../hooks/useHeroes'
 import { pullStandard } from '../api/summon'
+import { fetchFriendPoints, summonFriendBanner } from '../api/friendPoints'
 import { toast } from '../store/ui'
 import type { Hero } from '../types'
 import './Lobby.css'
@@ -13,6 +14,8 @@ const PITY_CAP = 50
 const SOFT_PITY = 35
 const COST_X1 = 1
 const COST_X10 = 10
+
+type BannerKind = 'STD' | 'FRIEND'
 
 const RARITY_LETTER: Record<string, string> = {
   COMMON: 'C',
@@ -28,8 +31,15 @@ export function SummonV2Route() {
   const qc = useQueryClient()
   const { data: me } = useMe()
   const { data: heroes } = useHeroes()
+  const { data: fp } = useQuery({
+    queryKey: ['friend-points'],
+    queryFn: fetchFriendPoints,
+    refetchInterval: 60_000,
+    retry: 1,
+  })
   const [pulling, setPulling] = useState(false)
   const [lastPull, setLastPull] = useState<Hero[] | null>(null)
+  const [banner, setBanner] = useState<BannerKind>('STD')
 
   const pity = me?.pulls_since_epic ?? 0
   const pityPct = Math.min(100, (pity / PITY_CAP) * 100)
@@ -38,6 +48,13 @@ export function SummonV2Route() {
   const shards = me?.shards ?? 0
   const canX1 = shards >= COST_X1 && !pulling
   const canX10 = shards >= COST_X10 && !pulling
+
+  const fpBalance = fp?.balance ?? 0
+  const fpCost = fp?.fp_per_summon ?? 100
+  const fpPity = fp?.fp_pulls_since_epic ?? 0
+  const fpCap = fp?.fp_pity_threshold ?? 50
+  const fpPityPct = Math.min(100, (fpPity / fpCap) * 100)
+  const canFriendPull = fpBalance >= fpCost && !pulling
 
   const featuredHero = useMemo(() => {
     if (!heroes?.length) return null
@@ -66,6 +83,23 @@ export function SummonV2Route() {
     }
   }
 
+  async function pullFriend() {
+    if (pulling) return
+    setPulling(true)
+    setLastPull(null)
+    try {
+      const res = await summonFriendBanner()
+      qc.invalidateQueries({ queryKey: ['me'] })
+      qc.invalidateQueries({ queryKey: ['heroes'] })
+      qc.invalidateQueries({ queryKey: ['friend-points'] })
+      navigate('/app/summon/results', { state: { heroes: [res.hero], pullCount: 1 } })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'friend pull failed')
+    } finally {
+      setPulling(false)
+    }
+  }
+
   return (
     <div className="lobby-root" data-faction={faction}>
       {/* header */}
@@ -73,70 +107,126 @@ export function SummonV2Route() {
         <button type="button" className="back" onClick={() => navigate('/app/lobby')}>‹ LOBBY</button>
         <span className="title">SUMMON.exe</span>
         <span className="right">
-          <span className="pill">{shards.toLocaleString()} ✦</span>
+          <span className="pill">
+            {banner === 'STD' ? `${shards.toLocaleString()} ✦` : `${fpBalance.toLocaleString()} ♥`}
+          </span>
         </span>
       </div>
 
+      {/* banner tabs — only show when friend banner is unlocked */}
+      {fp && (
+        <div className="sum-tabs">
+          <button
+            type="button"
+            className={`tab${banner === 'STD' ? ' on' : ''}`}
+            onClick={() => setBanner('STD')}
+          >
+            // STANDARD
+          </button>
+          <button
+            type="button"
+            className={`tab fp${banner === 'FRIEND' ? ' on' : ''}`}
+            onClick={() => setBanner('FRIEND')}
+          >
+            // FRIEND ♥ {fpBalance}
+          </button>
+        </div>
+      )}
+
       {/* banner */}
-      <div className="sum-banner corner-ticks">
-        <span className="tbl"></span><span className="tbr"></span>
-        <div className="grid"></div>
-        <div className="banner-title">// BANNER.STD · STANDARD</div>
-        <div className="banner-name">
-          NETOPS DRIFTERS
-          <span className="sub">all factions · pity at {PITY_CAP} pulls</span>
+      {banner === 'STD' ? (
+        <div className="sum-banner corner-ticks">
+          <span className="tbl"></span><span className="tbr"></span>
+          <div className="grid"></div>
+          <div className="banner-title">// BANNER.STD · STANDARD</div>
+          <div className="banner-name">
+            NETOPS DRIFTERS
+            <span className="sub">all factions · pity at {PITY_CAP} pulls</span>
+          </div>
+          <div className="banner-art">
+            {featuredHero ? (
+              <img
+                className="bust"
+                src={`/app/static/heroes/busts/${featuredHero.template.code}.png`}
+                alt={featuredHero.template.name}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+              />
+            ) : (
+              <SilhouettePurple />
+            )}
+          </div>
         </div>
-        <div className="banner-art">
-          {featuredHero ? (
-            <img
-              className="bust"
-              src={`/app/static/heroes/busts/${featuredHero.template.code}.png`}
-              alt={featuredHero.template.name}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-            />
-          ) : (
-            <SilhouettePurple />
-          )}
+      ) : (
+        <div className="sum-banner fp corner-ticks">
+          <span className="tbl"></span><span className="tbr"></span>
+          <div className="grid"></div>
+          <div className="banner-title">// BANNER.FP · FRIEND.NET</div>
+          <div className="banner-name">
+            WELCOME WAGON
+            <span className="sub">earn ♥ by daily-pinging friends</span>
+          </div>
+          <div className="banner-art">
+            <SilhouettePink />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* pity */}
-      <div className="sum-pity">
-        <div className="row">
-          <span className="label">PITY · <b>KERNEL_DUMP</b></span>
-          <span className="val">{pity}<span className="max">/{PITY_CAP}</span></span>
+      {banner === 'STD' ? (
+        <div className="sum-pity">
+          <div className="row">
+            <span className="label">PITY · <b>KERNEL_DUMP</b></span>
+            <span className="val">{pity}<span className="max">/{PITY_CAP}</span></span>
+          </div>
+          <div className="bar"><span className="fill" style={{ width: `${pityPct}%` }}></span></div>
+          <div className="row" style={{ marginTop: 6, fontSize: 8.5, letterSpacing: '0.16em' }}>
+            <span>
+              guaranteed <span style={{ color: 'var(--lb-purple)' }}>EPIC</span> at {PITY_CAP}
+              {softHit && <span className="softpity"> · SOFT PITY +{Math.min(100, (pity - SOFT_PITY + 1) * 5)}% epic</span>}
+            </span>
+            <span>+{pullsToEpic} pulls</span>
+          </div>
         </div>
-        <div className="bar"><span className="fill" style={{ width: `${pityPct}%` }}></span></div>
-        <div className="row" style={{ marginTop: 6, fontSize: 8.5, letterSpacing: '0.16em' }}>
-          <span>
-            guaranteed <span style={{ color: 'var(--lb-purple)' }}>EPIC</span> at {PITY_CAP}
-            {softHit && <span className="softpity"> · SOFT PITY +{Math.min(100, (pity - SOFT_PITY + 1) * 5)}% epic</span>}
-          </span>
-          <span>+{pullsToEpic} pulls</span>
+      ) : (
+        <div className="sum-pity">
+          <div className="row">
+            <span className="label">FP.PITY · <b>WELCOME_WAGON</b></span>
+            <span className="val">{fpPity}<span className="max">/{fpCap}</span></span>
+          </div>
+          <div className="bar"><span className="fill" style={{ width: `${fpPityPct}%`, background: 'linear-gradient(90deg, var(--lb-cyan), #ff79c6)' }}></span></div>
+          <div className="row" style={{ marginTop: 6, fontSize: 8.5, letterSpacing: '0.16em' }}>
+            <span>♥ {fpBalance.toLocaleString()} balance · {fpCost} per pull</span>
+            <span>+{Math.max(0, fpCap - fpPity)} pulls</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* CTAs */}
-      <div className="sum-cta">
-        <button
-          type="button"
-          className="sum-btn"
-          disabled={!canX1}
-          onClick={() => pull(1)}
-        >
-          {pulling ? '…' : 'SUMMON ×1'}
-          <span className="cost">{COST_X1} ✦</span>
-        </button>
-        <button
-          type="button"
-          className="sum-btn lg"
-          disabled={!canX10}
-          onClick={() => pull(10)}
-        >
-          {pulling ? '…' : 'SUMMON ×10'}
-          <span className="cost"><b>{COST_X10} ✦</b> · 1 GUARANTEED 4★+</span>
-        </button>
-      </div>
+      {banner === 'STD' ? (
+        <div className="sum-cta">
+          <button type="button" className="sum-btn" disabled={!canX1} onClick={() => pull(1)}>
+            {pulling ? '…' : 'SUMMON ×1'}
+            <span className="cost">{COST_X1} ✦</span>
+          </button>
+          <button type="button" className="sum-btn lg" disabled={!canX10} onClick={() => pull(10)}>
+            {pulling ? '…' : 'SUMMON ×10'}
+            <span className="cost"><b>{COST_X10} ✦</b> · 1 GUARANTEED 4★+</span>
+          </button>
+        </div>
+      ) : (
+        <div className="sum-cta">
+          <button
+            type="button"
+            className="sum-btn lg"
+            style={{ gridColumn: '1 / -1', background: 'linear-gradient(180deg, #ff79c6, #c84a9b)', borderColor: '#ff79c6' }}
+            disabled={!canFriendPull}
+            onClick={pullFriend}
+          >
+            {pulling ? '…' : 'FRIEND PULL ×1'}
+            <span className="cost"><b>{fpCost} ♥</b> · earn ♥ by pinging friends</span>
+          </button>
+        </div>
+      )}
 
       {/* rates */}
       <div className="sum-rates">
@@ -206,6 +296,23 @@ function SilhouettePurple() {
       <line x1="52" y1="70" x2="58" y2="70" stroke="var(--lb-purple)" strokeWidth="2"/>
       <line x1="62" y1="70" x2="68" y2="70" stroke="var(--lb-purple)" strokeWidth="2"/>
       <rect x="46" y="86" width="28" height="3" fill="var(--lb-gold)"/>
+    </svg>
+  )
+}
+
+function SilhouettePink() {
+  return (
+    <svg viewBox="0 0 120 150" style={{ width: '90%', height: '100%' }}>
+      <ellipse cx="60" cy="142" rx="44" ry="6" fill="rgba(0,0,0,0.4)"/>
+      <g fill="#ff79c6" opacity="0.65">
+        <path d="M48 140 L 50 100 L 60 100 L 60 140 Z"/>
+        <path d="M72 140 L 70 100 L 60 100 L 60 140 Z"/>
+        <path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z"/>
+        <path d="M42 56 Q 60 32 78 56 L 76 60 Q 60 44 44 60 Z"/>
+      </g>
+      <line x1="52" y1="70" x2="58" y2="70" stroke="#ff79c6" strokeWidth="2"/>
+      <line x1="62" y1="70" x2="68" y2="70" stroke="#ff79c6" strokeWidth="2"/>
+      <rect x="46" y="86" width="28" height="3" fill="var(--lb-cyan)"/>
     </svg>
   )
 }

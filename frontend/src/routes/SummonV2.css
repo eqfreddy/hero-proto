@@ -52,6 +52,58 @@
   color: var(--lb-cyan);
 }
 
+/* ===== banner tabs ===== */
+.sum-tabs {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.sum-tabs .tab {
+  font-family: var(--lb-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  padding: 7px 8px;
+  border: 1px solid var(--lb-ink-faint);
+  background: rgba(255,255,255,0.012);
+  color: var(--lb-ink-dim);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.sum-tabs .tab.on {
+  border-color: var(--lb-purple);
+  color: var(--lb-purple);
+  background: rgba(155,48,255,0.07);
+}
+.sum-tabs .tab.fp.on {
+  border-color: #ff79c6;
+  color: #ff79c6;
+  background: rgba(255,121,198,0.08);
+}
+
+/* ===== friend banner variant ===== */
+.sum-banner.fp {
+  border-color: rgba(255,121,198,0.55);
+  background:
+    radial-gradient(120% 100% at 80% 30%, rgba(255,121,198,0.32), transparent 60%),
+    radial-gradient(80% 80% at 20% 90%, rgba(0,255,224,0.18), transparent 60%),
+    linear-gradient(180deg, #18080f 0%, #100408 100%);
+  box-shadow: 0 0 20px rgba(255,121,198,0.2);
+}
+.sum-banner.fp .grid {
+  background-image:
+    linear-gradient(to right, rgba(255,121,198,0.10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,121,198,0.10) 1px, transparent 1px);
+}
+.sum-banner.fp .banner-title { color: #ff79c6; }
+.sum-banner.fp .banner-name .sub { color: #ff79c6; }
+.sum-banner.fp.corner-ticks::before,
+.sum-banner.fp.corner-ticks::after,
+.sum-banner.fp.corner-ticks > .tbl,
+.sum-banner.fp.corner-ticks > .tbr {
+  border-color: #ff79c6;
+}
+
 /* ===== banner ===== */
 .sum-banner {
   margin-top: 12px;
