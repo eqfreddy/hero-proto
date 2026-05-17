@@ -44,10 +44,11 @@
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   font-family: var(--c-mono);
   color: var(--c-ink);
+  padding-top: env(safe-area-inset-top);
 }
 .topnav-bar {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px;
+  padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   border-bottom: 1px solid var(--c-ink-faint);
 }
 .topnav-brand {
