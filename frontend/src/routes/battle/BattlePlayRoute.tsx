@@ -38,7 +38,7 @@ export default function BattlePlayRoute() {
       autoTimerRef.current = null
     }
     if (!autoPlay || !pending || acting || done) return
-    const targets = pending.valid_targets ?? []
+    const targets = pending.valid_targets ?? pending.enemies?.map(e => e.uid) ?? []
     if (targets.length === 0) return
     // Pick the lowest-HP valid target — matches the legacy auto-mode
     // priority and tends to close out kills faster, which feels better
@@ -92,7 +92,7 @@ export default function BattlePlayRoute() {
             lastEvent={state.last_event ?? null}
             done={done}
             templateByUid={templateByUid}
-            validTargets={pending?.valid_targets ?? []}
+            validTargets={pending?.valid_targets ?? pending?.enemies?.map(e => e.uid) ?? []}
             onAct={pending ? act : undefined}
           />
         </Suspense>
@@ -103,7 +103,8 @@ export default function BattlePlayRoute() {
         teamB={state.team_b}
         onAct={pending ? act : undefined}
         pendingActorUid={pending?.actor_uid ?? null}
-        validTargets={pending?.valid_targets ?? []}
+        pending={pending ?? null}
+        validTargets={pending?.valid_targets ?? pending?.enemies?.map(e => e.uid) ?? []}
         acting={acting}
         done={done}
         rewards={rewards}

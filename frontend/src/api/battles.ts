@@ -15,10 +15,19 @@ export function postInteractiveStart(payload: PostInteractiveStartPayload): Prom
   })
 }
 
-export function postAct(sessionId: string, targetUid: string): Promise<InteractiveStateOut> {
+export type ActionType = 'attack' | 'skill' | 'limit' | 'defend'
+
+export function postAct(
+  sessionId: string,
+  targetUid: string,
+  opts?: { actionType?: ActionType; turnNumber?: number },
+): Promise<InteractiveStateOut> {
+  const body: Record<string, unknown> = { target_uid: targetUid }
+  if (opts?.actionType) body.action_type = opts.actionType
+  if (opts?.turnNumber !== undefined) body.turn_number = opts.turnNumber
   return apiFetch<InteractiveStateOut>(`/battles/interactive/${sessionId}/act`, {
     method: 'POST',
-    body: JSON.stringify({ target_uid: targetUid }),
+    body: JSON.stringify(body),
   })
 }
 

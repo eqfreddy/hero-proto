@@ -25,7 +25,19 @@ export interface BattleOut {
 
 export interface InteractivePending {
   actor_uid: string
-  valid_targets: string[]
+  actor_name?: string
+  turn_number?: number
+  enemies?: { uid: string; name: string; hp: number; max_hp: number }[]
+  valid_targets?: string[]
+  /** Phase A: per-action availability for the HUD action bar. */
+  actions?: Record<'attack' | 'skill' | 'limit' | 'defend', { enabled: boolean; reason: string | null }>
+  special_name?: string | null
+  special_kind?: string | null
+  special_cooldown_left?: number
+  mana?: number
+  mana_cost?: number
+  limit_gauge?: number
+  limit_gauge_max?: number
 }
 
 export interface InteractiveParticipant {

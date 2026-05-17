@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { postAct, fetchInteractiveState } from '../api/battles'
+import { postAct, fetchInteractiveState, type ActionType } from '../api/battles'
 import type { InteractiveStateOut } from '../types/battle'
 
 export function useInteractiveSession(initialState: InteractiveStateOut | null) {
@@ -7,12 +7,12 @@ export function useInteractiveSession(initialState: InteractiveStateOut | null) 
   const [acting, setActing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const act = useCallback(async (targetUid: string) => {
+  const act = useCallback(async (targetUid: string, actionType?: ActionType) => {
     if (!state) return
     setActing(true)
     setError(null)
     try {
-      const next = await postAct(state.session_id, targetUid)
+      const next = await postAct(state.session_id, targetUid, { actionType })
       setState(next)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed')

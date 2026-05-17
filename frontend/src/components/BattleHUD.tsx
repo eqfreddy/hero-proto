@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
-import type { CombatUnit } from '../types/battle'
+import type { CombatUnit, InteractivePending } from '../types/battle'
+import type { ActionType } from '../api/battles'
 
 const BUST_BASE = '/app/static/heroes/busts/'
 
 interface BattleHUDProps {
   teamA: CombatUnit[]
   teamB: CombatUnit[]
-  onAct: ((targetUid: string) => void) | undefined
+  onAct: ((targetUid: string, actionType?: ActionType) => void) | undefined
   pendingActorUid: string | null
+  pending?: InteractivePending | null
   validTargets: string[]
   acting: boolean
   done: boolean
@@ -103,13 +105,102 @@ function UnitCard({
   )
 }
 
-export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorUid, validTargets, acting, done, rewards, onClose, templateByUid, turnStartedAt, turnTimeoutS }: BattleHUDProps) {
+function ActionBar({ pending, onAct, disabled }: {
+  pending: InteractivePending
+  onAct: (targetUid: string, actionType?: ActionType) => void
+  disabled: boolean
+}) {
+  const [selectedAction, setSelectedAction] = useState<ActionType>('attack')
+  const actions = pending.actions ?? {
+    attack: { enabled: true, reason: null },
+    skill:  { enabled: !!pending.special_name && (pending.special_cooldown_left ?? 0) === 0, reason: null },
+    limit:  { enabled: (pending.limit_gauge ?? 0) >= (pending.limit_gauge_max ?? 100), reason: null },
+    defend: { enabled: true, reason: null },
+  }
+
+  const handle = (kind: ActionType) => {
+    if (disabled || !actions[kind]?.enabled) return
+    if (kind === 'defend') { onAct('', 'defend'); return }
+    if (kind === 'limit') { onAct('', 'limit'); return }
+    if (kind === 'skill' && pending.special_kind && /AOE|HEAL|BUFF|CLEANSE/.test(pending.special_kind)) {
+      onAct('', 'skill'); return
+    }
+    // attack and single-target skills require a target click — arm the bar
+    setSelectedAction(kind)
+  }
+
+  const Button = ({ kind, label, sub }: { kind: ActionType; label: string; sub?: string }) => {
+    const a = actions[kind] ?? { enabled: false, reason: null }
+    const armed = selectedAction === kind
+    const color = kind === 'limit' ? '#e8a35a' : kind === 'skill' ? '#9b88ff' : kind === 'defend' ? '#5ad8a3' : '#00e0d0'
+    return (
+      <button
+        disabled={!a.enabled || disabled}
+        onClick={() => handle(kind)}
+        title={a.reason ?? undefined}
+        style={{
+          flex: 1, padding: '10px 8px',
+          background: armed ? `${color}26` : 'rgba(0,0,0,0.6)',
+          border: `1px solid ${a.enabled ? `${color}99` : 'rgba(255,255,255,0.12)'}`,
+          color: a.enabled ? color : 'rgba(255,255,255,0.32)',
+          fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
+          cursor: a.enabled && !disabled ? 'pointer' : 'not-allowed',
+          textTransform: 'uppercase', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 2, borderRadius: 4, transition: 'all 0.12s',
+        }}
+      >
+        <span>{label}</span>
+        {sub && <span style={{ fontSize: 9, opacity: 0.75, letterSpacing: '0.08em' }}>{sub}</span>}
+      </button>
+    )
+  }
+
+  const limitPct = pending.limit_gauge_max
+    ? Math.min(100, Math.round((pending.limit_gauge ?? 0) / pending.limit_gauge_max * 100))
+    : 0
+
+  return (
+    <div style={{
+      position: 'absolute', bottom: 92, left: '50%', transform: 'translateX(-50%)',
+      display: 'flex', flexDirection: 'column', gap: 6, pointerEvents: 'auto',
+      minWidth: 480, maxWidth: 640,
+    }}>
+      <div style={{
+        fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+        fontSize: 10, letterSpacing: '0.3em', color: 'rgba(255,255,255,0.7)',
+        textAlign: 'center', textTransform: 'uppercase',
+      }}>
+        {pending.actor_name ?? pending.actor_uid} · turn {pending.turn_number ?? '—'}
+        {selectedAction === 'attack' && (actions.attack?.enabled || actions.skill?.enabled) && (
+          <span style={{ marginLeft: 10, color: '#00e0d0' }}>
+            ▸ pick enemy target
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <Button kind="attack" label="Attack" />
+        <Button
+          kind="skill"
+          label={pending.special_name ?? 'Skill'}
+          sub={(pending.special_cooldown_left ?? 0) > 0 ? `CD ${pending.special_cooldown_left}` : 'ready'}
+        />
+        <Button kind="limit" label="Limit" sub={`${limitPct}%`} />
+        <Button kind="defend" label="Defend" sub="-50% dmg" />
+      </div>
+    </div>
+  )
+}
+
+export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorUid, pending, validTargets, acting, done, rewards, onClose, templateByUid, turnStartedAt, turnTimeoutS }: BattleHUDProps) {
   const validSet = new Set(validTargets)
   const showTimer = !done && turnStartedAt != null && (turnTimeoutS ?? 0) > 0
+  const showActionBar = !!pending && !!onAct && !done
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', padding: 16 }}>
       {showTimer && <TurnTimer startedAt={turnStartedAt!} timeoutS={turnTimeoutS!} />}
+      {showActionBar && <ActionBar pending={pending!} onAct={onAct!} disabled={acting} />}
       {/* Team A (player) — bottom left */}
       <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', gap: 8, pointerEvents: 'auto' }}>
         {teamA.map(u => (
