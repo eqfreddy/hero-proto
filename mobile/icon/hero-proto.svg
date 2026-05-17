@@ -1,0 +1,100 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" aria-label="hero-proto app icon">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="55%" r="55%">
+      <stop offset="0%"  stop-color="#1a0a3a" stop-opacity="0.85" />
+      <stop offset="55%" stop-color="#070414" stop-opacity="1" />
+      <stop offset="100%" stop-color="#04060c" stop-opacity="1" />
+    </radialGradient>
+    <linearGradient id="hexStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#00ffe0" />
+      <stop offset="55%"  stop-color="#00ffe0" />
+      <stop offset="100%" stop-color="#9b30ff" />
+    </linearGradient>
+    <linearGradient id="glyphStroke" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#7afff0" />
+      <stop offset="100%" stop-color="#00ffe0" />
+    </linearGradient>
+    <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="scanlines" width="6" height="6" patternUnits="userSpaceOnUse">
+      <rect width="6" height="1" fill="#ffffff" opacity="0.04"/>
+    </pattern>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bgGlow)"/>
+
+  <circle cx="512" cy="540" r="240" fill="#9b30ff" opacity="0.18" filter="url(#softGlow)"/>
+  <circle cx="512" cy="500" r="170" fill="#00ffe0" opacity="0.14" filter="url(#softGlow)"/>
+
+  <g stroke="#00ffe0" stroke-width="3" fill="none" opacity="0.55" stroke-linecap="square">
+    <path d="M 70 200 L 200 200 L 280 280 L 305 305"/>
+    <circle cx="70" cy="200" r="6" fill="#00ffe0"/>
+    <path d="M 954 240 L 820 240 L 745 315 L 719 341"/>
+    <circle cx="954" cy="240" r="6" fill="#00ffe0"/>
+    <path d="M 70 824 L 220 824 L 305 740 L 320 725"/>
+    <circle cx="70" cy="824" r="6" fill="#00ffe0"/>
+    <path d="M 954 784 L 820 784 L 745 712 L 720 686"/>
+    <circle cx="954" cy="784" r="6" fill="#00ffe0"/>
+    <path d="M 50 512 L 180 512"/>
+    <circle cx="50" cy="512" r="6" fill="#9b30ff"/>
+    <path d="M 974 512 L 844 512"/>
+    <circle cx="974" cy="512" r="6" fill="#9b30ff"/>
+  </g>
+
+  <g filter="url(#neonGlow)">
+    <polygon points="512,128 832,308 832,716 512,896 192,716 192,308"
+             fill="none" stroke="url(#hexStroke)" stroke-width="6" stroke-linejoin="miter"/>
+  </g>
+  <polygon points="512,176 790,332 790,692 512,848 234,692 234,332"
+           fill="rgba(0,255,224,0.03)" stroke="rgba(0,255,224,0.45)" stroke-width="1.5" stroke-linejoin="miter"/>
+
+  <g fill="#04060c" stroke="#00ffe0" stroke-width="3">
+    <circle cx="512" cy="128" r="11"/>
+    <circle cx="832" cy="308" r="11"/>
+    <circle cx="832" cy="716" r="11"/>
+    <circle cx="512" cy="896" r="11"/>
+    <circle cx="192" cy="716" r="11"/>
+    <circle cx="192" cy="308" r="11"/>
+  </g>
+
+  <g stroke="rgba(0,255,224,0.35)" stroke-width="2">
+    <line x1="512" y1="200" x2="512" y2="220"/>
+    <line x1="512" y1="804" x2="512" y2="824"/>
+    <line x1="260" y1="512" x2="282" y2="512"/>
+    <line x1="742" y1="512" x2="764" y2="512"/>
+  </g>
+
+  <g filter="url(#neonGlow)">
+    <polygon points="512,300 562,360 512,420 462,360" fill="#04060c"
+             stroke="url(#glyphStroke)" stroke-width="7" stroke-linejoin="miter"/>
+    <circle cx="512" cy="360" r="9" fill="#00ffe0"/>
+    <line x1="512" y1="420" x2="512" y2="448" stroke="#00ffe0" stroke-width="7"/>
+    <line x1="392" y1="478" x2="632" y2="478" stroke="#00ffe0" stroke-width="7"/>
+    <rect x="380" y="466" width="24" height="24" fill="#04060c" stroke="#00ffe0" stroke-width="5"/>
+    <rect x="620" y="466" width="24" height="24" fill="#04060c" stroke="#00ffe0" stroke-width="5"/>
+    <path d="M 512 478 L 512 590 L 432 660 L 432 692" fill="none" stroke="#00ffe0" stroke-width="7" stroke-linejoin="miter"/>
+    <path d="M 512 590 L 592 660 L 592 692" fill="none" stroke="#00ffe0" stroke-width="7" stroke-linejoin="miter"/>
+    <rect x="500" y="510" width="24" height="24" fill="#04060c" stroke="#ffd700" stroke-width="4"/>
+    <rect x="506" y="516" width="12" height="12" fill="#ffd700"/>
+    <rect x="418" y="692" width="28" height="10" fill="#00ffe0"/>
+    <rect x="578" y="692" width="28" height="10" fill="#00ffe0"/>
+  </g>
+
+  <g opacity="0.55" filter="url(#softGlow)">
+    <polygon points="512,304 558,360 512,416 466,360" fill="none" stroke="#9b30ff" stroke-width="3"/>
+    <line x1="512" y1="478" x2="512" y2="590" stroke="#9b30ff" stroke-width="3"/>
+  </g>
+
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#scanlines)" opacity="0.7"/>
+</svg>
