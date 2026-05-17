@@ -99,23 +99,6 @@ export function SummonV2ResultsRoute() {
           <br />
           <Link className="link" to="/app/summon">‹ BACK TO SUMMON</Link>
         </div>
-        <nav className="lobby-bnav">
-          <button type="button" className="item" onClick={() => navigate('/app/lobby')}>
-            <span className="ico">H</span>HOME
-          </button>
-          <button type="button" className="item" onClick={() => navigate('/app/roster')}>
-            <span className="ico">R</span>ROSTER
-          </button>
-          <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>
-            <span className="ico summon">S</span>SUMMON
-          </button>
-          <button type="button" className="item" onClick={() => navigate('/app/battle-v2')}>
-            <span className="ico">B</span>BATTLE
-          </button>
-          <button type="button" className="item" onClick={() => navigate('/app/shop')}>
-            <span className="ico">$</span>SHOP
-          </button>
-        </nav>
       </div>
     )
   }
@@ -195,23 +178,6 @@ export function SummonV2ResultsRoute() {
         </button>
       </div>
 
-      <nav className="lobby-bnav">
-        <button type="button" className="item" onClick={() => navigate('/app/lobby')}>
-          <span className="ico">H</span>HOME
-        </button>
-        <button type="button" className="item" onClick={() => navigate('/app/roster')}>
-          <span className="ico">R</span>ROSTER
-        </button>
-        <button type="button" className="item on" style={{ color: 'var(--lb-purple)' }}>
-          <span className="ico summon">S</span>SUMMON
-        </button>
-        <button type="button" className="item" onClick={() => navigate('/app/battle-v2')}>
-          <span className="ico">B</span>BATTLE
-        </button>
-        <button type="button" className="item" onClick={() => navigate('/app/shop')}>
-          <span className="ico">$</span>SHOP
-        </button>
-      </nav>
     </div>
   )
 }

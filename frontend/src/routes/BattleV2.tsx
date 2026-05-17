@@ -77,13 +77,6 @@ export function BattleV2Route() {
             ‹ {team.length === 0 ? 'GO TO SUMMON' : 'BACK TO LOBBY'}
           </span>
         </div>
-        <nav className="lobby-bnav">
-          <button type="button" className="item" onClick={() => navigate('/app/lobby')}><span className="ico">H</span>HOME</button>
-          <button type="button" className="item" onClick={() => navigate('/app/roster')}><span className="ico">R</span>ROSTER</button>
-          <button type="button" className="item" onClick={() => navigate('/app/summon')}><span className="ico summon">S</span>SUMMON</button>
-          <button type="button" className="item on"><span className="ico">B</span>BATTLE</button>
-          <button type="button" className="item" onClick={() => navigate('/app/shop')}><span className="ico">$</span>SHOP</button>
-        </nav>
       </div>
     )
   }
@@ -205,13 +198,6 @@ export function BattleV2Route() {
         </button>
       </div>
 
-      <nav className="lobby-bnav">
-        <button type="button" className="item" onClick={() => navigate('/app/lobby')}><span className="ico">H</span>HOME</button>
-        <button type="button" className="item" onClick={() => navigate('/app/roster')}><span className="ico">R</span>ROSTER</button>
-        <button type="button" className="item" onClick={() => navigate('/app/summon')}><span className="ico summon">S</span>SUMMON</button>
-        <button type="button" className="item on"><span className="ico">B</span>BATTLE</button>
-        <button type="button" className="item" onClick={() => navigate('/app/shop')}><span className="ico">$</span>SHOP</button>
-      </nav>
     </div>
   )
 }
