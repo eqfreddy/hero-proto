@@ -110,10 +110,28 @@ export default function BattleSetupRoute() {
   const [rarityFilter, setRarityFilter] = useState<'ALL' | HeroTemplate['rarity']>('ALL')
 
   const teamIds = team.filter((id): id is number => id !== null)
-  const teamPower = teamIds
-    .map(id => heroes.find(h => h.id === id))
-    .filter(Boolean)
-    .reduce((sum, h) => sum + (h!.power ?? 0), 0)
+  const teamHeroes = teamIds.map(id => heroes.find(h => h.id === id)).filter(Boolean) as typeof heroes
+  const teamPower = teamHeroes.reduce((sum, h) => sum + (h.power ?? 0), 0)
+
+  // Faction synergy preview — mirrors team_faction_synergy() in app/combat.py.
+  // 3 same-faction = +10% ATK, 4 = +15/+5, 5 = +20/+10.
+  const factionCounts: Record<string, number> = {}
+  for (const h of teamHeroes) {
+    const f = h.template?.faction
+    if (f && f !== 'NEUTRAL') factionCounts[f] = (factionCounts[f] ?? 0) + 1
+  }
+  const dominant = Object.entries(factionCounts).sort((a, b) => b[1] - a[1])[0]
+  const synergy = dominant && dominant[1] >= 3
+    ? {
+        faction: dominant[0],
+        count: dominant[1],
+        atk: dominant[1] === 3 ? 10 : dominant[1] === 4 ? 15 : 20,
+        def: dominant[1] === 3 ? 0  : dominant[1] === 4 ? 5  : 10,
+      }
+    : null
+  const oneAwaySynergy = !synergy && dominant && dominant[1] === 2
+    ? { faction: dominant[0], needs: 1 }
+    : null
 
   async function useLastTeam() {
     try {
@@ -294,6 +312,22 @@ export default function BattleSetupRoute() {
                 }}>· {tag}</span>
               )
             })()}
+            {synergy && (
+              <span style={{
+                marginLeft: 8, fontSize: 11, fontWeight: 700,
+                color: '#ffd86b',
+              }} title={`${synergy.count} × ${synergy.faction} → +${synergy.atk}% ATK${synergy.def ? `, +${synergy.def}% DEF` : ''}`}>
+                · ★ {synergy.faction} ×{synergy.count} → +{synergy.atk}% ATK{synergy.def ? `, +${synergy.def}% DEF` : ''}
+              </span>
+            )}
+            {oneAwaySynergy && (
+              <span style={{
+                marginLeft: 8, fontSize: 11, fontWeight: 600,
+                color: 'rgba(255,216,107,0.6)',
+              }} title="One more same-faction hero unlocks synergy">
+                · +1 {oneAwaySynergy.faction} = +10% ATK
+              </span>
+            )}
           </h2>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button onClick={useLastTeam} style={miniBtn}>🕘 Last team</button>
