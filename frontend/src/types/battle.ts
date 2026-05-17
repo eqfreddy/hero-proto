@@ -8,6 +8,14 @@ export interface CombatUnit {
   spd: number
   dead: boolean
   portrait_url?: string
+  /** Phase A: surfaced by backend UnitSnapshot. */
+  shielded?: boolean
+  defending?: boolean
+  statuses?: string[]
+  mana?: number
+  mana_cost?: number
+  limit_gauge?: number
+  limit_gauge_max?: number
 }
 
 export interface BattleLog {

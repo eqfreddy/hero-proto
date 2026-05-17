@@ -107,6 +107,22 @@ export function Battle3DScene(props: Battle3DSceneProps) {
     const barsRoot = document.createElement("div");
     barsRoot.style.cssText = "position:absolute;inset:0;pointer-events:none;overflow:hidden;";
     container.appendChild(barsRoot);
+
+    // Floating damage number animation. Injected once per scene mount.
+    // ID-gated so re-mounts during HMR don't duplicate the rule.
+    if (typeof document !== "undefined" && !document.getElementById("lb3-fx-keyframes")) {
+      const styleEl = document.createElement("style");
+      styleEl.id = "lb3-fx-keyframes";
+      styleEl.textContent =
+        "@keyframes lb3-float{" +
+        "0%{opacity:0;transform:translateY(0) scale(0.9)}" +
+        "12%{opacity:1;transform:translateY(-6px) scale(1.05)}" +
+        "100%{opacity:0;transform:translateY(-44px) scale(1)}" +
+        "}" +
+        "@keyframes lb3-shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-4px,2px)}" +
+        "50%{transform:translate(3px,-2px)}75%{transform:translate(-2px,3px)}}";
+      document.head.appendChild(styleEl);
+    }
     const bars = new Map<string, { el: HTMLDivElement; fill: HTMLDivElement; anchor: THREE.Object3D }>();
     // Aura discs — glowing ring under each hero's feet. Team-colored so
     // ally vs enemy is readable at a glance. Pulsed in the tick loop.
@@ -256,8 +272,47 @@ export function Battle3DScene(props: Battle3DSceneProps) {
                 }
               });
             },
-            floatDamageNumber: (_amount: number) => {
-              // DOM overlay — v1.1
+            floatDamageNumber: (amount: number, opts?: { crit?: boolean; kind?: 'damage' | 'heal' | 'defend' }) => {
+              const anchor = bars.get(unit.uid)?.anchor;
+              if (!anchor) return;
+              const cw = container.clientWidth;
+              const ch = container.clientHeight;
+              tmpProj.copy(anchor.position).add(HEAD_OFFSET).project(camera);
+              if (tmpProj.z > 1) return;
+              const px = (tmpProj.x * 0.5 + 0.5) * cw;
+              const py = (-tmpProj.y * 0.5 + 0.5) * ch - 14;
+              const el = document.createElement('div');
+              const kind = opts?.kind ?? 'damage';
+              const crit = !!opts?.crit;
+              const color =
+                kind === 'heal'   ? '#5ad8a3' :
+                kind === 'defend' ? '#a8c4ff' :
+                crit              ? '#ffd86b' :
+                                    '#ffffff';
+              const size = crit ? 28 : 20;
+              const label =
+                kind === 'defend' ? 'DEFEND'
+                : kind === 'heal' ? `+${amount}`
+                : crit            ? `${amount}!`
+                :                   String(amount);
+              el.textContent = label;
+              // Outer wraps positioning so we can animate transform on the inner
+              // element without fighting the per-event x/y placement.
+              const wrap = document.createElement('div');
+              wrap.style.cssText = `position:absolute;left:${px}px;top:${py}px;transform:translate(-50%,-100%);pointer-events:none;`;
+              el.style.cssText = [
+                'font-family:Space Grotesk, system-ui, sans-serif',
+                'font-weight:800',
+                `font-size:${size}px`,
+                `color:${color}`,
+                'text-shadow:0 2px 6px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)',
+                'letter-spacing:0.04em',
+                'will-change:transform,opacity',
+                `animation:lb3-float ${crit ? 1400 : 1100}ms ease-out forwards`,
+              ].join(';');
+              wrap.appendChild(el);
+              barsRoot.appendChild(wrap);
+              setTimeout(() => { el.remove(); }, crit ? 1450 : 1150);
             },
             fade: (opacity: number) => {
               scene.traverse(o => {

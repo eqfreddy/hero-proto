@@ -27,7 +27,7 @@ describe("animationDriver.handleEvent", () => {
     expect(attacker.play).toHaveBeenCalledWith("Sword_Attack");
     expect(defender.play).toHaveBeenCalledWith("RecieveHit");
     expect(defender.flashWhite).toHaveBeenCalled();
-    expect(defender.floatDamageNumber).toHaveBeenCalledWith(42);
+    expect(defender.floatDamageNumber).toHaveBeenCalledWith(42, { crit: false });
   });
 
   it("DEATH: victim plays die clip and fades to 0.4", () => {

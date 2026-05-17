@@ -51,13 +51,45 @@ function TurnTimer({ startedAt, timeoutS }: { startedAt: number; timeoutS: numbe
   )
 }
 
+const STATUS_GLYPH: Record<string, { icon: string; color: string; label: string }> = {
+  POISON:      { icon: '☠', color: '#9ee37d', label: 'Poison' },
+  BURN:        { icon: '🔥', color: '#ff8c5a', label: 'Burn' },
+  STUN:        { icon: '⚡', color: '#ffd86b', label: 'Stun' },
+  FREEZE:      { icon: '❄', color: '#7fd8ff', label: 'Freeze' },
+  SHIELD:      { icon: '◆', color: '#a8c4ff', label: 'Shield' },
+  REFLECT:     { icon: '↺', color: '#d8a8ff', label: 'Reflect' },
+  HEAL_BLOCK:  { icon: '✕', color: '#ff7da3', label: 'Heal Block' },
+  ATK_UP:      { icon: '▲', color: '#ff8c8c', label: 'ATK Up' },
+  DEF_DOWN:    { icon: '▽', color: '#8c8cff', label: 'DEF Down' },
+  DEFENDING:   { icon: '🛡', color: '#a8c4ff', label: 'Defending' },
+}
+
+function StatusStrip({ statuses }: { statuses?: string[] }) {
+  if (!statuses?.length) return null
+  return (
+    <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
+      {statuses.slice(0, 5).map((s) => {
+        const g = STATUS_GLYPH[s] ?? { icon: '·', color: '#aaa', label: s }
+        return (
+          <span key={s} title={g.label}
+            style={{
+              fontSize: 10, lineHeight: 1, padding: '1px 3px',
+              borderRadius: 2, background: 'rgba(0,0,0,0.55)',
+              color: g.color, fontWeight: 700,
+            }}>{g.icon}</span>
+        )
+      })}
+    </div>
+  )
+}
+
 function UnitCard({
   unit,
   isTarget,
   templateCode,
   onSelect,
 }: {
-  unit: CombatUnit
+  unit: CombatUnit & { statuses?: string[]; defending?: boolean; mana?: number; mana_cost?: number }
   isTarget: boolean
   templateCode?: string
   onSelect?: () => void
@@ -65,6 +97,8 @@ function UnitCard({
   const pct = unit.max_hp > 0 ? Math.max(0, unit.hp / unit.max_hp) : 0
   const [bustOk, setBustOk] = useState(true)
   const bustUrl = templateCode && bustOk ? `${BUST_BASE}${templateCode}.png` : null
+  const statusList = [...(unit.statuses ?? [])]
+  if (unit.defending && !statusList.includes('DEFENDING')) statusList.unshift('DEFENDING')
   return (
     <div
       data-dead={unit.dead ? 'true' : undefined}
@@ -101,6 +135,7 @@ function UnitCard({
         <div style={{ width: `${pct * 100}%`, height: '100%', background: unit.dead ? '#666' : 'var(--color-accent)', transition: 'width 0.3s' }} />
       </div>
       <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 2 }}>{unit.hp} / {unit.max_hp}</div>
+      <StatusStrip statuses={statusList} />
     </div>
   )
 }
