@@ -1,40 +1,32 @@
 // frontend/src/components/Layout/Shell.tsx
 import { useEffect, useRef } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { NavBar } from './NavBar'
-import { CurrencyBar } from './CurrencyBar'
+import { TopNav } from './TopNav'
+import { PlayNav } from './PlayNav'
 import { ToastContainer } from '../Toast'
 import { AgeGate } from '../AgeGate'
 import { VersionTag } from '../VersionTag'
 import { QuestWidget } from '../QuestWidget'
 import { PendingArenaReward } from '../PendingArenaReward'
 import { useAuthStore } from '../../store/auth'
+import { useMe } from '../../hooks/useMe'
 import { initPush } from '../../api/push'
+import './Chrome.css'
 
 const PUBLIC_PATHS = new Set(['/app/login', '/app/privacy', '/app/terms'])
 
-const V2_PATH_PREFIXES = [
-  '/app/summon',
-  '/app/roster',
-  '/app/battle-v2',
-  '/app/summon-v2',
-  '/app/roster-v2',
-]
-
-function isV2Route(pathname: string): boolean {
-  // Lobby keeps the full top tab strip so players can reach every surface
-  // from the landing page. The pure v2 mobile screens stay compact.
-  if (pathname === '/app/lobby' || pathname.startsWith('/app/lobby/')) return false
-  if (pathname === '/app/roster' || pathname === '/app/roster/') return true
-  if (pathname.startsWith('/app/roster/')) return false
-  if (pathname.startsWith('/app/summon/legacy')) return false
-  return V2_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+// Routes that take over the full viewport (no shared chrome).
+// Battle play / replay etc render their own UI.
+function isImmersiveRoute(pathname: string): boolean {
+  if (pathname.startsWith('/battle/')) return true
+  return false
 }
 
 export function Shell() {
   const jwt = useAuthStore((s) => s.jwt)
   const location = useLocation()
   const pushInitialized = useRef(false)
+  const { data: me } = useMe()
 
   useEffect(() => {
     if (jwt && !pushInitialized.current) {
@@ -48,25 +40,37 @@ export function Shell() {
     return <Navigate to="/app/login" replace state={{ from: location }} />
   }
 
-  const v2 = isV2Route(location.pathname)
+  // Login / legal: bare shell, no chrome.
+  if (PUBLIC_PATHS.has(location.pathname) || isImmersiveRoute(location.pathname)) {
+    return (
+      <AgeGate>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <main style={{ flex: 1 }}>
+            <Outlet />
+          </main>
+          <ToastContainer />
+          <VersionTag />
+        </div>
+      </AgeGate>
+    )
+  }
+
+  const faction = me?.faction ?? 'RESISTANCE'
 
   return (
     <AgeGate>
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <NavBar compact={v2} />
-        {!v2 && <CurrencyBar />}
-        <main
-          className="main-content"
-          style={
-            v2
-              ? { padding: 0, width: '100%', flex: 1 }
-              : { padding: 18, maxWidth: 1100, margin: '0 auto', width: '100%', flex: 1 }
-          }
-        >
+      <div
+        className="chrome-root"
+        data-faction={faction}
+        style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--c-bg)' }}
+      >
+        <TopNav />
+        <main className="chrome-main">
           <Outlet />
         </main>
+        <PlayNav />
         <ToastContainer />
-        {!v2 && <QuestWidget />}
+        <QuestWidget />
         <PendingArenaReward />
         <VersionTag />
       </div>

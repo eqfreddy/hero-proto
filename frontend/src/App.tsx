@@ -34,6 +34,7 @@ import { TowerRoute } from './routes/Tower'
 import { PrivacyRoute, TermsRoute } from './routes/Legal'
 import CollectionsRoute from './routes/Collections'
 import ShardsRoute from './routes/Shards'
+import BattleHubRoute from './routes/BattleHub'
 import BattleSetupRoute from './routes/battle/BattleSetupRoute'
 import BattleReplayRoute from './routes/battle/BattleReplayRoute'
 import BattlePlayRoute from './routes/battle/BattlePlayRoute'
@@ -55,6 +56,7 @@ const router = createBrowserRouter([
       { path: 'summon-v2', element: <SummonV2Route /> },
       { path: 'summon-v2/results', element: <SummonV2ResultsRoute /> },
       { path: 'roster-v2', element: <RosterV2Route /> },
+      { path: 'battle', element: <BattleHubRoute /> },
       { path: 'battle-v2', element: <BattleV2Route /> },
       { path: 'roster', children: [
         { index: true, element: <RosterV2Route /> },

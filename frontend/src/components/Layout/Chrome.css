@@ -1,0 +1,227 @@
+/* Shared chrome — terminal aesthetic from Lobby applied app-wide.
+   TopNav = management; PlayNav = play. */
+
+.chrome-root {
+  --c-bg:        #04060c;
+  --c-bg-2:      #070a14;
+  --c-ink:       #c9d2e3;
+  --c-ink-2:     #e8efff;
+  --c-ink-dim:   #6b7894;
+  --c-ink-faint: #2d3548;
+  --c-cyan:      #00ffe0;
+  --c-purple:    #9b30ff;
+  --c-gold:      #ffd700;
+  --c-crimson:   #c8102e;
+
+  --c-accent:        var(--c-cyan);
+  --c-accent-soft:   rgba(0, 255, 224, 0.18);
+  --c-accent-glow:   rgba(0, 255, 224, 0.45);
+  --c-accent-stroke: rgba(0, 255, 224, 0.45);
+
+  --c-display: "Space Grotesk", system-ui, sans-serif;
+  --c-mono:    "JetBrains Mono", ui-monospace, monospace;
+}
+
+.chrome-root[data-faction="CORP_GREED"] {
+  --c-accent:        var(--c-gold);
+  --c-accent-soft:   rgba(255, 215, 0, 0.14);
+  --c-accent-glow:   rgba(255, 215, 0, 0.35);
+  --c-accent-stroke: rgba(255, 215, 0, 0.50);
+}
+.chrome-root[data-faction="EXILE"] {
+  --c-accent:        var(--c-purple);
+  --c-accent-soft:   rgba(155, 48, 255, 0.18);
+  --c-accent-glow:   rgba(155, 48, 255, 0.40);
+  --c-accent-stroke: rgba(155, 48, 255, 0.60);
+}
+
+/* ===== TopNav ===== */
+.topnav {
+  position: sticky; top: 0; z-index: 60;
+  background: rgba(4, 6, 12, 0.88);
+  border-bottom: 1px solid var(--c-ink-faint);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  font-family: var(--c-mono);
+  color: var(--c-ink);
+}
+.topnav-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c-ink-faint);
+}
+.topnav-brand {
+  font-family: var(--c-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: var(--c-accent);
+  text-decoration: none;
+  background: none;
+  border: 1px solid var(--c-accent-stroke);
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.topnav-brand:hover { box-shadow: 0 0 8px var(--c-accent-glow); }
+.topnav-curr {
+  margin-left: auto;
+  display: inline-flex; gap: 10px;
+  font-family: var(--c-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--c-ink);
+}
+.topnav-curr .c {
+  display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap;
+}
+.topnav-curr .c .dot { width: 7px; height: 7px; flex: none; }
+.topnav-curr .c .dot.g { background: var(--c-gold);   box-shadow: 0 0 4px var(--c-gold); }
+.topnav-curr .c .dot.p { background: var(--c-purple); box-shadow: 0 0 4px var(--c-purple); }
+.topnav-curr .c .dot.c { background: var(--c-cyan);   box-shadow: 0 0 4px var(--c-cyan); }
+.topnav-actions { display: inline-flex; align-items: center; gap: 4px; }
+
+.topnav-strip {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 8px;
+}
+.topnav-strip::-webkit-scrollbar { display: none; }
+.topnav-tab {
+  padding: 8px 12px;
+  font-family: var(--c-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: var(--c-ink-dim);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  text-transform: uppercase;
+  position: relative;
+}
+.topnav-tab:hover { color: var(--c-ink-2); }
+.topnav-tab.is-active {
+  color: var(--c-accent);
+  border-bottom-color: var(--c-accent);
+  text-shadow: 0 0 8px var(--c-accent-glow);
+}
+.topnav-tab-badge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 5px;
+  font-size: 8px;
+  background: var(--c-crimson);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.topnav-event { color: var(--c-crimson) !important; }
+
+/* ===== PlayNav (fixed bottom, 5 slots) ===== */
+.playnav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 60;
+  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(4,6,12,0.4), rgba(4,6,12,0.96) 40%);
+  border-top: 1px solid var(--c-ink-faint);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  font-family: var(--c-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+}
+.playnav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  color: var(--c-ink-dim);
+  text-decoration: none;
+  padding: 4px 0;
+  background: none; border: 0;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: uppercase;
+}
+.playnav-item .ico {
+  width: 22px; height: 22px;
+  border: 1.5px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-family: var(--c-display); font-weight: 700;
+  letter-spacing: 0;
+}
+.playnav-item.is-active {
+  color: var(--c-accent);
+  text-shadow: 0 0 6px var(--c-accent-glow);
+}
+.playnav-item.is-active .ico {
+  box-shadow: 0 0 8px var(--c-accent-glow);
+}
+.playnav-item.is-summon .ico { border-color: var(--c-purple); color: var(--c-purple); }
+.playnav-item.is-summon.is-active { color: var(--c-purple); text-shadow: 0 0 6px rgba(155,48,255,0.5); }
+
+.chrome-main {
+  flex: 1;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
+
+/* ===== Battle Hub ===== */
+.battle-hub {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 16px 14px;
+  font-family: var(--c-display);
+  color: var(--c-ink);
+}
+.battle-hub h1 {
+  font-family: var(--c-mono);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: var(--c-accent);
+  margin: 0 0 14px;
+  text-transform: uppercase;
+}
+.battle-hub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.battle-tile {
+  border: 1px solid var(--c-accent-stroke);
+  background:
+    radial-gradient(120% 90% at 50% 110%, var(--c-accent-soft), transparent 60%),
+    linear-gradient(180deg, #06101a 0%, #040810 100%);
+  padding: 18px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  text-decoration: none;
+  color: var(--c-ink-2);
+  cursor: pointer;
+  min-height: 110px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.4), inset 0 0 24px rgba(0,255,224,0.03);
+  transition: transform 80ms ease;
+}
+.battle-tile:hover { transform: translateY(-1px); box-shadow: 0 0 16px var(--c-accent-glow); }
+.battle-tile .label {
+  font-family: var(--c-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--c-accent);
+  text-transform: uppercase;
+}
+.battle-tile .title {
+  font-family: var(--c-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.battle-tile .desc {
+  font-family: var(--c-mono);
+  font-size: 10px;
+  color: var(--c-ink-dim);
+  line-height: 1.4;
+  margin-top: auto;
+}

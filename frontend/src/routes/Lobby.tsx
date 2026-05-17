@@ -215,24 +215,6 @@ export function LobbyRoute() {
         </svg>
       </div>
 
-      {/* bottom nav */}
-      <nav className="lobby-bnav">
-        <button type="button" className="item on">
-          <span className="ico">H</span>HOME
-        </button>
-        <button type="button" className="item" onClick={() => navigate('/app/roster')}>
-          <span className="ico">R</span>ROSTER
-        </button>
-        <button type="button" className="item" onClick={() => navigate('/app/summon')}>
-          <span className="ico summon">S</span>SUMMON
-        </button>
-        <button type="button" className="item" onClick={() => navigate('/app/battle-v2')}>
-          <span className="ico">B</span>BATTLE
-        </button>
-        <button type="button" className="item" onClick={() => navigate('/app/shop')}>
-          <span className="ico">$</span>SHOP
-        </button>
-      </nav>
     </div>
   )
 }
