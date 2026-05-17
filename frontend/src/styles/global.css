@@ -14,9 +14,14 @@ body {
     linear-gradient(180deg, #050811 0%, var(--bg) 50%, #02030a 100%);
   background-attachment: fixed;
   color: var(--text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.5;
+}
+
+/* Terminal mono helper — reuse on labels, codes, stats. */
+.term-mono, code, kbd, samp, pre {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
 }
 
 /* Tech grid lattice — sits behind the UI, drifts slowly for a "live" feel. */
@@ -68,33 +73,40 @@ body::after {
 
 button {
   cursor: pointer;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--panel);
   color: var(--text);
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-family: inherit;
-  transition: border-color 0.15s, background 0.15s;
+  padding: 7px 14px;
+  border-radius: 0;
+  font-size: 12px;
+  font-family: "Space Grotesk", inherit;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
-button:hover { border-color: var(--accent); }
-button.primary { background: var(--accent); color: #0b0d10; border-color: var(--accent); font-weight: 700; }
-button.primary:hover { background: #33ffe7; }
+button:hover { border-color: var(--accent); box-shadow: 0 0 8px rgba(0,255,224,0.25); }
+button.primary {
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #000));
+  color: #04060c; border-color: var(--accent); font-weight: 700; letter-spacing: 0.16em;
+  box-shadow: 0 0 12px rgba(0,255,224,0.35);
+}
+button.primary:hover { background: #33ffe7; box-shadow: 0 0 16px rgba(0,255,224,0.55); }
 button.secondary { background: var(--panel-2); }
-button:disabled { opacity: 0.4; cursor: not-allowed; }
+button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
 input, textarea, select {
   background: var(--bg-inset);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   color: var(--text);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  border-radius: 0;
   font-size: 13px;
-  font-family: inherit;
+  font-family: "JetBrains Mono", ui-monospace, inherit;
 }
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(0,255,224,0.3);
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -102,12 +114,15 @@ a:hover { text-decoration: underline; }
 
 .muted { color: var(--muted); }
 .card {
-  background: rgba(12, 16, 26, 0.78);
+  background:
+    radial-gradient(120% 90% at 50% 110%, rgba(0,255,224,0.06), transparent 60%),
+    linear-gradient(180deg, rgba(12,16,26,0.82) 0%, rgba(6,10,18,0.82) 100%);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
   padding: 16px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.4), inset 0 0 24px rgba(0,255,224,0.02);
 }
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .row { display: flex; align-items: center; gap: 8px; }
