@@ -37,7 +37,7 @@ export function VersionTag() {
       onClick={() => setOpen((v) => !v)}
       style={{
         position: 'fixed',
-        bottom: 4,
+        bottom: 'calc(72px + env(safe-area-inset-bottom))',
         right: 6,
         fontSize: 9,
         fontFamily: 'ui-monospace, SFMono-Regular, monospace',
