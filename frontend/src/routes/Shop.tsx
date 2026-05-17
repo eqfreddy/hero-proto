@@ -3,6 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchShop, buyProduct, exchangeShards } from '../api/shop'
 import { toast } from '../store/ui'
 import { SkeletonGrid } from '../components/SkeletonGrid'
+import { isNative } from '../native'
+
+const NATIVE = isNative()
 
 type ShopTab = 'coins' | 'gems' | 'qol'
 
@@ -59,10 +62,12 @@ export function ShopRoute() {
   }
 
   const meta = TAB_META.find((t) => t.id === tab)!
-  const products =
+  const rawProducts =
     tab === 'qol'
       ? shop.products.filter((p) => !GEM_TAB_KINDS.has(p.kind))
       : shop.products.filter((p) => meta.kinds.includes(p.kind))
+  // On native, drop real-money products — IAP is web-only until Play Billing ships.
+  const products = NATIVE ? rawProducts.filter((p) => p.price_cents === 0) : rawProducts
 
   const sx = shop.shard_exchange
 
@@ -160,8 +165,8 @@ export function ShopRoute() {
         ))}
       </div>
 
-      {/* Gem tab: starter bundle */}
-      {tab === 'gems' && shop.starter && (
+      {/* Gem tab: starter bundle (web only — real money) */}
+      {tab === 'gems' && shop.starter && !NATIVE && (
         <div
           className="card"
           style={{ border: '1px solid var(--r-legendary)', background: 'rgba(255,215,0,0.04)' }}

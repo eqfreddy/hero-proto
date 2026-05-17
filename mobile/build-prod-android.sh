@@ -33,12 +33,20 @@ fi
 BUILD_VERSION="${GIT_SHA}${GIT_DIRTY}"
 BUILD_TIME="$(date -u '+%Y-%m-%d %H:%M:%SZ')"
 
+# versionCode must be a monotonically-increasing integer. Use the master
+# branch commit count so every push bumps it. versionName is human-readable.
+GIT_COMMITS="$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 1)"
+export ANDROID_VERSION_CODE="$GIT_COMMITS"
+export ANDROID_VERSION_NAME="${ANDROID_VERSION_NAME:-1.0.${GIT_COMMITS}}"
+
 cat <<EOF
 
 ╔═══════════════════════════════════════════════════════════════════════╗
 ║  hero-proto Android prod build
 ║
 ║   Version : $BUILD_VERSION
+║   versionCode : $ANDROID_VERSION_CODE
+║   versionName : $ANDROID_VERSION_NAME
 ║   Branch  : $GIT_BRANCH
 ║   Built   : $BUILD_TIME
 ║   API     : $API_BASE

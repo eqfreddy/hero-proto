@@ -5,10 +5,13 @@ const config: CapacitorConfig = {
   appName: 'Hero Proto',
   // Points at the compiled SPA — run `npm run build:web` before `npx cap sync`
   webDir: '../app/static/spa',
-  server: {
-    url: 'http://10.0.2.2:8000',
-    cleartext: true,
-  },
+  // Dev `server.url` is OPT-IN via env so a fresh `npx cap sync` doesn't ship
+  // a release APK pointing at localhost. Set CAP_DEV_SERVER=http://10.0.2.2:8000
+  // (emulator) or http://<your-lan-ip>:8000 (device) before sync to point the
+  // wrap at a local FastAPI. Production builds use capacitor.config.prod.ts.
+  ...(process.env.CAP_DEV_SERVER
+    ? { server: { url: process.env.CAP_DEV_SERVER, cleartext: true } }
+    : {}),
   plugins: {
     PushNotifications: {
       // Android: FCM is wired automatically via google-services.json

@@ -6,6 +6,7 @@ import {
   claimMonthlyCardDrip,
 } from '../api/monthlyCard'
 import { toast } from '../store/ui'
+import { isNative } from '../native'
 
 /** Inline card for the Me/Dashboard route. Shows current status + CTA. */
 export function MonthlyCardCard() {
@@ -53,6 +54,9 @@ export function MonthlyCardCard() {
   }
 
   if (!data.active) {
+    // Hide paid CTA on native (Play Billing not implemented yet — direct
+    // Stripe checkout would violate Play policy and break the file:// shell).
+    if (isNative()) return null
     return (
       <div className="card" style={{
         padding: 14, borderLeft: '3px solid var(--warn)',

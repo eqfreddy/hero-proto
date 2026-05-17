@@ -12,6 +12,7 @@ import {
 import { toast } from '../store/ui'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
+import { isNative } from '../native'
 
 const KIND_ICON: Record<string, string> = {
   gems: '💎',
@@ -159,7 +160,7 @@ export function BattlePassRoute() {
               </div>
             )}
           </div>
-          {!progress.premium_purchased && (
+          {!progress.premium_purchased && !isNative() && (
             <button
               className="primary"
               disabled={purchasing}
@@ -168,6 +169,11 @@ export function BattlePassRoute() {
             >
               {purchasing ? '...' : `Unlock Premium · ${priceUSD(season.premium_price_cents)}`}
             </button>
+          )}
+          {!progress.premium_purchased && isNative() && (
+            <div className="muted" style={{ fontSize: 11, maxWidth: 180, textAlign: 'right' }}>
+              Premium unlock available on the web version (heroproto.com).
+            </div>
           )}
           {progress.premium_purchased && (
             <div style={{ fontSize: 12, color: 'var(--good)', fontWeight: 700 }}>✓ Premium Unlocked</div>

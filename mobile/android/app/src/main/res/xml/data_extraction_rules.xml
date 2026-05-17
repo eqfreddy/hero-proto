@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Android 12+ data extraction rules. allowBackup=false on the manifest covers
+   pre-12 behaviour; these rules cover cloud + device-to-device transfer on 12+.
+   We exclude everything by default — game state lives on the server, the local
+   webview cache and JWT shouldn't replicate to a new device.
+-->
+<data-extraction-rules>
+  <cloud-backup>
+    <exclude domain="root" />
+    <exclude domain="file" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+  </cloud-backup>
+  <device-transfer>
+    <exclude domain="root" />
+    <exclude domain="file" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+  </device-transfer>
+</data-extraction-rules>

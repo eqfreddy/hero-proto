@@ -7,8 +7,11 @@ android {
         applicationId = "com.heroproto.app"
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
-        versionCode = 1
-        versionName = "1.0"
+        // Version is injected by mobile/build-prod-android.sh from git rev-count
+        // so every release upload to Play increments. ANDROID_VERSION_NAME falls
+        // back to "1.0-dev" so local debug builds still work.
+        versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1") as Integer
+        versionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.0-dev"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
@@ -35,6 +38,14 @@ android {
             minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             def hasSigningConfig = System.getenv("ANDROID_KEYSTORE_PATH") != null
+            // Fail loud if RELEASE_REQUIRE_SIGNING is set but keystore env is missing.
+            // CI / publish builds set RELEASE_REQUIRE_SIGNING=1 so we never silently
+            // ship a debug-signed release that Play would reject after upload.
+            if (System.getenv("RELEASE_REQUIRE_SIGNING") == "1" && !hasSigningConfig) {
+                throw new GradleException(
+                    "RELEASE_REQUIRE_SIGNING=1 but ANDROID_KEYSTORE_PATH unset — refusing to build a debug-signed release."
+                )
+            }
             signingConfig = hasSigningConfig ? signingConfigs.release : signingConfigs.debug
         }
     }
