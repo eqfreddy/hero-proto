@@ -14,7 +14,6 @@ import { initPush } from '../../api/push'
 const PUBLIC_PATHS = new Set(['/app/login', '/app/privacy', '/app/terms'])
 
 const V2_PATH_PREFIXES = [
-  '/app/lobby',
   '/app/summon',
   '/app/roster',
   '/app/battle-v2',
@@ -23,9 +22,9 @@ const V2_PATH_PREFIXES = [
 ]
 
 function isV2Route(pathname: string): boolean {
-  // /app/roster has child routes (/:heroId, /legacy). Only the index
-  // and direct v2 routes get compact chrome; the hero detail page
-  // benefits from the full nav.
+  // Lobby keeps the full top tab strip so players can reach every surface
+  // from the landing page. The pure v2 mobile screens stay compact.
+  if (pathname === '/app/lobby' || pathname.startsWith('/app/lobby/')) return false
   if (pathname === '/app/roster' || pathname === '/app/roster/') return true
   if (pathname.startsWith('/app/roster/')) return false
   if (pathname.startsWith('/app/summon/legacy')) return false
