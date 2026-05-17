@@ -7,6 +7,7 @@ export interface UnitRig {
   play: (clipName: string) => void;
   flashWhite: () => void;
   floatDamageNumber: (amount: number, opts?: { crit?: boolean; kind?: 'damage' | 'heal' | 'defend' }) => void;
+  floatQuip?: (line: string) => void;
   fade: (opacity: number) => void;
 }
 
@@ -52,6 +53,12 @@ export function handleEvent(event: CombatEvent, rigs: Map<string, UnitRig>): voi
   if (event.type === "DEFEND") {
     const tgt = rigs.get(event.unit as string);
     if (tgt) tgt.floatDamageNumber(0, { kind: 'defend' });
+    return;
+  }
+  if (event.type === "QUIP") {
+    const uid = (event.unit ?? event.actor_uid) as string | undefined;
+    const tgt = uid ? rigs.get(uid) : undefined;
+    if (tgt) tgt.floatQuip?.((event.line as string) ?? "");
     return;
   }
   if (event.type === "DEATH") {

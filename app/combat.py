@@ -105,6 +105,11 @@ class CombatUnit:
     # (whether it dealt damage, healed, or did nothing for lack of targets).
     has_used_hail_mary: bool = False
 
+    # Phase C — character identity quips. Fired once per battle on the
+    # actor's first action via app/quips.py lookup. Flag flips after
+    # emission whether or not a quip exists for this name.
+    has_quipped: bool = False
+
     # True base for buff/debuff computation.
     base_atk: int = 0
     base_def: int = 0
@@ -390,6 +395,15 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
     through. "defend": skip turn, apply DEFENDING status + small limit gain.
     """
     damage_dealt = 0
+
+    # First-action quip — once per battle, before anything resolves so
+    # the floating text plays alongside the attack clip.
+    if not actor.has_quipped:
+        from app.quips import quip_for
+        line = quip_for(actor.name)
+        if line:
+            log.append({"type": "QUIP", "unit": actor.uid, "line": line})
+        actor.has_quipped = True
 
     # Clear any prior-turn DEFENDING status at the start of this actor's turn
     # so it only protects against one enemy action cycle.

@@ -314,6 +314,39 @@ export function Battle3DScene(props: Battle3DSceneProps) {
               barsRoot.appendChild(wrap);
               setTimeout(() => { el.remove(); }, crit ? 1450 : 1150);
             },
+            floatQuip: (line: string) => {
+              if (!line) return;
+              const anchor = bars.get(unit.uid)?.anchor;
+              if (!anchor) return;
+              const cw = container.clientWidth;
+              const ch = container.clientHeight;
+              tmpProj.copy(anchor.position).add(HEAD_OFFSET).project(camera);
+              if (tmpProj.z > 1) return;
+              const px = (tmpProj.x * 0.5 + 0.5) * cw;
+              const py = (-tmpProj.y * 0.5 + 0.5) * ch - 36;
+              const wrap = document.createElement('div');
+              wrap.style.cssText = `position:absolute;left:${px}px;top:${py}px;transform:translate(-50%,-100%);pointer-events:none;`;
+              const el = document.createElement('div');
+              el.textContent = `"${line}"`;
+              el.style.cssText = [
+                'font-family:Space Grotesk, system-ui, sans-serif',
+                'font-style:italic',
+                'font-weight:600',
+                'font-size:14px',
+                'color:#fff8e0',
+                'background:rgba(20,18,14,0.72)',
+                'padding:3px 10px',
+                'border-radius:3px',
+                'border:1px solid rgba(255,216,107,0.35)',
+                'text-shadow:0 1px 3px rgba(0,0,0,0.85)',
+                'letter-spacing:0.02em',
+                'white-space:nowrap',
+                'animation:lb3-float 1900ms ease-out forwards',
+              ].join(';');
+              wrap.appendChild(el);
+              barsRoot.appendChild(wrap);
+              setTimeout(() => { wrap.remove(); }, 1950);
+            },
             fade: (opacity: number) => {
               scene.traverse(o => {
                 const mesh = o as THREE.Mesh;
