@@ -287,12 +287,17 @@ export function AccountRoute() {
       {/* Sessions */}
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Active Sessions</h3>
-        {sessions?.map((s) => (
+        {sessions?.map((s) => {
+          const lastSeen = s.last_used_at ?? s.issued_at
+          return (
           <div key={s.id} className="row" style={{ justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
             <div>
-              <span>{s.ip_address}</span>
+              <span>{s.ip ?? 'unknown ip'}</span>
               {s.is_current && <span className="pill good" style={{ marginLeft: 6, fontSize: 10 }}>current</span>}
-              <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>{new Date(s.last_used).toLocaleString()}</div>
+              <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>
+                {new Date(lastSeen).toLocaleString()}
+                {s.user_agent && <span style={{ marginLeft: 6, opacity: 0.7 }}>· {s.user_agent.slice(0, 48)}</span>}
+              </div>
             </div>
             {!s.is_current && (
               <button style={{ fontSize: 11 }}
@@ -302,7 +307,8 @@ export function AccountRoute() {
                 }}>Revoke</button>
             )}
           </div>
-        ))}
+          )
+        })}
         <button style={{ marginTop: 10, fontSize: 12 }} onClick={revokeAll}>Sign out all other devices</button>
       </div>
 
