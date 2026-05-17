@@ -96,6 +96,9 @@ def _cleanup() -> None:
 
 
 def _unit_snapshot(u: CombatUnit) -> dict:
+    from app.models import StatusEffectKind
+    defending = any(s.kind == StatusEffectKind.DEFENDING for s in u.statuses)
+    statuses = sorted({str(s.kind) for s in u.statuses})
     return {
         "uid": u.uid,
         "name": u.name,
@@ -107,21 +110,27 @@ def _unit_snapshot(u: CombatUnit) -> dict:
         "shielded": u.shielded,
         "limit_gauge": u.limit_gauge,
         "limit_gauge_max": u.limit_gauge_max,
+        "mana": u.mana,
+        "mana_cost": u.mana_cost,
+        "defending": defending,
+        "statuses": statuses,
     }
 
 
-def _advance(session: InteractiveSession, target_uid: str | None = None) -> None:
+def _advance(session: InteractiveSession, sent: Any = None) -> None:
     """Drive the generator one step.
 
-    If target_uid is given, resume from the current PLAYER_TURN yield via
-    gen.send(). Otherwise prime the generator with next().
+    `sent`:
+      - None → prime with next()
+      - str  → legacy: bare target_uid for basic attack
+      - dict → {"action_type": str | None, "target_uid": str}
 
     On StopIteration (wave over): transitions to the next wave or marks DONE.
     Mutates session in place.
     """
     gen = session.gen
     try:
-        pause_event: dict = gen.send(target_uid) if target_uid is not None else next(gen)
+        pause_event: dict = gen.send(sent) if sent is not None else next(gen)
         # Generator paused — waiting for player's target choice
         session.pending = pause_event
         session.turn_number = pause_event["turn_number"]
@@ -287,15 +296,23 @@ def advance_session(
     *,
     turn_number: int,
     target_uid: str,
+    action_type: str | None = None,
 ) -> None:
-    """Validate turn_number, then resume the generator with the player's choice."""
+    """Validate turn_number, then resume the generator with the player's choice.
+
+    `action_type` is one of {None, "attack", "skill", "limit", "defend"}.
+    None → legacy auto-cascade (limit > special > basic).
+    """
     if session.status == "DONE":
         return
     if turn_number != session.turn_number:
         raise ValueError(
             f"stale turn: expected {session.turn_number}, got {turn_number}"
         )
-    _advance(session, target_uid if target_uid else None)
+    if action_type is None and not target_uid:
+        _advance(session, None)
+    else:
+        _advance(session, {"action_type": action_type, "target_uid": target_uid or ""})
 
 
 def session_log_delta(session: InteractiveSession) -> list[dict]:

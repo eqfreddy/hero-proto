@@ -913,11 +913,20 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
             (u for u in session.team_a if u.uid == session.pending["actor"]),
             None,
         )
+        p = session.pending
         pending = {
-            "actor_uid": session.pending["actor"],
-            "actor_name": actor.name if actor else session.pending["actor"],
+            "actor_uid": p["actor"],
+            "actor_name": p.get("actor_name") or (actor.name if actor else p["actor"]),
             "turn_number": session.turn_number,
-            "enemies": session.pending.get("enemies", []),
+            "enemies": p.get("enemies", []),
+            "actions": p.get("actions", {}),
+            "special_name": p.get("special_name"),
+            "special_kind": p.get("special_kind"),
+            "special_cooldown_left": p.get("special_cooldown_left", 0),
+            "mana": p.get("mana", 0),
+            "mana_cost": p.get("mana_cost", 0),
+            "limit_gauge": p.get("limit_gauge", 0),
+            "limit_gauge_max": p.get("limit_gauge_max", 100),
         }
 
     current_team_b = session.wave_teams_b[session.wave_idx]
@@ -1182,14 +1191,22 @@ def interactive_act(
     if session.status == "DONE":
         raise HTTPException(status.HTTP_409_CONFLICT, "battle already finished")
 
-    # Validate target is a live enemy in the current wave
-    current_b = session.wave_teams_b[session.wave_idx]
-    valid_uids = {u.uid for u in current_b if not u.dead}
-    if body.target_uid not in valid_uids:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"invalid target {body.target_uid!r}")
+    # Target validation: actions that don't need a target (defend, AOE skill,
+    # limit-break with auto-select) may pass empty/missing target_uid. Only
+    # validate when a uid is given.
+    if body.target_uid:
+        current_b = session.wave_teams_b[session.wave_idx]
+        valid_uids = {u.uid for u in current_b if not u.dead}
+        if body.target_uid not in valid_uids:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"invalid target {body.target_uid!r}")
 
     try:
-        _advance_session(session, turn_number=body.turn_number, target_uid=body.target_uid)
+        _advance_session(
+            session,
+            turn_number=body.turn_number,
+            target_uid=body.target_uid,
+            action_type=body.action_type,
+        )
     except ValueError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e))
 

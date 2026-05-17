@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -503,7 +503,13 @@ class GuildAchievementsResponse(BaseModel):
 
 class InteractiveActIn(BaseModel):
     turn_number: int
-    target_uid: str  # uid of the enemy to attack, e.g. "b0"
+    # Empty string permitted for actions that don't need a target (defend,
+    # AOE skill, limit-break that auto-targets). Server falls back to
+    # auto-target via target_priority when uid is empty/missing.
+    target_uid: str = ""
+    # None → auto-cascade (existing behavior: limit > special > basic).
+    # "attack" / "skill" / "limit" / "defend" force the player's choice.
+    action_type: Literal["attack", "skill", "limit", "defend"] | None = None
 
 
 class UnitSnapshot(BaseModel):
@@ -517,6 +523,10 @@ class UnitSnapshot(BaseModel):
     shielded: bool
     limit_gauge: int
     limit_gauge_max: int
+    mana: int = 0
+    mana_cost: int = 0
+    defending: bool = False
+    statuses: list[str] = []  # e.g. ["POISON", "SHIELD_UP"]
 
 
 class PendingTurnOut(BaseModel):
@@ -524,6 +534,17 @@ class PendingTurnOut(BaseModel):
     actor_name: str
     turn_number: int
     enemies: list[dict]  # [{"uid": ..., "name": ..., "hp": ..., "max_hp": ...}]
+    # Action availability for this turn. Keys: attack, skill, limit, defend.
+    # value = {"enabled": bool, "reason": str | None}
+    actions: dict[str, dict] = {}
+    # Surface the actor's signature for the HUD label (e.g. "Rollback").
+    special_name: str | None = None
+    special_kind: str | None = None  # DAMAGE / AOE_DAMAGE / HEAL / etc.
+    special_cooldown_left: int = 0
+    mana: int = 0
+    mana_cost: int = 0
+    limit_gauge: int = 0
+    limit_gauge_max: int = 100
 
 
 class InteractiveStateOut(BaseModel):

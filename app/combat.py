@@ -184,6 +184,10 @@ def _apply_damage(
     if defender.shielded:
         defender.shielded = False
         return 0
+    if any(s.kind == StatusEffectKind.DEFENDING for s in defender.statuses):
+        amount = max(1, int(round(amount * 0.5)))
+        if log is not None:
+            log.append({"type": "DEFEND_ABSORB", "unit": defender.uid, "amount": amount})
     defender.hp = max(0, defender.hp - amount)
     if defender.hp == 0:
         defender.dead = True
@@ -374,14 +378,22 @@ def _needs_target_choice(actor: CombatUnit) -> bool:
     return True
 
 
-def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit], rng: random.Random, log: list[dict], target_priority: str = "default", forced_target_uid: str | None = None) -> int:
+def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit], rng: random.Random, log: list[dict], target_priority: str = "default", forced_target_uid: str | None = None, action_type: str | None = None) -> int:
     """Execute one action. Returns total damage the actor dealt (for lifesteal accounting).
 
     `forced_target_uid` — when set by the interactive simulator, overrides the
     auto-pick for basic attacks. Falls back to target_priority if the uid is
     dead or not found (e.g. killed by a preceding unit this tick).
+    `action_type` — when None: auto-cascade (limit > special > basic). When
+    "attack": force basic, skipping limit/special. "skill": force special if
+    ready; else fall through. "limit": force limit if gauge full; else fall
+    through. "defend": skip turn, apply DEFENDING status + small limit gain.
     """
     damage_dealt = 0
+
+    # Clear any prior-turn DEFENDING status at the start of this actor's turn
+    # so it only protects against one enemy action cycle.
+    actor.statuses = [s for s in actor.statuses if s.kind != StatusEffectKind.DEFENDING]
 
     # Mana regen fires at turn start, before stun/freeze, so the resource
     # always ticks even on a skipped turn.
@@ -392,8 +404,22 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
             actor.mana = min(cap, actor.mana + actor.mana_regen)
             log.append({"type": "MANA_REGEN", "actor": actor.uid, "amount": gain, "mana": actor.mana})
 
-    # Limit break fires before stun/freeze — rage breaks through crowd control.
-    if actor.limit_gauge >= actor.limit_gauge_max > 0:
+    # DEFEND: player explicitly chose to defend. Skip attack, apply status.
+    if action_type == "defend":
+        actor.statuses.append(StatusEffect(kind=StatusEffectKind.DEFENDING, turns_left=1, value=0.5))
+        if actor.limit_gauge_max > 0:
+            prev = actor.limit_gauge
+            actor.limit_gauge = min(actor.limit_gauge_max, actor.limit_gauge + 25)
+            if prev < actor.limit_gauge_max <= actor.limit_gauge:
+                log.append({"type": "LIMIT_READY", "unit": actor.uid})
+        log.append({"type": "DEFEND", "unit": actor.uid})
+        return 0
+
+    # Limit break — auto-fires when gauge full UNLESS player picked a
+    # different action. Player "limit" choice forces it if ready, otherwise
+    # falls through.
+    limit_ready = actor.limit_gauge >= actor.limit_gauge_max > 0
+    if (action_type is None and limit_ready) or (action_type == "limit" and limit_ready):
         damage_dealt = _do_limit_break(actor, allies=allies, enemies=enemies, rng=rng, log=log)
         actor.limit_gauge = 0
         return damage_dealt
@@ -405,8 +431,15 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
         log.append({"type": "FROZEN", "unit": actor.uid})
         return damage_dealt
 
-    # Prefer special if ready, else basic.
-    use_special = actor.special is not None and actor.special_cooldown_left == 0
+    # Special: auto-cascade fires if ready and player didn't force basic.
+    # Player "skill" choice forces it if ready, otherwise falls through.
+    special_ready = actor.special is not None and actor.special_cooldown_left == 0
+    if action_type == "attack":
+        use_special = False
+    elif action_type == "skill":
+        use_special = special_ready
+    else:
+        use_special = special_ready
     if use_special:
         spec = actor.special
         stype = spec.get("type", "DAMAGE")
@@ -875,18 +908,47 @@ def simulate_interactive(
             log.append({"type": "TURN", "unit": actor.uid, "hp": actor.hp, "meter": round(actor.turn_meter, 2)})
 
             forced_uid: "str | None" = None
-            if actor.side == "A" and _needs_target_choice(actor):
+            chosen_action: "str | None" = None
+            # Pause on every side-A turn so the player can choose between
+            # attack/skill/limit/defend. CC (stun/freeze) still skips through
+            # to the auto-loop in _act. Generator value protocol:
+            #   - None or "" → auto-cascade (legacy)
+            #   - "<uid>" → basic attack on uid (legacy)
+            #   - {"action_type": ..., "target_uid": ...} → full v2 contract
+            if actor.side == "A" and not _is_stunned(actor) and not _is_frozen(actor):
                 live_enemies = [u for u in team_b if not u.dead]
                 turn_number += 1
-                forced_uid = yield {
+                limit_ready = actor.limit_gauge >= actor.limit_gauge_max > 0
+                special_ready = actor.special is not None and actor.special_cooldown_left == 0
+                pause_payload = {
                     "type": "PLAYER_TURN",
                     "actor": actor.uid,
+                    "actor_name": actor.name,
                     "turn_number": turn_number,
                     "enemies": [
                         {"uid": u.uid, "name": u.name, "hp": u.hp, "max_hp": u.max_hp}
                         for u in live_enemies
                     ],
+                    "actions": {
+                        "attack": {"enabled": True, "reason": None},
+                        "skill":  {"enabled": special_ready, "reason": None if special_ready else ("on cooldown" if actor.special else "no skill")},
+                        "limit":  {"enabled": limit_ready, "reason": None if limit_ready else "gauge not full"},
+                        "defend": {"enabled": True, "reason": None},
+                    },
+                    "special_name": (actor.special or {}).get("name") if actor.special else None,
+                    "special_kind": (actor.special or {}).get("type") if actor.special else None,
+                    "special_cooldown_left": actor.special_cooldown_left,
+                    "mana": actor.mana,
+                    "mana_cost": actor.mana_cost,
+                    "limit_gauge": actor.limit_gauge,
+                    "limit_gauge_max": actor.limit_gauge_max,
                 }
+                sent = yield pause_payload
+                if isinstance(sent, dict):
+                    chosen_action = sent.get("action_type")
+                    forced_uid = sent.get("target_uid") or None
+                elif isinstance(sent, str) and sent:
+                    forced_uid = sent
 
             dealt = _act(
                 actor,
@@ -896,6 +958,7 @@ def simulate_interactive(
                 log=log,
                 target_priority=target_priority,
                 forced_target_uid=forced_uid,
+                action_type=chosen_action,
             )
             actor.turn_meter -= 100
             _lifesteal(actor, dealt, log)

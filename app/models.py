@@ -70,6 +70,10 @@ class StatusEffectKind(StrEnum):
     # Bounce a fraction of basic/special damage back to the attacker. Reflected
     # damage cannot itself trigger reflect (no recursive ping-pong).
     REFLECT = "REFLECT"
+    # Player-chosen DEFEND action. 1 turn duration. Reduces incoming damage
+    # by 50% and credits +25 limit gauge on apply. Cleared at start of the
+    # defender's next turn (so it covers exactly one enemy attack cycle).
+    DEFENDING = "DEFENDING"
 
 
 class BattleOutcome(StrEnum):
