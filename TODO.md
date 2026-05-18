@@ -217,6 +217,10 @@ Last updated: 2026-05-12 PM (Shard remap Phases 1+2+3 shipped: dupe HeroInstance
 - [x] **Slice ninja-monk + ninja-peasant frames look short next to others** ✅ shipped in bfc23cd via `scripts/pad_ninja_frames.py`.
 - [x] **Delete `app/static/heroes/sprites/` rigged paper-doll parts** ✅ shipped in bfc23cd (~150MB pruned).
 
+### Next session
+
+- [ ] **Real-device Android field test.** Emulator pass logged in `docs/ANDROID_FIELD_TEST_2026-05-17.md` (verdict PARTIAL — bundle healthy, lobby renders, battle UX not exercised). Need a real phone to verify: in-app sign-in form, DEPLOY → battle flow, action bar touch targets, damage numbers + quip toasts at narrow CSS width, turn-order ribbon legibility, Battle 3D GPU profile, back button → React Router, shop SKU gating, BP purchase messaging. Also flag-bug for the day: hard-nav to sub-paths breaks Capacitor relative asset resolution (4 fix candidates noted in the doc).
+
 ### Known papercuts still open
 
 - **Postgres compose-stack smoke: PASSED 2026-05-05.** STARTUP CHECK OK (3 warn/expected, 6 ok) + CLIENT WALKTHROUGH PASSED (34 sections) against postgres:16-alpine. Fixed three script bugs in the process: register expected 201 (returns 200), env was `dev` so email-verify gate blocked summons (now `test`), worker reported `enabled:true` in test mode when task wasn't started (now `false`). Run: start Docker Desktop, then `bash scripts/postgres_stack_validate.sh`.
