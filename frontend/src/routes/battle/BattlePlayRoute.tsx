@@ -116,6 +116,7 @@ export default function BattlePlayRoute() {
         templateByUid={templateByUid}
         turnStartedAt={state.turn_started_at ?? null}
         turnTimeoutS={state.turn_timeout_s}
+        turnOrderPeek={state.turn_order_peek ?? []}
       />
 
       {/* Auto-play toggle — top right. Pause to take manual control. */}

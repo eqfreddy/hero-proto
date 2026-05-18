@@ -7,6 +7,7 @@ export interface CombatUnit {
   def: number
   spd: number
   dead: boolean
+  side?: 'A' | 'B'
   portrait_url?: string
   /** Phase A: surfaced by backend UnitSnapshot. */
   shielded?: boolean
@@ -79,6 +80,8 @@ export interface InteractiveStateOut {
   turn_started_at?: number | null
   /** Server-side turn timeout in seconds. Constant for the session. */
   turn_timeout_s?: number
+  /** Phase E — next-N actor uids in turn order. Empty when DONE. */
+  turn_order_peek?: string[]
 }
 
 export interface PostBattlePayload {

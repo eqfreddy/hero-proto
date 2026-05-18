@@ -568,6 +568,9 @@ class InteractiveStateOut(BaseModel):
     # LOSS on next read.
     turn_started_at: float | None = None
     turn_timeout_s: int = 120
+    # Phase E — next-N actor uids in turn order. Pure peek (no side
+    # effects on the resolver). Empty when DONE or wave-over.
+    turn_order_peek: list[str] = []
 
 
 # ---------------------------------------------------------------------------

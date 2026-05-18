@@ -20,6 +20,56 @@ interface BattleHUDProps {
   turnStartedAt?: number | null
   /** Server-side per-turn timeout (constant per session). */
   turnTimeoutS?: number
+  /** Phase E — next-N actor uids surfaced by the resolver. */
+  turnOrderPeek?: string[]
+}
+
+function TurnOrderRibbon({ peek, units, templateByUid, currentUid }: {
+  peek: string[]
+  units: CombatUnit[]
+  templateByUid?: Record<string, string>
+  currentUid?: string | null
+}) {
+  if (!peek || peek.length === 0) return null
+  const byUid = new Map(units.map(u => [u.uid, u]))
+  return (
+    <div style={{
+      position: 'absolute', top: 56, left: '50%', transform: 'translateX(-50%)',
+      display: 'flex', gap: 4, pointerEvents: 'none',
+      background: 'rgba(0,0,0,0.45)', borderRadius: 6, padding: '4px 6px',
+      border: '1px solid rgba(255,255,255,0.08)',
+    }}>
+      {peek.map((uid, i) => {
+        const u = byUid.get(uid)
+        if (!u) return null
+        const tc = templateByUid?.[uid]
+        const bust = tc ? `${BUST_BASE}${tc}.png` : null
+        const isCurrent = uid === currentUid && i === 0
+        const sideRing = (u.side ?? (uid.startsWith('a') ? 'A' : 'B')) === 'A' ? '#00e0d0' : '#ff5a78'
+        return (
+          <div key={`${uid}-${i}`} style={{
+            position: 'relative',
+            width: i === 0 ? 36 : 28, height: i === 0 ? 36 : 28,
+            borderRadius: 4, overflow: 'hidden',
+            border: `1.5px solid ${isCurrent ? '#ffd86b' : sideRing}`,
+            background: 'rgba(0,0,0,0.55)',
+            opacity: u.dead ? 0.3 : 1 - i * 0.08,
+            boxShadow: isCurrent ? '0 0 12px rgba(255,216,107,0.55)' : 'none',
+          }} title={`${u.name}${isCurrent ? ' · NOW' : i === 1 ? ' · next' : ''}`}>
+            {bust ? (
+              <img src={bust} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+            ) : (
+              <div style={{
+                fontSize: i === 0 ? 13 : 10, fontWeight: 700,
+                color: sideRing, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', height: '100%',
+              }}>{u.name.slice(0, 1)}</div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 /** Live per-turn countdown banner. Drives a once-per-second tick so the
@@ -227,14 +277,23 @@ function ActionBar({ pending, onAct, disabled }: {
   )
 }
 
-export function BattleHUD({ teamA, teamB, onAct, pendingActorUid: _pendingActorUid, pending, validTargets, acting, done, rewards, onClose, templateByUid, turnStartedAt, turnTimeoutS }: BattleHUDProps) {
+export function BattleHUD({ teamA, teamB, onAct, pendingActorUid, pending, validTargets, acting, done, rewards, onClose, templateByUid, turnStartedAt, turnTimeoutS, turnOrderPeek }: BattleHUDProps) {
   const validSet = new Set(validTargets)
   const showTimer = !done && turnStartedAt != null && (turnTimeoutS ?? 0) > 0
   const showActionBar = !!pending && !!onAct && !done
+  const allUnits = [...teamA, ...teamB]
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', padding: 16 }}>
       {showTimer && <TurnTimer startedAt={turnStartedAt!} timeoutS={turnTimeoutS!} />}
+      {!done && turnOrderPeek && turnOrderPeek.length > 0 && (
+        <TurnOrderRibbon
+          peek={turnOrderPeek}
+          units={allUnits}
+          templateByUid={templateByUid}
+          currentUid={pendingActorUid}
+        />
+      )}
       {showActionBar && <ActionBar pending={pending!} onAct={onAct!} disabled={acting} />}
       {/* Team A (player) — bottom left */}
       <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', gap: 8, pointerEvents: 'auto' }}>

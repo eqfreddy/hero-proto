@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.combat import CombatUnit, build_unit, scale_stat, simulate
+from app.combat import CombatUnit, build_unit, peek_turn_order, scale_stat, simulate
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_account
@@ -472,10 +472,15 @@ from app.schemas import BattleParticipant, InteractiveActIn, InteractiveStateOut
 
 
 def _unit_snap_r(u) -> dict:
+    from app.models import StatusEffectKind
+    statuses = sorted({str(s.kind) for s in u.statuses})
     return {
         "uid": u.uid, "name": u.name, "side": u.side, "role": str(u.role),
         "hp": u.hp, "max_hp": u.max_hp, "dead": u.dead, "shielded": u.shielded,
         "limit_gauge": u.limit_gauge, "limit_gauge_max": u.limit_gauge_max,
+        "mana": u.mana, "mana_cost": u.mana_cost,
+        "defending": any(s.kind == StatusEffectKind.DEFENDING for s in u.statuses),
+        "statuses": statuses,
     }
 
 
@@ -518,6 +523,10 @@ def _raid_state_out(session: _ISession, rewards: dict | None = None) -> Interact
         last_event=session.last_event,
         turn_started_at=session.turn_started_at,
         turn_timeout_s=TURN_TIMEOUT_S,
+        turn_order_peek=(
+            peek_turn_order(session.team_a, current_b, n=6)
+            if session.status == "WAITING" else []
+        ),
     )
 
 

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.combat import CombatUnit, build_unit, simulate, trim_combat_log, unit_power
+from app.combat import CombatUnit, build_unit, peek_turn_order, simulate, trim_combat_log, unit_power
 from app.crafting import grant_material, roll_battle_drops
 from app.daily import on_battle_won, on_hard_stage_clear
 from app.event_state import QUEST_KINDS_BATTLE_WIN, on_activity as event_on_activity
@@ -946,14 +946,23 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
         last_event=session.last_event,
         turn_started_at=session.turn_started_at,
         turn_timeout_s=TURN_TIMEOUT_S,
+        turn_order_peek=(
+            peek_turn_order(session.team_a, current_team_b, n=6)
+            if session.status == "WAITING" else []
+        ),
     )
 
 
 def _unit_snap(u) -> dict:
+    from app.models import StatusEffectKind
+    statuses = sorted({str(s.kind) for s in u.statuses})
     return {
         "uid": u.uid, "name": u.name, "side": u.side, "role": str(u.role),
         "hp": u.hp, "max_hp": u.max_hp, "dead": u.dead, "shielded": u.shielded,
         "limit_gauge": u.limit_gauge, "limit_gauge_max": u.limit_gauge_max,
+        "mana": u.mana, "mana_cost": u.mana_cost,
+        "defending": any(s.kind == StatusEffectKind.DEFENDING for s in u.statuses),
+        "statuses": statuses,
     }
 
 

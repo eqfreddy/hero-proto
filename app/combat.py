@@ -301,6 +301,35 @@ def _apply_effect(target: CombatUnit, effect: dict, log: list[dict]) -> None:
     log.append({"type": "STATUS_APPLIED", "unit": target.uid, "kind": str(kind), "turns": turns, "value": value})
 
 
+def peek_turn_order(team_a: list[CombatUnit], team_b: list[CombatUnit], n: int = 6) -> list[str]:
+    """Simulate the meter-advancement loop forward without side effects to
+    return the uids of the next `n` actors. Dead units are excluded.
+    Used by the interactive HUD to render the turn-order ribbon."""
+    state = [(u.uid, float(u.turn_meter), float(u.spd)) for u in (team_a + team_b) if not u.dead and u.spd > 0]
+    if not state:
+        return []
+    order: list[str] = []
+    # Cap iterations defensively; in pathological all-zero-spd inputs the
+    # outer loop would never converge.
+    for _ in range(n * 8):
+        if len(order) >= n:
+            break
+        # Anyone already at >=100 acts next. Otherwise tick spd into meters.
+        ready = [(meter, uid, i) for i, (uid, meter, _spd) in enumerate(state) if meter >= 100]
+        if not ready:
+            # Advance: add spd to each unit's meter.
+            state = [(uid, meter + spd, spd) for uid, meter, spd in state]
+            continue
+        # Highest meter wins, uid tiebreak (matches simulate_interactive).
+        ready.sort(key=lambda r: (-r[0], r[1]))
+        _meter, uid, idx = ready[0]
+        order.append(uid)
+        # Consume 100 from the actor's meter.
+        old = state[idx]
+        state[idx] = (old[0], old[1] - 100.0, old[2])
+    return order
+
+
 def _is_stunned(u: CombatUnit) -> bool:
     return any(s.kind == StatusEffectKind.STUN for s in u.statuses)
 

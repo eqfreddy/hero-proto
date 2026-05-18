@@ -87,6 +87,30 @@ def test_action_limit_fires_when_gauge_full():
     assert a.limit_gauge == 0
 
 
+def test_peek_turn_order_orders_by_speed():
+    from app.combat import peek_turn_order
+    fast = _mk_unit("a0", "A", spd=200)
+    slow = _mk_unit("a1", "A", spd=80)
+    enemy = _mk_unit("b0", "B", spd=100)
+    order = peek_turn_order([fast, slow], [enemy], n=4)
+    # Fast acts twice in the time slow + enemy act once each
+    assert order[0] == "a0"
+    assert "a0" in order
+    assert "b0" in order
+    assert len(order) == 4
+
+
+def test_peek_turn_order_excludes_dead():
+    from app.combat import peek_turn_order
+    dead = _mk_unit("a0", "A", spd=200)
+    dead.dead = True
+    alive = _mk_unit("a1", "A", spd=100)
+    enemy = _mk_unit("b0", "B", spd=100)
+    order = peek_turn_order([dead, alive], [enemy], n=4)
+    assert "a0" not in order
+    assert all(uid in {"a1", "b0"} for uid in order)
+
+
 def test_legacy_none_action_preserves_auto_cascade():
     """Backward compat — action_type=None keeps prior auto-fire behavior."""
     a = _mk_unit("a0", "A")
