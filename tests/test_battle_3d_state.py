@@ -87,3 +87,25 @@ def test_last_event_persists_when_log_delta_empty(client) -> None:
     from app.routers.battles import _state_out
     out = _state_out(sess)
     assert out.last_event == prior
+
+
+def test_interactive_act_accepts_defend_without_target(client) -> None:
+    """The interactive HTTP contract must accept non-target verbs like DEFEND."""
+    hdr = _register(client)
+    start, _ = _start_interactive(client, hdr)
+    session_id = start["session_id"]
+    pending = start["pending"]
+    assert pending is not None
+
+    r = client.post(
+        f"/battles/interactive/{session_id}/act",
+        json={
+            "target_uid": "",
+            "action_type": "defend",
+            "turn_number": pending["turn_number"],
+        },
+        headers=hdr,
+    )
+    assert r.status_code == 200, r.text
+    act = r.json()
+    assert any(event.get("type") == "DEFEND" for event in act["log_delta"])

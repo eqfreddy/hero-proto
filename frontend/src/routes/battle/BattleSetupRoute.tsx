@@ -3,9 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '../../api/client'
 import { postBattle, postInteractiveStart } from '../../api/battles'
+import { fetchRaid, postRaidInteractiveStart } from '../../api/raids'
 import { useUiStore } from '../../store/ui'
 import { TierBadge } from '../../components/TierBadge'
-import type { Hero, HeroTemplate, Stage } from '../../types'
+import type { Hero, HeroTemplate, Raid, Stage } from '../../types'
+import { isNative } from '../../native'
 
 interface TeamPreset {
   id: number
@@ -90,11 +92,19 @@ function useTeamPresets() {
 export default function BattleSetupRoute() {
   const navigate = useNavigate()
   const location = useLocation()
+  const query = new URLSearchParams(location.search)
+  const raidId = Number(query.get('raid_id') ?? '')
+  const isRaidSetup = Number.isFinite(raidId) && raidId > 0
   const addToast = useUiStore(s => s.addToast)
   const queryClient = useQueryClient()
   const { data: heroes = [] } = useHeroes()
   const { data: stages = [] } = useStages()
   const { data: presets = [] } = useTeamPresets()
+  const { data: raid } = useQuery<Raid>({
+    queryKey: ['raid', raidId],
+    queryFn: () => fetchRaid(raidId),
+    enabled: isRaidSetup,
+  })
 
   const [team, setTeam] = useState<(number | null)[]>([null, null, null])
   const [selectedStageId, setSelectedStageId] = useState<number | null>(
@@ -104,7 +114,11 @@ export default function BattleSetupRoute() {
   // playerbase is used to). The new 3D scene is opt-in until it reaches
   // visual parity — checking the box switches to the Quaternius 3D
   // interactive flow.
-  const [interactive, setInteractive] = useState(false)
+  // Native (Capacitor) can't serve the legacy 2D battle-arena.html static
+  // page, so force interactive 3D there. The toggle is also hidden below
+  // when running native — see Mode selector.
+  const [interactive, setInteractive] = useState(isNative() || isRaidSetup)
+  const nativeOnly3D = isNative()
   const [submitting, setSubmitting] = useState(false)
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'ATK' | 'DEF' | 'SUP'>('ALL')
   const [rarityFilter, setRarityFilter] = useState<'ALL' | HeroTemplate['rarity']>('ALL')
@@ -204,14 +218,22 @@ export default function BattleSetupRoute() {
   }
 
   async function handleFight() {
-    if (teamIds.length === 0 || !selectedStageId) return
+    if (teamIds.length === 0) return
+    if (!isRaidSetup && !selectedStageId) return
     setSubmitting(true)
     try {
+      if (isRaidSetup) {
+        const state = await postRaidInteractiveStart(raidId, teamIds)
+        navigate(`/battle/${state.session_id}/play`, { state: { initState: state, encounterType: 'raid' } })
+        return
+      }
+      const stageId = selectedStageId
+      if (stageId == null) return
       if (interactive) {
-        const state = await postInteractiveStart({ stage_id: selectedStageId, team: teamIds })
-        navigate(`/battle/${state.session_id}/play`, { state: { initState: state } })
+        const state = await postInteractiveStart({ stage_id: stageId, team: teamIds })
+        navigate(`/battle/${state.session_id}/play`, { state: { initState: state, encounterType: 'stage' } })
       } else {
-        const battle = await postBattle({ stage_id: selectedStageId, team: teamIds, target_priority: 'lowest_hp' })
+        const battle = await postBattle({ stage_id: stageId, team: teamIds, target_priority: 'lowest_hp' })
         navigate(`/battle/${battle.id}/replay`)
       }
     } catch (e) {
@@ -226,15 +248,15 @@ export default function BattleSetupRoute() {
   return (
     <div style={{ padding: 24, maxWidth: 800, margin: '0 auto', color: 'var(--color-text)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate('/app/stages')} style={{ background: 'none', border: 'none', color: 'var(--color-muted)', cursor: 'pointer', fontSize: 14 }}>
+        <button onClick={() => navigate(isRaidSetup ? '/app/raids' : '/app/stages')} style={{ background: 'none', border: 'none', color: 'var(--color-muted)', cursor: 'pointer', fontSize: 14 }}>
           ← Back
         </button>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Battle Setup</h1>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{isRaidSetup ? 'Raid Setup' : 'Battle Setup'}</h1>
       </div>
 
       {/* Stage selector — grouped by difficulty tier, each tier a
           color-coded collapsible group. */}
-      <section style={{ marginBottom: 24 }}>
+      {!isRaidSetup && <section style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Select Stage</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {TIER_ORDER.map(tier => {
@@ -293,7 +315,7 @@ export default function BattleSetupRoute() {
             Energy cost: {selectedStage.energy_cost} · Recommended power: {selectedStage.recommended_power ?? '—'}
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Team builder */}
       <section style={{ marginBottom: 24 }}>
@@ -527,51 +549,55 @@ export default function BattleSetupRoute() {
         </div>
       </section>
 
-      {/* Mode selector — 2D/3D segmented pill, then Fight button */}
+      {/* Mode selector — 2D/3D segmented pill, then Fight button.
+          Hidden on native: legacy 2D viewer is an HTML page served by the
+          backend and can't be reached from the Capacitor file:// origin. */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        <div role="radiogroup" aria-label="Battle viewer" style={{
-          display: 'inline-flex', padding: 3, borderRadius: 999,
-          background: 'rgba(12,16,26,0.6)', border: '1px solid var(--border)',
-          backdropFilter: 'blur(6px)',
-        }}>
-          <button
-            role="radio" aria-checked={!interactive}
-            onClick={() => setInteractive(false)}
-            style={{
-              padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: 0.4,
-              border: 'none', cursor: 'pointer',
-              background: !interactive ? 'var(--accent)' : 'transparent',
-              color: !interactive ? '#0b0d10' : 'var(--muted)',
-              transition: 'all 0.15s',
-            }}
-          >
-            🎞️ 2D Classic
-          </button>
-          <button
-            role="radio" aria-checked={interactive}
-            onClick={() => setInteractive(true)}
-            style={{
-              padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: 0.4,
-              border: 'none', cursor: 'pointer',
-              background: interactive ? 'var(--accent)' : 'transparent',
-              color: interactive ? '#0b0d10' : 'var(--muted)',
-              transition: 'all 0.15s',
-            }}
-          >
-            🎬 3D Beta
-          </button>
-        </div>
+        {!nativeOnly3D && !isRaidSetup && (
+          <div role="radiogroup" aria-label="Battle viewer" style={{
+            display: 'inline-flex', padding: 3, borderRadius: 999,
+            background: 'rgba(12,16,26,0.6)', border: '1px solid var(--border)',
+            backdropFilter: 'blur(6px)',
+          }}>
+            <button
+              role="radio" aria-checked={!interactive}
+              onClick={() => setInteractive(false)}
+              style={{
+                padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: 0.4,
+                border: 'none', cursor: 'pointer',
+                background: !interactive ? 'var(--accent)' : 'transparent',
+                color: !interactive ? '#0b0d10' : 'var(--muted)',
+                transition: 'all 0.15s',
+              }}
+            >
+              🎞️ 2D Classic
+            </button>
+            <button
+              role="radio" aria-checked={interactive}
+              onClick={() => setInteractive(true)}
+              style={{
+                padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, letterSpacing: 0.4,
+                border: 'none', cursor: 'pointer',
+                background: interactive ? 'var(--accent)' : 'transparent',
+                color: interactive ? '#0b0d10' : 'var(--muted)',
+                transition: 'all 0.15s',
+              }}
+            >
+              🎬 3D Beta
+            </button>
+          </div>
+        )}
         <button
           onClick={handleFight}
-          disabled={teamIds.length === 0 || !selectedStageId || submitting}
+          disabled={teamIds.length === 0 || (!isRaidSetup && !selectedStageId) || submitting || (isRaidSetup && !raid)}
           style={{
             padding: '14px 48px', borderRadius: 10, fontSize: 16, fontWeight: 900, letterSpacing: 1.2, cursor: 'pointer',
             background: 'var(--accent)', color: '#0b0d10', border: 'none',
             boxShadow: '0 6px 24px rgba(0, 255, 224, 0.25)',
-            opacity: (teamIds.length === 0 || !selectedStageId || submitting) ? 0.4 : 1,
+            opacity: (teamIds.length === 0 || (!isRaidSetup && !selectedStageId) || submitting || (isRaidSetup && !raid)) ? 0.4 : 1,
           }}
         >
-          {submitting ? 'STARTING…' : '⚔ FIGHT!'}
+          {submitting ? 'STARTING…' : isRaidSetup ? '⚔ RAID ATTACK!' : '⚔ FIGHT!'}
         </button>
       </div>
     </div>

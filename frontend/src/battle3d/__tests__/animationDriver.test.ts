@@ -47,6 +47,19 @@ describe("animationDriver.handleEvent", () => {
     expect(attacker.flashWhite).toHaveBeenCalled();
   });
 
+  it("LIMIT_BREAK: attacker plays attack clip and flashes", () => {
+    const attacker = makeRig("a1", "knight");
+    handleEvent({ type: "LIMIT_BREAK", unit: "a1" }, new Map([["a1", attacker]]));
+    expect(attacker.play).toHaveBeenCalledWith("Sword_Attack");
+    expect(attacker.flashWhite).toHaveBeenCalled();
+  });
+
+  it("DEFEND_ABSORB: defender floats a defend popup", () => {
+    const defender = makeRig("b1", "knight");
+    handleEvent({ type: "DEFEND_ABSORB", unit: "b1", amount: 18 }, new Map([["b1", defender]]));
+    expect(defender.floatDamageNumber).toHaveBeenCalledWith(18, { kind: "defend" });
+  });
+
   it("unknown event type is a no-op", () => {
     const r = makeRig("a1", "knight");
     handleEvent({ type: "TURN_START", actor_uid: "a1" }, new Map([["a1", r]]));

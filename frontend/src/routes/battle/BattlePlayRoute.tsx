@@ -1,36 +1,63 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useInteractiveSession } from '../../hooks/useInteractiveSession'
 import { BattleHUD } from '../../components/BattleHUD'
 import { Battle3DErrorBoundary } from '../../battle3d/Battle3DErrorBoundary'
 import type { InteractiveStateOut } from '../../types/battle'
+import type { ActionType } from '../../api/battles'
+import { postRaidInteractiveAct } from '../../api/raids'
+import { toast } from '../../store/ui'
 
 const Battle3DScene = lazy(() =>
   import('../../battle3d/Battle3DScene').then(m => ({ default: m.Battle3DScene }))
 )
 
 // Delay between an action resolving and the next auto-pick firing — long
-// enough that the player sees the attack/hit play out in 3D before the
-// next turn begins. Tuned to match the dominant attack clip length.
-const AUTO_PLAY_DELAY_MS = 1200
+// enough that the player can read the turn-order ribbon + damage numbers
+// before the next actor takes over. Tuned slower than the attack clip
+// length so the visual feedback fully settles.
+const AUTO_PLAY_DELAY_MS = 2200
 
 export default function BattlePlayRoute() {
   const { id: _id } = useParams<{ id: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const initState = (location.state as { initState?: InteractiveStateOut } | null)?.initState ?? null
+  const navState = (location.state as { initState?: InteractiveStateOut; encounterType?: 'stage' | 'raid' } | null) ?? null
+  const initState = navState?.initState ?? null
+  const encounterType = navState?.encounterType ?? 'stage'
 
-  const { state, act, acting, error } = useInteractiveSession(initState)
+  const { state, act, acting, error } = useInteractiveSession(
+    initState,
+    encounterType === 'raid' ? { act: postRaidInteractiveAct } : undefined,
+  )
 
   // Auto-play: the stage flow defaults to "Watch in 3D" — we pick the
   // lowest-HP valid target each turn so the player can chill and watch.
   // Toggle off to play manually (skill/limit/specific-target choice).
   const [autoPlay, setAutoPlay] = useState(true)
+  const [selectedAction, setSelectedAction] = useState<ActionType>('attack')
   const autoTimerRef = useRef<number | null>(null)
+  const toastEventRef = useRef<Record<string, unknown> | null>(null)
 
   const done = state?.status === 'DONE' || state?.done === true
   const pending = state?.pending
   const teamB = state?.team_b ?? []
+  const nameByUid: Record<string, string> = {}
+  const templateByUid: Record<string, string> = {}
+  for (const p of state?.participants ?? []) {
+    if (p.template_code) templateByUid[p.uid] = p.template_code
+    nameByUid[p.uid] = p.name
+  }
+  const actorName = pending
+    ? (state?.team_a.find(u => u.uid === pending.actor_uid)?.name ?? pending.actor_name ?? pending.actor_uid)
+    : null
+
+  const executeAction = useCallback((targetUid: string, actionType?: ActionType) => {
+    const chosenAction = actionType ?? selectedAction
+    setAutoPlay(false)
+    setSelectedAction('attack')
+    act(targetUid, chosenAction)
+  }, [act, selectedAction])
 
   useEffect(() => {
     if (autoTimerRef.current !== null) {
@@ -59,6 +86,29 @@ export default function BattlePlayRoute() {
     }
   }, [autoPlay, pending, acting, done, teamB, act])
 
+  useEffect(() => {
+    if (!pending) return
+    setSelectedAction('attack')
+  }, [pending?.actor_uid, pending?.turn_number])
+
+  useEffect(() => {
+    const event = state?.last_event
+    if (!event || event === toastEventRef.current) return
+    toastEventRef.current = event
+    const kind = String(event.type ?? '')
+    const eventUid = String(event.actor_uid ?? event.unit ?? '')
+    const eventActor = eventUid ? (nameByUid[eventUid] ?? actorName ?? 'Hero') : (actorName ?? 'Hero')
+    if (kind === 'SPECIAL') {
+      toast.info(`${eventActor} used ${String(event.name ?? pending?.special_name ?? 'a skill')}`)
+    } else if (kind === 'LIMIT_BREAK') {
+      toast.success(`${eventActor} unleashed ${String(event.name ?? 'Limit Break')}`)
+    } else if (kind === 'DEFEND') {
+      toast.info(`${eventActor} is defending`)
+    } else if (kind === 'TURN_TIMEOUT') {
+      toast.error('turn timed out')
+    }
+  }, [actorName, nameByUid, pending?.special_name, state?.last_event])
+
   if (!state) {
     return (
       <div style={{ color: 'var(--color-muted)', padding: 24 }}>
@@ -71,10 +121,6 @@ export default function BattlePlayRoute() {
   }
 
   const rewards = state.rewards ?? null
-  const templateByUid: Record<string, string> = {}
-  for (const p of state.participants ?? []) {
-    if (p.template_code) templateByUid[p.uid] = p.template_code
-  }
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', background: 'var(--color-bg)' }}>
@@ -93,7 +139,7 @@ export default function BattlePlayRoute() {
             done={done}
             templateByUid={templateByUid}
             validTargets={pending?.valid_targets ?? pending?.enemies?.map(e => e.uid) ?? []}
-            onAct={pending ? act : undefined}
+            onAct={pending ? (targetUid) => executeAction(targetUid, selectedAction) : undefined}
           />
         </Suspense>
       </Battle3DErrorBoundary>
@@ -101,14 +147,23 @@ export default function BattlePlayRoute() {
       <BattleHUD
         teamA={state.team_a}
         teamB={state.team_b}
-        onAct={pending ? act : undefined}
+        onAct={pending ? executeAction : undefined}
+        onSelectAction={(actionType) => {
+          setAutoPlay(false)
+          setSelectedAction(actionType)
+        }}
         pendingActorUid={pending?.actor_uid ?? null}
         pending={pending ?? null}
+        selectedAction={selectedAction}
         validTargets={pending?.valid_targets ?? pending?.enemies?.map(e => e.uid) ?? []}
         acting={acting}
         done={done}
         rewards={rewards}
         onClose={() => {
+          if (encounterType === 'raid') {
+            navigate('/app/raids')
+            return
+          }
           const r = state.rewards as (Record<string, unknown> | null | undefined)
           const unlocks = Array.isArray(r?.milestone_unlocks) ? (r!.milestone_unlocks as number[]) : []
           navigate('/app/stages', unlocks.length > 0 ? { state: { milestoneUnlocks: unlocks } } : undefined)
@@ -144,7 +199,7 @@ export default function BattlePlayRoute() {
 
       {pending && !done && !autoPlay && (
         <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 600 }}>
-          {state.team_a.find(u => u.uid === pending.actor_uid)?.name ?? pending.actor_uid} — pick a target
+          {actorName} — {selectedAction === 'skill' ? `pick a target for ${pending.special_name ?? 'skill'}` : `pick a target for ${selectedAction}`}
         </div>
       )}
     </div>

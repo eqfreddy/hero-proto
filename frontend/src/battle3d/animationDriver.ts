@@ -15,8 +15,10 @@ export type CombatEvent =
   | { type: "DAMAGE"; actor_uid?: string; source?: string; target_uid?: string; target?: string; amount: number; crit?: boolean }
   | { type: "HEAL"; target_uid?: string; target?: string; amount: number }
   | { type: "DEFEND"; unit: string }
+  | { type: "DEFEND_ABSORB"; unit: string; amount?: number }
   | { type: "DEATH"; target_uid?: string; unit?: string }
   | { type: "SPECIAL"; actor_uid?: string; unit?: string }
+  | { type: "LIMIT_BREAK"; actor_uid?: string; unit?: string }
   | { type: string; [k: string]: unknown };
 
 function playCanonical(rig: UnitRig, canonical: CanonicalClip): boolean {
@@ -55,6 +57,11 @@ export function handleEvent(event: CombatEvent, rigs: Map<string, UnitRig>): voi
     if (tgt) tgt.floatDamageNumber(0, { kind: 'defend' });
     return;
   }
+  if (event.type === "DEFEND_ABSORB") {
+    const tgt = rigs.get(event.unit as string);
+    if (tgt) tgt.floatDamageNumber((event.amount as number) ?? 0, { kind: 'defend' });
+    return;
+  }
   if (event.type === "QUIP") {
     const uid = (event.unit ?? event.actor_uid) as string | undefined;
     const tgt = uid ? rigs.get(uid) : undefined;
@@ -71,6 +78,15 @@ export function handleEvent(event: CombatEvent, rigs: Map<string, UnitRig>): voi
     return;
   }
   if (event.type === "SPECIAL") {
+    const uid = (event.actor_uid ?? event.unit) as string | undefined;
+    const attacker = uid ? rigs.get(uid) : undefined;
+    if (attacker) {
+      playCanonical(attacker, "attack");
+      attacker.flashWhite();
+    }
+    return;
+  }
+  if (event.type === "LIMIT_BREAK") {
     const uid = (event.actor_uid ?? event.unit) as string | undefined;
     const attacker = uid ? rigs.get(uid) : undefined;
     if (attacker) {

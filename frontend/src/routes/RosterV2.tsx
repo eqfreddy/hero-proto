@@ -5,6 +5,7 @@ import { useHeroes } from '../hooks/useHeroes'
 import type { Hero } from '../types'
 import './Lobby.css'
 import './RosterV2.css'
+import { HeroPortrait } from '../components/HeroPortrait'
 
 type FilterKey = 'ALL' | 'EPIC_PLUS' | string
 type SortKey = 'POWER' | 'LEVEL' | 'RARITY' | 'RECENT'
@@ -165,11 +166,13 @@ export function RosterV2Route() {
                   </span>
                   <span className="lv">L{h.level}</span>
                   <div className="fig">
-                    <img
-                      className="bust"
-                      src={`/app/static/heroes/busts/${h.template.code}.png`}
-                      alt={h.template.name}
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    <HeroPortrait
+                      code={h.template.code}
+                      name={h.template.name}
+                      rarity={h.template.rarity}
+                      role={h.template.role}
+                      faction={h.template.faction}
+                      style={{ width: '100%', height: '100%', borderRadius: 0, border: 'none', boxShadow: 'none' }}
                     />
                   </div>
                 </div>

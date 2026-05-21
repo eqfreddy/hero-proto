@@ -1,7 +1,6 @@
 import type { Hero } from '../types'
 import { RarityPill } from './RarityPill'
-
-const ROLE_COLORS = { ATK: 'var(--role-atk)', DEF: 'var(--role-def)', SUP: 'var(--role-sup)' }
+import { HeroPortrait } from './HeroPortrait'
 
 interface Props {
   hero: Hero
@@ -11,8 +10,6 @@ interface Props {
 
 export function HeroCard({ hero, onClick, selected }: Props) {
   const { template: t } = hero
-  const bustUrl = `/app/static/heroes/busts/${t.code}.png`
-  const placeholderUrl = `/app/placeholder/hero/${t.code}.svg`
 
   return (
     <div
@@ -31,19 +28,14 @@ export function HeroCard({ hero, onClick, selected }: Props) {
       }}
     >
       <div style={{ position: 'relative', aspectRatio: '1', background: 'var(--bg-inset)', overflow: 'hidden' }}>
-        <img
-          src={bustUrl}
-          alt={t.name}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          onError={(e) => { (e.target as HTMLImageElement).src = placeholderUrl }}
+        <HeroPortrait
+          code={t.code}
+          name={t.name}
+          rarity={t.rarity}
+          role={t.role}
+          faction={t.faction}
+          style={{ height: '100%', borderRadius: 0, border: 'none', boxShadow: 'none' }}
         />
-        <span style={{
-          position: 'absolute', top: 4, left: 4,
-          background: ROLE_COLORS[t.role], color: '#0b0d10',
-          fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 3,
-        }}>
-          {t.role}
-        </span>
         {hero.dupe_count > 1 && (
           <span style={{
             position: 'absolute', top: 4, right: 4,
@@ -66,6 +58,9 @@ export function HeroCard({ hero, onClick, selected }: Props) {
       <div style={{ padding: '8px 10px' }}>
         <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {t.name}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          {t.role} · {t.faction.replace('_', ' ')}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <RarityPill rarity={t.rarity} />

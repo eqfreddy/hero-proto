@@ -14,6 +14,7 @@ import {
 import { toast } from '../../store/ui'
 import { RarityPill } from '../../components/RarityPill'
 import { SkeletonGrid } from '../../components/SkeletonGrid'
+import { HeroPortrait } from '../../components/HeroPortrait'
 
 export function HeroDetailRoute() {
   const { heroId } = useParams<{ heroId: string }>()
@@ -93,18 +94,20 @@ export function HeroDetailRoute() {
 
       <div className="card">
         <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
-          <img
-            src={`/app/static/heroes/cards/${t.code}.png`}
-            alt={t.name}
-            style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 'var(--radius)', background: 'var(--bg-inset)' }}
-            onError={(e) => { (e.target as HTMLImageElement).src = `/placeholder/hero/${t.code}.svg` }}
+          <HeroPortrait
+            code={t.code}
+            name={t.name}
+            rarity={t.rarity}
+            role={t.role}
+            faction={t.faction}
+            style={{ width: 96, height: 96, flexShrink: 0 }}
           />
           <div>
             <h2 style={{ margin: '0 0 4px' }}>{t.name}</h2>
             <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
               <RarityPill rarity={t.rarity} size="md" />
               <span className="pill">{t.role}</span>
-              <span className="pill">{t.faction}</span>
+              <span className="pill">{t.faction.replace('_', ' ')}</span>
             </div>
             <div style={{ marginTop: 6, color: 'var(--muted)', fontSize: 12 }}>
               {'⭐'.repeat(hero.stars)} Level {hero.level} · Special Lv {hero.special_level}

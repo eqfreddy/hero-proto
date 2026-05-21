@@ -175,10 +175,21 @@ export interface InteractiveState {
 export interface Raid {
   id: number
   boss_name: string
+  boss_level: number
   remaining_hp: number
   max_hp: number
-  status: string
+  state: 'ACTIVE' | 'DEFEATED' | 'EXPIRED'
+  tier: 'T1' | 'T2' | 'T3'
   guild_id: number
+  starts_at: string
+  ends_at: string
+  contributors: RaidContributor[]
+}
+
+export interface RaidContributor {
+  account_id: number
+  name: string
+  damage_dealt: number
 }
 
 export interface PendingArenaReward {
