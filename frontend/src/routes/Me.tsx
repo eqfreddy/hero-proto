@@ -1,5 +1,5 @@
 // frontend/src/routes/Me.tsx
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../hooks/useMe'
@@ -15,23 +15,61 @@ import { MonthlyCardCard } from '../components/MonthlyCardCard'
 import { AfkCard } from '../components/AfkCard'
 import { VipCard } from '../components/VipCard'
 import type { ShopProduct } from '../types'
-
-const LOG_ENTRIES = [
-  { tag: '[ARENA]',  color: 'var(--good)',        msg: 'WIN vs shadowkill_99 +12'       },
-  { tag: '[SUMMON]', color: 'var(--void-purple)',  msg: 'Pulled: Netrunner [RARE]'       },
-  { tag: '[GUILD]',  color: 'var(--accent)',       msg: 'Guild contribution recorded'    },
-  { tag: '[ARENA]',  color: 'var(--bad)',          msg: 'LOSS vs DevNull404 -8'          },
-  { tag: '[RAID]',   color: 'var(--gold)',         msg: 'Contributed 2,400 dmg to boss'  },
-  { tag: '[QUEST]',  color: 'var(--good)',         msg: 'Daily quest completed'           },
-]
-
-let _logKey = 0
+import { assetUrl } from '../api/client'
 
 function formatRemaining(seconds: number): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   if (h > 0) return `${h}h ${m}m`
   return `${m}m`
+}
+
+function formatPrice(priceCents: number): string {
+  return priceCents === 0 ? 'Free' : `$${(priceCents / 100).toFixed(2)}`
+}
+
+function getOwnedQolCodes(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((code): code is string => typeof code === 'string')
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw as Record<string, unknown>)
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([code]) => code)
+  }
+  return []
+}
+
+function summarizeContents(contents: Record<string, unknown>): string {
+  const labels: Record<string, string> = {
+    gems: 'gems',
+    shards: 'shards',
+    access_cards: 'access cards',
+    coins: 'coins',
+    extra_hero_slots: 'hero slots',
+    extra_gear_slots: 'gear slots',
+  }
+  const parts = Object.entries(contents)
+    .flatMap(([key, value]) => {
+      if (key === 'qol_unlocks' && Array.isArray(value)) {
+        return value.map((code) => String(code).replace(/_/g, ' '))
+      }
+      if (key === 'hero_template_code' && typeof value === 'string') {
+        return [`hero: ${value.replace(/_/g, ' ')}`]
+      }
+      if (typeof value === 'number' && value > 0) {
+        return [`${value.toLocaleString()} ${labels[key] ?? key.replace(/_/g, ' ')}`]
+      }
+      return []
+    })
+  return parts.join(' + ')
+}
+
+type OfferCard = {
+  title: string
+  body: string
+  sku?: string
+  tone: string
+  cta: string
+  owned?: boolean
 }
 
 // Bespoke TopBar retired 2026-05-13 — Home now uses the shared Shell
@@ -267,7 +305,7 @@ function OpsPanel() {
                   onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent' }}
                 >
                   <img
-                    src={`/app/static/heroes/busts/${h.template.code}.png`}
+                    src={assetUrl(`/app/static/heroes/busts/${h.template.code}.png`)}
                     alt={h.template.name}
                     style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover', background: 'var(--panel-2)' }}
                     onError={(e) => { (e.target as HTMLImageElement).src = `/app/placeholder/hero/${h.template.code}.svg` }}
@@ -422,18 +460,6 @@ function RightPanel() {
   const [shopTab, setShopTab] = useState<ShopTab>('coins')
   const [buying, setBuying] = useState<string | null>(null)
   const [exchanging, setExchanging] = useState(false)
-  const logIdx = useRef(4)
-
-  const [logEntries, setLogEntries] = useState(() => LOG_ENTRIES.slice(0, 4).map(e => ({ ...e, key: _logKey++ })))
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setLogEntries((prev) => [{ ...LOG_ENTRIES[logIdx.current % LOG_ENTRIES.length], key: _logKey++ }, ...prev].slice(0, 8))
-      logIdx.current++
-    }, 9000)
-    return () => clearInterval(id)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   async function buy(sku: string) {
     setBuying(sku)
@@ -464,7 +490,58 @@ function RightPanel() {
 
   const gemProducts = (shop?.products ?? []).filter((p) => p.kind === 'GEM_PACK')
   const coinProducts = (shop?.products ?? []).filter((p) => p.kind === 'COIN_PACK')
+  const utilityProducts = (shop?.products ?? []).filter((p) => ['SHARD_PACK', 'ACCESS_CARD_PACK'].includes(p.kind))
   const qolProducts = (shop?.products ?? []).filter((p) => !['GEM_PACK', 'COIN_PACK', 'STARTER_BUNDLE', 'SHARD_PACK', 'ACCESS_CARD_PACK'].includes(p.kind))
+  const ownedQol = new Set(getOwnedQolCodes(me.qol_unlocks))
+  const pityPullsLeft = Math.max(0, 50 - me.pulls_since_epic)
+  const historySkus = new Set((shop?.history ?? []).map((entry) => entry.sku))
+  const premiumAnchor =
+    shop?.starter ??
+    shop?.products.find((product) => product.sku === 'weekly_bundle') ??
+    utilityProducts[0] ??
+    gemProducts[0] ??
+    coinProducts[0] ??
+    null
+  const qolOwnershipBySku = new Map(
+    qolProducts.map((product) => {
+      const codes = Array.isArray(product.contents.qol_unlocks)
+        ? product.contents.qol_unlocks.map((code) => String(code))
+        : []
+      return [product.sku, codes.some((code) => ownedQol.has(code))]
+    }),
+  )
+  const offerCards: OfferCard[] = [
+    {
+      title: pityPullsLeft > 0 ? `Epic pity in ${pityPullsLeft} pulls` : 'Epic pity is loaded',
+      body:
+        pityPullsLeft > 0
+          ? 'This is where spend converts best. The player is close enough to picture the hit.'
+          : 'They are already on the line. The page should make the last click feel automatic.',
+      sku: utilityProducts.find((product) => product.kind === 'SHARD_PACK')?.sku ?? gemProducts[0]?.sku,
+      tone: 'var(--void-purple)',
+      cta: 'Push the pity bar',
+    },
+    {
+      title: me.energy < Math.ceil(me.energy_cap * 0.4) ? 'Low energy kills session length' : 'Keep your next session loaded',
+      body:
+        me.energy < Math.ceil(me.energy_cap * 0.4)
+          ? 'When the player runs dry, offer a clean way back into runs, shards, and upgrades.'
+          : 'Momentum sells better than raw currency. Good bundles should feel like more time with the fun parts.',
+      sku: shop?.products.find((product) => product.sku === 'weekly_bundle')?.sku ?? gemProducts[0]?.sku,
+      tone: 'var(--accent)',
+      cta: 'Buy momentum',
+    },
+    {
+      title: ownedQol.has('auto_battle') ? 'Auto-battle already owned' : 'Auto-battle is the first real comfort buy',
+      body: ownedQol.has('auto_battle')
+        ? 'Good. The next offers should lean on space, presets, and pity breaks.'
+        : 'Veteran players spend to remove friction. This is one of the few offers that naturally earns the click.',
+      sku: qolProducts.find((product) => product.sku === 'qol_auto_battle')?.sku,
+      tone: 'var(--gold)',
+      cta: ownedQol.has('auto_battle') ? 'Owned' : 'Unlock comfort',
+      owned: ownedQol.has('auto_battle'),
+    },
+  ]
 
   const sx = shop?.shard_exchange
 
@@ -480,12 +557,90 @@ function RightPanel() {
         {/* Energy mini */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>
-            <span>⚡ Energy</span>
+            <span>Energy</span>
             <span style={{ fontWeight: 700, color: energyColor }}>{me.energy} / {me.energy_cap}</span>
           </div>
           <div className="meter-bar">
             <div className="meter-fill" style={{ width: `${energyPct}%`, background: energyColor, boxShadow: `0 0 4px ${energyColor}60` }} />
           </div>
+        </div>
+
+        <div style={{ height: 1, background: 'rgba(0,255,224,0.05)' }} />
+
+        {premiumAnchor && (
+          <div style={{
+            padding: '12px 12px 10px',
+            background: 'linear-gradient(180deg, rgba(14,18,30,0.98), rgba(20,12,32,0.92))',
+            border: '1px solid rgba(255,215,0,0.22)',
+            borderRadius: 8,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.28)',
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 6 }}>
+              {historySkus.has(premiumAnchor.sku) ? 'Return Offer' : 'Featured Conversion'}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 4 }}>{premiumAnchor.title}</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 8 }}>{premiumAnchor.description}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.72)', marginBottom: 10 }}>
+              {summarizeContents(premiumAnchor.contents)}
+            </div>
+            <button
+              onClick={() => buy(premiumAnchor.sku)}
+              disabled={buying === premiumAnchor.sku}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                border: 'none',
+                borderRadius: 5,
+                background: 'linear-gradient(180deg, rgba(255,215,0,0.94), rgba(214,156,19,0.94))',
+                color: '#130b00',
+                fontSize: 11,
+                fontWeight: 900,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              {buying === premiumAnchor.sku ? 'Processing...' : `${historySkus.has(premiumAnchor.sku) ? 'Buy Again' : 'Claim This Offer'} - ${formatPrice(premiumAnchor.price_cents)}`}
+            </button>
+          </div>
+        )}
+
+        <div className="label-caps">Pressure Points</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {offerCards.map((offer) => (
+            <div
+              key={offer.title}
+              style={{
+                padding: '9px 10px',
+                background: 'var(--bg-inset)',
+                border: '1px solid rgba(255,255,255,0.05)',
+                borderLeft: `3px solid ${offer.tone}`,
+                borderRadius: 6,
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 800, color: offer.tone, marginBottom: 3 }}>{offer.title}</div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.45, marginBottom: 8 }}>{offer.body}</div>
+              {offer.sku && (
+                <button
+                  onClick={() => buy(offer.sku!)}
+                  disabled={offer.owned || buying === offer.sku}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    borderRadius: 4,
+                    border: `1px solid ${offer.tone}`,
+                    background: offer.owned ? 'rgba(255,255,255,0.04)' : 'transparent',
+                    color: offer.owned ? 'var(--muted)' : offer.tone,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    cursor: offer.owned ? 'default' : 'pointer',
+                  }}
+                >
+                  {offer.owned ? 'Already owned' : buying === offer.sku ? 'Processing...' : offer.cta}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
 
         <div style={{ height: 1, background: 'rgba(0,255,224,0.05)' }} />
@@ -508,7 +663,7 @@ function RightPanel() {
                 cursor: 'pointer',
               }}
             >
-              {t === 'coins' ? '🪙' : t === 'gems' ? '💎' : '⚙️'} {t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === 'coins' ? 'Coin' : t === 'gems' ? 'Premium' : 'QoL'}
             </button>
           ))}
         </div>
@@ -520,7 +675,7 @@ function RightPanel() {
           ))}
           {shopTab === 'coins' && coinProducts.length === 0 && (
             <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', padding: '8px 0' }}>
-              Coin shop coming soon.
+              No coin packs are live right now.
             </div>
           )}
           {shopTab === 'gems' && (
@@ -528,52 +683,62 @@ function RightPanel() {
               {sx && (
                 <div style={{ padding: '8px 10px', background: 'var(--bg-inset)', border: '1px solid rgba(0,255,224,0.08)', borderRadius: 5, marginBottom: 4 }}>
                   <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>
-                    {sx.gems_per_batch}💎 → {sx.shards_per_batch}✦ · {sx.remaining_today}/{sx.max_per_day} left today
+                    {sx.gems_per_batch} gems to {sx.shards_per_batch} shards · {sx.remaining_today}/{sx.max_per_day} left today
                   </div>
                   <button
                     onClick={doExchange} disabled={exchanging || sx.remaining_today <= 0}
                     style={{ width: '100%', padding: '5px', fontSize: 10, fontWeight: 700, border: '1px solid rgba(155,48,255,0.3)', borderRadius: 3, background: 'rgba(155,48,255,0.1)', color: 'var(--void-purple)', cursor: 'pointer' }}
                   >
-                    {exchanging ? '…' : `Trade ${sx.gems_per_batch}💎 → ${sx.shards_per_batch}✦`}
+                    {exchanging ? 'Processing...' : `Trade ${sx.gems_per_batch} gems -> ${sx.shards_per_batch} shards`}
                   </button>
                 </div>
               )}
-              {gemProducts.map((p) => <ShopItem key={p.sku} product={p} onBuy={buy} buying={buying} />)}
+              {[...utilityProducts, ...gemProducts].map((p) => <ShopItem key={p.sku} product={p} onBuy={buy} buying={buying} />)}
             </>
           )}
           {shopTab === 'qol' && qolProducts.map((p) => (
-            <ShopItem key={p.sku} product={p} onBuy={buy} buying={buying} />
+            <ShopItem key={p.sku} product={p} onBuy={buy} buying={buying} owned={qolOwnershipBySku.get(p.sku) === true} />
           ))}
         </div>
 
         <div style={{ height: 1, background: 'rgba(0,255,224,0.05)' }} />
 
-        {/* Live event log */}
-        <div className="label-caps">System Log</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {logEntries.map((e, i) => (
-            <div key={e.key} style={{
-              fontSize: 9, padding: '4px 6px',
-              borderLeft: `2px solid ${i === 0 ? e.color : 'rgba(255,255,255,0.04)'}`,
-              color: i === 0 ? 'rgba(200,220,255,0.6)' : 'var(--muted)',
-              fontFamily: 'Consolas, monospace',
-              lineHeight: 1.5,
-            }}>
-              <span style={{ color: e.color, marginRight: 6 }}>{e.tag}</span>
-              {e.msg}
+        {shop?.history.length ? (
+          <>
+            <div className="label-caps">Recent Purchases</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {shop.history.slice(0, 4).map((entry) => (
+                <div
+                  key={entry.id}
+                  style={{
+                    padding: '6px 8px',
+                    background: 'var(--bg-inset)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    borderRadius: 5,
+                  }}
+                >
+                  <div style={{ fontSize: 10, fontWeight: 700 }}>{entry.title}</div>
+                  <div style={{ fontSize: 9, color: 'var(--muted)' }}>{entry.granted_short}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.5 }}>
+            No purchase history yet. This page should make the first spend feel obvious, not embarrassing.
+          </div>
+        )}
 
       </div>
     </div>
   )
 }
 
-function ShopItem({ product, onBuy, buying }: {
+function ShopItem({ product, onBuy, buying, owned = false }: {
   product: ShopProduct
   onBuy: (sku: string) => void
   buying: string | null
+  owned?: boolean
 }) {
   return (
     <div
@@ -590,17 +755,18 @@ function ShopItem({ product, onBuy, buying }: {
           {product.title}
         </div>
         <div style={{ fontSize: 9, color: 'var(--muted)' }}>{product.description}</div>
+        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.62)', marginTop: 3 }}>{summarizeContents(product.contents)}</div>
       </div>
       <button
         onClick={() => onBuy(product.sku)}
-        disabled={buying === product.sku}
+        disabled={owned || buying === product.sku}
         style={{
           flexShrink: 0, padding: '3px 7px', fontSize: 10, fontWeight: 700,
           border: 'none', borderRadius: 3,
           background: 'var(--accent)', color: '#000', cursor: 'pointer',
         }}
       >
-        {buying === product.sku ? '…' : product.price_cents === 0 ? 'Free' : `$${(product.price_cents / 100).toFixed(2)}`}
+        {owned ? 'Owned' : buying === product.sku ? '...' : formatPrice(product.price_cents)}
       </button>
     </div>
   )
