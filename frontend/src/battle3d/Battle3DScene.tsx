@@ -289,7 +289,7 @@ export function Battle3DScene(props: Battle3DSceneProps) {
                 kind === 'defend' ? '#a8c4ff' :
                 crit              ? '#ffd86b' :
                                     '#ffffff';
-              const size = crit ? 28 : 20;
+              const size = crit ? 32 : 24;
               const label =
                 kind === 'defend' ? 'DEFEND'
                 : kind === 'heal' ? `+${amount}`
@@ -308,11 +308,11 @@ export function Battle3DScene(props: Battle3DSceneProps) {
                 'text-shadow:0 2px 6px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)',
                 'letter-spacing:0.04em',
                 'will-change:transform,opacity',
-                `animation:lb3-float ${crit ? 1400 : 1100}ms ease-out forwards`,
+                `animation:lb3-float ${crit ? 2100 : 1700}ms ease-out forwards`,
               ].join(';');
               wrap.appendChild(el);
               barsRoot.appendChild(wrap);
-              setTimeout(() => { el.remove(); }, crit ? 1450 : 1150);
+              setTimeout(() => { wrap.remove(); }, crit ? 2150 : 1750);
             },
             floatQuip: (line: string) => {
               if (!line) return;

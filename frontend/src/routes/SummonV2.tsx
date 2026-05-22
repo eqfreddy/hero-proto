@@ -9,6 +9,8 @@ import { toast } from '../store/ui'
 import type { Hero } from '../types'
 import './Lobby.css'
 import './SummonV2.css'
+import { assetUrl } from '../api/client'
+import { SummonRevealOverlay } from '../components/SummonRevealOverlay'
 
 const PITY_CAP = 50
 const SOFT_PITY = 35
@@ -26,6 +28,34 @@ const RARITY_LETTER: Record<string, string> = {
   MYTH: 'M',
 }
 
+function arenaEdgeCopy(rating: number | undefined): string {
+  const score = rating ?? 0
+  if (score >= 1800) return 'Your bracket is already serious. One hit banner upgrades can turn a good defense into a miserable one.'
+  if (score >= 1400) return 'You are close enough for one strong pull to swing the next bracket and force harder counters.'
+  return 'Better pulls make the campaign easier and the ladder stop feeling uphill.'
+}
+
+function HeroPromoArt({ hero, className }: { hero: Hero | null; className?: string }) {
+  const [mode, setMode] = useState<'card' | 'bust' | 'silhouette'>('card')
+
+  if (!hero || mode === 'silhouette') {
+    return <SilhouettePurple />
+  }
+
+  const src = mode === 'card'
+    ? assetUrl(`/app/static/heroes/cards/${hero.template.code}.png`)
+    : assetUrl(`/app/static/heroes/busts/${hero.template.code}.png`)
+
+  return (
+    <img
+      className={className}
+      src={src}
+      alt={hero.template.name}
+      onError={() => setMode((current) => (current === 'card' ? 'bust' : 'silhouette'))}
+    />
+  )
+}
+
 export function SummonV2Route() {
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -40,13 +70,16 @@ export function SummonV2Route() {
   const [pulling, setPulling] = useState(false)
   const [lastPull, setLastPull] = useState<Hero[] | null>(null)
   const [banner, setBanner] = useState<BannerKind>('STD')
+  const [revealState, setRevealState] = useState<{ heroes: Hero[]; pullCount: 1 | 10 } | null>(null)
 
   const pity = me?.pulls_since_epic ?? 0
   const pityPct = Math.min(100, (pity / PITY_CAP) * 100)
   const pullsToEpic = Math.max(0, PITY_CAP - pity)
   const softHit = pity >= SOFT_PITY
   const shards = me?.shards ?? 0
-  const canX1 = shards >= COST_X1 && !pulling
+  const freeCredits = me?.free_summon_credits ?? 0
+  const usingFreePull = freeCredits > 0
+  const canX1 = (usingFreePull || shards >= COST_X1) && !pulling
   const canX10 = shards >= COST_X10 && !pulling
 
   const fpBalance = fp?.balance ?? 0
@@ -58,11 +91,28 @@ export function SummonV2Route() {
 
   const featuredHero = useMemo(() => {
     if (!heroes?.length) return null
-    const rare = heroes.find((h) =>
-      ['EPIC', 'LEGENDARY', 'MYTH'].includes(h.template.rarity),
-    )
+    const rare = heroes.find((h) => ['EPIC', 'LEGENDARY', 'MYTH'].includes(h.template.rarity))
     return rare ?? null
   }, [heroes])
+
+  const standardPressureCards = [
+    {
+      title: usingFreePull ? `${freeCredits} free pull${freeCredits === 1 ? '' : 's'} is loaded` : 'Banner ready',
+      body: usingFreePull
+        ? `Burn the free ticket first. ${freeCredits > 1 ? `${freeCredits} total credits are stacked,` : 'The account already has a credit,'} so the next x1 costs zero shards.`
+        : 'No free credit loaded, so the next x1 comes straight out of shards.',
+    },
+    {
+      title: `${pity}/${PITY_CAP} pity`,
+      body: softHit
+        ? `Soft pity is already active. ${pullsToEpic} pulls from the hard stop means every click feels heavier now.`
+        : `${pullsToEpic} pulls until the guaranteed epic floor. This is where the chase starts to feel mathematically real.`,
+    },
+    {
+      title: 'Arena edge',
+      body: arenaEdgeCopy(me?.arena_rating),
+    },
+  ]
 
   const faction = me?.faction ?? 'EXILE'
 
@@ -75,7 +125,7 @@ export function SummonV2Route() {
       setLastPull(res.heroes)
       qc.invalidateQueries({ queryKey: ['me'] })
       qc.invalidateQueries({ queryKey: ['heroes'] })
-      navigate('/app/summon/results', { state: { heroes: res.heroes, pullCount: count } })
+      setRevealState({ heroes: res.heroes, pullCount: count })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'pull failed')
     } finally {
@@ -92,7 +142,11 @@ export function SummonV2Route() {
       qc.invalidateQueries({ queryKey: ['me'] })
       qc.invalidateQueries({ queryKey: ['heroes'] })
       qc.invalidateQueries({ queryKey: ['friend-points'] })
-      navigate('/app/summon/results', { state: { heroes: [res.hero], pullCount: 1 } })
+      if (res.hero) {
+        setRevealState({ heroes: [res.hero], pullCount: 1 })
+      } else {
+        navigate('/app/summon/results', { state: { heroes: [], pullCount: 1 } })
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'friend pull failed')
     } finally {
@@ -102,18 +156,18 @@ export function SummonV2Route() {
 
   return (
     <div className="lobby-root" data-faction={faction}>
-      {/* header */}
       <div className="sum-hdr">
-        <button type="button" className="back" onClick={() => navigate('/app/lobby')}>‹ LOBBY</button>
+        <button type="button" className="back" onClick={() => navigate('/app/me')}>
+          {'< COMMAND DECK'}
+        </button>
         <span className="title">SUMMON.exe</span>
         <span className="right">
           <span className="pill">
-            {banner === 'STD' ? `${shards.toLocaleString()} ✦` : `${fpBalance.toLocaleString()} ♥`}
+            {banner === 'STD' ? `${shards.toLocaleString()} SHARDS` : `${fpBalance.toLocaleString()} FP`}
           </span>
         </span>
       </div>
 
-      {/* banner tabs — only show when friend banner is unlocked */}
       {fp && (
         <div className="sum-tabs">
           <button
@@ -128,42 +182,34 @@ export function SummonV2Route() {
             className={`tab fp${banner === 'FRIEND' ? ' on' : ''}`}
             onClick={() => setBanner('FRIEND')}
           >
-            // FRIEND ♥ {fpBalance}
+            // FRIEND FP {fpBalance}
           </button>
         </div>
       )}
 
-      {/* banner */}
       {banner === 'STD' ? (
         <div className="sum-banner corner-ticks">
-          <span className="tbl"></span><span className="tbr"></span>
-          <div className="grid"></div>
-          <div className="banner-title">// BANNER.STD · STANDARD</div>
+          <span className="tbl" />
+          <span className="tbr" />
+          <div className="grid" />
+          <div className="banner-title">// BANNER.STD - STANDARD</div>
           <div className="banner-name">
             NETOPS DRIFTERS
-            <span className="sub">all factions · pity at {PITY_CAP} pulls</span>
+            <span className="sub">all factions - chase power spikes - pity at {PITY_CAP}</span>
           </div>
           <div className="banner-art">
-            {featuredHero ? (
-              <img
-                className="bust"
-                src={`/app/static/heroes/busts/${featuredHero.template.code}.png`}
-                alt={featuredHero.template.name}
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-              />
-            ) : (
-              <SilhouettePurple />
-            )}
+            <HeroPromoArt hero={featuredHero} className="promo-art promo-card" />
           </div>
         </div>
       ) : (
         <div className="sum-banner fp corner-ticks">
-          <span className="tbl"></span><span className="tbr"></span>
-          <div className="grid"></div>
-          <div className="banner-title">// BANNER.FP · FRIEND.NET</div>
+          <span className="tbl" />
+          <span className="tbr" />
+          <div className="grid" />
+          <div className="banner-title">// BANNER.FP - FRIEND.NET</div>
           <div className="banner-name">
             WELCOME WAGON
-            <span className="sub">earn ♥ by daily-pinging friends</span>
+            <span className="sub">earn FP by daily-pinging friends</span>
           </div>
           <div className="banner-art">
             <SilhouettePink />
@@ -171,18 +217,57 @@ export function SummonV2Route() {
         </div>
       )}
 
-      {/* pity */}
+      {banner === 'STD' && (
+        <section className="sum-pressure">
+          <div className="sum-pressure-head">
+            <span className="sum-pressure-kicker">Close The Deal</span>
+            <h2>Meta Pressure</h2>
+          </div>
+          <div className="sum-pressure-grid">
+            {standardPressureCards.map((card) => (
+              <article key={card.title} className="sum-pressure-card">
+                <strong>{card.title}</strong>
+                <p>{card.body}</p>
+              </article>
+            ))}
+          </div>
+          {featuredHero && (
+            <div className="sum-featured-hook">
+              <div className="sum-featured-body">
+                <div className="sum-featured-copy">
+                  <span className="sum-featured-kicker">Chase Unit</span>
+                  <strong>{featuredHero.template.name}</strong>
+                  <p>
+                    Pulling higher-end operators like {featuredHero.template.name} is how a roster stops being cute and starts closing arena fights.
+                  </p>
+                </div>
+                <div className="sum-featured-art">
+                  <HeroPromoArt hero={featuredHero} className="promo-art promo-bust" />
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {banner === 'STD' ? (
         <div className="sum-pity">
           <div className="row">
-            <span className="label">PITY · <b>KERNEL_DUMP</b></span>
-            <span className="val">{pity}<span className="max">/{PITY_CAP}</span></span>
+            <span className="label">
+              PITY - <b>KERNEL_DUMP</b>
+            </span>
+            <span className="val">
+              {pity}
+              <span className="max">/{PITY_CAP}</span>
+            </span>
           </div>
-          <div className="bar"><span className="fill" style={{ width: `${pityPct}%` }}></span></div>
-          <div className="row" style={{ marginTop: 6, fontSize: 8.5, letterSpacing: '0.16em' }}>
+          <div className="bar">
+            <span className="fill" style={{ width: `${pityPct}%` }} />
+          </div>
+          <div className="row sum-pity-note">
             <span>
-              guaranteed <span style={{ color: 'var(--lb-purple)' }}>EPIC</span> at {PITY_CAP}
-              {softHit && <span className="softpity"> · SOFT PITY +{Math.min(100, (pity - SOFT_PITY + 1) * 5)}% epic</span>}
+              guaranteed <span className="sum-pity-emphasis">EPIC</span> at {PITY_CAP}
+              {softHit && <span className="softpity"> - SOFT PITY +{Math.min(100, (pity - SOFT_PITY + 1) * 5)}% epic</span>}
             </span>
             <span>+{pullsToEpic} pulls</span>
           </div>
@@ -190,27 +275,42 @@ export function SummonV2Route() {
       ) : (
         <div className="sum-pity">
           <div className="row">
-            <span className="label">FP.PITY · <b>WELCOME_WAGON</b></span>
-            <span className="val">{fpPity}<span className="max">/{fpCap}</span></span>
+            <span className="label">
+              FP.PITY - <b>WELCOME_WAGON</b>
+            </span>
+            <span className="val">
+              {fpPity}
+              <span className="max">/{fpCap}</span>
+            </span>
           </div>
-          <div className="bar"><span className="fill" style={{ width: `${fpPityPct}%`, background: 'linear-gradient(90deg, var(--lb-cyan), #ff79c6)' }}></span></div>
-          <div className="row" style={{ marginTop: 6, fontSize: 8.5, letterSpacing: '0.16em' }}>
-            <span>♥ {fpBalance.toLocaleString()} balance · {fpCost} per pull</span>
+          <div className="bar">
+            <span
+              className="fill"
+              style={{ width: `${fpPityPct}%`, background: 'linear-gradient(90deg, var(--lb-cyan), #ff79c6)' }}
+            />
+          </div>
+          <div className="row sum-pity-note">
+            <span>
+              FP {fpBalance.toLocaleString()} balance - {fpCost} per pull
+            </span>
             <span>+{Math.max(0, fpCap - fpPity)} pulls</span>
           </div>
         </div>
       )}
 
-      {/* CTAs */}
       {banner === 'STD' ? (
         <div className="sum-cta">
           <button type="button" className="sum-btn" disabled={!canX1} onClick={() => pull(1)}>
-            {pulling ? '…' : 'SUMMON ×1'}
-            <span className="cost">{COST_X1} ✦</span>
+            {pulling ? '...' : usingFreePull ? 'FREE PULL x1' : 'SUMMON x1'}
+            <span className="cost">
+              {usingFreePull ? `${freeCredits} credit${freeCredits === 1 ? '' : 's'} loaded` : `${COST_X1} shards`}
+            </span>
           </button>
           <button type="button" className="sum-btn lg" disabled={!canX10} onClick={() => pull(10)}>
-            {pulling ? '…' : 'SUMMON ×10'}
-            <span className="cost"><b>{COST_X10} ✦</b> · 1 GUARANTEED 4★+</span>
+            {pulling ? '...' : 'SUMMON x10'}
+            <span className="cost">
+              <b>{COST_X10} shards</b> - 1 guaranteed 4*+
+            </span>
           </button>
         </div>
       ) : (
@@ -222,45 +322,82 @@ export function SummonV2Route() {
             disabled={!canFriendPull}
             onClick={pullFriend}
           >
-            {pulling ? '…' : 'FRIEND PULL ×1'}
-            <span className="cost"><b>{fpCost} ♥</b> · earn ♥ by pinging friends</span>
+            {pulling ? '...' : 'FRIEND PULL x1'}
+            <span className="cost">
+              <b>{fpCost} FP</b> - earn FP by pinging friends
+            </span>
           </button>
         </div>
       )}
 
-      {/* rates */}
       <div className="sum-rates">
-        <div className="row r"><span><b>C</b> common</span><span>65.0%</span></div>
-        <div className="row r"><span><b>U</b> uncommon</span><span>25.0%</span></div>
-        <div className="row r rare-row"><span><b>R</b> rare</span><span>8.0%</span></div>
-        <div className="row r l"><span><b>L</b> legendary</span><span>1.8%</span></div>
-        <div className="row r m"><span><b>M</b> myth</span><span>0.2%</span></div>
+        <div className="row r">
+          <span>
+            <b>C</b> common
+          </span>
+          <span>65.0%</span>
+        </div>
+        <div className="row r">
+          <span>
+            <b>U</b> uncommon
+          </span>
+          <span>25.0%</span>
+        </div>
+        <div className="row r rare-row">
+          <span>
+            <b>R</b> rare
+          </span>
+          <span>8.0%</span>
+        </div>
+        <div className="row r l">
+          <span>
+            <b>L</b> legendary
+          </span>
+          <span>1.8%</span>
+        </div>
+        <div className="row r m">
+          <span>
+            <b>M</b> myth
+          </span>
+          <span>0.2%</span>
+        </div>
       </div>
 
-      {/* inline last-pull preview */}
       {lastPull && lastPull.length > 0 && (
         <div className="sum-lastpull">
           <div className="h">
-            <span>// last pull · {lastPull.length}x</span>
+            <span>// last pull - {lastPull.length}x</span>
             <b>{lastPull.length} HEROES</b>
           </div>
           <div className="grid">
-            {lastPull.map((h, i) => (
-              <div key={`${h.id}-${i}`} className="cell" data-rar={h.template.rarity}>
+            {lastPull.map((hero, index) => (
+              <div key={`${hero.id}-${index}`} className="cell" data-rar={hero.template.rarity}>
                 <img
                   className="bust"
-                  src={`/app/static/heroes/busts/${h.template.code}.png`}
-                  alt={h.template.name}
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  src={assetUrl(`/app/static/heroes/busts/${hero.template.code}.png`)}
+                  alt={hero.template.name}
+                  onError={(event) => {
+                    ;(event.currentTarget as HTMLImageElement).style.display = 'none'
+                  }}
                 />
-                <span className="rar">{RARITY_LETTER[h.template.rarity] ?? '?'}</span>
-                <span className="nm">{h.template.name}</span>
+                <span className="rar">{RARITY_LETTER[hero.template.rarity] ?? '?'}</span>
+                <span className="nm">{hero.template.name}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {revealState && (
+        <SummonRevealOverlay
+          heroes={revealState.heroes}
+          pullCount={revealState.pullCount}
+          onContinue={() => {
+            navigate('/app/summon/results', { state: revealState })
+            setRevealState(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -268,16 +405,16 @@ export function SummonV2Route() {
 function SilhouettePurple() {
   return (
     <svg viewBox="0 0 120 150" style={{ width: '90%', height: '100%' }}>
-      <ellipse cx="60" cy="142" rx="44" ry="6" fill="rgba(0,0,0,0.4)"/>
+      <ellipse cx="60" cy="142" rx="44" ry="6" fill="rgba(0,0,0,0.4)" />
       <g fill="var(--lb-purple)" opacity="0.7">
-        <path d="M48 140 L 50 100 L 60 100 L 60 140 Z"/>
-        <path d="M72 140 L 70 100 L 60 100 L 60 140 Z"/>
-        <path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z"/>
-        <path d="M42 56 Q 60 32 78 56 L 76 60 Q 60 44 44 60 Z"/>
+        <path d="M48 140 L 50 100 L 60 100 L 60 140 Z" />
+        <path d="M72 140 L 70 100 L 60 100 L 60 140 Z" />
+        <path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z" />
+        <path d="M42 56 Q 60 32 78 56 L 76 60 Q 60 44 44 60 Z" />
       </g>
-      <line x1="52" y1="70" x2="58" y2="70" stroke="var(--lb-purple)" strokeWidth="2"/>
-      <line x1="62" y1="70" x2="68" y2="70" stroke="var(--lb-purple)" strokeWidth="2"/>
-      <rect x="46" y="86" width="28" height="3" fill="var(--lb-gold)"/>
+      <line x1="52" y1="70" x2="58" y2="70" stroke="var(--lb-purple)" strokeWidth="2" />
+      <line x1="62" y1="70" x2="68" y2="70" stroke="var(--lb-purple)" strokeWidth="2" />
+      <rect x="46" y="86" width="28" height="3" fill="var(--lb-gold)" />
     </svg>
   )
 }
@@ -285,16 +422,16 @@ function SilhouettePurple() {
 function SilhouettePink() {
   return (
     <svg viewBox="0 0 120 150" style={{ width: '90%', height: '100%' }}>
-      <ellipse cx="60" cy="142" rx="44" ry="6" fill="rgba(0,0,0,0.4)"/>
+      <ellipse cx="60" cy="142" rx="44" ry="6" fill="rgba(0,0,0,0.4)" />
       <g fill="#ff79c6" opacity="0.65">
-        <path d="M48 140 L 50 100 L 60 100 L 60 140 Z"/>
-        <path d="M72 140 L 70 100 L 60 100 L 60 140 Z"/>
-        <path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z"/>
-        <path d="M42 56 Q 60 32 78 56 L 76 60 Q 60 44 44 60 Z"/>
+        <path d="M48 140 L 50 100 L 60 100 L 60 140 Z" />
+        <path d="M72 140 L 70 100 L 60 100 L 60 140 Z" />
+        <path d="M38 100 L 34 64 Q 34 54 44 50 L 76 50 Q 86 54 86 64 L 82 100 Z" />
+        <path d="M42 56 Q 60 32 78 56 L 76 60 Q 60 44 44 60 Z" />
       </g>
-      <line x1="52" y1="70" x2="58" y2="70" stroke="#ff79c6" strokeWidth="2"/>
-      <line x1="62" y1="70" x2="68" y2="70" stroke="#ff79c6" strokeWidth="2"/>
-      <rect x="46" y="86" width="28" height="3" fill="var(--lb-cyan)"/>
+      <line x1="52" y1="70" x2="58" y2="70" stroke="#ff79c6" strokeWidth="2" />
+      <line x1="62" y1="70" x2="68" y2="70" stroke="#ff79c6" strokeWidth="2" />
+      <rect x="46" y="86" width="28" height="3" fill="var(--lb-cyan)" />
     </svg>
   )
 }

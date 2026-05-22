@@ -19,23 +19,23 @@ beforeEach(() => {
 })
 
 describe('Shell', () => {
-  it('renders nav tabs when logged in', () => {
+  it('renders play nav tabs when logged in', () => {
     useAuthStore.setState({ jwt: 'tok' })
     render(<Shell />, { wrapper })
-    // NavBar renders tabs in both desktop strip and mobile drawer — use getAllByText
-    expect(screen.getAllByText('Roster').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Stages').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Shop').length).toBeGreaterThan(0)
+    expect(screen.getByText('Home')).toBeInTheDocument()
+    expect(screen.getByText('Heroes')).toBeInTheDocument()
+    expect(screen.getByText('Battle')).toBeInTheDocument()
+    expect(screen.getByText('Shop')).toBeInTheDocument()
   })
 
-  it('hides currency bar when not logged in', () => {
+  it('does not render shared chrome when not logged in', () => {
     render(<Shell />, { wrapper })
-    expect(screen.queryByTestId('currency-bar')).not.toBeInTheDocument()
+    expect(screen.queryByText('Home')).not.toBeInTheDocument()
   })
 
-  it('shows currency bar when logged in', () => {
+  it('shows topnav chrome when logged in', () => {
     useAuthStore.setState({ jwt: 'tok' })
     render(<Shell />, { wrapper })
-    expect(screen.getByTestId('currency-bar')).toBeInTheDocument()
+    expect(screen.getByText('[ HERO-PROTO ]')).toBeInTheDocument()
   })
 })

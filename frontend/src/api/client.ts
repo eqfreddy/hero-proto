@@ -19,6 +19,15 @@ function resolveUrl(path: string): string {
   return API_BASE + (path.startsWith('/') ? path : '/' + path)
 }
 
+/** Resolve a static asset path against the API origin. Used for hero
+ * busts/portraits/cards and any other backend-served images that
+ * <img src> tags reference directly (not through apiFetch). On native
+ * builds where the SPA is served from file://localhost/, returns an
+ * absolute https URL. On web, returns the same relative path. */
+export function assetUrl(path: string): string {
+  return resolveUrl(path)
+}
+
 export async function apiFetch<T = unknown>(
   url: string,
   options: RequestInit = {}

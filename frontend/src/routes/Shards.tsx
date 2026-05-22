@@ -10,6 +10,7 @@ import { useHeroes } from '../hooks/useHeroes'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 import { EmptyState } from '../components/EmptyState'
 import type { Hero } from '../types'
+import { assetUrl } from '../api/client'
 
 type RarityKey = 'LEGENDARY' | 'EPIC' | 'RARE' | 'UNCOMMON' | 'COMMON' | 'MYTH'
 
@@ -147,7 +148,7 @@ export default function ShardsRoute() {
             >
               {r.hero.has_bust ? (
                 <img
-                  src={`/app/static/heroes/busts/${r.code}.png`}
+                  src={assetUrl(`/app/static/heroes/busts/${r.code}.png`)}
                   alt=""
                   style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover', background: 'var(--bg-inset)' }}
                 />

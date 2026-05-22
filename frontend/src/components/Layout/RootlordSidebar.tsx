@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useMe } from '../../hooks/useMe'
 import { useQuery } from '@tanstack/react-query'
 import { fetchDaily } from '../../api/daily'
+import { assetUrl } from '../../api/client'
 
 const DEFAULT_QUOTES = [
   'The ticket queue never sleeps.',
@@ -86,7 +87,7 @@ export function RootlordSidebar() {
       {/* Card art */}
       <div style={{ position: 'relative', zIndex: 1 }}>
         <img
-          src="/app/static/heroes/cards/The_Man_The_Dev.png"
+          src={assetUrl("/app/static/heroes/cards/The_Man_The_Dev.png")}
           alt="The Rootlord"
           style={{
             width: '100%',

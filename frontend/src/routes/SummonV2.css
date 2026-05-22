@@ -137,6 +137,17 @@
   image-rendering: pixelated;
   filter: drop-shadow(0 0 12px rgba(155,48,255,0.45));
 }
+.sum-banner .banner-art .promo-art {
+  max-height: 94%;
+  max-width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 14px rgba(155,48,255,0.42));
+}
+.sum-banner .banner-art .promo-card {
+  width: 100%;
+  height: 100%;
+  object-position: center bottom;
+}
 .sum-banner .banner-title {
   position: absolute;
   top: 10px; left: 12px;
@@ -173,6 +184,95 @@
   border-color: var(--lb-purple);
 }
 
+/* ===== conversion pressure ===== */
+.sum-pressure {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 191, 90, 0.22);
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(255, 191, 90, 0.12), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+}
+.sum-pressure-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sum-pressure-head h2 {
+  margin: 0;
+  font-family: var(--lb-display);
+  font-size: 18px;
+  color: var(--lb-ink-2);
+}
+.sum-pressure-kicker,
+.sum-featured-kicker {
+  display: block;
+  font-family: var(--lb-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lb-gold);
+}
+.sum-pressure-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.sum-pressure-card,
+.sum-featured-hook {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(7, 10, 18, 0.72);
+  padding: 10px;
+}
+.sum-pressure-card strong,
+.sum-featured-hook strong {
+  display: block;
+  font-family: var(--lb-display);
+  font-size: 13px;
+  color: var(--lb-ink-2);
+}
+.sum-pressure-card p,
+.sum-featured-hook p {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--lb-ink-dim);
+}
+.sum-featured-hook {
+  margin-top: 8px;
+  border-color: rgba(155,48,255,0.32);
+  background:
+    radial-gradient(110% 130% at 0% 100%, rgba(155,48,255,0.16), transparent 56%),
+    rgba(7, 10, 18, 0.8);
+}
+.sum-featured-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 12px;
+  align-items: center;
+}
+.sum-featured-copy {
+  min-width: 0;
+}
+.sum-featured-art {
+  height: 138px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+}
+.sum-featured-art .promo-art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 0 10px rgba(155,48,255,0.38));
+}
+.sum-featured-art .promo-bust {
+  max-width: 96px;
+}
+
 /* ===== pity ===== */
 .sum-pity {
   margin-top: 12px;
@@ -207,6 +307,14 @@
 .sum-pity .softpity {
   color: var(--lb-gold);
   font-weight: 500;
+}
+.sum-pity-note {
+  margin-top: 6px;
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+}
+.sum-pity-emphasis {
+  color: var(--lb-purple);
 }
 
 /* ===== CTAs ===== */
@@ -336,3 +444,15 @@
 .sum-lastpull .cell[data-rar="EPIC"]      .rar { color: var(--lb-purple);     }
 .sum-lastpull .cell[data-rar="LEGENDARY"] .rar { color: var(--lb-gold);       }
 .sum-lastpull .cell[data-rar="MYTH"]      .rar { color: var(--lb-gold);       }
+
+@media (max-width: 820px) {
+  .sum-pressure-grid {
+    grid-template-columns: 1fr;
+  }
+  .sum-featured-body {
+    grid-template-columns: 1fr;
+  }
+  .sum-featured-art {
+    height: 120px;
+  }
+}

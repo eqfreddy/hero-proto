@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useMe } from '../hooks/useMe'
 import { useHeroes } from '../hooks/useHeroes'
@@ -8,35 +8,136 @@ import { useGuild } from '../hooks/useGuild'
 import { useRaid } from '../hooks/useRaid'
 import { fetchDaily, type DailyQuest } from '../api/daily'
 import { fetchBattlePass, type BPState } from '../api/battlePass'
+import { fetchActiveEvent, type ActiveEvent } from '../api/events'
+import { assetUrl } from '../api/client'
 import { useSoundStore } from '../store/sound'
 import type { Hero, Stage } from '../types'
-import { assetUrl } from '../api/client'
 import './Lobby.css'
 
-const RARITY_TIER: Record<string, string> = {
-  COMMON: 'FLOPPY',
-  UNCOMMON: 'HARD-DISK',
-  RARE: 'SSD',
-  EPIC: 'RAID-0',
-  LEGENDARY: 'RAID-5',
-  MYTH: 'LEGEN-WAIT-DARY',
+type RoomAction = {
+  label: string
+  path: string
 }
-const TIER_SHORT: Record<string, string> = {
-  COMMON: 'FL', UNCOMMON: 'HD', RARE: 'SD', EPIC: 'R0', LEGENDARY: 'R5', MYTH: 'LW',
+
+type RoomCard = {
+  key: string
+  className: string
+  eyebrow: string
+  title: string
+  summary: string
+  status: string
+  primary: RoomAction
+  secondary: RoomAction
 }
 
 function fmtBig(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`
   return String(n)
 }
+
 function topByPower(heroes: Hero[] | undefined, count: number): Hero[] {
   if (!heroes?.length) return []
   return [...heroes].sort((a, b) => b.power - a.power).slice(0, count)
 }
+
 function pickNextStage(stages: Stage[] | undefined): Stage | null {
   if (!stages?.length) return null
-  const unclearedUnlocked = stages.find((s) => s.unlocked && !s.cleared)
+  const unclearedUnlocked = stages.find((stage) => stage.unlocked && !stage.cleared)
   return unclearedUnlocked ?? stages[stages.length - 1]
+}
+
+function formatHoursWindow(endsAt: string | null | undefined): string {
+  if (!endsAt) return 'Stand by'
+  const diffMs = new Date(endsAt).getTime() - Date.now()
+  if (diffMs <= 0) return 'Closed'
+  const totalMinutes = Math.ceil(diffMs / 60000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24)
+    return `${days}d ${hours % 24}h`
+  }
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes}m`
+}
+
+function formatQuestProgress(quest: DailyQuest): string {
+  if (quest.status === 'CLAIMED') return 'Claimed'
+  if (quest.progress >= quest.goal) return 'Ready'
+  return `${quest.progress}/${quest.goal}`
+}
+
+function formatQuestName(quest: DailyQuest): string {
+  return quest.kind.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function heroPresenceLine(featured: Hero | null, liveEvent: ActiveEvent | null, raidBoss: string | null): string {
+  if (featured) {
+    const attackKind = featured.template.attack_kind ? ` / ${featured.template.attack_kind}` : ''
+    return `${featured.template.role}${attackKind} holding the bridge`
+  }
+  if (liveEvent) return `${liveEvent.display_name} is pulling traffic to the sector`
+  if (raidBoss) return `${raidBoss} is on watch from the outer rim`
+  return 'No operative assigned to the bridge yet'
+}
+
+function getPressureSignal(
+  me: NonNullable<ReturnType<typeof useMe>['data']>,
+  liveEvent: ActiveEvent | null,
+  nextStage: Stage | null,
+): { title: string; body: string; cta: string; path: string } {
+  if (me.free_summon_credits > 0) {
+    return {
+      title: 'Free Pull Primed',
+      body: `${me.free_summon_credits} free summon credit${me.free_summon_credits === 1 ? '' : 's'} sitting idle. Cash the hype in while it still feels free.`,
+      cta: 'Hit Summon',
+      path: '/app/summon',
+    }
+  }
+  if (me.pulls_since_epic >= 40) {
+    return {
+      title: 'Pity Counter Heating Up',
+      body: `${me.pulls_since_epic}/50 pulls since epic. This is exactly where a conversion nudge should feel smart instead of desperate.`,
+      cta: 'Open Black Market',
+      path: '/app/shop',
+    }
+  }
+  if (liveEvent) {
+    return {
+      title: `${liveEvent.display_name} Window Open`,
+      body: `${formatHoursWindow(liveEvent.ends_at)} left on the event clock. Push story, quests, and summons while the banner still has teeth.`,
+      cta: 'Check Event',
+      path: '/app/event',
+    }
+  }
+  return {
+    title: 'Campaign Heat',
+    body: nextStage
+      ? `${nextStage.display_name} is the cleanest next win. Energy pressure and team upgrades should both point back into this push.`
+      : 'Your next progression spike should come from campaign pressure, not wandering the menus.',
+    cta: 'Resume Push',
+    path: '/app/stages',
+  }
+}
+
+function HeroSilhouette() {
+  return (
+    <svg aria-hidden="true" className="cd-operator-svg" viewBox="0 0 220 280">
+      <defs>
+        <linearGradient id="silhouetteGlow" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stopColor="rgba(94, 234, 212, 0.9)" />
+          <stop offset="100%" stopColor="rgba(255, 191, 90, 0.35)" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="110" cy="258" fill="rgba(255,191,90,0.18)" rx="72" ry="10" />
+      <path d="M72 248 L82 160 L138 160 L148 248 Z" fill="rgba(8,14,26,0.9)" stroke="url(#silhouetteGlow)" strokeWidth="2" />
+      <path d="M78 162 Q84 112 110 110 Q136 112 142 162 Z" fill="rgba(12,18,32,0.95)" stroke="url(#silhouetteGlow)" strokeWidth="2" />
+      <circle cx="110" cy="82" fill="rgba(12,18,32,0.95)" r="34" stroke="url(#silhouetteGlow)" strokeWidth="2" />
+      <path d="M82 62 Q108 18 144 46 L148 88 L132 80 Q122 100 98 100 L84 88 Z" fill="rgba(20,28,48,0.95)" />
+      <path d="M58 168 Q70 128 86 130 L82 192 Z" fill="rgba(9,18,31,0.85)" stroke="rgba(94,234,212,0.35)" strokeWidth="1.5" />
+      <path d="M162 168 Q150 128 134 130 L138 192 Z" fill="rgba(9,18,31,0.85)" stroke="rgba(94,234,212,0.35)" strokeWidth="1.5" />
+    </svg>
+  )
 }
 
 export function LobbyRoute() {
@@ -47,369 +148,320 @@ export function LobbyRoute() {
   const { data: guildData } = useGuild()
   const { data: raid } = useRaid()
   const { data: daily } = useQuery<DailyQuest[]>({
-    queryKey: ['daily'], queryFn: fetchDaily, staleTime: 60_000, retry: 1,
+    queryKey: ['daily'],
+    queryFn: fetchDaily,
+    staleTime: 60_000,
+    retry: 1,
   })
   const { data: bp } = useQuery<BPState>({
-    queryKey: ['battle-pass'], queryFn: fetchBattlePass, staleTime: 120_000, retry: 1,
+    queryKey: ['battle-pass'],
+    queryFn: fetchBattlePass,
+    staleTime: 120_000,
+    retry: 1,
   })
-  const playBgm = useSoundStore((s) => s.playBgm)
+  const { data: activeEvent } = useQuery<ActiveEvent | null>({
+    queryKey: ['active-event-detail'],
+    queryFn: fetchActiveEvent,
+    staleTime: 60_000,
+    retry: 1,
+  })
+  const playBgm = useSoundStore((state) => state.playBgm)
 
-  useEffect(() => { playBgm('ancient_map') }, [playBgm])
+  useEffect(() => {
+    playBgm('ancient_map')
+  }, [playBgm])
 
   const featured = useMemo(() => topByPower(heroes, 1)[0] ?? null, [heroes])
-  const rosterTop = useMemo(() => topByPower(heroes, 6), [heroes])
+  const rosterTop = useMemo(() => topByPower(heroes, 3), [heroes])
   const nextStage = useMemo(() => pickNextStage(stages), [stages])
-  const dailyTop = (daily ?? []).slice(0, 3)
-  const dailyDone = dailyTop.filter((q) => q.status === 'CLAIMED' || q.progress >= q.goal).length
+  const liveEvent = activeEvent && typeof activeEvent.display_name === 'string' ? activeEvent : null
   const guild = guildData?.guild ?? null
-  const guildSub = guild ? `${guild.member_count} members` : 'Join for raids'
-  const raidSub = raid ? `Raid ${String(raid.state).toLowerCase()}` : 'No active raid'
-  const guildRaidSub = raid ? `${raid.boss_name} · ${raid.tier} · ${String(raid.state).toLowerCase()}` : guildSub
+  const dailyTop = (daily ?? []).slice(0, 4)
+  const claimableDaily = (daily ?? []).filter((quest) => quest.status !== 'CLAIMED' && quest.progress >= quest.goal).length
 
   if (!me) {
     return (
-      <div className="lb3">
-        <div className="lb3-shell">
-          <header className="lb3-topbar"><div className="lb3-brand">HERO<em>·</em>PROTO <span className="sub">// LOADING</span></div></header>
+      <div className="cd">
+        <div className="cd-shell">
+          <section className="cd-bridge cd-loading">
+            <div className="cd-eyebrow">Booting bridge systems</div>
+            <h1>Command Deck</h1>
+          </section>
         </div>
       </div>
     )
   }
 
-  const tierLabel = featured ? (RARITY_TIER[featured.template.rarity] ?? featured.template.rarity) : '—'
+  const pressureSignal = getPressureSignal(me, liveEvent, nextStage)
+  const tickerItems = [
+    nextStage ? `${nextStage.code} ${nextStage.display_name} ready` : 'Campaign route waiting on new orders',
+    raid ? `${raid.boss_name} raid ${String(raid.state).toLowerCase()} - ${formatHoursWindow(raid.ends_at)} left` : 'No live raid pressure',
+    guild ? `[${guild.tag}] ${guild.member_count} members on roster` : 'No guild aligned yet',
+    liveEvent ? `${liveEvent.display_name} ends in ${formatHoursWindow(liveEvent.ends_at)}` : 'No event takeover active',
+    bp?.season ? `${bp.season.code} pass tier ${bp.progress?.current_tier ?? 0}/${bp.season.max_tier}` : 'Battle pass idle',
+  ]
+
+  const opsCards = [
+    {
+      key: 'campaign',
+      title: 'Spend Energy',
+      detail: `${me.energy}/${me.energy_cap} charge ready`,
+      meta: nextStage ? `${nextStage.code} ${nextStage.display_name}` : 'No unlocked node',
+      path: '/app/stages',
+    },
+    {
+      key: 'daily',
+      title: 'Claim Daily Ops',
+      detail: claimableDaily > 0 ? `${claimableDaily} rewards waiting` : `${dailyTop.length} tracked quests`,
+      meta: claimableDaily > 0 ? 'Free value on table' : 'Keep the routine moving',
+      path: '/app/daily',
+    },
+    {
+      key: 'pvp',
+      title: 'Arena Push',
+      detail: `${me.arena_tickets}/${me.arena_tickets_cap} tickets`,
+      meta: `${me.arena_rating} rating`,
+      path: '/app/arena',
+    },
+    {
+      key: 'event',
+      title: liveEvent ? 'Event Window' : 'Summon Heat',
+      detail: liveEvent ? formatHoursWindow(liveEvent.ends_at) : `${me.pulls_since_epic}/50 pity`,
+      meta: liveEvent ? liveEvent.display_name : 'Banner pressure building',
+      path: liveEvent ? '/app/event' : '/app/summon',
+    },
+  ]
+
+  const rooms: RoomCard[] = [
+    {
+      key: 'bridge',
+      className: 'bridge',
+      eyebrow: 'Bridge',
+      title: 'Command Deck',
+      summary: 'Daily routing, quest pressure, current event, and account-wide priorities live here.',
+      status: claimableDaily > 0 ? `${claimableDaily} ops ready to claim` : 'Bridge is stable',
+      primary: { label: 'Daily Ops', path: '/app/daily' },
+      secondary: { label: liveEvent ? 'Event Board' : 'Battle Pass', path: liveEvent ? '/app/event' : '/app/battle-pass' },
+    },
+    {
+      key: 'war',
+      className: 'war',
+      eyebrow: 'War Room',
+      title: 'Holotable',
+      summary: 'Campaign, PvP, tower, raids, and the next account-power checkpoint all route through this room.',
+      status: raid ? `${raid.boss_name} / ${String(raid.state).toLowerCase()}` : nextStage ? `${nextStage.code} open` : 'Awaiting target lock',
+      primary: { label: 'Stages', path: '/app/stages' },
+      secondary: { label: 'Arena', path: '/app/arena' },
+    },
+    {
+      key: 'barracks',
+      className: 'barracks',
+      eyebrow: 'Roster',
+      title: 'Barracks',
+      summary: 'Heroes, summon, shards, and detail views stay together so progression feels like one loop.',
+      status: featured ? `${featured.template.name} / ${fmtBig(featured.power)} power` : 'No lead operative assigned',
+      primary: { label: 'Roster', path: '/app/roster' },
+      secondary: { label: 'Summon', path: '/app/summon' },
+    },
+    {
+      key: 'forge',
+      className: 'forge',
+      eyebrow: 'Materials',
+      title: 'Droid Forge',
+      summary: 'Crafting, inventory, and resource cleanup belong in one room instead of scattered tabs.',
+      status: rosterTop.length ? `${rosterTop.length} high-value operators staged` : 'Forge queues are cold',
+      primary: { label: 'Crafting', path: '/app/crafting' },
+      secondary: { label: 'Inventory', path: '/app/inventory' },
+    },
+    {
+      key: 'market',
+      className: 'market',
+      eyebrow: 'Economy',
+      title: 'Black Market',
+      summary: 'Premium currency, pass progress, and targeted conversion pressure should feel like leverage, not spam.',
+      status: pressureSignal.title,
+      primary: { label: 'Shop', path: '/app/shop' },
+      secondary: { label: 'Battle Pass', path: '/app/battle-pass' },
+    },
+  ]
 
   return (
-    <div className="lb3">
-      <div className="lb3-shell">
-
-        {/* TOPBAR removed — Shell's TopNav handles player + currencies now */}
-
-        {/* ═══ TICKER ═══ */}
-        <div className="lb3-ticker">
-          <div className="lb3-ticker-dot" />
-          <span className="lb3-ticker-tag">Incident</span>
-          <div className="lb3-ticker-wrap">
-            <div className="lb3-ticker-scroll">
-              <span><em>{nextStage?.code ?? 'NODE.14'}</em> · resistance forces engaging · TIER-{((nextStage?.order ?? 14) % 5) + 1} INCIDENT active ·&nbsp;</span>
-              <span>ALERT: CORP_GREED audit-bots deployed to SECTOR-7 ·&nbsp;</span>
-              <span>SHADOW_IT infiltration successful — 2 servers liberated ·&nbsp;</span>
-              <span>Guild [NULL_POINTER] cleared RAID-5 ·&nbsp;</span>
-              <span><em>{nextStage?.code ?? 'NODE.14'}</em> · resistance forces engaging · TIER-{((nextStage?.order ?? 14) % 5) + 1} INCIDENT active ·&nbsp;</span>
-              <span>ALERT: CORP_GREED audit-bots deployed to SECTOR-7 ·&nbsp;</span>
-              <span>SHADOW_IT infiltration successful — 2 servers liberated ·&nbsp;</span>
-              <span>Guild [NULL_POINTER] cleared RAID-5 ·&nbsp;</span>
-            </div>
+    <div className="cd">
+      <div className="cd-ticker">
+        <span className="cd-ticker-dot" />
+        <span className="cd-ticker-label">Fleet Feed</span>
+        <div className="cd-ticker-track">
+          <div className="cd-ticker-scroll">
+            {[...tickerItems, ...tickerItems].map((item, index) => (
+              <span key={`${index}-${item}`}>{item} //</span>
+            ))}
           </div>
-          <span className="lb3-ticker-time">T+{Math.floor(Math.random() * 4) + 1}h {Math.floor(Math.random() * 60).toString().padStart(2, '0')}m</span>
         </div>
+      </div>
 
-        {/* SIDENAV removed — Shell's PlayNav handles primary navigation now.
-            Secondary destinations (Guild, Raids, BP, Friends, Events) are
-            promoted to the tile grid below the hero panel. */}
-
-        {/* ═══ MAIN ═══ */}
-        <main className="lb3-main">
-
-          {/* HERO PANEL */}
-          <div className="lb3-hero">
-            <div className="lb3-hero-visual">
-              {featured ? (
-                <img
-                  className="lb3-hero-bust"
-                  src={assetUrl(`/app/static/heroes/busts/${featured.template.code}.png`)}
-                  alt={featured.template.name}
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
-              ) : (
-                <HeroSilhouette />
-              )}
+      <div className="cd-shell">
+        <section className="cd-bridge">
+          <div className="cd-bridge-copy">
+            <div className="cd-eyebrow">Sector command online</div>
+            <h1>Command Deck</h1>
+            <p className="cd-bridge-text">
+              One home. Five rooms. No more scrolling through dead air to figure out what matters.
+            </p>
+            <div className="cd-bridge-status">
+              <div className="cd-status-chip">
+                <span className="cd-status-label">Current Push</span>
+                <strong>{nextStage ? `${nextStage.code} ${nextStage.display_name}` : 'Acquire next objective'}</strong>
+              </div>
+              <div className="cd-status-chip">
+                <span className="cd-status-label">Bridge Presence</span>
+                <strong>{heroPresenceLine(featured, liveEvent, raid?.boss_name ?? null)}</strong>
+              </div>
             </div>
-            <div className="lb3-hero-info">
-              <div className="lb3-hero-eyebrow">
-                <span className="ln" />
-                <span className="lb3-tier-pill">{tierLabel}</span>
-                {featured ? 'Specialist' : 'Vacancy'}
-              </div>
-              <div className="lb3-hero-name">{featured ? featured.template.name : 'NO OPERATIVE'}</div>
-              <div className="lb3-hero-role">
-                {featured
-                  ? `${featured.template.role}${featured.template.attack_kind ? ' · ' + featured.template.attack_kind : ''} · ${me.faction}`
-                  : 'Roster empty · recruit to begin'}
-              </div>
-              <div className="lb3-hero-stats">
-                <div className="lb3-stat"><span className="lb3-stat-lbl">ATK</span><span className="lb3-stat-val atk">{featured ? (featured.atk ?? 0).toLocaleString() : '—'}</span></div>
-                <div className="lb3-stat"><span className="lb3-stat-lbl">DEF</span><span className="lb3-stat-val">{featured ? (featured.def ?? 0).toLocaleString() : '—'}</span></div>
-                <div className="lb3-stat"><span className="lb3-stat-lbl">SPD</span><span className="lb3-stat-val spd">{featured ? featured.spd ?? 0 : '—'}</span></div>
-                <div className="lb3-stat"><span className="lb3-stat-lbl">HP</span><span className="lb3-stat-val">{featured ? (featured.hp ?? 0).toLocaleString() : '—'}</span></div>
-              </div>
-              <div className="lb3-power-row">
-                <span className="lb3-power-lbl">Combat Power</span>
-                <span className="lb3-power-val">{featured ? featured.power.toLocaleString() : '—'}</span>
-              </div>
-              <button
-                className="lb3-deploy"
-                onClick={() => navigate(featured ? '/app/stages' : '/app/summon')}
-              >
-                {featured ? 'Continue Campaign' : 'Recruit Operative'}
+            <div className="cd-bridge-actions">
+              <button className="cd-btn cd-btn-primary" onClick={() => navigate(nextStage ? '/app/stages' : '/app/summon')}>
+                {nextStage ? 'Resume Campaign' : 'Recruit Operative'}
+              </button>
+              <button className="cd-btn" onClick={() => navigate('/app/arena')}>
+                Open Holotable
               </button>
             </div>
           </div>
 
-          {/* TILE GRID — primary shortcuts. 2×3 fat tiles. */}
-          <div className="lb3-tiles">
-            <button className="lb3-tile" onClick={() => navigate('/app/arena')}>
-              <span className="ico">⚔</span>
-              <span className="lbl">Arena</span>
-              <span className="sub">PvP</span>
-            </button>
-            <button className="lb3-tile" onClick={() => navigate('/app/guild')}>
-              <span className="ico">🛡</span>
-              <span className="lbl">Guild</span>
-              <span className="sub">{guildSub}</span>
-            </button>
-            <button className="lb3-tile" onClick={() => navigate('/app/raids')}>
-              <span className="ico">🐉</span>
-              <span className="lbl">Raids</span>
-              <span className="sub">{raidSub}</span>
-            </button>
-            <button className="lb3-tile" onClick={() => navigate('/app/battle-pass')}>
-              <span className="ico">🎟</span>
-              <span className="lbl">Battle Pass</span>
-              <span className="sub">{bp?.progress ? `T${bp.progress.current_tier}` : '—'}</span>
-            </button>
-            <button className="lb3-tile" onClick={() => navigate('/app/friends')}>
-              <span className="ico">👥</span>
-              <span className="lbl">Friends</span>
-              <span className="sub">Mail</span>
-            </button>
-            <button className="lb3-tile" onClick={() => navigate('/app/event')}>
-              <span className="ico">🎁</span>
-              <span className="lbl">Events</span>
-              <span className="sub">Live</span>
-            </button>
-          </div>
-
-          {/* DAILY */}
-          {daily && dailyTop.length > 0 && (
-            <div>
-              <div className="lb3-secthead">
-                <span className="title">Daily.queue</span>
-                <span className={'meta' + (dailyDone < dailyTop.length ? ' dim' : '')}>{dailyDone} / {dailyTop.length} Complete</span>
-              </div>
-              <div className="lb3-daily">
-                {dailyTop.map((q) => {
-                  const pct = Math.max(0, Math.min(100, Math.round((q.progress / Math.max(1, q.goal)) * 100)))
-                  const done = q.status === 'CLAIMED' || q.progress >= q.goal
-                  const reward =
-                    q.reward_gems > 0 ? `+${q.reward_gems} ◇`
-                    : q.reward_coins > 0 ? `+${fmtBig(q.reward_coins)} ⬢`
-                    : q.reward_shards > 0 ? `+${q.reward_shards} ⬡`
-                    : ''
-                  return (
-                    <div key={q.id} className={'lb3-quest' + (done ? ' done' : '')}>
-                      <div className="lb3-quest-ico">
-                        {done ? (
-                          <svg viewBox="0 0 14 14" width="13" height="13"><polyline points="2,7 5,11 12,3" fill="none" stroke="var(--good)" strokeWidth="1.5"/></svg>
-                        ) : (
-                          <svg viewBox="0 0 14 14" width="13" height="13"><rect x="2" y="3" width="10" height="8" fill="none" stroke="currentColor" strokeWidth="1.2"/><line x1="5" y1="6" x2="9" y2="6" stroke="currentColor" strokeWidth="1"/></svg>
-                        )}
-                      </div>
-                      <div className="lb3-quest-body">
-                        <span className="lb3-quest-name">{q.target_key.replace(/_/g, ' ').toLowerCase()}</span>
-                        <div className="lb3-quest-track"><div className="lb3-quest-fill" style={{ width: `${pct}%` }} /></div>
-                      </div>
-                      <span className="lb3-quest-reward">{reward}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* MAP */}
-          <div>
-            <div className="lb3-secthead">
-              <span className="title">World Map · Active Sector</span>
-            </div>
-            <div className="lb3-map" onClick={() => navigate('/app/stages')}>
-              <div className="lb3-map-header">
-                <div>
-                  <div className="lb3-map-title">{nextStage?.code ?? 'NODE.??'} · {RARITY_TIER[nextStage?.difficulty_tier ?? ''] ?? 'INCIDENT'}</div>
-                  <div className="lb3-map-sub">Sector {Math.floor((nextStage?.order ?? 0) / 5) + 1} · Datacenter Incursion</div>
-                </div>
-                <button className="lb3-map-btn" onClick={(e) => { e.stopPropagation(); navigate('/app/stages') }}>Enter Sector →</button>
-              </div>
-              <MapSVG nextCode={nextStage?.code ?? 'N.14'} />
-            </div>
-          </div>
-
-        </main>
-
-        {/* ═══ ASIDE ═══ */}
-        <aside className="lb3-aside">
-
-          {/* ROSTER */}
-          <div>
-            <div className="lb3-secthead">
-              <span className="title">Active Roster</span>
-              <span className="meta dim">{(heroes?.length ?? 0).toString()} / 30</span>
-            </div>
-            <div className="lb3-roster">
-              {rosterTop.map((h, idx) => (
-                <NavLink
-                  key={h.id}
-                  to={`/app/roster/${h.id}`}
-                  className={'lb3-roster-card' + (idx === 0 ? ' is-active' : '')}
-                  title={h.template.name}
-                >
+          <div className="cd-operator">
+            <div className="cd-operator-card">
+              <div className="cd-operator-viz">
+                {featured ? (
                   <img
-                    className="lb3-roster-bust"
-                    src={assetUrl(`/app/static/heroes/busts/${h.template.code}.png`)}
-                    alt={h.template.name}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    className="cd-operator-bust"
+                    src={assetUrl(`/app/static/heroes/busts/${featured.template.code}.png`)}
+                    alt={featured.template.name}
+                    onError={(event) => {
+                      ;(event.currentTarget as HTMLImageElement).style.display = 'none'
+                    }}
                   />
-                  <span className="lb3-roster-name">{h.template.name}</span>
-                  <div className="lb3-roster-tier">{TIER_SHORT[h.template.rarity] ?? '·'}</div>
-                </NavLink>
-              ))}
-              {rosterTop.length === 0 && (
-                <div style={{ gridColumn: '1 / -1', fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink4)', letterSpacing: '0.15em', textAlign: 'center', padding: '18px 0' }}>
-                  NO OPERATIVES — VISIT /SUMMON
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: 'var(--border)' }} />
-
-          {/* BATTLE PASS */}
-          <div className="lb3-card">
-            <div className="lb3-card-head">Battle Pass{bp?.season ? ` · ${bp.season.code}` : ''}</div>
-            {bp?.season && bp.progress ? (
-              <>
-                <div className="lb3-bp-bar">
-                  <div className="lb3-bp-fill" style={{ width: `${Math.min(100, Math.round((bp.progress.current_tier / bp.season.max_tier) * 100))}%` }} />
-                </div>
-                <div className="lb3-bp-meta">
-                  <span>Tier <strong>{bp.progress.current_tier}</strong> / {bp.season.max_tier}</span>
-                  <span><strong>{fmtBig(bp.progress.xp_total)}</strong> XP</span>
-                </div>
-              </>
-            ) : (
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink4)', letterSpacing: '0.15em' }}>NO ACTIVE SEASON</div>
-            )}
-          </div>
-
-          {/* EVENTS — placeholder until /events is wired */}
-          <div className="lb3-card">
-            <div className="lb3-card-head">Active Events</div>
-            <div className="lb3-events">
-              <div className="lb3-event">
-                <div className="lb3-event-marker" style={{ background: 'var(--crimson)' }} />
-                <div style={{ flex: 1 }}>
-                  <div className="lb3-event-name">KERNEL_PANIC WEEK</div>
-                  <div className="lb3-event-time">ENDS IN 2d 14h</div>
-                </div>
+                ) : (
+                  <HeroSilhouette />
+                )}
               </div>
-              <div className="lb3-event">
-                <div className="lb3-event-marker" style={{ background: 'var(--purple)' }} />
-                <div style={{ flex: 1 }}>
-                  <div className="lb3-event-name">SHARD DOUBLE-DROP</div>
-                  <div className="lb3-event-time">ENDS IN 6h 22m</div>
-                </div>
-              </div>
-              <div className="lb3-event">
-                <div className="lb3-event-marker" style={{ background: 'var(--gold)' }} />
-                <div style={{ flex: 1 }}>
-                  <div className="lb3-event-name">GUILD SEASON END</div>
-                  <div className="lb3-event-time">ENDS IN 4d 8h</div>
-                </div>
+              <div className="cd-operator-meta">
+                <span className="cd-operator-tag">Active Operator</span>
+                <strong>{featured ? featured.template.name : 'Vacant Bridge Slot'}</strong>
+                <span>{featured ? `${featured.template.role} // ${fmtBig(featured.power)} power` : 'Summon or assign a lead hero to anchor the room.'}</span>
               </div>
             </div>
           </div>
+        </section>
 
-          {/* GUILD */}
-          <div className="lb3-card" onClick={() => navigate('/app/guild')} style={{ cursor: 'pointer' }}>
-            <div className="lb3-card-head">Guild</div>
-            <div className="lb3-guild">
-              <svg className="lb3-guild-shield" viewBox="0 0 36 40">
-                <path d="M18 3 L32 9 L32 23 Q32 34 18 38 Q4 34 4 23 L4 9 Z" fill="var(--gold-bg)" stroke="var(--gold-bdr)" strokeWidth="1.5"/>
-                <text x="18" y="26" textAnchor="middle" fontFamily="JetBrains Mono" fontSize="11" fill="var(--gold)" fontWeight="700">{guild?.tag?.slice(0, 2) ?? 'NG'}</text>
-              </svg>
+        <div className="cd-grid">
+          <section className="cd-ops">
+            <div className="cd-section-head">
               <div>
-                <div className="lb3-guild-name">{guild ? `[${guild.tag}] ${guild.name}` : 'No Guild Yet'}</div>
-                <div className="lb3-guild-sub">{guildRaidSub}</div>
-                <div className="lb3-guild-sub">RANK 14 · 22/30 MEMBERS</div>
+                <span className="cd-eyebrow">Daily spine</span>
+                <h2>Today's Ops</h2>
               </div>
             </div>
-          </div>
+            <div className="cd-ops-list">
+              {opsCards.map((card) => (
+                <button key={card.key} className="cd-op" onClick={() => navigate(card.path)}>
+                  <span className="cd-op-title">{card.title}</span>
+                  <strong>{card.detail}</strong>
+                  <span className="cd-op-meta">{card.meta}</span>
+                </button>
+              ))}
+            </div>
 
-        </aside>
+            {dailyTop.length > 0 && (
+              <div className="cd-quest-panel">
+                <div className="cd-quest-head">
+                  <span className="cd-eyebrow">Quest board</span>
+                  <button className="cd-inline-link" onClick={() => navigate('/app/daily')}>
+                    View All
+                  </button>
+                </div>
+                <div className="cd-quest-list">
+                  {dailyTop.map((quest) => (
+                    <button key={quest.id} className="cd-quest" onClick={() => navigate('/app/daily')}>
+                      <span>{formatQuestName(quest)}</span>
+                      <strong>{formatQuestProgress(quest)}</strong>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
 
+          <section className="cd-map">
+            <div className="cd-section-head">
+              <div>
+                <span className="cd-eyebrow">Sector map</span>
+                <h2>Choose A Room</h2>
+              </div>
+            </div>
+
+            <div className="cd-room-grid">
+              {rooms.map((room) => (
+                <article key={room.key} className={`cd-room ${room.className}`}>
+                  <div className="cd-room-glow" />
+                  <span className="cd-room-eyebrow">{room.eyebrow}</span>
+                  <h3>{room.title}</h3>
+                  <p>{room.summary}</p>
+                  <div className="cd-room-status">{room.status}</div>
+                  <div className="cd-room-actions">
+                    <button className="cd-chip cd-chip-primary" onClick={() => navigate(room.primary.path)}>
+                      {room.primary.label}
+                    </button>
+                    <button className="cd-chip" onClick={() => navigate(room.secondary.path)}>
+                      {room.secondary.label}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <aside className="cd-rail">
+            <section className="cd-rail-card">
+              <span className="cd-eyebrow">Active pursuit</span>
+              <h3>{nextStage ? nextStage.display_name : pressureSignal.title}</h3>
+              <p>
+                {nextStage
+                  ? `Recommended power ${fmtBig(nextStage.recommended_power)}. ${nextStage.energy_cost} energy to probe the node.`
+                  : pressureSignal.body}
+              </p>
+              <button className="cd-btn cd-btn-primary" onClick={() => navigate(nextStage ? '/app/stages' : pressureSignal.path)}>
+                {nextStage ? 'Deploy Team' : pressureSignal.cta}
+              </button>
+            </section>
+
+            <section className="cd-rail-card cd-rail-market">
+              <span className="cd-eyebrow">Conversion pressure</span>
+              <h3>{pressureSignal.title}</h3>
+              <p>{pressureSignal.body}</p>
+              <button className="cd-btn" onClick={() => navigate(pressureSignal.path)}>
+                {pressureSignal.cta}
+              </button>
+            </section>
+
+            <section className="cd-rail-card">
+              <span className="cd-eyebrow">Signals</span>
+              <div className="cd-signal-list">
+                <div className="cd-signal-row">
+                  <span>Guild</span>
+                  <strong>{guild ? `[${guild.tag}] ${guild.member_count} members` : 'Unaligned'}</strong>
+                </div>
+                <div className="cd-signal-row">
+                  <span>Raid</span>
+                  <strong>{raid ? `${raid.boss_name} / ${String(raid.state).toLowerCase()}` : 'Offline'}</strong>
+                </div>
+                <div className="cd-signal-row">
+                  <span>Pass</span>
+                  <strong>{bp?.season ? `Tier ${bp.progress?.current_tier ?? 0}/${bp.season.max_tier}` : 'Stand by'}</strong>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </div>
       </div>
     </div>
   )
 }
-
-function HeroSilhouette() {
-  return (
-    <svg className="lb3-hero-svg" viewBox="0 0 220 340" aria-hidden="true">
-      <ellipse cx="110" cy="332" rx="75" ry="8" fill="rgba(232,160,32,0.12)"/>
-      <path d="M82 328 L84 300 L96 300 L98 328 Z" fill="rgba(40,30,20,0.7)" stroke="rgba(232,160,32,0.3)" strokeWidth="1"/>
-      <path d="M122 328 L124 300 L136 300 L138 328 Z" fill="rgba(40,30,20,0.7)" stroke="rgba(232,160,32,0.3)" strokeWidth="1"/>
-      <path d="M80 300 L78 220 L100 220 L98 300 Z" fill="rgba(50,40,30,0.6)" stroke="rgba(232,160,32,0.2)" strokeWidth="1"/>
-      <path d="M120 300 L118 220 L140 220 L138 300 Z" fill="rgba(50,40,30,0.6)" stroke="rgba(232,160,32,0.2)" strokeWidth="1"/>
-      <path d="M72 220 L70 160 Q72 128 92 118 L110 115 L128 118 Q148 128 150 160 L148 220 Z" fill="rgba(220,210,190,0.6)" stroke="rgba(232,160,32,0.5)" strokeWidth="1.5"/>
-      <ellipse cx="72" cy="158" rx="12" ry="16" fill="rgba(232,160,32,0.25)" stroke="rgba(232,160,32,0.5)" strokeWidth="1.2" transform="rotate(-10, 72, 158)"/>
-      <ellipse cx="148" cy="158" rx="12" ry="16" fill="rgba(232,160,32,0.25)" stroke="rgba(232,160,32,0.5)" strokeWidth="1.2" transform="rotate(10, 148, 158)"/>
-      <rect x="104" y="104" width="12" height="14" rx="2" fill="rgba(200,185,165,0.5)" stroke="rgba(232,160,32,0.3)" strokeWidth="1"/>
-      <path d="M88 90 Q88 60 110 58 Q132 60 132 90 L132 105 L88 105 Z" fill="rgba(50,40,30,0.75)" stroke="rgba(232,160,32,0.5)" strokeWidth="1.5"/>
-      <ellipse cx="110" cy="82" rx="16" ry="8" fill="rgba(232,160,32,0.15)" stroke="rgba(232,160,32,0.5)" strokeWidth="1"/>
-      <ellipse cx="103" cy="80" rx="3" ry="2" fill="rgba(0,255,224,0.6)"/>
-      <ellipse cx="117" cy="80" rx="3" ry="2" fill="rgba(0,255,224,0.6)"/>
-    </svg>
-  )
-}
-
-function MapSVG({ nextCode }: { nextCode: string }) {
-  const code = nextCode.toUpperCase().slice(-4)
-  return (
-    <svg className="lb3-map-svg" viewBox="0 0 680 200" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <pattern id="lb3-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-          <circle cx="12" cy="12" r="0.8" fill="rgba(232,160,32,0.15)"/>
-        </pattern>
-        <radialGradient id="lb3-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#e8a020" stopOpacity="0.2"/>
-          <stop offset="100%" stopColor="#e8a020" stopOpacity="0"/>
-        </radialGradient>
-      </defs>
-      <rect width="680" height="200" fill="#171c28"/>
-      <rect width="680" height="200" fill="url(#lb3-grid)"/>
-      <path d="M 0 140 Q 200 120 400 130 Q 600 140 680 120" stroke="rgba(232,160,32,0.08)" strokeWidth="30" fill="none"/>
-      <path d="M 40 155 L 110 125 L 200 105 L 300 85 L 335 78 L 440 74 L 560 68" stroke="rgba(232,160,32,0.3)" strokeWidth="2" fill="none" strokeDasharray="6 3"/>
-      {[{x:40,y:155,t:'N.11'},{x:110,y:125,t:'N.12'},{x:200,y:105,t:'N.13'}].map((n) => (
-        <g key={n.t}>
-          <circle cx={n.x} cy={n.y} r="12" fill="rgba(232,160,32,0.1)" stroke="rgba(232,160,32,0.3)" strokeWidth="1"/>
-          <text x={n.x} y={n.y + 3} textAnchor="middle" fontFamily="JetBrains Mono" fontSize="7" fill="rgba(232,160,32,0.6)" fontWeight="600">✓</text>
-          <text x={n.x} y={n.y + 17} textAnchor="middle" fontFamily="JetBrains Mono" fontSize="7" fill="rgba(232,160,32,0.5)" letterSpacing="1">{n.t}</text>
-        </g>
-      ))}
-      <circle cx="335" cy="78" r="28" fill="url(#lb3-glow)"/>
-      <circle cx="335" cy="78" r="18" fill="rgba(232,160,32,0.12)" stroke="rgba(232,160,32,0.7)" strokeWidth="2">
-        <animate attributeName="r" values="16;20;16" dur="3s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="335" cy="78" r="10" fill="rgba(232,160,32,0.25)" stroke="#e8a020" strokeWidth="1.5"/>
-      <text x="335" y="82" textAnchor="middle" fontFamily="JetBrains Mono" fontSize="7" fill="#e8a020" fontWeight="700">▲</text>
-      <text x="335" y="106" textAnchor="middle" fontFamily="JetBrains Mono" fontSize="8" fill="#e8a020" fontWeight="600" letterSpacing="1">{code}</text>
-      <circle cx="440" cy="74" r="14" fill="rgba(232,160,32,0.06)" stroke="rgba(232,160,32,0.25)" strokeWidth="1" strokeDasharray="3 2"/>
-      <text x="440" y="94" textAnchor="middle" fontFamily="JetBrains Mono" fontSize="7" fill="rgba(232,160,32,0.35)" letterSpacing="1">N.15</text>
-      <circle cx="560" cy="68" r="14" fill="rgba(0,0,0,0.04)" stroke="rgba(0,0,0,0.1)" strokeWidth="1"/>
-      <text x="560" y="71" textAnchor="middle" fontFamily="JetBrains Mono" fontSize="8" fill="rgba(0,0,0,0.15)">?</text>
-      <path d="M370,60 L376,72 L382,60 Z" fill="rgba(200,16,46,0.4)" stroke="rgba(200,16,46,0.6)" strokeWidth="0.8"/>
-      <text x="376" y="68" textAnchor="middle" fontFamily="JetBrains Mono" fontSize="6" fill="#c8102e" fontWeight="700">!</text>
-    </svg>
-  )
-}
-
-export default LobbyRoute

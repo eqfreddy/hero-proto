@@ -18,8 +18,10 @@ const PUBLIC_PATHS = new Set(['/app/login', '/app/privacy', '/app/terms'])
 // Routes that take over the full viewport (no shared chrome).
 // Battle play / replay etc render their own UI.
 function isImmersiveRoute(pathname: string): boolean {
+  // Only battle-play surfaces are immersive. The lobby used to be too,
+  // but the user couldn't find the bottom nav from there — bring it
+  // back under shared chrome so PlayNav is always visible.
   if (pathname.startsWith('/battle/')) return true
-  if (pathname === '/app/lobby' || pathname === '/app' || pathname === '/app/') return true
   return false
 }
 

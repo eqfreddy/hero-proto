@@ -9,6 +9,7 @@ import { useSoundStore, bgmForStageTier } from '../store/sound'
 import type { Hero, Stage } from '../types'
 import './Lobby.css'
 import './BattleV2.css'
+import { assetUrl } from '../api/client'
 
 function pickStage(stages: Stage[] | undefined): Stage | null {
   if (!stages?.length) return null
@@ -174,7 +175,7 @@ export function BattleV2Route() {
             >
               <div className="por-mini">
                 <img
-                  src={`/app/static/heroes/busts/${h.template.code}.png`}
+                  src={assetUrl(`/app/static/heroes/busts/${h.template.code}.png`)}
                   alt={h.template.name}
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                 />

@@ -3,7 +3,6 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Shell } from './components/Layout/Shell'
 import { Login } from './routes/Login'
-import { MeRoute } from './routes/Me'
 import { LobbyRoute } from './routes/Lobby'
 import { SummonV2Route } from './routes/SummonV2'
 import { SummonV2ResultsRoute } from './routes/SummonV2Results'
@@ -44,15 +43,15 @@ const qc = new QueryClient({
 })
 
 const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/app/lobby" replace /> },
+  { path: '/', element: <Navigate to="/app/me" replace /> },
   {
     path: '/app',
     element: <Shell />,
     children: [
-      { index: true, element: <Navigate to="/app/lobby" replace /> },
+      { index: true, element: <Navigate to="/app/me" replace /> },
       { path: 'login', element: <Login /> },
-      { path: 'me', element: <MeRoute /> },
-      { path: 'lobby', element: <LobbyRoute /> },
+      { path: 'me', element: <LobbyRoute /> },
+      { path: 'lobby', element: <Navigate to="/app/me" replace /> },
       { path: 'summon-v2', element: <SummonV2Route /> },
       { path: 'summon-v2/results', element: <SummonV2ResultsRoute /> },
       { path: 'roster-v2', element: <RosterV2Route /> },

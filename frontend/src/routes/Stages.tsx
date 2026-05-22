@@ -1039,6 +1039,22 @@ export function StagesRoute() {
   const boardRef = useRef<HTMLDivElement>(null)
   const readyScrolled = useRef(false)
 
+  // Phone-width fit: when the container is narrower than the board's
+  // natural 780 CSS px, scale the inner content down so the whole snake
+  // is visible without horizontal scrolling. Recomputes on resize.
+  const [containerW, setContainerW] = useState(0)
+  useEffect(() => {
+    if (!boardRef.current) return
+    const update = () => {
+      if (boardRef.current) setContainerW(boardRef.current.clientWidth)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(boardRef.current)
+    window.addEventListener('resize', update)
+    return () => { ro.disconnect(); window.removeEventListener('resize', update) }
+  }, [])
+
   // ── Build board nodes ────────────────────────────────────────────────────
 
   const byTier = useMemo(
@@ -1103,11 +1119,18 @@ export function StagesRoute() {
     if (firstReady && selectedId === null) setSelectedId(firstReady.id)
   }, [firstReady, selectedId])
 
-  // Scroll board to ready node on mount
+  // Scroll board to ready node on mount — both axes, so phone-width
+  // viewports don't leave the active node off-screen to the right.
   useEffect(() => {
     if (!firstReady || readyScrolled.current || !boardRef.current) return
+    const el = boardRef.current
     const yOffset = firstReady.y - 200
-    boardRef.current.scrollTo({ top: Math.max(0, yOffset), behavior: 'smooth' })
+    const xOffset = firstReady.x - el.clientWidth / 2
+    el.scrollTo({
+      top: Math.max(0, yOffset),
+      left: Math.max(0, xOffset),
+      behavior: 'smooth',
+    })
     readyScrolled.current = true
   }, [firstReady])
 
@@ -1250,6 +1273,19 @@ export function StagesRoute() {
               scrollbarColor: 'rgba(0,255,224,0.2) transparent',
             }}
           >
+            {/* Scale wrapper: clamp the 780-px board to fit narrow phone
+                viewports without horizontal scroll. 48 = horizontal padding. */}
+            {(() => {
+              const fitScale = containerW > 0 && containerW < boardWidth + 48
+                ? (containerW - 48) / boardWidth
+                : 1
+              return (
+            <div style={{
+              transform: fitScale < 1 ? `scale(${fitScale})` : undefined,
+              transformOrigin: '0 0',
+              width: boardWidth, height: boardHeight,
+              position: 'relative',
+            }}>
             {/* SVG connector layer */}
             <svg
               width={boardWidth}
@@ -1282,6 +1318,9 @@ export function StagesRoute() {
                 />
               ))}
             </div>
+            </div>
+              )
+            })()}
 
             <BoardLegend />
           </div>

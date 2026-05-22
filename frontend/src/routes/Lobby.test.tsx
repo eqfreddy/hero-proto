@@ -117,12 +117,14 @@ vi.mock('../store/sound', () => ({
 }))
 
 describe('LobbyRoute', () => {
-  it('surfaces live guild and raid state instead of placeholder guild copy', () => {
+  it('renders the command deck map with live room state', () => {
     render(<LobbyRoute />)
 
-    expect(screen.getByText(/\[RDX\]/i)).toBeInTheDocument()
-    expect(screen.getByText(/12 members/i)).toBeInTheDocument()
-    expect(screen.getByText(/raid active/i)).toBeInTheDocument()
-    expect(screen.getByText(/consultant/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /Command Deck/i })).toBeInTheDocument()
+    expect(screen.getByText(/Today's Ops/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: /Holotable/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: /Black Market/i })).toBeInTheDocument()
+    expect(screen.getAllByText(/The Consultant/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/12 members/i).length).toBeGreaterThan(0)
   })
 })

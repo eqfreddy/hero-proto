@@ -121,27 +121,31 @@
 }
 .topnav-event { color: var(--c-crimson) !important; }
 
-/* ===== PlayNav (fixed bottom, 5 slots) ===== */
+/* ===== PlayNav (fixed bottom, 5 fat tabs) =====
+   Sized for thumb-zone touch: ~70px tall on phones, 32px icons, 11-12px
+   labels. Sticky fixed at the bottom so it doesn't disappear under
+   tall scrolling lists. */
 .playnav {
   position: fixed;
   left: 0; right: 0; bottom: 0;
   z-index: 60;
-  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(4,6,12,0.4), rgba(4,6,12,0.96) 40%);
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(4,6,12,0.55), rgba(4,6,12,0.98) 40%);
   border-top: 1px solid var(--c-ink-faint);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   font-family: var(--c-mono);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.12em;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
 }
 .playnav-item {
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
   color: var(--c-ink-dim);
   text-decoration: none;
-  padding: 4px 2px;
+  padding: 6px 2px;
   background: none; border: 0;
   cursor: pointer;
   font: inherit;
@@ -149,27 +153,28 @@
   text-transform: uppercase;
   min-width: 0;
   overflow: hidden;
+  transition: color 0.15s;
 }
 .playnav-item .ico {
-  width: 22px; height: 22px;
-  border: 1.5px solid currentColor;
+  width: 34px; height: 34px;
+  border: 2px solid currentColor;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-family: var(--c-display); font-weight: 700;
+  font-size: 16px; font-family: var(--c-display); font-weight: 800;
   letter-spacing: 0;
+  transition: box-shadow 0.15s, border-width 0.15s;
 }
 .playnav-item.is-active {
   color: var(--c-accent);
-  text-shadow: 0 0 6px var(--c-accent-glow);
+  text-shadow: 0 0 8px var(--c-accent-glow);
+  font-weight: 700;
 }
 .playnav-item.is-active .ico {
-  box-shadow: 0 0 8px var(--c-accent-glow);
+  box-shadow: 0 0 12px var(--c-accent-glow), inset 0 0 6px rgba(0,255,224,0.12);
 }
-.playnav-item.is-summon .ico { border-color: var(--c-purple); color: var(--c-purple); }
-.playnav-item.is-summon.is-active { color: var(--c-purple); text-shadow: 0 0 6px rgba(155,48,255,0.5); }
 
 .chrome-main {
   flex: 1;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-bottom: calc(90px + env(safe-area-inset-bottom));
 }
 
 /* ===== Battle Hub ===== */

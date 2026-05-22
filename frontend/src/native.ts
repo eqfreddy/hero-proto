@@ -35,11 +35,20 @@ export function initNativeChrome(): void {
     sb.setOverlaysWebView?.({ overlay: false }).catch(() => {})
   }
 
-  // Native back button → browser history back, exit only at root.
+  // Native back button — smart:
+  //   - at lobby root → exit the app (matches native Android UX)
+  //   - elsewhere → React Router history back
+  // Capacitor's own `canGoBack` reflects raw webview history which sticks
+  // around after login redirects, so reading `location.pathname` is more
+  // reliable for the "am I at root?" check.
   const app = c.Plugins?.App
   if (app?.addListener) {
-    app.addListener('backButton', ({ canGoBack }: { canGoBack: boolean }) => {
-      if (canGoBack && window.history.length > 1) {
+    app.addListener('backButton', () => {
+      const path = window.location.pathname
+      const atRoot = path === '/' || path === '/app' || path === '/app/' || path === '/app/me'
+      if (atRoot) {
+        app.exitApp?.().catch(() => {})
+      } else if (window.history.length > 1) {
         window.history.back()
       } else {
         app.exitApp?.().catch(() => {})

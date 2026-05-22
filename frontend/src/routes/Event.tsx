@@ -4,6 +4,20 @@ import { toast } from '../store/ui'
 import { EmptyState } from '../components/EmptyState'
 import { SkeletonGrid } from '../components/SkeletonGrid'
 
+function formatEventWindow(endsAt: string): string {
+  const diffMs = new Date(endsAt).getTime() - Date.now()
+  if (diffMs <= 0) return 'Closing now'
+  const totalMinutes = Math.ceil(diffMs / 60000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24)
+    return `${days}d ${hours % 24}h left`
+  }
+  if (hours > 0) return `${hours}h ${minutes}m left`
+  return `${minutes}m left`
+}
+
 export function EventRoute() {
   const qc = useQueryClient()
   const { data: event, isLoading } = useQuery({
@@ -12,57 +26,226 @@ export function EventRoute() {
     refetchInterval: 60_000,
   })
 
-  if (isLoading) return <SkeletonGrid count={3} height={80} />
-  if (!event) return <EmptyState icon="⚡" message="No active event." hint="Events run during special periods." />
+  if (isLoading) return <SkeletonGrid count={3} height={96} />
+  if (!event) {
+    return (
+      <EmptyState
+        icon="EVT"
+        message="No active event."
+        hint="Special events are dark right now. Check back after reset."
+      />
+    )
+  }
 
-  const endsIn = Math.max(0, Math.floor((new Date(event.ends_at).getTime() - Date.now()) / 1000 / 3600))
+  const openQuests = event.quests.filter((q) => !q.claimed)
+  const completedQuests = event.quests.filter((q) => q.claimed).length
+  const redeemableMilestones = event.milestones.filter((m) => !m.redeemed && m.affordable)
+  const clearedMilestones = event.milestones.filter((m) => m.redeemed).length
+  const nextMilestone = event.milestones.find((m) => !m.redeemed) ?? null
 
   return (
-    <div className="stack">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <h2 style={{ margin: 0 }}>⚡ {event.display_name}</h2>
-        <span className="muted" style={{ fontSize: 12 }}>Ends in ~{endsIn}h · {event.currency_emoji} {event.currency_balance}</span>
+    <div className="stack" style={{ gap: 14 }}>
+      <div
+        className="card"
+        style={{
+          padding: 18,
+          border: '1px solid rgba(255,215,0,0.18)',
+          background:
+            'linear-gradient(135deg, rgba(255,215,0,0.09), rgba(0,255,224,0.08) 55%, rgba(10,14,22,0.98))',
+          boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+        }}
+      >
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)' }}>
+              Live Event
+            </div>
+            <h2 style={{ margin: 0 }}>{event.display_name}</h2>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+              Window: {formatEventWindow(event.ends_at)}
+            </div>
+          </div>
+          <div
+            style={{
+              minWidth: 120,
+              padding: '10px 12px',
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(4,6,12,0.52)',
+              textAlign: 'right',
+            }}
+          >
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+              Banked
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--gold)' }}>
+              {event.currency_emoji} {event.currency_balance}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{event.currency_name}</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: 16 }}>
+          <MetricCard label="Quest Board" value={`${completedQuests}/${event.quests.length}`} hint={`${openQuests.length} still open`} tone="accent" />
+          <MetricCard label="Milestones" value={`${clearedMilestones}/${event.milestones.length}`} hint={`${redeemableMilestones.length} redeemable`} tone="gold" />
+          <MetricCard
+            label="Next Spend"
+            value={nextMilestone ? `${nextMilestone.cost} ${event.currency_emoji}` : 'Cleared'}
+            hint={nextMilestone ? nextMilestone.title : 'All milestones done'}
+            tone="crimson"
+          />
+        </div>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Quests</h3>
-        {event.quests.map((q) => (
-          <div key={q.code} className="row" style={{ justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{q.title}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{q.progress}/{q.goal} · +{q.currency_reward} {event.currency_emoji}</div>
-            </div>
-            {q.completed && !q.claimed && (
-              <button className="primary" style={{ fontSize: 12 }}
-                onClick={async () => {
-                  try { await claimEventQuest(event.id, q.code); toast.success('Claimed!'); qc.invalidateQueries({ queryKey: ['active-event-detail'] }) }
-                  catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
-                }}>Claim</button>
-            )}
-            {q.claimed && <span className="muted" style={{ fontSize: 11 }}>✓</span>}
-          </div>
-        ))}
+      <div className="card" style={{ padding: 16 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <h3 style={{ margin: 0 }}>Quest Board</h3>
+          <span className="muted" style={{ fontSize: 12 }}>{openQuests.length} open</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {event.quests.map((q) => {
+            const progressPct = Math.max(0, Math.min(100, Math.round((q.progress / Math.max(1, q.goal)) * 100)))
+            const isClaimable = q.completed && !q.claimed
+            return (
+              <div
+                key={q.code}
+                style={{
+                  padding: 12,
+                  borderRadius: 12,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: q.claimed ? 'rgba(34,197,94,0.07)' : 'rgba(255,255,255,0.02)',
+                  opacity: q.claimed ? 0.8 : 1,
+                }}
+              >
+                <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{q.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+                      {q.progress}/{q.goal} complete
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--gold)', whiteSpace: 'nowrap' }}>
+                    +{q.currency_reward} {event.currency_emoji}
+                  </div>
+                  {isClaimable && (
+                    <button
+                      className="primary"
+                      style={{ fontSize: 12 }}
+                      onClick={async () => {
+                        try {
+                          await claimEventQuest(event.id, q.code)
+                          toast.success('Quest claimed')
+                          qc.invalidateQueries({ queryKey: ['active-event-detail'] })
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : 'Failed')
+                        }
+                      }}
+                    >
+                      Claim
+                    </button>
+                  )}
+                  {q.claimed && <span className="muted" style={{ fontSize: 11 }}>Claimed</span>}
+                </div>
+                <div style={{ marginTop: 10, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${progressPct}%`,
+                      height: '100%',
+                      background: isClaimable ? 'var(--gold)' : 'var(--accent)',
+                      transition: 'width 0.2s ease',
+                    }}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Milestones</h3>
-        {event.milestones.map((m) => (
-          <div key={m.idx} className="row" style={{ justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', opacity: m.redeemed ? 0.5 : 1 }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{m.title}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{m.cost} {event.currency_emoji}</div>
+      <div className="card" style={{ padding: 16 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <h3 style={{ margin: 0 }}>Milestone Track</h3>
+          <span className="muted" style={{ fontSize: 12 }}>{redeemableMilestones.length} ready to redeem</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {event.milestones.map((m) => (
+            <div
+              key={m.idx}
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: m.redeemed ? 'rgba(255,255,255,0.03)' : m.affordable ? 'rgba(255,215,0,0.08)' : 'rgba(255,255,255,0.02)',
+                opacity: m.redeemed ? 0.72 : 1,
+              }}
+            >
+              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{m.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+                    Spend {m.cost} {event.currency_emoji}
+                  </div>
+                </div>
+                {m.redeemed ? (
+                  <span className="muted" style={{ fontSize: 11 }}>Redeemed</span>
+                ) : m.affordable ? (
+                  <button
+                    className="primary"
+                    style={{ fontSize: 12 }}
+                    onClick={async () => {
+                      try {
+                        await redeemMilestone(event.id, m.idx)
+                        toast.success('Milestone redeemed')
+                        qc.invalidateQueries({ queryKey: ['active-event-detail'] })
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : 'Failed')
+                      }
+                    }}
+                  >
+                    Redeem
+                  </button>
+                ) : (
+                  <span className="muted" style={{ fontSize: 11 }}>
+                    Need {Math.max(0, m.cost - event.currency_balance)}
+                  </span>
+                )}
+              </div>
             </div>
-            {!m.redeemed && m.affordable && (
-              <button className="primary" style={{ fontSize: 12 }}
-                onClick={async () => {
-                  try { await redeemMilestone(event.id, m.idx); toast.success('Redeemed!'); qc.invalidateQueries({ queryKey: ['active-event-detail'] }) }
-                  catch (e) { toast.error(e instanceof Error ? e.message : 'Failed') }
-                }}>Redeem</button>
-            )}
-            {m.redeemed && <span className="muted" style={{ fontSize: 11 }}>✓</span>}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+    </div>
+  )
+}
+
+function MetricCard({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string
+  value: string
+  hint: string
+  tone: 'accent' | 'gold' | 'crimson'
+}) {
+  const toneColor =
+    tone === 'gold' ? 'var(--gold)' : tone === 'crimson' ? 'var(--crimson)' : 'var(--accent)'
+
+  return (
+    <div
+      style={{
+        padding: 12,
+        borderRadius: 12,
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(4,6,12,0.45)',
+      }}
+    >
+      <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+        {label}
+      </div>
+      <div style={{ marginTop: 6, fontSize: 20, fontWeight: 800, color: toneColor }}>{value}</div>
+      <div style={{ marginTop: 4, fontSize: 11, color: 'var(--muted)' }}>{hint}</div>
     </div>
   )
 }
