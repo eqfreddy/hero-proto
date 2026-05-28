@@ -2,7 +2,7 @@
 
 Living list. Tick items `[x]` as done. Add new ones at the bottom of the relevant section.
 
-Last updated: 2026-05-12 PM (Shard remap Phases 1+2+3 shipped: dupe HeroInstances collapsed to template-shard balances; gacha dupes now credit shards instead of creating rows; skill_up converted to shards (5/15/40/100 per tier 1→5); fodder `/ascend` endpoint deleted. Quaternius rig migration — per-archetype embedded combat clips, KayKit shared-rig file dropped. Per-turn countdown timer (server-authoritative 120s) for interactive combat. Battle 3D: overhead HP bars + team B repositioned. Battle setup: rarity-grouped roster + duplicate stacking.)
+Last updated: 2026-05-28 (Logged the 2026-05-17 → 2026-05-21 arc: 5-phase battle overhaul A–E incl. real player action choice (attack/skill/limit/defend), floating damage numbers, character quips, faction synergy chip, turn-order ribbon; desktop lobby redesign + mobile-first 5-hub bottom-nav consolidation; conversion/retention pass across home/summon/me/combat/raids/guild; Android emulator field test PARTIAL. NOTE: a summon-reveal + roster-redesign batch is still UNCOMMITTED in the working tree as of this update. Prior 2026-05-12: Shard remap Phases 1+2+3 — dupe HeroInstances collapsed to template-shard balances; gacha dupes credit shards; skill_up shard-based; fodder `/ascend` deleted. Quaternius rig migration. Per-turn countdown timer (server-authoritative 120s). Battle 3D overhead HP bars.)
 
 ---
 
@@ -20,6 +20,31 @@ Last updated: 2026-05-12 PM (Shard remap Phases 1+2+3 shipped: dupe HeroInstance
 - **Mobile:** Capacitor scaffold in `mobile/` — `package.json` + `capacitor.config.ts` targeting `app/static/spa`. `POST/DELETE /notifications/device-token` endpoints live. `app/push.py` FCM stub (no-op without `FCM_SERVER_KEY`). `frontend/src/api/push.ts` — call `initPush()` after login. iOS builds go through Codemagic / GitHub mac runners.
 - **Docs:** `README.md`, `docs/RUNBOOK.md`, `docs/PRD.md`, `docs/PHASE_2_HUMAN_TEST.md`, `docs/PLAN_B_INTEGRATION.md`, `docs/BATTLE_RIG_EVENT_MAPPING.md`, `docs/BATTLE_VISUALS_STACK.md` all current.
 - **Art:** 33 trading-card portraits + 33 auto-cropped busts in `/app/static/heroes/`. Cluster-of-fuckery stick-figure animation pipeline available outside repo. DragonBones Mecha 1004B sample lives in repo as Plan B feasibility demo.
+
+### Shipped 2026-05-21
+
+**Conversion + retention pass** (commits `bbf1270`, `83552ce`, `772603b`, `f6de7db`):
+- **Combat/raids/guild retention loop** (`bbf1270`) — `BattleHUD.tsx` substantially reworked (~900 lines); guild surfaces (`Guild/index`, `Members`, `Raids`) and `RaidsTab`/`Arena` overhauled with retention hooks; `HeroPortrait` component added; `useInteractiveSession` refactored. New test coverage across arena/raids/guild API + components.
+- **Me-route conversion hooks** (`83552ce`) — sharpened upsell/progression prompts on the profile route.
+- **Home + summon conversion flow** (`772603b`) — revamped landing/lobby conversion path and summon funnel; SPA assets rebuilt (`f6de7db`).
+
+### Shipped 2026-05-17 / 2026-05-18
+
+**5-phase battle overhaul** (commits `6ffa6bb` roadmap → `7338833`/`267d6a3` A, `a0cfbec` B, `2144d33` C, `1d6b496` D, `adf1026` E):
+- **Phase A — player action choice.** Backend now honors an action selection; `BattleHUD` gets a bottom action bar (Attack / Skill / Limit / Defend). **This closes the "Explicit Attack/Skill/Limit action buttons" follow-up** that was back-burnered 2026-05-11.
+- **Phase B — combat juice.** Floating damage numbers + status icons.
+- **Phase C — character quips** on a unit's first action.
+- **Phase D — faction synergy preview chip** in battle setup.
+- **Phase E — turn-order ribbon.**
+
+**Mobile-first navigation + lobby redesign** (2026-05-18, v1.0.174):
+- PlayNav consolidated from 6 tabs to **5 primary hubs** (Home, Heroes, Battle, Shop, Social), sticky bottom, ~70px height / 34px icons, thumb-zone tuned.
+- TopNav reduced to header-only (brand + currencies + actions); secondary tab strip removed.
+- Desktop lobby redesigned (toned cream/gold palette); Lobby now renders under shared chrome (TopNav + PlayNav) with a 2×3 tile grid for Arena/Guild/Raids/BP/Friends/Events.
+- `assetUrl()` migration across components so hero portraits resolve correctly in the Capacitor webview (native `file://`).
+- Deployed to physical Android device through v1.0.174.
+
+**Android field test 2026-05-17** — verdict **PARTIAL**. Build/install/launch/lobby-render verified; battle UX NOT exercised on device (DEPLOY tap didn't register). Report + repro at `docs/ANDROID_FIELD_TEST_2026-05-17.md`. Caught bug: hard-nav to a sub-path breaks Capacitor relative asset resolution (4 fix candidates documented, not a launch blocker). See "Next session" below.
 
 ### Shipped 2026-05-12
 
@@ -206,7 +231,7 @@ Last updated: 2026-05-12 PM (Shard remap Phases 1+2+3 shipped: dupe HeroInstance
 - [~] **Monster select + team-builder UX overhaul** — partially shipped 2026-05-11 PM. `BattleSetupRoute` now has: tier-grouped collapsible stage selector with color-coded headers (NORMAL/HARD/NIGHTMARE/LEGENDARY palette matching `TierBadge`); rarity-tinted hero buttons + slot cards; role + rarity filter chips above the roster; 🕘 Last team / ⚡ Auto / 💾 Save preset / ✕ Clear action row; preset chips load from `/me/team-presets`; team-power vs stage-recommended delta tag (green/orange/red). Still open: drag-to-slot, faction synergy preview, dedicated TeamBuilder component if scope grows.
 - [x] ~~**Interactive battle: target-pick clicks don't register in 3D mode**~~ ✅ Shipped 2026-05-11 PM. `Battle3DScene` now installs a `THREE.Raycaster` on canvas click + mousemove. Each loaded hero stamps `userData.uid` so the hit walks up the parent chain to find the unit. When `validTargets` includes the hit uid, the pointer cursor flips on hover and a click fires `onAct(uid)`. `propsRef` mirror lets the once-bound handler read the latest valid-targets / onAct without re-binding per render. HUD UnitCards continue to work in parallel.
 - [ ] **Viewport-responsive 3D framing** — back-burnered 2026-05-11. Branch `feature/responsive-battle-3d` has a working `responsive.ts` that computes camera position + lookAt from viewport width / aspect, plus an `onResize` listener that recomputes live. Live test on 27" showed (a) the framing factor didn't move enough to be visibly noticeable when dragging across monitors, and (b) the wider-diorama / pushed-back changes that came with it lost characters again. Revisit: tune the responsive curve more aggressively, validate `container.clientWidth` actually updates on resize (suspected layout root may be locking width), and ship without the diorama auto-fit changes.
-- [ ] **Explicit Attack / Skill / Limit action buttons** — back-burnered 2026-05-11. Backend (`app/interactive.py`) currently only takes a `target_uid` — there's no `action_type` parameter, so the HUD reuses target-click as "attack." Adding Skill/Limit buttons requires extending the API + combat resolver to honor an action-type selection, then a per-actor bottom-bar in `BattleHUD.tsx`.
+- [x] ~~**Explicit Attack / Skill / Limit action buttons**~~ ✅ Shipped 2026-05-17 (Phase A, commits `7338833` + `267d6a3`). Backend now honors a player action selection (attack/skill/limit/defend); `BattleHUD.tsx` renders a per-actor bottom action bar. Replaces the old target-click-as-attack reuse.
 - [ ] **Weapons on hero rigs** — back-burnered 2026-05-11. KayKit Hero Pack ships separate weapon meshes; need a per-archetype weapon→bone map (likely the right-hand wrist bone discovered the same way `proceduralClips.ts` discovers arm bones), and attach the weapon mesh as a child of that bone in `heroLoader.ts`. ~1-2 hours focused work once asset paths are confirmed.
 
 ### Follow-ups from 2026-05-07 rig work
