@@ -143,3 +143,24 @@ def test_no_integrity_change_when_no_attacker():
     dfn = _mk(hp=1000, max_hp=1000, integrity=150, integrity_max=150, weak_to=[Faction.HELPDESK])
     _apply_damage(dfn, 100, attacker=None, log=[])
     assert dfn.integrity == 150  # DoT / reflect (no attacker) doesn't break integrity
+
+
+def test_taking_a_hit_builds_burnout():
+    dfn = _mk(hp=1000, max_hp=1000, burnout=0)
+    _apply_damage(dfn, 100, attacker=None, log=[])
+    assert dfn.burnout == 5  # BURNOUT_PER_HIT
+
+
+def test_burnout_caps_at_max():
+    dfn = _mk(hp=100000, max_hp=100000, burnout=98)
+    _apply_damage(dfn, 10, attacker=None, log=[])
+    assert dfn.burnout == 100  # capped at BURNOUT_MAX
+
+
+def test_defend_sheds_burnout():
+    from app.combat import _act
+    import random
+    actor = _mk(uid="a0", side="A", burnout=50, limit_gauge_max=100)
+    _act(actor, allies=[actor], enemies=[_mk()], rng=random.Random(1),
+         log=[], action_type="defend")
+    assert actor.burnout == 20  # 50 - BURNOUT_DEFEND_SHED(30)

@@ -224,6 +224,8 @@ def _apply_damage(
     if vuln > 0:
         amount = max(1, int(round(amount * (1.0 + vuln))))
     defender.hp = max(0, defender.hp - amount)
+    if amount > 0:
+        defender.burnout = min(BURNOUT_MAX, defender.burnout + BURNOUT_PER_HIT)
     if defender.hp == 0:
         defender.dead = True
     # Limit gauge fills proportional to damage taken vs max HP.
@@ -549,6 +551,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
             actor.limit_gauge = min(actor.limit_gauge_max, actor.limit_gauge + 25)
             if prev < actor.limit_gauge_max <= actor.limit_gauge:
                 log.append({"type": "LIMIT_READY", "unit": actor.uid})
+        actor.burnout = max(0, actor.burnout - BURNOUT_DEFEND_SHED)
         log.append({"type": "DEFEND", "unit": actor.uid})
         return 0
 
@@ -558,6 +561,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
     limit_ready = actor.limit_gauge >= actor.limit_gauge_max > 0
     if (action_type is None and limit_ready) or (action_type == "limit" and limit_ready):
         damage_dealt = _do_limit_break(actor, allies=allies, enemies=enemies, rng=rng, log=log)
+        actor.burnout = min(BURNOUT_MAX, actor.burnout + BURNOUT_PER_LIMIT)
         actor.limit_gauge = 0
         return damage_dealt
 
@@ -593,6 +597,7 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
             "sl": actor.special_level,
             "kind": stype,
         })
+        actor.burnout = min(BURNOUT_MAX, actor.burnout + BURNOUT_PER_SKILL)
 
         def _scaled_effect(eff: dict) -> dict:
             """Return a copy of an effect with `value` bumped by special_level."""
