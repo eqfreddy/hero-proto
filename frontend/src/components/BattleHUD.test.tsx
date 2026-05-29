@@ -169,6 +169,20 @@ describe('BattleHUD', () => {
     expect(screen.getByTestId('burnout-enemy-1')).toBeTruthy()
   })
 
+  it('tags a crashed unit', () => {
+    const enemy: CombatUnit = {
+      uid: 'enemy-9', name: 'glitchwraith', hp: 20, max_hp: 120, atk: 1, def: 1, spd: 1,
+      dead: false, integrity: 0, integrity_max: 150, crashed: true,
+    }
+    render(
+      <BattleHUD
+        teamA={[]} teamB={[enemy]} onAct={undefined} pendingActorUid={null}
+        validTargets={[]} acting={false} done={false} rewards={null} onClose={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('crashed-tag-enemy-9')).toBeTruthy()
+  })
+
   it('omits the integrity bar for heroes (integrity_max 0)', () => {
     render(
       <BattleHUD

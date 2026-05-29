@@ -240,6 +240,7 @@ function UnitCard({
         minWidth: 90,
         background: 'rgba(0,0,0,0.55)',
         backdropFilter: 'blur(2px)',
+        boxShadow: unit.crashed ? '0 0 0 1px #e85a78, 0 0 12px rgba(232,90,120,0.35)' : undefined,
       }}
     >
       <div style={{
@@ -252,7 +253,21 @@ function UnitCard({
       }}>
         <PortraitFallback templateCode={templateCode} title={unit.name} />
       </div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)', marginBottom: 3 }}>{unit.name}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)' }}>{unit.name}</div>
+        {unit.crashed && (
+          <span
+            data-testid={`crashed-tag-${unit.uid}`}
+            style={{
+              fontSize: 8, fontWeight: 800, letterSpacing: '0.14em', color: '#e85a78',
+              border: '1px solid #e85a78', borderRadius: 3, padding: '0 3px',
+              fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+            }}
+          >
+            CRASHED
+          </span>
+        )}
+      </div>
       <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
         <div
           style={{
