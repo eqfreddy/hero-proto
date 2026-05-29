@@ -281,6 +281,7 @@ function ActionBar({ pending, onAct, onSelectAction, disabled, selectedAction }:
     skill: { enabled: !!pending.special_name && (pending.special_cooldown_left ?? 0) === 0, reason: null },
     limit: { enabled: (pending.limit_gauge ?? 0) >= (pending.limit_gauge_max ?? 100), reason: null },
     defend: { enabled: true, reason: null },
+    delete: { enabled: false, reason: null },
   }
   const skillNeedsTarget = !!(pending.special_kind && !/AOE|HEAL|BUFF|CLEANSE/.test(pending.special_kind))
   const selectedActionLabel =

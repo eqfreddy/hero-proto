@@ -17,6 +17,11 @@ export interface CombatUnit {
   mana_cost?: number
   limit_gauge?: number
   limit_gauge_max?: number
+  /** System Integrity (weakness-break). integrity_max === 0 means no bar (heroes). */
+  integrity?: number
+  integrity_max?: number
+  burnout?: number
+  crashed?: boolean
 }
 
 export interface BattleLog {
@@ -38,8 +43,10 @@ export interface InteractivePending {
   turn_number?: number
   enemies?: { uid: string; name: string; hp: number; max_hp: number }[]
   valid_targets?: string[]
-  /** Phase A: per-action availability for the HUD action bar. */
-  actions?: Record<'attack' | 'skill' | 'limit' | 'defend', { enabled: boolean; reason: string | null }>
+  /** Enemy uids the acting unit may Delete this turn (Crashed + threshold). */
+  valid_delete_targets?: string[]
+  /** Phase A + System Integrity: per-action availability for the HUD action bar. */
+  actions?: Record<'attack' | 'skill' | 'limit' | 'defend' | 'delete', { enabled: boolean; reason: string | null }>
   special_name?: string | null
   special_kind?: string | null
   special_cooldown_left?: number
