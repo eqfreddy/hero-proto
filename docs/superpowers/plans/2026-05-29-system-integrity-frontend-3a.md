@@ -6,7 +6,7 @@
 
 **Architecture:** Pure frontend. The backend (Plans 1+2, merged at `00bbe50`) already (a) puts `integrity`/`integrity_max`/`burnout`/`crashed` on every `UnitSnapshot`, (b) exposes `valid_delete_targets` + a `"delete"` key in `pending.actions`, (c) accepts `action_type="delete"` on the act endpoint, and (d) emits `INTEGRITY` / `CRASH` / `INTEGRITY_RESTORED` / `DELETED` log events from the resolver. This plan only syncs the TypeScript types to that contract and renders/uses it. No Python changes.
 
-**Tech Stack:** React 18 + Vite + TypeScript, inline-style components, `vitest` + `@testing-library/react` (run with `bun test` from `frontend/`), Three.js Battle3D (`frontend/src/battle3d/`).
+**Tech Stack:** React 18 + Vite + TypeScript, inline-style components, `vitest` + `@testing-library/react` (run with `bunx vitest run` from `frontend/`), Three.js Battle3D (`frontend/src/battle3d/`).
 
 **Scope:** Plan 3a of the Plan 3 split. **Deferred to Plan 3b (separate plan):** Deleted bonus loot/multipliers, the perfect-finisher reward differential, universal-exploit banner, Composure gear, burnout-reset consumables, VIP multipliers, auto-perfect finisher QoL. In 3a the drag finisher is a pure cosmetic flourish — a perfect drag and a missed/auto drag both resolve to the same `action_type="delete"` backend call; the reward split is 3b.
 
@@ -24,7 +24,7 @@
 
 **WIP-branch overlap — resolve first.** The branch `wip/battle-hud-polish` (pushed) modifies the SAME files this plan touches: `BattleHUD.tsx`, `types/battle.ts`, `hooks/useInteractiveSession.ts`, `routes/battle/BattlePlayRoute.tsx`. It contains a real fix (passing `turnNumber` into the act request) plus reward-rendering polish. **Before starting, land the salvageable parts of that branch onto master** (at minimum the `useInteractiveSession` `turnNumber` wiring and the `rewards: Record<string, unknown>` widening) so this plan builds on top of it instead of colliding. If you skip that, expect a merge conflict in `BattleHUD.tsx` and `useInteractiveSession.ts` later. This plan assumes those two changes are already on master; if they are not, Task 1 still works (it touches different lines) but re-check `BattleHUD.tsx`'s `rewards` prop type before Task 7.
 
-**Test command:** all frontend tests run from the `frontend/` directory with `bun test`. A single file: `bun test src/components/BattleHUD.test.tsx`. There is no per-test `-k`; rely on `describe`/`it` and run the whole file.
+**Test command:** all frontend tests run from the `frontend/` directory with `bunx vitest run` (NOT `bunx vitest run` — Bun's native runner has no jsdom and fails with "document is not defined"). A single file: `bunx vitest run src/components/BattleHUD.test.tsx`. There is no per-test `-k`; rely on `describe`/`it` and run the whole file. **Note:** master currently has 2 pre-existing unrelated failures (`src/battle3d/__tests__/dioramaLoader.test.ts`, `src/routes/Guild/Raids.test.tsx`) — ignore those; do not let them mask a real regression.
 
 ---
 
@@ -76,7 +76,7 @@ describe('System Integrity types', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails.** `cd frontend && bun test src/types/battle.test.ts`
+- [ ] **Step 2: Run to verify it fails.** `cd frontend && bunx vitest run src/types/battle.test.ts`
 Expected: FAIL — `delete` not assignable to `ActionType`; `integrity`/`crashed`/`valid_delete_targets` not on the types.
 
 - [ ] **Step 3: Add the fields.** In `frontend/src/types/battle.ts`, extend the `CombatUnit` interface (after `limit_gauge_max?: number`):
@@ -104,7 +104,7 @@ In `frontend/src/api/battles.ts`, change the `ActionType` union:
 export type ActionType = 'attack' | 'skill' | 'limit' | 'defend' | 'delete'
 ```
 
-- [ ] **Step 4: Run to verify it passes.** `cd frontend && bun test src/types/battle.test.ts`
+- [ ] **Step 4: Run to verify it passes.** `cd frontend && bunx vitest run src/types/battle.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Typecheck the whole app** (the widened `actions` Record now requires a `delete` key everywhere an `actions` literal is built — catch fallout): `cd frontend && bun run build` (or `bunx tsc --noEmit` if defined). Fix any object literals that construct `pending.actions` without a `delete` key by adding `delete: { enabled: false, reason: null }`. Search: `grep -rn "actions:" frontend/src --include=*.tsx --include=*.ts`.
@@ -170,7 +170,7 @@ git commit -m "feat(combat-ui): TS types for integrity/burnout/crash + delete ac
   })
 ```
 
-- [ ] **Step 2: Run to verify it fails.** `cd frontend && bun test src/components/BattleHUD.test.tsx`
+- [ ] **Step 2: Run to verify it fails.** `cd frontend && bunx vitest run src/components/BattleHUD.test.tsx`
 Expected: FAIL — no element with testid `integrity-enemy-1`.
 
 - [ ] **Step 3: Implement.** In `BattleHUD.tsx`, immediately after the HP-value `<div>` (`{unit.hp} / {unit.max_hp}`, ~line 266) inside `UnitCard`, insert:
@@ -212,7 +212,7 @@ Expected: FAIL — no element with testid `integrity-enemy-1`.
 )}
 ```
 
-- [ ] **Step 4: Run to verify it passes.** `cd frontend && bun test src/components/BattleHUD.test.tsx`
+- [ ] **Step 4: Run to verify it passes.** `cd frontend && bunx vitest run src/components/BattleHUD.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 5: Commit.**
@@ -250,7 +250,7 @@ git commit -m "feat(combat-ui): integrity bar + burnout meter on unit cards"
   })
 ```
 
-- [ ] **Step 2: Run to verify it fails.** `cd frontend && bun test src/components/BattleHUD.test.tsx`
+- [ ] **Step 2: Run to verify it fails.** `cd frontend && bunx vitest run src/components/BattleHUD.test.tsx`
 Expected: FAIL — no `crashed-tag-enemy-9`.
 
 - [ ] **Step 3: Implement.** In `UnitCard`, find the unit name `<div>` (the `fontSize: 11` name element, ~line 240). Wrap it so a crashed unit shows a tag. Replace the name `<div>` with:
@@ -279,7 +279,7 @@ Expected: FAIL — no `crashed-tag-enemy-9`.
 boxShadow: unit.crashed ? '0 0 0 1px #e85a78, 0 0 12px rgba(232,90,120,0.35)' : undefined,
 ```
 
-- [ ] **Step 4: Run to verify it passes.** `cd frontend && bun test src/components/BattleHUD.test.tsx`
+- [ ] **Step 4: Run to verify it passes.** `cd frontend && bunx vitest run src/components/BattleHUD.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 5: Commit.**
@@ -365,7 +365,7 @@ git commit -m "feat(combat-ui): crashed unit visual state (tag + glow)"
   })
 ```
 
-- [ ] **Step 2: Run to verify it fails.** `cd frontend && bun test src/components/BattleHUD.test.tsx`
+- [ ] **Step 2: Run to verify it fails.** `cd frontend && bunx vitest run src/components/BattleHUD.test.tsx`
 Expected: FAIL — no Delete button.
 
 - [ ] **Step 3: Implement.** In `ActionBar`:
@@ -391,7 +391,7 @@ const color =
 )}
 ```
 
-- [ ] **Step 4: Run to verify it passes.** `cd frontend && bun test src/components/BattleHUD.test.tsx`
+- [ ] **Step 4: Run to verify it passes.** `cd frontend && bunx vitest run src/components/BattleHUD.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 5: Commit.**
@@ -435,7 +435,7 @@ const executeAction = (targetUid: string) => {
 
 (Adapt to the real signature — the goal is: clicking a Crashed enemy while `selectedAction==='delete'` calls `act(uid, 'delete')`.)
 
-- [ ] **Step 4: Verify build + route tests.** `cd frontend && bun run build && bun test src/routes/battle`
+- [ ] **Step 4: Verify build + route tests.** `cd frontend && bun run build && bunx vitest run src/routes/battle`
 Expected: clean build; existing battle-route tests pass (if none exist for this route, build success is the gate).
 
 - [ ] **Step 5: Commit.**
@@ -491,7 +491,7 @@ describe('handleEvent — system integrity', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails.** `cd frontend && bun test src/battle3d/animationDriver.test.ts`
+- [ ] **Step 2: Run to verify it fails.** `cd frontend && bunx vitest run src/battle3d/animationDriver.test.ts`
 Expected: FAIL — `CRASH`/`DELETED` fall through to the no-op default (no `flashWhite`/`fade` calls).
 
 - [ ] **Step 3: Implement the driver.** In `animationDriver.ts`, extend the `CombatEvent` union (add before the catch-all `{ type: string; ... }` member):
@@ -527,7 +527,7 @@ In `handleEvent`, add handlers (place near the `DEATH` handler):
 
 (`playCanonical` is the existing helper used by the DAMAGE/DEATH handlers — reuse it; "hit"/"die" are already in the canonical clip set.)
 
-- [ ] **Step 4: Run to verify it passes.** `cd frontend && bun test src/battle3d/animationDriver.test.ts`
+- [ ] **Step 4: Run to verify it passes.** `cd frontend && bunx vitest run src/battle3d/animationDriver.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Add the toasts.** In `BattlePlayRoute.tsx`, in the `last_event` toast `useEffect`, add branches alongside the existing `SPECIAL`/`LIMIT_BREAK`/`DEFEND` cases:
@@ -544,7 +544,7 @@ Expected: PASS.
 
 (Do NOT add an `INTEGRITY` branch — it fires on every weakness hit and would spam.)
 
-- [ ] **Step 6: Verify build + driver test.** `cd frontend && bun run build && bun test src/battle3d/animationDriver.test.ts`
+- [ ] **Step 6: Verify build + driver test.** `cd frontend && bun run build && bunx vitest run src/battle3d/animationDriver.test.ts`
 Expected: clean build; PASS.
 
 - [ ] **Step 7: Commit.**
@@ -614,7 +614,7 @@ describe('RecycleBinFinisher', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails.** `cd frontend && bun test src/components/RecycleBinFinisher.test.tsx`
+- [ ] **Step 2: Run to verify it fails.** `cd frontend && bunx vitest run src/components/RecycleBinFinisher.test.tsx`
 Expected: FAIL — module does not exist.
 
 - [ ] **Step 3: Implement the component.** Create `frontend/src/components/RecycleBinFinisher.tsx`:
@@ -770,7 +770,7 @@ Create `frontend/src/components/RecycleBinFinisher.css`:
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes.** `cd frontend && bun test src/components/RecycleBinFinisher.test.tsx`
+- [ ] **Step 4: Run to verify it passes.** `cd frontend && bunx vitest run src/components/RecycleBinFinisher.test.tsx`
 Expected: PASS (3 tests).
 
 - [ ] **Step 5: Mount it from BattleHUD.** In `BattleHUD.tsx`, add state for an active finisher and show the overlay when the player commits a delete. The cleanest seam: BattleHUD already routes clicks through `onAct(targetUid, actionType)`. Intercept the delete case — when `selectedAction === 'delete'` and a target is clicked, instead of calling `onAct` immediately, set finisher state; the overlay's `onResolve` then calls `onAct(targetUid, 'delete')`. Add near the top of the `BattleHUD` function body:
@@ -809,7 +809,7 @@ Use `commitTarget` wherever the unit-click currently calls `onAct(uid, ...)`. Th
 
 Add the import at the top: `import { RecycleBinFinisher } from './RecycleBinFinisher'`. (Note: `perfect` is intentionally ignored in 3a — both paths fire the same `onAct`. Plan 3b will branch on it.)
 
-- [ ] **Step 6: Run the BattleHUD tests + build.** `cd frontend && bun test src/components/BattleHUD.test.tsx && bun run build`
+- [ ] **Step 6: Run the BattleHUD tests + build.** `cd frontend && bunx vitest run src/components/BattleHUD.test.tsx && bun run build`
 Expected: PASS + clean build. (If a Task 4 test now goes through `commitTarget`, confirm the delete-arm test still asserts `onSelectAction('delete')` on the button click — that path is unchanged; only the subsequent target click is intercepted.)
 
 - [ ] **Step 7: Commit.**
@@ -825,7 +825,7 @@ git commit -m "feat(combat-ui): recycle-bin drag finisher ceremony"
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Full frontend suite.** `cd frontend && bun test 2>&1 | tail -20`
+- [ ] **Step 1: Full frontend suite.** `cd frontend && bunx vitest run 2>&1 | tail -20`
 Expected: all green (the 84 existing + the new type/HUD/driver/finisher tests). If a pre-existing snapshot/test asserts the exact unit-card DOM and now breaks because of the integrity/burnout bars, update it to accommodate the new elements (do not remove the bars).
 
 - [ ] **Step 2: Production build.** `cd frontend && bun run build`
