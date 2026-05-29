@@ -501,6 +501,21 @@ def _lifesteal(actor: CombatUnit, damage_dealt: int, log: list[dict]) -> None:
         log.append({"type": "LIFESTEAL", "unit": actor.uid, "amount": healed, "hp": actor.hp})
 
 
+def _is_crashed(u: CombatUnit) -> bool:
+    """A unit is Crashed while its vulnerability window is open."""
+    return any(s.kind == StatusEffectKind.VULNERABLE for s in u.statuses)
+
+
+def _can_delete(actor: CombatUnit, target: CombatUnit) -> bool:
+    """Mode 1 (battlebuttonsets.md §5.5): target must be Crashed and at/below the
+    execute HP fraction. High-burnout actors bypass the HP gate (burnout-dump)."""
+    if target.dead or not _is_crashed(target):
+        return False
+    if actor.burnout >= BURNOUT_HIGH:
+        return True
+    return target.hp <= int(target.max_hp * DELETE_EXECUTE_HP_FRAC)
+
+
 def _needs_target_choice(actor: CombatUnit) -> bool:
     """True when this actor's turn would reach the basic-attack branch of _act().
     Used by the interactive simulator to decide whether to pause for player input."""
@@ -559,6 +574,21 @@ def _act(actor: CombatUnit, allies: list[CombatUnit], enemies: list[CombatUnit],
         actor.burnout = max(0, actor.burnout - BURNOUT_DEFEND_SHED)
         log.append({"type": "DEFEND", "unit": actor.uid})
         return 0
+
+    # DELETE: player chose the finisher. Valid only on a Crashed, low-HP enemy
+    # (or any Crashed enemy if the actor is in burnout-dump range). Falls through
+    # to a normal action if invalid so the turn isn't wasted.
+    if action_type == "delete":
+        tgt = next((u for u in enemies if u.uid == forced_target_uid and not u.dead), None)
+        if tgt is not None and _can_delete(actor, tgt):
+            tgt.hp = 0
+            tgt.dead = True
+            if actor.burnout >= BURNOUT_HIGH:
+                actor.burnout = max(0, actor.burnout - BURNOUT_DEFEND_SHED)
+            log.append({"type": "DELETED", "source": actor.uid, "target": tgt.uid})
+            log.append({"type": "DEATH", "unit": tgt.uid})
+            return 0
+        action_type = None  # invalid finisher -> fall through to normal action cascade
 
     # Limit break — auto-fires when gauge full UNLESS player picked a
     # different action. Player "limit" choice forces it if ready, otherwise

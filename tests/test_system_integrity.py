@@ -188,3 +188,52 @@ def test_high_burnout_reduces_damage():
     d_lo = _damage(atk_lo, dfn, 1.0, random.Random(3))[0]
     d_hi = _damage(atk_hi, dfn, 1.0, random.Random(3))[0]
     assert d_hi < d_lo
+
+
+# ---------------------------------------------------------------------------
+# Task 8 — "Deleted" execute action
+# ---------------------------------------------------------------------------
+import random
+from app.combat import _act, _can_delete, StatusEffect
+
+
+def _crashed(uid="e0", hp=200, max_hp=1000, integrity_max=150):
+    d = _mk(uid=uid, hp=hp, max_hp=max_hp, integrity=0, integrity_max=integrity_max,
+            weak_to=[Faction.HELPDESK])
+    d.statuses.append(StatusEffect(kind=StatusEffectKind.VULNERABLE, turns_left=2, value=0.30))
+    return d
+
+
+def test_can_delete_requires_crashed_and_low_hp():
+    actor = _mk(uid="a0", side="A", burnout=0)
+    low = _crashed(hp=200)   # 20% <= 25% threshold
+    high = _crashed(hp=900)  # 90% > threshold
+    assert _can_delete(actor, low) is True
+    assert _can_delete(actor, high) is False
+
+
+def test_high_burnout_can_delete_any_hp():
+    actor = _mk(uid="a0", side="A", burnout=90)
+    high = _crashed(hp=900)
+    assert _can_delete(actor, high) is True  # burnout-dump ignores HP threshold
+
+
+def test_delete_action_kills_target_and_logs():
+    actor = _mk(uid="a0", side="A", faction=Faction.HELPDESK, burnout=0)
+    tgt = _crashed(uid="e0", hp=200)
+    log = []
+    _act(actor, allies=[actor], enemies=[tgt], rng=random.Random(1),
+         log=log, action_type="delete", forced_target_uid="e0")
+    assert tgt.dead is True
+    assert tgt.hp == 0
+    assert any(e["type"] == "DELETED" for e in log)
+
+
+def test_delete_falls_through_when_invalid():
+    actor = _mk(uid="a0", side="A", faction=Faction.HELPDESK, basic_mult=1.0, burnout=0)
+    tgt = _crashed(uid="e0", hp=900)  # too healthy, low burnout -> not deletable
+    log = []
+    _act(actor, allies=[actor], enemies=[tgt], rng=random.Random(1),
+         log=log, action_type="delete", forced_target_uid="e0")
+    assert tgt.dead is False  # fell through to a basic attack
+    assert not any(e["type"] == "DELETED" for e in log)
