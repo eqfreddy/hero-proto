@@ -74,6 +74,9 @@ class StatusEffectKind(StrEnum):
     # by 50% and credits +25 limit gauge on apply. Cleared at start of the
     # defender's next turn (so it covers exactly one enemy attack cycle).
     DEFENDING = "DEFENDING"
+    # Crash mechanic: a Crashed enemy takes amplified incoming damage for the
+    # vulnerability window. value = damage-taken multiplier bonus (e.g. 0.30 = +30%).
+    VULNERABLE = "VULNERABLE"
 
 
 class BattleOutcome(StrEnum):

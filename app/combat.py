@@ -39,6 +39,23 @@ STAR_SCALE_PER_STAR = 0.15  # +15% per star above 1
 # Long AoE teams can produce 300+ entries; trim the middle to stay well under the cap.
 COMBAT_LOG_MAX_ENTRIES = 200
 
+# --- System Integrity (weakness-break) + Burnout tuning (battlebuttonsets.md §6) ---
+WEAKNESS_BREAK = 50          # Integrity removed by a weakness-matching damaging hit.
+OFF_TYPE_INTEGRITY_FACTOR = 0.15  # Off-faction hits remove this fraction of WEAKNESS_BREAK.
+CRASH_STUN_TURNS = 1
+CRASH_VULNERABLE_TURNS = 2
+CRASH_VULNERABLE_VALUE = 0.30     # +30% damage taken while Crashed.
+BURNOUT_MAX = 100
+BURNOUT_PER_HIT = 5
+BURNOUT_PER_SKILL = 10
+BURNOUT_PER_LIMIT = 25
+BURNOUT_DEFEND_SHED = 30
+BURNOUT_HIGH = 75            # >= this: damage/accuracy penalty + desperation unlocked.
+BURNOUT_LOW = 25            # <= this: crit bonus.
+BURNOUT_HIGH_DMG_PENALTY = 0.15
+BURNOUT_LOW_CRIT_BONUS = 0.10
+DELETE_EXECUTE_HP_FRAC = 0.25  # Crashed enemy at/below this HP fraction is Deletable (mode 1).
+
 
 def trim_combat_log(log: list[dict]) -> list[dict]:
     """Cap log length. Keeps first/last entries and inserts a single marker if truncated."""
@@ -136,6 +153,16 @@ class CombatUnit:
     # start of its next turn (overrides stun/freeze), then resets to 0.
     limit_gauge: int = 0
     limit_gauge_max: int = 100
+
+    # --- System Integrity (weakness-break). integrity_max == 0 means "no bar"
+    # (heroes, weaknessless enemies). weak_to lists the factions that drain the
+    # bar at full rate; off-type hits drain OFF_TYPE_INTEGRITY_FACTOR of that.
+    integrity: int = 0
+    integrity_max: int = 0
+    weak_to: list[Faction] = field(default_factory=list)
+    # --- Burnout meter (0..BURNOUT_MAX). Battle-scoped. High = penalty +
+    # desperation; low = crit bonus. Sheds on Defend.
+    burnout: int = 0
 
 
 def _special_scale(level: int) -> float:
