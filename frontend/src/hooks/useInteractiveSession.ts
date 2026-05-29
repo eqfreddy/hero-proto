@@ -24,7 +24,10 @@ export function useInteractiveSession(initialState: InteractiveStateOut | null, 
     setActing(true)
     setError(null)
     try {
-      const next = await actRequest(state.session_id, targetUid, { actionType })
+      const next = await actRequest(state.session_id, targetUid, {
+        actionType,
+        turnNumber: state.pending?.turn_number,
+      })
       setState(next)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed')
