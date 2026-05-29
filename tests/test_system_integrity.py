@@ -118,3 +118,28 @@ def test_integrity_not_refilled_while_vulnerable_persists():
     dfn.statuses.append(StatusEffect(kind=StatusEffectKind.VULNERABLE, turns_left=2, value=0.30))
     _tick_statuses(dfn, [])
     assert dfn.integrity == 0  # still crashed
+
+
+from app.combat import _apply_damage
+
+
+def test_vulnerable_amps_incoming_damage():
+    dfn = _mk(hp=1000, max_hp=1000)
+    dfn.statuses.append(StatusEffect(kind=StatusEffectKind.VULNERABLE, turns_left=2, value=0.30))
+    dealt = _apply_damage(dfn, 100, attacker=None, log=[])
+    assert dealt == 130  # +30%
+
+
+def test_damaging_hit_depletes_integrity_then_crashes():
+    atk = _mk(uid="a0", side="A", faction=Faction.HELPDESK)
+    dfn = _mk(hp=1000, max_hp=1000, integrity=50, integrity_max=150, weak_to=[Faction.HELPDESK])
+    log = []
+    _apply_damage(dfn, 100, attacker=atk, log=log)  # weakness hit removes 50 -> 0 -> crash
+    assert dfn.integrity == 0
+    assert any(e["type"] == "CRASH" for e in log)
+
+
+def test_no_integrity_change_when_no_attacker():
+    dfn = _mk(hp=1000, max_hp=1000, integrity=150, integrity_max=150, weak_to=[Faction.HELPDESK])
+    _apply_damage(dfn, 100, attacker=None, log=[])
+    assert dfn.integrity == 150  # DoT / reflect (no attacker) doesn't break integrity

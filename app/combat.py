@@ -220,6 +220,9 @@ def _apply_damage(
         amount = max(1, int(round(amount * 0.5)))
         if log is not None:
             log.append({"type": "DEFEND_ABSORB", "unit": defender.uid, "amount": amount})
+    vuln = max((s.value for s in defender.statuses if s.kind == StatusEffectKind.VULNERABLE), default=0.0)
+    if vuln > 0:
+        amount = max(1, int(round(amount * (1.0 + vuln))))
     defender.hp = max(0, defender.hp - amount)
     if defender.hp == 0:
         defender.dead = True
@@ -248,6 +251,8 @@ def _apply_damage(
             log.append({"type": "REFLECT", "source": defender.uid, "target": attacker.uid, "amount": actual})
             if attacker.dead:
                 log.append({"type": "DEATH", "unit": attacker.uid})
+    if amount > 0 and attacker is not None and not defender.dead:
+        _deplete_integrity(attacker, defender, log if log is not None else [])
     return amount
 
 
