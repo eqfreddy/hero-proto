@@ -264,6 +264,40 @@ function UnitCard({
         />
       </div>
       <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 2 }}>{unit.hp} / {unit.max_hp}</div>
+      {(unit.integrity_max ?? 0) > 0 && (
+        <div data-testid={`integrity-${unit.uid}`} style={{ marginTop: 3 }}>
+          <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+            <div
+              style={{
+                width: `${Math.max(0, Math.min(1, (unit.integrity ?? 0) / (unit.integrity_max || 1))) * 100}%`,
+                height: '100%',
+                background: unit.crashed ? '#e85a78' : '#5ad8ff',
+                transition: 'width 0.3s',
+              }}
+            />
+          </div>
+          <div style={{ fontSize: 9, color: 'var(--color-muted)', letterSpacing: '0.12em', marginTop: 1 }}>
+            {unit.crashed ? 'CRASHED' : 'INTEGRITY'}
+          </div>
+        </div>
+      )}
+      {(unit.burnout ?? 0) > 0 && (
+        <div data-testid={`burnout-${unit.uid}`} style={{ marginTop: 3 }}>
+          <div style={{ height: 3, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+            <div
+              style={{
+                width: `${Math.max(0, Math.min(100, unit.burnout ?? 0))}%`,
+                height: '100%',
+                background:
+                  (unit.burnout ?? 0) >= 75 ? '#ff5a4d'
+                  : (unit.burnout ?? 0) <= 25 ? '#5ad8a3'
+                  : '#e8a35a',
+                transition: 'width 0.3s',
+              }}
+            />
+          </div>
+        </div>
+      )}
       <StatusStrip statuses={statusList} />
     </div>
   )

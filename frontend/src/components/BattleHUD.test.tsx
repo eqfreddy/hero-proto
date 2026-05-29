@@ -146,4 +146,43 @@ describe('BattleHUD', () => {
 
     expect(onAct).toHaveBeenCalledWith('', 'defend')
   })
+
+  it('renders an integrity bar for enemies with a bar and a burnout meter', () => {
+    const enemy: CombatUnit = {
+      uid: 'enemy-1', name: 'enemy-1', hp: 60, max_hp: 120, atk: 1, def: 1, spd: 1,
+      dead: false, integrity: 75, integrity_max: 150, burnout: 80,
+    }
+    render(
+      <BattleHUD
+        teamA={[makeUnit('hero-1', 80, 100)]}
+        teamB={[enemy]}
+        onAct={undefined}
+        pendingActorUid={null}
+        validTargets={[]}
+        acting={false}
+        done={false}
+        rewards={null}
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('integrity-enemy-1')).toBeTruthy()
+    expect(screen.getByTestId('burnout-enemy-1')).toBeTruthy()
+  })
+
+  it('omits the integrity bar for heroes (integrity_max 0)', () => {
+    render(
+      <BattleHUD
+        teamA={[makeUnit('hero-1', 80, 100)]}
+        teamB={[]}
+        onAct={undefined}
+        pendingActorUid={null}
+        validTargets={[]}
+        acting={false}
+        done={false}
+        rewards={null}
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.queryByTestId('integrity-hero-1')).toBeNull()
+  })
 })
