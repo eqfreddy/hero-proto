@@ -96,7 +96,7 @@ def _unit_from_template(t: HeroTemplate, level: int, side: str, idx: int) -> Com
         special = json.loads(t.special_json or "null")
     except json.JSONDecodeError:
         special = None
-    return build_unit(
+    unit = build_unit(
         uid=f"{side}{idx}",
         side=side,
         name=t.name,
@@ -112,6 +112,12 @@ def _unit_from_template(t: HeroTemplate, level: int, side: str, idx: int) -> Com
         mana_cost=getattr(t, "mana_cost", 10) or 10,
         mana_regen_per_turn=getattr(t, "mana_regen_per_turn", 15) or 15,
     )
+    # System Integrity: enemies built from a template carry a weakness + bar.
+    # Heroes (built via _unit_from_instance) stay inert (integrity_max == 0).
+    unit.weak_to = [Faction(w) for w in json.loads(getattr(t, "weak_to_json", "[]") or "[]")]
+    unit.integrity_max = int(getattr(t, "integrity_base", 0) or 0)
+    unit.integrity = unit.integrity_max  # bar starts full
+    return unit
 
 
 @router.post("", response_model=BattleOut, status_code=status.HTTP_201_CREATED)
@@ -927,6 +933,7 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
             "mana_cost": p.get("mana_cost", 0),
             "limit_gauge": p.get("limit_gauge", 0),
             "limit_gauge_max": p.get("limit_gauge_max", 100),
+            "valid_delete_targets": p.get("valid_delete_targets", []),
         }
 
     current_team_b = session.wave_teams_b[session.wave_idx]
@@ -954,6 +961,7 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
 
 
 def _unit_snap(u) -> dict:
+    from app.combat import _is_crashed
     from app.models import StatusEffectKind
     statuses = sorted({str(s.kind) for s in u.statuses})
     return {
@@ -963,6 +971,8 @@ def _unit_snap(u) -> dict:
         "mana": u.mana, "mana_cost": u.mana_cost,
         "defending": any(s.kind == StatusEffectKind.DEFENDING for s in u.statuses),
         "statuses": statuses,
+        "integrity": u.integrity, "integrity_max": u.integrity_max,
+        "burnout": u.burnout, "crashed": _is_crashed(u),
     }
 
 

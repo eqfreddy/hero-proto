@@ -460,6 +460,12 @@ class HeroTemplate(Base):
     # Milestone legend-boss summon pool. Only MYTH-rarity templates with this
     # flag set are eligible for the legend-boss summon (30 legend_boss_shards).
     is_legend_boss_pool: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    # System Integrity (weakness-break). weak_to_json is a JSON list of Faction
+    # values an enemy built from this template is weak to; integrity_base is the
+    # toughness-bar size when used as an enemy (0 = no bar). Both default inert so
+    # heroes and un-tuned enemies behave exactly as before.
+    weak_to_json: Mapped[str] = mapped_column(String(128), default="[]", server_default="[]")
+    integrity_base: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class HeroInstance(Base):

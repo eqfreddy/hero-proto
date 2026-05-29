@@ -95,7 +95,13 @@ def _cleanup() -> None:
         del _sessions[sid]
 
 
+# Action types the submit path accepts. None = legacy auto-cascade.
+# "delete" resolves a System Integrity finisher (see app/combat.py::_act).
+ALLOWED_ACTION_TYPES = {None, "attack", "skill", "limit", "defend", "delete"}
+
+
 def _unit_snapshot(u: CombatUnit) -> dict:
+    from app.combat import _is_crashed
     from app.models import StatusEffectKind
     defending = any(s.kind == StatusEffectKind.DEFENDING for s in u.statuses)
     statuses = sorted({str(s.kind) for s in u.statuses})
@@ -114,6 +120,10 @@ def _unit_snapshot(u: CombatUnit) -> dict:
         "mana_cost": u.mana_cost,
         "defending": defending,
         "statuses": statuses,
+        "integrity": u.integrity,
+        "integrity_max": u.integrity_max,
+        "burnout": u.burnout,
+        "crashed": _is_crashed(u),
     }
 
 
@@ -300,9 +310,12 @@ def advance_session(
 ) -> None:
     """Validate turn_number, then resume the generator with the player's choice.
 
-    `action_type` is one of {None, "attack", "skill", "limit", "defend"}.
-    None → legacy auto-cascade (limit > special > basic).
+    `action_type` is one of ALLOWED_ACTION_TYPES
+    ({None, "attack", "skill", "limit", "defend", "delete"}); anything else
+    raises ValueError. None → legacy auto-cascade (limit > special > basic).
     """
+    if action_type not in ALLOWED_ACTION_TYPES:
+        raise ValueError(f"unknown action_type: {action_type!r}")
     if session.status == "DONE":
         return
     if turn_number != session.turn_number:

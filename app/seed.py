@@ -1639,6 +1639,27 @@ def seed() -> None:
     with SessionLocal() as db:
         from app.rig_map import rig_for as _rig_for
 
+        # System Integrity: each template gets a stable weakness faction (derived
+        # from its code so it's identical at INSERT and on reconcile) and an
+        # integrity bar sized by rarity, so enemies built from templates are
+        # crashable. Set at creation AND reconciled below (idempotent).
+        _WEAK_ROTATION = [
+            Faction.HELPDESK, Faction.DEVOPS, Faction.EXECUTIVE,
+            Faction.ROGUE_IT, Faction.LEGACY,
+        ]
+        _INTEGRITY_BY_RARITY = {
+            Rarity.COMMON: 50, Rarity.UNCOMMON: 75, Rarity.RARE: 100,
+            Rarity.EPIC: 150, Rarity.LEGENDARY: 200, Rarity.MYTH: 250,
+        }
+
+        def _weak_for(code: str) -> str:
+            idx = sum(ord(c) for c in code) % len(_WEAK_ROTATION)
+            return json.dumps([_WEAK_ROTATION[idx].value])
+
+        def _integ_for(rarity) -> int:
+            r = rarity if isinstance(rarity, Rarity) else Rarity(rarity)
+            return _INTEGRITY_BY_RARITY.get(r, 100)
+
         existing_hero_codes = set(db.scalars(select(HeroTemplate.code)).all())
         added_h = 0
         for h in HERO_SEEDS:
@@ -1653,6 +1674,8 @@ def seed() -> None:
                 special_json=json.dumps(h["special"]),
                 special_cooldown=h["special_cooldown"],
                 rig=_rig_for(h["code"]),
+                weak_to_json=_weak_for(h["code"]),
+                integrity_base=_integ_for(h["rarity"]),
             ))
             added_h += 1
 
@@ -1662,6 +1685,16 @@ def seed() -> None:
             desired = _rig_for(tpl.code)
             if tpl.rig != desired:
                 tpl.rig = desired
+
+        # Reconcile System Integrity on existing rows (prod upgrade path); uses
+        # the same code-derived weakness so values match the INSERT path above.
+        for tpl in db.scalars(select(HeroTemplate)).all():
+            desired_weak = _weak_for(tpl.code)
+            desired_integ = _integ_for(tpl.rarity)
+            if tpl.weak_to_json != desired_weak:
+                tpl.weak_to_json = desired_weak
+            if tpl.integrity_base != desired_integ:
+                tpl.integrity_base = desired_integ
 
         existing_stage_codes = set(db.scalars(select(Stage.code)).all())
         added_s = 0

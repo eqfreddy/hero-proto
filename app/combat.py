@@ -1097,6 +1097,7 @@ def simulate_interactive(
                 turn_number += 1
                 limit_ready = actor.limit_gauge >= actor.limit_gauge_max > 0
                 special_ready = actor.special is not None and actor.special_cooldown_left == 0
+                delete_targets = [u.uid for u in live_enemies if _can_delete(actor, u)]
                 pause_payload = {
                     "type": "PLAYER_TURN",
                     "actor": actor.uid,
@@ -1111,7 +1112,9 @@ def simulate_interactive(
                         "skill":  {"enabled": special_ready, "reason": None if special_ready else ("on cooldown" if actor.special else "no skill")},
                         "limit":  {"enabled": limit_ready, "reason": None if limit_ready else "gauge not full"},
                         "defend": {"enabled": True, "reason": None},
+                        "delete": {"enabled": bool(delete_targets), "reason": None if delete_targets else "no crashed target"},
                     },
+                    "valid_delete_targets": delete_targets,
                     "special_name": (actor.special or {}).get("name") if actor.special else None,
                     "special_kind": (actor.special or {}).get("type") if actor.special else None,
                     "special_cooldown_left": actor.special_cooldown_left,

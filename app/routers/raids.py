@@ -472,6 +472,7 @@ from app.schemas import BattleParticipant, InteractiveActIn, InteractiveStateOut
 
 
 def _unit_snap_r(u) -> dict:
+    from app.combat import _is_crashed
     from app.models import StatusEffectKind
     statuses = sorted({str(s.kind) for s in u.statuses})
     return {
@@ -481,6 +482,8 @@ def _unit_snap_r(u) -> dict:
         "mana": u.mana, "mana_cost": u.mana_cost,
         "defending": any(s.kind == StatusEffectKind.DEFENDING for s in u.statuses),
         "statuses": statuses,
+        "integrity": u.integrity, "integrity_max": u.integrity_max,
+        "burnout": u.burnout, "crashed": _is_crashed(u),
     }
 
 
@@ -505,6 +508,7 @@ def _raid_state_out(session: _ISession, rewards: dict | None = None) -> Interact
             "mana_cost": p.get("mana_cost", 0),
             "limit_gauge": p.get("limit_gauge", 0),
             "limit_gauge_max": p.get("limit_gauge_max", 100),
+            "valid_delete_targets": p.get("valid_delete_targets", []),
         }
     current_b = session.wave_teams_b[session.wave_idx]
     return InteractiveStateOut(
@@ -664,11 +668,10 @@ def raid_interactive_act(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "not your session")
     if session.kind != "raid":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "not a raid session")
-    # Lazy turn-timer expiry — falls through to the DONE-branch finalize
-    # below, which handles boss damage + raid state for a timed-out
-    # attempt (whatever damage was dealt before the freeze).
-    expire_if_stale(session)
-    if session.status == "DONE":
+    # Lazy turn-timer expiry falls through to the finalize block below so
+    # the client receives a final loss/raid-attempt state instead of a 409.
+    expired = expire_if_stale(session)
+    if session.status == "DONE" and not expired:
         raise HTTPException(status.HTTP_409_CONFLICT, "battle already finished")
 
     if body.target_uid:
