@@ -379,6 +379,16 @@ def _is_weakness(attacker: CombatUnit, defender: CombatUnit) -> bool:
     )
 
 
+# Crash debuff flavored by the breaker's faction (battlebuttonsets.md §5.2).
+FACTION_CRASH_DEBUFF: dict[Faction, StatusEffectKind] = {
+    Faction.HELPDESK: StatusEffectKind.STUN,      # extend the stun
+    Faction.LEGACY: StatusEffectKind.BURN,
+    Faction.DEVOPS: StatusEffectKind.DEF_DOWN,
+    Faction.ROGUE_IT: StatusEffectKind.POISON,
+    Faction.EXECUTIVE: StatusEffectKind.HEAL_BLOCK,
+}
+
+
 def _deplete_integrity(attacker: CombatUnit, defender: CombatUnit, log: list[dict]) -> None:
     """Drain the defender's Integrity from a damaging hit. Weakness-matching hits
     remove WEAKNESS_BREAK; off-type hits remove OFF_TYPE_INTEGRITY_FACTOR of that
@@ -396,6 +406,22 @@ def _deplete_integrity(attacker: CombatUnit, defender: CombatUnit, log: list[dic
     })
     if defender.integrity == 0:
         _apply_crash(attacker, defender, log)
+
+
+def _apply_crash(attacker: CombatUnit, defender: CombatUnit, log: list[dict]) -> None:
+    """Crash the defender: skip its next turn (STUN), open a vulnerability window
+    (VULNERABLE amps incoming damage), and apply a debuff flavored by the breaker's
+    faction. Integrity refills when the VULNERABLE window expires (see _tick_statuses)."""
+    defender.statuses.append(StatusEffect(kind=StatusEffectKind.STUN, turns_left=CRASH_STUN_TURNS, value=0.0))
+    defender.statuses.append(StatusEffect(kind=StatusEffectKind.VULNERABLE, turns_left=CRASH_VULNERABLE_TURNS, value=CRASH_VULNERABLE_VALUE))
+    flavored = FACTION_CRASH_DEBUFF.get(attacker.faction) if attacker.faction else None
+    if flavored is not None:
+        defender.statuses.append(StatusEffect(kind=flavored, turns_left=2, value=0.20))
+    log.append({
+        "type": "CRASH", "unit": defender.uid,
+        "by": attacker.uid, "faction": str(attacker.faction) if attacker.faction else None,
+        "debuff": str(flavored) if flavored else None,
+    })
 
 
 def _revive(actor: CombatUnit | None, target: CombatUnit, frac: float, log: list[dict]) -> bool:

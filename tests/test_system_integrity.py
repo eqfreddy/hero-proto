@@ -71,3 +71,31 @@ def test_no_bar_enemy_unaffected():
     _deplete_integrity(atk, dfn, log)
     assert dfn.integrity == 0
     assert log == []
+
+
+from app.combat import _apply_crash, FACTION_CRASH_DEBUFF
+
+
+def test_crash_applies_stun_and_vulnerable():
+    atk = _mk(uid="a0", side="A", faction=Faction.HELPDESK)
+    dfn = _mk(integrity=0, integrity_max=150, weak_to=[Faction.HELPDESK])
+    log = []
+    _apply_crash(atk, dfn, log)
+    kinds = {s.kind for s in dfn.statuses}
+    assert StatusEffectKind.STUN in kinds
+    assert StatusEffectKind.VULNERABLE in kinds
+    assert any(e["type"] == "CRASH" for e in log)
+
+
+def test_crash_flavored_debuff_matches_breaker_faction():
+    atk = _mk(uid="a0", side="A", faction=Faction.LEGACY)
+    dfn = _mk(integrity=0, integrity_max=150, weak_to=[Faction.LEGACY])
+    log = []
+    _apply_crash(atk, dfn, log)
+    assert any(s.kind == FACTION_CRASH_DEBUFF[Faction.LEGACY] for s in dfn.statuses)
+
+
+def test_full_debuff_map_covers_five_factions():
+    for f in (Faction.HELPDESK, Faction.DEVOPS, Faction.EXECUTIVE,
+              Faction.ROGUE_IT, Faction.LEGACY):
+        assert f in FACTION_CRASH_DEBUFF
