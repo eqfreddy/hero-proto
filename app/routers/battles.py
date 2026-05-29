@@ -933,6 +933,7 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
             "mana_cost": p.get("mana_cost", 0),
             "limit_gauge": p.get("limit_gauge", 0),
             "limit_gauge_max": p.get("limit_gauge_max", 100),
+            "valid_delete_targets": p.get("valid_delete_targets", []),
         }
 
     current_team_b = session.wave_teams_b[session.wave_idx]
@@ -960,6 +961,7 @@ def _state_out(session: InteractiveSession, rewards: dict | None = None) -> Inte
 
 
 def _unit_snap(u) -> dict:
+    from app.combat import _is_crashed
     from app.models import StatusEffectKind
     statuses = sorted({str(s.kind) for s in u.statuses})
     return {
@@ -969,6 +971,8 @@ def _unit_snap(u) -> dict:
         "mana": u.mana, "mana_cost": u.mana_cost,
         "defending": any(s.kind == StatusEffectKind.DEFENDING for s in u.statuses),
         "statuses": statuses,
+        "integrity": u.integrity, "integrity_max": u.integrity_max,
+        "burnout": u.burnout, "crashed": _is_crashed(u),
     }
 
 

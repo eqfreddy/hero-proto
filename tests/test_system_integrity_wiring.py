@@ -58,3 +58,49 @@ def test_seed_assigns_weaknesses_and_integrity():
                 assert w in valid
     finally:
         db.close()
+
+
+# --- Task 5: snapshots surface crash/integrity; submit accepts "delete" -------
+
+def _crashed_enemy(uid="B0"):
+    from app.combat import CombatUnit, StatusEffect
+    from app.models import StatusEffectKind, Faction, Role
+    return CombatUnit(
+        uid=uid, side="B", name="e", role=Role.ATK, level=10,
+        max_hp=1000, hp=200, atk=100, def_=50, spd=50, basic_mult=1.0,
+        special=None, special_cooldown_max=0, base_atk=100, base_def=50,
+        integrity=0, integrity_max=150, weak_to=[Faction.HELPDESK], burnout=40,
+        statuses=[StatusEffect(kind=StatusEffectKind.VULNERABLE, turns_left=2, value=0.30)],
+    )
+
+
+def test_snapshot_builders_mark_crashed():
+    from app.interactive import _unit_snapshot
+    from app.routers.battles import _unit_snap
+    from app.routers.raids import _unit_snap_r
+    e = _crashed_enemy()
+    for snap in (_unit_snapshot(e), _unit_snap(e), _unit_snap_r(e)):
+        assert snap["crashed"] is True
+        assert snap["integrity_max"] == 150
+        assert snap["burnout"] == 40
+
+
+def test_delete_in_allowed_action_types():
+    import app.interactive as interactive
+    assert "delete" in interactive.ALLOWED_ACTION_TYPES
+
+
+def test_advance_session_rejects_unknown_action_type():
+    import app.interactive as interactive
+
+    class _Stub:
+        status = "WAITING"
+        turn_number = 1
+    try:
+        interactive.advance_session(
+            _Stub(), turn_number=1, target_uid="B0", action_type="bogus"
+        )
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised, "unknown action_type must be rejected"
