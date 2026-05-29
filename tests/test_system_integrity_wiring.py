@@ -16,6 +16,18 @@ def test_herotemplate_has_weakness_columns():
         db.close()
 
 
+def test_unitsnapshot_has_integrity_burnout_fields():
+    from app.schemas import UnitSnapshot
+    f = UnitSnapshot.model_fields
+    assert "integrity" in f and "integrity_max" in f
+    assert "burnout" in f and "crashed" in f
+
+
+def test_pendingturn_exposes_delete_targets():
+    from app.schemas import PendingTurnOut
+    assert "valid_delete_targets" in PendingTurnOut.model_fields
+
+
 def test_enemy_unit_gets_integrity_and_weakness():
     from app.models import HeroTemplate
     from app.routers.battles import _unit_from_template

@@ -527,6 +527,12 @@ class UnitSnapshot(BaseModel):
     mana_cost: int = 0
     defending: bool = False
     statuses: list[str] = []  # e.g. ["POISON", "SHIELD_UP"]
+    # System Integrity (weakness-break). Defaulted so heroes / un-tuned units
+    # serialize exactly as before (integrity_max == 0 means no bar).
+    integrity: int = 0
+    integrity_max: int = 0
+    burnout: int = 0
+    crashed: bool = False
 
 
 class PendingTurnOut(BaseModel):
@@ -545,6 +551,10 @@ class PendingTurnOut(BaseModel):
     mana_cost: int = 0
     limit_gauge: int = 0
     limit_gauge_max: int = 100
+    # Enemy uids the acting unit may "Delete" this turn (Crashed + low-HP, or
+    # any Crashed enemy if the actor is in burnout-dump range). Empty when none.
+    # When non-empty the snapshot builder adds a "delete" key to `actions`.
+    valid_delete_targets: list[str] = []
 
 
 class InteractiveStateOut(BaseModel):
