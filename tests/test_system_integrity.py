@@ -28,3 +28,46 @@ def test_tuning_constants_present():
     assert WEAKNESS_BREAK > 0
     assert 0 < OFF_TYPE_INTEGRITY_FACTOR < 1
     assert BURNOUT_MAX == 100
+
+
+from app.combat import _is_weakness, _deplete_integrity
+
+
+def test_is_weakness_true_when_attacker_faction_in_weak_to():
+    atk = _mk(uid="a0", side="A", faction=Faction.HELPDESK)
+    dfn = _mk(integrity=150, integrity_max=150, weak_to=[Faction.HELPDESK])
+    assert _is_weakness(atk, dfn) is True
+
+
+def test_is_weakness_false_for_off_type_or_no_bar():
+    atk = _mk(uid="a0", side="A", faction=Faction.DEVOPS)
+    dfn = _mk(integrity=150, integrity_max=150, weak_to=[Faction.HELPDESK])
+    assert _is_weakness(atk, dfn) is False
+    nobar = _mk(faction=Faction.HELPDESK)  # integrity_max defaults 0
+    assert _is_weakness(atk, nobar) is False
+
+
+def test_weakness_hit_drains_full_break():
+    atk = _mk(uid="a0", side="A", faction=Faction.HELPDESK)
+    dfn = _mk(integrity=150, integrity_max=150, weak_to=[Faction.HELPDESK])
+    log = []
+    _deplete_integrity(atk, dfn, log)
+    assert dfn.integrity == 100  # 150 - WEAKNESS_BREAK(50)
+    assert any(e["type"] == "INTEGRITY" for e in log)
+
+
+def test_off_type_hit_drains_reduced():
+    atk = _mk(uid="a0", side="A", faction=Faction.DEVOPS)
+    dfn = _mk(integrity=150, integrity_max=150, weak_to=[Faction.HELPDESK])
+    log = []
+    _deplete_integrity(atk, dfn, log)
+    assert dfn.integrity == 150 - int(50 * 0.15)  # 150 - 7 = 143
+
+
+def test_no_bar_enemy_unaffected():
+    atk = _mk(uid="a0", side="A", faction=Faction.HELPDESK)
+    dfn = _mk()  # integrity_max 0
+    log = []
+    _deplete_integrity(atk, dfn, log)
+    assert dfn.integrity == 0
+    assert log == []

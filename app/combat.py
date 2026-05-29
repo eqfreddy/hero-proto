@@ -369,6 +369,35 @@ def _is_heal_blocked(u: CombatUnit) -> bool:
     return any(s.kind == StatusEffectKind.HEAL_BLOCK for s in u.statuses)
 
 
+def _is_weakness(attacker: CombatUnit, defender: CombatUnit) -> bool:
+    """True when the attacker's faction is one the defender is weak to AND the
+    defender actually has an Integrity bar."""
+    return (
+        defender.integrity_max > 0
+        and attacker.faction is not None
+        and attacker.faction in defender.weak_to
+    )
+
+
+def _deplete_integrity(attacker: CombatUnit, defender: CombatUnit, log: list[dict]) -> None:
+    """Drain the defender's Integrity from a damaging hit. Weakness-matching hits
+    remove WEAKNESS_BREAK; off-type hits remove OFF_TYPE_INTEGRITY_FACTOR of that
+    (the anti-wall valve). No-op on a unit with no bar or one already Crashed
+    (integrity already 0, in the Crash window). Triggers _apply_crash on reaching 0."""
+    if defender.integrity_max <= 0 or defender.integrity <= 0:
+        return
+    weakness = _is_weakness(attacker, defender)
+    amt = WEAKNESS_BREAK if weakness else int(WEAKNESS_BREAK * OFF_TYPE_INTEGRITY_FACTOR)
+    defender.integrity = max(0, defender.integrity - amt)
+    log.append({
+        "type": "INTEGRITY", "unit": defender.uid,
+        "integrity": defender.integrity, "max": defender.integrity_max,
+        "weakness": weakness,
+    })
+    if defender.integrity == 0:
+        _apply_crash(attacker, defender, log)
+
+
 def _revive(actor: CombatUnit | None, target: CombatUnit, frac: float, log: list[dict]) -> bool:
     """Bring `target` back at `frac` of max HP. HEAL_BLOCK suppresses the rez —
     a heal-block on a corpse means it stays down. Returns True if revived."""
