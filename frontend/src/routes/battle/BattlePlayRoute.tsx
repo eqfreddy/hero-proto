@@ -110,6 +110,12 @@ export default function BattlePlayRoute() {
       toast.info(`${eventActor} is defending`)
     } else if (kind === 'TURN_TIMEOUT') {
       toast.error('turn timed out')
+    } else if (kind === 'CRASH') {
+      toast.error(`${eventActor} crashed`)
+    } else if (kind === 'DELETED') {
+      const tgtUid = String(event.target ?? event.target_uid ?? '')
+      const tgtName = tgtUid ? (nameByUid[tgtUid] ?? 'target') : 'target'
+      toast.success(`${tgtName} — DELETED`)
     }
   }, [actorName, nameByUid, pending?.special_name, state?.last_event])
 
