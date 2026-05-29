@@ -41,6 +41,10 @@ export default function BattlePlayRoute() {
 
   const done = state?.status === 'DONE' || state?.done === true
   const pending = state?.pending
+  const currentValidTargets =
+    selectedAction === 'delete'
+      ? (pending?.valid_delete_targets ?? [])
+      : (pending?.valid_targets ?? pending?.enemies?.map((e) => e.uid) ?? [])
   const teamB = state?.team_b ?? []
   const nameByUid: Record<string, string> = {}
   const templateByUid: Record<string, string> = {}
@@ -138,7 +142,7 @@ export default function BattlePlayRoute() {
             lastEvent={state.last_event ?? null}
             done={done}
             templateByUid={templateByUid}
-            validTargets={pending?.valid_targets ?? pending?.enemies?.map(e => e.uid) ?? []}
+            validTargets={currentValidTargets}
             onAct={pending ? (targetUid) => executeAction(targetUid, selectedAction) : undefined}
           />
         </Suspense>
@@ -155,7 +159,7 @@ export default function BattlePlayRoute() {
         pendingActorUid={pending?.actor_uid ?? null}
         pending={pending ?? null}
         selectedAction={selectedAction}
-        validTargets={pending?.valid_targets ?? pending?.enemies?.map(e => e.uid) ?? []}
+        validTargets={currentValidTargets}
         acting={acting}
         done={done}
         rewards={rewards}
