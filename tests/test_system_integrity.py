@@ -99,3 +99,22 @@ def test_full_debuff_map_covers_five_factions():
     for f in (Faction.HELPDESK, Faction.DEVOPS, Faction.EXECUTIVE,
               Faction.ROGUE_IT, Faction.LEGACY):
         assert f in FACTION_CRASH_DEBUFF
+
+
+from app.combat import _tick_statuses, StatusEffect
+
+
+def test_integrity_refills_when_vulnerable_expires():
+    dfn = _mk(integrity=0, integrity_max=150, weak_to=[Faction.HELPDESK])
+    dfn.statuses.append(StatusEffect(kind=StatusEffectKind.VULNERABLE, turns_left=1, value=0.30))
+    log = []
+    _tick_statuses(dfn, log)
+    assert dfn.integrity == 150  # refilled to max
+    assert not any(s.kind == StatusEffectKind.VULNERABLE for s in dfn.statuses)
+
+
+def test_integrity_not_refilled_while_vulnerable_persists():
+    dfn = _mk(integrity=0, integrity_max=150, weak_to=[Faction.HELPDESK])
+    dfn.statuses.append(StatusEffect(kind=StatusEffectKind.VULNERABLE, turns_left=2, value=0.30))
+    _tick_statuses(dfn, [])
+    assert dfn.integrity == 0  # still crashed

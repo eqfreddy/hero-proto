@@ -313,6 +313,13 @@ def _tick_statuses(unit: CombatUnit, log: list[dict]) -> None:
             new_statuses.append(s)
         else:
             log.append({"type": "STATUS_EXPIRED", "unit": unit.uid, "kind": str(s.kind)})
+    # If the Crash window (VULNERABLE) just ended, refill Integrity so the
+    # enemy can be Crashed again later.
+    had_vulnerable = any(s.kind == StatusEffectKind.VULNERABLE for s in unit.statuses)
+    still_vulnerable = any(s.kind == StatusEffectKind.VULNERABLE for s in new_statuses)
+    if had_vulnerable and not still_vulnerable and unit.integrity_max > 0:
+        unit.integrity = unit.integrity_max
+        log.append({"type": "INTEGRITY_RESTORED", "unit": unit.uid, "integrity": unit.integrity})
     unit.statuses = new_statuses
 
 
