@@ -39,15 +39,15 @@ describe('postInteractiveStart', () => {
 })
 
 describe('postAct', () => {
-  it('posts target_uid to /battles/interactive/:sessionId/act', async () => {
+  it('posts target_uid and turn_number to /battles/interactive/:sessionId/act', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ session_id: 'abc', pending: null, team_a: [], team_b: [] }),
     })
-    await postAct('abc', 'unit-uid-1')
+    await postAct('abc', 'unit-uid-1', { turnNumber: 4 })
     expect(mockFetch).toHaveBeenCalledWith(
       '/battles/interactive/abc/act',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ target_uid: 'unit-uid-1' }) }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ target_uid: 'unit-uid-1', turn_number: 4 }) }),
     )
   })
 })

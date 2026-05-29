@@ -18,7 +18,7 @@ interface BattleHUDProps {
   validTargets: string[]
   acting: boolean
   done: boolean
-  rewards: Record<string, number> | null
+  rewards: Record<string, unknown> | null
   onClose: () => void
   templateByUid?: Record<string, string>
   turnStartedAt?: number | null
@@ -423,6 +423,41 @@ function ActionBar({ pending, onAct, onSelectAction, disabled, selectedAction }:
   )
 }
 
+function rewardLines(rewards: Record<string, unknown> | null): string[] {
+  if (!rewards) return []
+  const lines: string[] = []
+  for (const [key, value] of Object.entries(rewards)) {
+    if (key.startsWith('_') || key === 'completed_daily_quest_ids' || key === 'milestone_unlocks') continue
+    if (typeof value === 'number') {
+      if (value > 0) lines.push(`+${value.toLocaleString()} ${key}`)
+      continue
+    }
+    if (key === 'gear' && value && typeof value === 'object') {
+      const gear = value as Record<string, unknown>
+      const rarity = String(gear.rarity ?? '').replace(/^Rarity\./, '')
+      const slot = String(gear.slot ?? '').replace(/^GearSlot\./, '')
+      const mailed = gear.mailboxed ? ' mailed' : ''
+      if (rarity || slot) lines.push(`${rarity} ${slot} gear${mailed}`.trim())
+      continue
+    }
+    if (key === 'materials' && Array.isArray(value)) {
+      for (const material of value) {
+        if (!material || typeof material !== 'object') continue
+        const row = material as Record<string, unknown>
+        const qty = Number(row.qty ?? 0)
+        const code = String(row.code ?? 'material')
+        if (qty > 0) lines.push(`+${qty.toLocaleString()} ${code}`)
+      }
+      continue
+    }
+    if (key === 'collection_drop' && value && typeof value === 'object') {
+      const drop = value as Record<string, unknown>
+      lines.push(`Collection piece: ${String(drop.name ?? drop.piece_code ?? 'new piece')}`)
+    }
+  }
+  return lines
+}
+
 export function BattleHUD({
   teamA,
   teamB,
@@ -447,6 +482,7 @@ export function BattleHUD({
   const showActionBar = !!pending && !!onAct && !done
   const allUnits = [...teamA, ...teamB]
   const selectedAction = controlledSelectedAction ?? localSelectedAction
+  const rewardText = rewardLines(rewards)
 
   useEffect(() => {
     if (!pending) return
@@ -512,10 +548,14 @@ export function BattleHUD({
           pointerEvents: 'auto',
         }}>
           <div style={{ background: 'var(--color-surface)', borderRadius: 12, padding: 32, textAlign: 'center', minWidth: 260 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', marginBottom: 16 }}>Battle Complete</div>
-            {rewards && Object.entries(rewards).filter(([, value]) => value > 0).map(([key, value]) => (
-              <div key={key} style={{ fontSize: 14, color: 'var(--color-muted)', marginBottom: 4 }}>+{value} {key}</div>
-            ))}
+            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text)', marginBottom: 8 }}>Battle Complete</div>
+            {rewardText.length > 0 ? rewardText.map((line) => (
+              <div key={line} style={{ fontSize: 14, color: 'var(--color-muted)', marginBottom: 4 }}>{line}</div>
+            )) : (
+              <div style={{ fontSize: 14, color: 'var(--color-muted)', marginBottom: 4 }}>
+                No loot this time. Run it back.
+              </div>
+            )}
             <button
               onClick={onClose}
               style={{

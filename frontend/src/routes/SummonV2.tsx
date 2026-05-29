@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../hooks/useMe'
 import { useHeroes } from '../hooks/useHeroes'
-import { pullStandard } from '../api/summon'
+import { pullStandard, type SummonPullOutcome } from '../api/summon'
 import { fetchFriendPoints, summonFriendBanner } from '../api/friendPoints'
 import { toast } from '../store/ui'
 import type { Hero } from '../types'
@@ -33,6 +33,53 @@ function arenaEdgeCopy(rating: number | undefined): string {
   if (score >= 1800) return 'Your bracket is already serious. One hit banner upgrades can turn a good defense into a miserable one.'
   if (score >= 1400) return 'You are close enough for one strong pull to swing the next bracket and force harder counters.'
   return 'Better pulls make the campaign easier and the ladder stop feeling uphill.'
+}
+
+function summaryTone(pity: number, softHit: boolean): 'heated' | 'base' {
+  if (pity >= 45 || softHit) return 'heated'
+  return 'base'
+}
+
+function rosterPressureCopy(heroes: Hero[] | undefined): { title: string; body: string } {
+  if (!heroes?.length) {
+    return {
+      title: 'Fresh account pressure',
+      body: 'You do not have enough bodies online yet, so every quality hit is still a direct roster unlock.',
+    }
+  }
+
+  const premiumCount = heroes.filter((hero) => ['EPIC', 'LEGENDARY', 'MYTH'].includes(hero.template.rarity)).length
+  const uniqueRoles = new Set(heroes.slice(0, 6).map((hero) => hero.template.role)).size
+  const uniqueFactions = new Set(heroes.map((hero) => hero.template.faction)).size
+
+  if (premiumCount === 0) {
+    return {
+      title: 'No closer online',
+      body: 'You still do not own a real premium carry, so one banner hit can completely change both campaign pace and arena threat.',
+    }
+  }
+  if (premiumCount === 1) {
+    return {
+      title: 'One premium carry only',
+      body: 'The roster has a headliner, but not enough support around it yet. Another real hit makes the whole account less one-note.',
+    }
+  }
+  if (uniqueRoles < 3) {
+    return {
+      title: 'Role coverage is thin',
+      body: 'Your top crew is still missing one lane of pressure. Summons that widen role coverage make team-building stop feeling solved too early.',
+    }
+  }
+  if (uniqueFactions < 2) {
+    return {
+      title: 'Faction pool is shallow',
+      body: 'Right now the account leans too hard on one camp. More faction depth gives you cleaner pivots when a stage or arena meta gets annoying.',
+    }
+  }
+  return {
+    title: 'Roster still has room',
+    body: 'The account is functional now, which means good pulls stop being survival and start being leverage. That is the dangerous spend zone.',
+  }
 }
 
 function HeroPromoArt({ hero, className }: { hero: Hero | null; className?: string }) {
@@ -70,7 +117,7 @@ export function SummonV2Route() {
   const [pulling, setPulling] = useState(false)
   const [lastPull, setLastPull] = useState<Hero[] | null>(null)
   const [banner, setBanner] = useState<BannerKind>('STD')
-  const [revealState, setRevealState] = useState<{ heroes: Hero[]; pullCount: 1 | 10 } | null>(null)
+  const [revealState, setRevealState] = useState<{ heroes: Hero[]; outcomes: SummonPullOutcome[]; pullCount: 1 | 10 } | null>(null)
 
   const pity = me?.pulls_since_epic ?? 0
   const pityPct = Math.min(100, (pity / PITY_CAP) * 100)
@@ -88,12 +135,16 @@ export function SummonV2Route() {
   const fpCap = fp?.fp_pity_threshold ?? 50
   const fpPityPct = Math.min(100, (fpPity / fpCap) * 100)
   const canFriendPull = fpBalance >= fpCost && !pulling
+  const pityState = pity >= 45 ? 'critical' : softHit ? 'heated' : pity >= 20 ? 'warming' : 'cold'
+  const x1Tone = usingFreePull ? 'free' : pity >= 45 ? 'critical' : softHit ? 'heated' : 'base'
+  const x10Tone = pity >= 45 ? 'sweep-critical' : summaryTone(pity, softHit)
 
   const featuredHero = useMemo(() => {
     if (!heroes?.length) return null
     const rare = heroes.find((h) => ['EPIC', 'LEGENDARY', 'MYTH'].includes(h.template.rarity))
     return rare ?? null
   }, [heroes])
+  const rosterPressure = useMemo(() => rosterPressureCopy(heroes), [heroes])
 
   const standardPressureCards = [
     {
@@ -112,6 +163,18 @@ export function SummonV2Route() {
       title: 'Arena edge',
       body: arenaEdgeCopy(me?.arena_rating),
     },
+    {
+      title: rosterPressure.title,
+      body: rosterPressure.body,
+    },
+    {
+      title: pity >= 45 ? 'Now or never territory' : softHit ? 'Banner is heating up' : 'No free lunch',
+      body: pity >= 45
+        ? 'The next few pulls are the exact zone where spend and competitive itch start talking to each other.'
+        : softHit
+          ? 'The meter is hot enough that even one pull feels different now. This is where people start hovering.'
+          : 'You are still early, so the smart pitch is free value, roster growth, and lining up the next pity spike.',
+    },
   ]
 
   const faction = me?.faction ?? 'EXILE'
@@ -125,7 +188,7 @@ export function SummonV2Route() {
       setLastPull(res.heroes)
       qc.invalidateQueries({ queryKey: ['me'] })
       qc.invalidateQueries({ queryKey: ['heroes'] })
-      setRevealState({ heroes: res.heroes, pullCount: count })
+      setRevealState({ heroes: res.heroes, outcomes: res.outcomes, pullCount: count })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'pull failed')
     } finally {
@@ -143,7 +206,7 @@ export function SummonV2Route() {
       qc.invalidateQueries({ queryKey: ['heroes'] })
       qc.invalidateQueries({ queryKey: ['friend-points'] })
       if (res.hero) {
-        setRevealState({ heroes: [res.hero], pullCount: 1 })
+        setRevealState({ heroes: [res.hero], outcomes: [res], pullCount: 1 })
       } else {
         navigate('/app/summon/results', { state: { heroes: [], pullCount: 1 } })
       }
@@ -188,7 +251,7 @@ export function SummonV2Route() {
       )}
 
       {banner === 'STD' ? (
-        <div className="sum-banner corner-ticks">
+        <div className={`sum-banner corner-ticks pity-${pityState}`}>
           <span className="tbl" />
           <span className="tbr" />
           <div className="grid" />
@@ -251,7 +314,7 @@ export function SummonV2Route() {
       )}
 
       {banner === 'STD' ? (
-        <div className="sum-pity">
+        <div className={`sum-pity pity-${pityState}`}>
           <div className="row">
             <span className="label">
               PITY - <b>KERNEL_DUMP</b>
@@ -270,6 +333,15 @@ export function SummonV2Route() {
               {softHit && <span className="softpity"> - SOFT PITY +{Math.min(100, (pity - SOFT_PITY + 1) * 5)}% epic</span>}
             </span>
             <span>+{pullsToEpic} pulls</span>
+          </div>
+          <div className="sum-pity-callout">
+            {pity >= 45
+              ? 'Critical: the next click should feel expensive in a good way.'
+              : softHit
+                ? 'Soft pity online: this banner is officially warm.'
+                : usingFreePull
+                  ? 'Free pull loaded: take the free swing before spending shards.'
+                  : 'Cold start: build the meter or wait for a better moment.'}
           </div>
         </div>
       ) : (
@@ -300,13 +372,13 @@ export function SummonV2Route() {
 
       {banner === 'STD' ? (
         <div className="sum-cta">
-          <button type="button" className="sum-btn" disabled={!canX1} onClick={() => pull(1)}>
+          <button type="button" className={`sum-btn tone-${x1Tone}`} disabled={!canX1} onClick={() => pull(1)}>
             {pulling ? '...' : usingFreePull ? 'FREE PULL x1' : 'SUMMON x1'}
             <span className="cost">
               {usingFreePull ? `${freeCredits} credit${freeCredits === 1 ? '' : 's'} loaded` : `${COST_X1} shards`}
             </span>
           </button>
-          <button type="button" className="sum-btn lg" disabled={!canX10} onClick={() => pull(10)}>
+          <button type="button" className={`sum-btn lg tone-${x10Tone}`} disabled={!canX10} onClick={() => pull(10)}>
             {pulling ? '...' : 'SUMMON x10'}
             <span className="cost">
               <b>{COST_X10} shards</b> - 1 guaranteed 4*+
@@ -390,7 +462,7 @@ export function SummonV2Route() {
 
       {revealState && (
         <SummonRevealOverlay
-          heroes={revealState.heroes}
+          outcomes={revealState.outcomes}
           pullCount={revealState.pullCount}
           onContinue={() => {
             navigate('/app/summon/results', { state: revealState })

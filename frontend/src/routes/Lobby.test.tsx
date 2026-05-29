@@ -30,6 +30,9 @@ vi.mock('../hooks/useMe', () => ({
       pending_arena_rewards: [],
       pulls_since_epic: 0,
       stages_cleared: [],
+      tutorial_cleared: false,
+      has_summoned: false,
+      has_battled: false,
       arena_rating: 1200,
       arena_wins: 0,
       arena_losses: 0,
@@ -122,8 +125,14 @@ describe('LobbyRoute', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: /Command Deck/i })).toBeInTheDocument()
     expect(screen.getByText(/Today's Ops/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Clear the tutorial ticket/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /Run Tutorial/i }).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /Open Holotable/i })).toBeInTheDocument()
+    expect(screen.getByText(/Do This Now/i)).toBeInTheDocument()
+    expect(screen.getByText(/HOT/i)).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: /Holotable/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: /Black Market/i })).toBeInTheDocument()
+    expect(screen.getAllByText(/No premium closer online/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/The Consultant/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/12 members/i).length).toBeGreaterThan(0)
   })

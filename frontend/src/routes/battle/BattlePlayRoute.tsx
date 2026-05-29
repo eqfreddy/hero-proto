@@ -31,10 +31,9 @@ export default function BattlePlayRoute() {
     encounterType === 'raid' ? { act: postRaidInteractiveAct } : undefined,
   )
 
-  // Auto-play: the stage flow defaults to "Watch in 3D" — we pick the
-  // lowest-HP valid target each turn so the player can chill and watch.
-  // Toggle off to play manually (skill/limit/specific-target choice).
-  const [autoPlay, setAutoPlay] = useState(true)
+  // Manual first: players should immediately see and use combat verbs.
+  // Auto remains a convenience toggle, not the default first impression.
+  const [autoPlay, setAutoPlay] = useState(false)
   const [selectedAction, setSelectedAction] = useState<ActionType>('attack')
   const autoTimerRef = useRef<number | null>(null)
   const toastEventRef = useRef<Record<string, unknown> | null>(null)
@@ -77,7 +76,7 @@ export default function BattlePlayRoute() {
       const hp = unit?.hp ?? Infinity
       if (hp < bestHp) { bestHp = hp; bestUid = uid }
     }
-    autoTimerRef.current = window.setTimeout(() => { act(bestUid) }, AUTO_PLAY_DELAY_MS)
+    autoTimerRef.current = window.setTimeout(() => { act(bestUid, 'attack') }, AUTO_PLAY_DELAY_MS)
     return () => {
       if (autoTimerRef.current !== null) {
         window.clearTimeout(autoTimerRef.current)
@@ -187,7 +186,7 @@ export default function BattlePlayRoute() {
             letterSpacing: 0.4, cursor: 'pointer', backdropFilter: 'blur(6px)',
           }}
         >
-          {autoPlay ? '⚡ AUTO' : '⏸ MANUAL'}
+          {autoPlay ? 'AUTO' : 'MANUAL'}
         </button>
       )}
 

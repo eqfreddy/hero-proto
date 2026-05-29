@@ -274,3 +274,112 @@ Save the resulting mp3s as `app/static/voice/<template_code>_<event>.mp3`, e.g.:
 - `app/static/voice/ticket_gremlin_special.mp3`
 
 That matches the BGM path pattern (`app/static/bgm/...`) and the frontend wiring will be a simple lookup keyed on `template_code` + event type.
+> [Pasted text #8 +20 lines] > [Pasted text #8 +20 lines] > [Pasted text #8 +20 lines] 
+
+NODE_ENV=production
+  PORT=3000
+  DB_PATH=/var/lib/mongoose/msp.db
+  MASTER_KEY=HEnZms3qKUAuPFKvWVGms7+24JA8hTQ0bXahDDrF0rk=
+  JWT_SECRET=9b23276ee959e68e72c5a1c4fe02c80bdaff351f015f7f024018361400f1a8ec
+  ENROLLMENT_TOKEN=91aa8b9236cb7631bd8dbb3176980316794cd231a9999cf3ced63fd7cc9eb01b
+  
+  Steweredress1!Steweredress1!
+  
+   Two layers, both need to allow them:
+
+  1. Cloudflare Access (lets them past the front door)
+
+  CF Zero Trust → Access → Applications → mongoose-admin → Edit → Policies tab → add their email to the Allow list. Save.
+
+  2. Mongoose user account (lets them into the app)
+
+  Login as admin in the UI → Settings → "+ Add User" → username, password, role: tech (or admin if they need user-management).
+
+  Then they:
+  - Open https://app.mongoose.support/app
+  - CF emails them a one-time PIN → enter it
+  - Mongoose login screen → use the credentials you set
+
+  If you want to skip the PIN-every-session pattern, switch the CF Access policy from "One-time PIN" to a real IdP (Google / Microsoft / GitHub) — they sign in once with their existing
+  identity and CF remembers them.
+  
+  1. Zero Trust → Access → Applications
+  2. Click mongoose-admin (the app you created)
+  3. Policies tab (top)
+  4. Click your existing Allow policy (probably named something like "admin-only")
+  5. Under Configure rules → in the Include section there's an Emails field with your email
+  6. Add the other tech's email — comma-separated, or hit "+ Add include" for a new row
+  7. Save
+  
+  Step 1 — Studio (do this for the bark script)
+  1. Top nav → Studio (or "Projects" depending on version)
+  2. New project → paste each hero block from the bark md as a separate
+  paragraph
+  3. Pick voice from Voice Library — search "narrator" or "gravel" — assign to
+  all lines
+  4. For the 6 outlier voices I flagged in the script ([VOICE: ...]), create
+  separate mini-projects with different voices
+  5. Render → batch-download zip
+
+  That alone burns ~9-15k credits depending on quality tier.
+
+  Step 2 — Sound Effects (separate page)
+  1. Top nav → Sound Effects
+  2. Prompt one at a time, 4-second clips. Burn through this list:
+    - "8-bit gacha pull whoosh ending in chime"
+    - "epic mythic rarity reveal fanfare 3 seconds"
+    - "legendary tier reveal chime"
+    - "epic tier reveal sting"
+    - "rare tier subtle chime"
+    - "common tier soft ding"
+    - "critical hit splash impact"
+    - "metallic sword swing"
+    - "magic zap"
+    - "heavy armor block thud"
+    - "heroic victory fanfare 3 seconds"
+    - "defeated sigh dramatic"
+    - "button click ui sci-fi"
+
+  Step 2 — Sound Effects (separate page)
+  1. Top nav → Sound Effects
+  2. Prompt one at a time, 4-second clips. Burn through this list:
+    - "8-bit gacha pull whoosh ending in chime"
+    - "epic mythic rarity reveal fanfare 3 seconds"
+    - "legendary tier reveal chime"
+    - "epic tier reveal sting"
+    - "rare tier subtle chime"
+    - "common tier soft ding"
+    - "critical hit splash impact"
+    - "metallic sword swing"
+    - "magic zap"
+    - "heavy armor block thud"
+    - "heroic victory fanfare 3 seconds"
+    - "defeated sigh dramatic"
+    - "button click ui sci-fi"
+    - "level up chime ascending"
+    - "milestone unlocked sting"
+    - "gear equip metallic clack"
+    - "10-pull gacha crescendo 4 seconds"
+    - "kernel panic alarm 2 seconds"
+    - "data corruption glitch effect"
+    - "boss intro ominous drone"
+    - "shield activate energy hum"
+    - "healing chime warm"
+    - "buff applied positive sting"
+    - "debuff applied negative sting"
+    - "stun impact reverb"
+    - "poison tick squelch"
+    - "revive resurrection chime epic"
+    - "freeze ice crack"
+    - "fire dot crackle"
+    - "menu open swoosh sci-fi"
+
+  30 SFX × 100-ish credits each = ~3k credits.
+
+  Step 3 — Ignore everything else
+
+  Skip: Voice Design (custom voice creation — premium, slow), Conversational AI (overkill), Music (we're already covered), Dubbing (not relevant).
+
+  Total burn: ~15-20k credits in maybe 90 min. Still leaves ~30k for alt takes / longer narrator monologues if you've got patience.
+
+  Want me to draft the SFX list as a copy-paste block formatted for ElevenLabs?

@@ -74,7 +74,7 @@ vi.mock('../hooks/useHeroes', () => ({
 }))
 
 vi.mock('../api/summon', () => ({
-  pullStandard: async () => ({ heroes: [] }),
+  pullStandard: async () => ({ heroes: [], outcomes: [] }),
 }))
 
 vi.mock('../api/friendPoints', () => ({
@@ -100,5 +100,7 @@ describe('SummonV2Route', () => {
     expect(screen.getByText(/1 free pull is loaded/i)).toBeInTheDocument()
     expect(screen.getByText(/43\/50 pity/i)).toBeInTheDocument()
     expect(screen.getByText(/arena edge/i)).toBeInTheDocument()
+    expect(screen.getByText(/One premium carry only/i)).toBeInTheDocument()
+    expect(screen.getByText(/Soft pity online/i)).toBeInTheDocument()
   })
 })

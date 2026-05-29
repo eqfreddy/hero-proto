@@ -65,10 +65,11 @@ export interface InteractiveParticipant {
 export interface InteractiveStateOut {
   session_id: string
   status?: string
+  log_delta?: BattleLog[]
   team_a: CombatUnit[]
   team_b: CombatUnit[]
   pending: InteractivePending | null
-  rewards?: Record<string, number>
+  rewards?: Record<string, unknown>
   done?: boolean
   battle_id?: number
   stage_code?: string | null

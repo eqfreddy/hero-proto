@@ -35,6 +35,7 @@ interface HeroPortraitProps {
   imageStyle?: CSSProperties
   showFactionTag?: boolean
   showRoleBadge?: boolean
+  artPriority?: 'card' | 'portrait' | 'bust'
 }
 
 export function HeroPortrait({
@@ -47,18 +48,26 @@ export function HeroPortrait({
   imageStyle,
   showFactionTag = true,
   showRoleBadge = true,
+  artPriority = 'card',
 }: HeroPortraitProps) {
-  const [imageStage, setImageStage] = useState<'portrait' | 'bust' | 'placeholder'>('portrait')
+  const fallbackOrder = artPriority === 'portrait'
+    ? ['portrait', 'card', 'bust', 'placeholder'] as const
+    : artPriority === 'bust'
+      ? ['bust', 'card', 'portrait', 'placeholder'] as const
+      : ['card', 'bust', 'portrait', 'placeholder'] as const
+  const [imageStage, setImageStage] = useState<(typeof fallbackOrder)[number]>(fallbackOrder[0])
   const [roleBadgeHidden, setRoleBadgeHidden] = useState(false)
   const [frameHidden, setFrameHidden] = useState(false)
 
   const frameCode = FRAME_BY_RARITY[rarity]
   const accent = FACTION_ACCENT[faction] ?? '#9ca7b3'
-  const src = imageStage === 'portrait'
-    ? assetUrl(`/app/static/heroes/${code}.svg`)
-    : imageStage === 'bust'
-      ? assetUrl(`/app/static/heroes/busts/${code}.png`)
-      : `/app/placeholder/hero/${code}.svg`
+  const src = imageStage === 'card'
+    ? assetUrl(`/app/static/heroes/cards/${code}.png`)
+    : imageStage === 'portrait'
+      ? assetUrl(`/app/static/heroes/${code}.svg`)
+      : imageStage === 'bust'
+        ? assetUrl(`/app/static/heroes/busts/${code}.png`)
+        : `/app/placeholder/hero/${code}.svg`
 
   return (
     <div
@@ -89,8 +98,8 @@ export function HeroPortrait({
         alt={name}
         onError={() => {
           setImageStage((stage) => {
-            if (stage === 'portrait') return 'bust'
-            if (stage === 'bust') return 'placeholder'
+            const currentIndex = fallbackOrder.indexOf(stage)
+            if (currentIndex >= 0 && currentIndex < fallbackOrder.length - 1) return fallbackOrder[currentIndex + 1]
             return stage
           })
         }}
@@ -99,8 +108,9 @@ export function HeroPortrait({
           inset: 0,
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
-          objectPosition: 'top',
+          objectFit: 'contain',
+          objectPosition: 'center bottom',
+          padding: imageStage === 'card' ? '4px' : '0',
           ...imageStyle,
         }}
       />

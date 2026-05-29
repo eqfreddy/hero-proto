@@ -30,6 +30,14 @@ const hero = {
   instance_ids: [7],
 }
 
+const outcome = {
+  hero,
+  rarity: hero.template.rarity,
+  pulled_epic_pity: false,
+  is_duplicate: true,
+  shards_granted: 15,
+}
+
 describe('SummonRevealOverlay', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -42,7 +50,7 @@ describe('SummonRevealOverlay', () => {
   it('steps through the commander briefing and unlocks continue', () => {
     const onContinue = vi.fn()
 
-    render(<SummonRevealOverlay heroes={[hero]} pullCount={1} onContinue={onContinue} />)
+    render(<SummonRevealOverlay outcomes={[outcome]} pullCount={1} onContinue={onContinue} />)
 
     expect(screen.getByText(/Incoming recruit signal/i)).toBeInTheDocument()
     act(() => {
@@ -54,8 +62,30 @@ describe('SummonRevealOverlay', () => {
     })
     const continueButton = screen.getByRole('button', { name: /Continue To Dossier/i })
     expect(continueButton).toBeInTheDocument()
+    expect(screen.getAllByText(/\+15 shards/i)).toHaveLength(2)
 
     continueButton.click()
     expect(onContinue).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows an intake board for x10 sweeps', () => {
+    render(
+      <SummonRevealOverlay
+        outcomes={[
+          outcome,
+          { ...outcome, hero: { ...hero, id: 8, template: { ...hero.template, code: 'agile_coach', name: 'Agile Coach', rarity: 'EPIC' } }, is_duplicate: false, shards_granted: 0 },
+          { ...outcome, hero: { ...hero, id: 9, template: { ...hero.template, code: 'jaded_intern', name: 'Jaded Intern', rarity: 'RARE' } }, is_duplicate: false, shards_granted: 0 },
+          { ...outcome, hero: { ...hero, id: 10, template: { ...hero.template, code: 'applecrumb', name: 'Applecrumb', rarity: 'COMMON' } }, shards_granted: 5 },
+        ]}
+        pullCount={10}
+        onContinue={() => {}}
+      />,
+    )
+
+    expect(screen.getByText(/Multi-signal sweep/i)).toBeInTheDocument()
+    expect(screen.getByText(/Intake Board/i)).toBeInTheDocument()
+    expect(screen.getByText(/4 contacts/i)).toBeInTheDocument()
+    expect(screen.getByText(/Agile Coach/i)).toBeInTheDocument()
+    expect(screen.getByText(/Dups 2/i)).toBeInTheDocument()
   })
 })

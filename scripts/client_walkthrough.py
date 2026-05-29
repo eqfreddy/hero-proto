@@ -176,15 +176,28 @@ async def tour_me_currencies(s: Session) -> None:
 
 async def tour_summons_roster(s: Session) -> None:
     _section("3. Gacha — summon x10 + roster fetch")
+    roster_before = await s.get("/heroes/mine")
     pulls = await s.post("/summon/x10", expect=201)
     if not isinstance(pulls, list) or len(pulls) != 10:
         _fail(f"x10 should return 10 summons, got {type(pulls).__name__} len={len(pulls) if isinstance(pulls, list) else 'n/a'}")
     _ok(f"x10 returned {len(pulls)} heroes")
 
     roster = await s.get("/heroes/mine")
-    if len(roster) < 10:
-        _fail(f"/heroes/mine only shows {len(roster)} after x10")
-    _ok(f"roster lists {len(roster)} heroes; top power = {max(h['power'] for h in roster)}")
+    non_duplicates = sum(1 for pull in pulls if not pull.get("is_duplicate"))
+    duplicate_count = sum(1 for pull in pulls if pull.get("is_duplicate"))
+    shard_credit_total = sum(int(pull.get("shards_granted", 0) or 0) for pull in pulls)
+    roster_gain = len(roster) - len(roster_before)
+    if roster_gain != non_duplicates:
+        _fail(
+            "roster growth mismatch after x10: "
+            f"+{roster_gain} roster rows, expected +{non_duplicates} from non-duplicate pulls",
+        )
+    if duplicate_count > 0 and shard_credit_total <= 0:
+        _fail("duplicate pulls returned but no shard credit was granted")
+    _ok(
+        f"roster +{roster_gain} bodies / {duplicate_count} dupes / +{shard_credit_total} shards; "
+        f"top power = {max(h['power'] for h in roster)}",
+    )
 
 
 async def tour_battle(s: Session) -> dict:

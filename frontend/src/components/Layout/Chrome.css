@@ -156,6 +156,7 @@
   transition: color 0.15s;
 }
 .playnav-item .ico {
+  position: relative;
   width: 34px; height: 34px;
   border: 2px solid currentColor;
   display: flex; align-items: center; justify-content: center;
@@ -170,6 +171,29 @@
 }
 .playnav-item.is-active .ico {
   box-shadow: 0 0 12px var(--c-accent-glow), inset 0 0 6px rgba(0,255,224,0.12);
+}
+.playnav-item.has-upgrade .ico {
+  border-color: #ff3148;
+  box-shadow: 0 0 12px rgba(255, 49, 72, 0.45);
+}
+.playnav-dot {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #ff3148;
+  color: white;
+  border: 2px solid rgba(4, 6, 12, 0.98);
+  font-family: var(--c-mono);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 12px rgba(255, 49, 72, 0.75);
 }
 
 .chrome-main {

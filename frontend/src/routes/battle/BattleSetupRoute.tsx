@@ -110,14 +110,12 @@ export default function BattleSetupRoute() {
   const [selectedStageId, setSelectedStageId] = useState<number | null>(
     (location.state as { stageId?: number } | null)?.stageId ?? null
   )
-  // Default to the legacy CraftPix 2D arena (with particle auras the
-  // playerbase is used to). The new 3D scene is opt-in until it reaches
-  // visual parity — checking the box switches to the Quaternius 3D
-  // interactive flow.
+  // Default to interactive combat so players see battle verbs immediately.
+  // 2D classic remains available as a replay-style fallback on web.
   // Native (Capacitor) can't serve the legacy 2D battle-arena.html static
   // page, so force interactive 3D there. The toggle is also hidden below
   // when running native — see Mode selector.
-  const [interactive, setInteractive] = useState(isNative() || isRaidSetup)
+  const [interactive, setInteractive] = useState(true)
   const nativeOnly3D = isNative()
   const [submitting, setSubmitting] = useState(false)
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'ATK' | 'DEF' | 'SUP'>('ALL')
@@ -570,7 +568,7 @@ export default function BattleSetupRoute() {
                 transition: 'all 0.15s',
               }}
             >
-              🎞️ 2D Classic
+              2D Classic
             </button>
             <button
               role="radio" aria-checked={interactive}
@@ -583,7 +581,7 @@ export default function BattleSetupRoute() {
                 transition: 'all 0.15s',
               }}
             >
-              🎬 3D Beta
+              Manual 3D
             </button>
           </div>
         )}
@@ -597,7 +595,7 @@ export default function BattleSetupRoute() {
             opacity: (teamIds.length === 0 || (!isRaidSetup && !selectedStageId) || submitting || (isRaidSetup && !raid)) ? 0.4 : 1,
           }}
         >
-          {submitting ? 'STARTING…' : isRaidSetup ? '⚔ RAID ATTACK!' : '⚔ FIGHT!'}
+          {submitting ? 'STARTING...' : isRaidSetup ? 'RAID ATTACK!' : 'FIGHT!'}
         </button>
       </div>
     </div>

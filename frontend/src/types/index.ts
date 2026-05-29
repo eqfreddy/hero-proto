@@ -16,11 +16,15 @@ export interface Me {
   pending_arena_rewards: PendingArenaReward[]
   pulls_since_epic: number
   stages_cleared: string[]
+  tutorial_cleared?: boolean
+  has_summoned?: boolean
+  has_battled?: boolean
   arena_rating: number
   arena_wins: number
   arena_losses: number
   account_level: number
   account_xp: number
+  account_xp_to_next?: number
   qol_unlocks: Record<string, unknown>
   active_cosmetic_frame: string
   faction: 'RESISTANCE' | 'CORP_GREED' | 'EXILE'

@@ -60,6 +60,33 @@ describe('BattleHUD', () => {
     expect(screen.getByText(/150/)).toBeTruthy()
   })
 
+  it('renders mixed reward payloads without dumping raw objects into the modal', () => {
+    render(
+      <BattleHUD
+        teamA={[]}
+        teamB={[]}
+        onAct={undefined}
+        pendingActorUid={null}
+        validTargets={[]}
+        acting={false}
+        done={true}
+        rewards={{
+          coins: 150,
+          gems: 0,
+          gear: { slot: 'WEAPON', rarity: 'RARE' },
+          materials: [{ code: 'scrap', qty: 2 }],
+          milestone_unlocks: [1, 2],
+        }}
+        onClose={() => {}}
+      />
+    )
+
+    expect(screen.getByText('+150 coins')).toBeTruthy()
+    expect(screen.getByText(/RARE WEAPON gear/i)).toBeTruthy()
+    expect(screen.getByText(/\+2 scrap/i)).toBeTruthy()
+    expect(screen.queryByText(/\[object Object\]/)).toBeNull()
+  })
+
   it('sends the armed single-target skill action when an enemy is clicked', () => {
     const onAct = vi.fn()
     const pending: InteractivePending = {
