@@ -56,3 +56,6 @@ Craftpics/
 
 # SPA build output is committed so Docker/dev servers can serve it without a frontend build step.
 # Run `cd frontend && npm run build` to regenerate.
+
+# Raw 3D asset packs (Unity exports, often OS-locked → break `git stash -u`). Not used by the build.
+maynewmodels/
