@@ -310,8 +310,9 @@ def advance_session(
 ) -> None:
     """Validate turn_number, then resume the generator with the player's choice.
 
-    `action_type` is one of {None, "attack", "skill", "limit", "defend"}.
-    None → legacy auto-cascade (limit > special > basic).
+    `action_type` is one of ALLOWED_ACTION_TYPES
+    ({None, "attack", "skill", "limit", "defend", "delete"}); anything else
+    raises ValueError. None → legacy auto-cascade (limit > special > basic).
     """
     if action_type not in ALLOWED_ACTION_TYPES:
         raise ValueError(f"unknown action_type: {action_type!r}")
