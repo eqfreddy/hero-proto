@@ -16,6 +16,21 @@ def test_herotemplate_has_weakness_columns():
         db.close()
 
 
+def test_enemy_unit_gets_integrity_and_weakness():
+    from app.models import HeroTemplate
+    from app.routers.battles import _unit_from_template
+    db = SessionLocal()
+    try:
+        t = db.query(HeroTemplate).filter(HeroTemplate.integrity_base > 0).first()
+        assert t is not None
+        u = _unit_from_template(t, level=10, side="B", idx=0)
+        assert u.integrity_max == t.integrity_base
+        assert u.integrity == t.integrity_base  # starts full
+        assert [f.value for f in u.weak_to] == json.loads(t.weak_to_json)
+    finally:
+        db.close()
+
+
 def test_seed_assigns_weaknesses_and_integrity():
     from app.models import Faction
     db = SessionLocal()

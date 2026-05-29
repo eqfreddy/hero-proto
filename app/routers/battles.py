@@ -96,7 +96,7 @@ def _unit_from_template(t: HeroTemplate, level: int, side: str, idx: int) -> Com
         special = json.loads(t.special_json or "null")
     except json.JSONDecodeError:
         special = None
-    return build_unit(
+    unit = build_unit(
         uid=f"{side}{idx}",
         side=side,
         name=t.name,
@@ -112,6 +112,12 @@ def _unit_from_template(t: HeroTemplate, level: int, side: str, idx: int) -> Com
         mana_cost=getattr(t, "mana_cost", 10) or 10,
         mana_regen_per_turn=getattr(t, "mana_regen_per_turn", 15) or 15,
     )
+    # System Integrity: enemies built from a template carry a weakness + bar.
+    # Heroes (built via _unit_from_instance) stay inert (integrity_max == 0).
+    unit.weak_to = [Faction(w) for w in json.loads(getattr(t, "weak_to_json", "[]") or "[]")]
+    unit.integrity_max = int(getattr(t, "integrity_base", 0) or 0)
+    unit.integrity = unit.integrity_max  # bar starts full
+    return unit
 
 
 @router.post("", response_model=BattleOut, status_code=status.HTTP_201_CREATED)
