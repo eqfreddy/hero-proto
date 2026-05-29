@@ -353,7 +353,7 @@ function ActionBar({ pending, onAct, onSelectAction, disabled, selectedAction }:
   const Button = ({ kind, label, sub }: { kind: ActionType; label: string; sub?: string }) => {
     const action = actions[kind] ?? { enabled: false, reason: null }
     const armed = selectedAction === kind
-    const color = kind === 'limit' ? '#e8a35a' : kind === 'skill' ? '#9b88ff' : kind === 'defend' ? '#5ad8a3' : '#00e0d0'
+    const color = kind === 'limit' ? '#e8a35a' : kind === 'skill' ? '#9b88ff' : kind === 'defend' ? '#5ad8a3' : kind === 'delete' ? '#e85a78' : '#00e0d0'
     return (
       <button
         disabled={!action.enabled || disabled}
@@ -425,6 +425,9 @@ function ActionBar({ pending, onAct, onSelectAction, disabled, selectedAction }:
         />
         <Button kind="limit" label="Limit" sub={`${limitPct}%`} />
         <Button kind="defend" label="Defend" sub="-50% dmg" />
+        {actions.delete?.enabled && (
+          <Button kind="delete" label="Delete" sub="bin it" />
+        )}
       </div>
       <div style={{
         display: 'grid',

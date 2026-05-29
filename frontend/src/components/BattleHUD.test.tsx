@@ -199,4 +199,66 @@ describe('BattleHUD', () => {
     )
     expect(screen.queryByTestId('integrity-hero-1')).toBeNull()
   })
+
+  const pendingWithDelete: InteractivePending = {
+    actor_uid: 'hero-1',
+    turn_number: 1,
+    enemies: [{ uid: 'enemy-1', name: 'enemy-1', hp: 20, max_hp: 120 }],
+    valid_delete_targets: ['enemy-1'],
+    actions: {
+      attack: { enabled: true, reason: null },
+      skill: { enabled: false, reason: 'no skill' },
+      limit: { enabled: false, reason: 'gauge not full' },
+      defend: { enabled: true, reason: null },
+      delete: { enabled: true, reason: null },
+    },
+  }
+
+  it('shows the Delete button only when a delete target exists', () => {
+    const onSelectAction = vi.fn()
+    render(
+      <BattleHUD
+        teamA={[makeUnit('hero-1', 80, 100)]}
+        teamB={[makeUnit('enemy-1', 20, 120)]}
+        onAct={() => {}}
+        onSelectAction={onSelectAction}
+        pendingActorUid="hero-1"
+        pending={pendingWithDelete}
+        selectedAction="attack"
+        validTargets={['enemy-1']}
+        acting={false}
+        done={false}
+        rewards={null}
+        onClose={() => {}}
+      />,
+    )
+    const del = screen.getByRole('button', { name: /delete/i })
+    fireEvent.click(del)
+    expect(onSelectAction).toHaveBeenCalledWith('delete')
+  })
+
+  it('hides the Delete button when no delete target exists', () => {
+    const noDelete: InteractivePending = {
+      ...pendingWithDelete,
+      valid_delete_targets: [],
+      actions: { ...pendingWithDelete.actions!, delete: { enabled: false, reason: 'no crashed target' } },
+    }
+    render(
+      <BattleHUD
+        teamA={[makeUnit('hero-1', 80, 100)]}
+        teamB={[makeUnit('enemy-1', 90, 120)]}
+        onAct={() => {}}
+        onSelectAction={() => {}}
+        pendingActorUid="hero-1"
+        pending={noDelete}
+        selectedAction="attack"
+        validTargets={['enemy-1']}
+        acting={false}
+        done={false}
+        rewards={null}
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /delete/i })).toBeNull()
+  })
 })
