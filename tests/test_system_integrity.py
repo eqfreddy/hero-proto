@@ -164,3 +164,27 @@ def test_defend_sheds_burnout():
     _act(actor, allies=[actor], enemies=[_mk()], rng=random.Random(1),
          log=[], action_type="defend")
     assert actor.burnout == 20  # 50 - BURNOUT_DEFEND_SHED(30)
+
+
+import random
+from app.combat import _damage
+
+
+def test_low_burnout_raises_crit_chance():
+    atk = _mk(uid="a0", side="A", burnout=0, base_atk=100)
+    dfn = _mk(base_def=0, def_=0)
+    rng = random.Random(7)
+    low_crits = sum(_damage(atk, dfn, 1.0, rng)[1] for _ in range(2000))
+    atk_hi = _mk(uid="a1", side="A", burnout=90, base_atk=100)
+    rng2 = random.Random(7)
+    hi_crits = sum(_damage(atk_hi, dfn, 1.0, rng2)[1] for _ in range(2000))
+    assert low_crits > hi_crits
+
+
+def test_high_burnout_reduces_damage():
+    dfn = _mk(base_def=0, def_=0)
+    atk_lo = _mk(uid="a0", side="A", burnout=0, base_atk=1000)
+    atk_hi = _mk(uid="a1", side="A", burnout=90, base_atk=1000)
+    d_lo = _damage(atk_lo, dfn, 1.0, random.Random(3))[0]
+    d_hi = _damage(atk_hi, dfn, 1.0, random.Random(3))[0]
+    assert d_hi < d_lo

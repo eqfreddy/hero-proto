@@ -191,8 +191,13 @@ def _damage(attacker: CombatUnit, defender: CombatUnit, multiplier: float, rng: 
     df = _effective_def(defender)
     raw = atk * multiplier * (1.0 - df / (df + 1000.0))
     variance = rng.uniform(0.85, 1.15)
-    crit = rng.random() < 0.05
+    crit_chance = 0.05
+    if attacker.burnout <= BURNOUT_LOW:
+        crit_chance += BURNOUT_LOW_CRIT_BONUS
+    crit = rng.random() < crit_chance
     dmg = raw * variance * (1.5 if crit else 1.0)
+    if attacker.burnout >= BURNOUT_HIGH:
+        dmg *= (1.0 - BURNOUT_HIGH_DMG_PENALTY)
     return max(1, int(round(dmg))), crit
 
 
