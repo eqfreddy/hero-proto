@@ -8,6 +8,7 @@ so the animation driver isn't starved.
 from __future__ import annotations
 
 import random
+import time
 
 
 def _register(client) -> dict[str, str]:
@@ -109,3 +110,32 @@ def test_interactive_act_accepts_defend_without_target(client) -> None:
     assert r.status_code == 200, r.text
     act = r.json()
     assert any(event.get("type") == "DEFEND" for event in act["log_delta"])
+
+
+def test_interactive_act_timeout_returns_final_loss_state(client) -> None:
+    """Expired player turns should resolve to a final state, not a 409 wedge."""
+    hdr = _register(client)
+    start, _ = _start_interactive(client, hdr)
+    session_id = start["session_id"]
+    pending = start["pending"]
+    assert pending is not None
+
+    from app.interactive import TURN_TIMEOUT_S, _sessions
+    sess = _sessions[session_id]
+    sess.turn_started_at = time.time() - TURN_TIMEOUT_S - 1
+
+    r = client.post(
+        f"/battles/interactive/{session_id}/act",
+        json={
+            "target_uid": pending["enemies"][0]["uid"],
+            "action_type": "attack",
+            "turn_number": pending["turn_number"],
+        },
+        headers=hdr,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "DONE"
+    assert body["outcome"] == "LOSS"
+    assert body["pending"] is None
+    assert body["rewards"] is not None

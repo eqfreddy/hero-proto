@@ -1202,11 +1202,13 @@ def interactive_act(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found or expired")
     if session.account_id != account.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "not your session")
-    # Lazy-expire stuck turns: if the timer elapsed, the next /act has
-    # already lost the battle. Finalize once, then 409 on retry.
+    # Lazy-expire stuck turns: if the timer elapsed, this /act has already
+    # lost the battle. Finalize once and return the final LOSS state (status
+    # DONE) — same graceful path as the read-only poll, so the client renders
+    # the outcome instead of having to catch a 409 and re-fetch.
     if expire_if_stale(session):
         rewards = _finalize_stage(session, account, db)
-        raise HTTPException(status.HTTP_409_CONFLICT, "turn timeout — battle forfeited")  # noqa: B904
+        return _state_out(session, rewards=rewards)
     if session.status == "DONE":
         raise HTTPException(status.HTTP_409_CONFLICT, "battle already finished")
 
