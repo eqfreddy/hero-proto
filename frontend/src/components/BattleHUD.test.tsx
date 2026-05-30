@@ -72,6 +72,7 @@ describe('BattleHUD', () => {
         skill: { enabled: true, reason: null },
         limit: { enabled: false, reason: 'gauge not full' },
         defend: { enabled: true, reason: null },
+        delete: { enabled: false, reason: null },
       },
       special_name: 'Rollback',
       special_kind: 'DAMAGE',
@@ -115,6 +116,7 @@ describe('BattleHUD', () => {
         skill: { enabled: false, reason: 'on cooldown' },
         limit: { enabled: false, reason: 'gauge not full' },
         defend: { enabled: true, reason: null },
+        delete: { enabled: false, reason: null },
       },
       special_name: 'Rollback',
       special_kind: 'DAMAGE',
@@ -143,5 +145,120 @@ describe('BattleHUD', () => {
     fireEvent.click(screen.getByRole('button', { name: /defend/i }))
 
     expect(onAct).toHaveBeenCalledWith('', 'defend')
+  })
+
+  it('renders an integrity bar for enemies with a bar and a burnout meter', () => {
+    const enemy: CombatUnit = {
+      uid: 'enemy-1', name: 'enemy-1', hp: 60, max_hp: 120, atk: 1, def: 1, spd: 1,
+      dead: false, integrity: 75, integrity_max: 150, burnout: 80,
+    }
+    render(
+      <BattleHUD
+        teamA={[makeUnit('hero-1', 80, 100)]}
+        teamB={[enemy]}
+        onAct={undefined}
+        pendingActorUid={null}
+        validTargets={[]}
+        acting={false}
+        done={false}
+        rewards={null}
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('integrity-enemy-1')).toBeTruthy()
+    expect(screen.getByTestId('burnout-enemy-1')).toBeTruthy()
+  })
+
+  it('tags a crashed unit', () => {
+    const enemy: CombatUnit = {
+      uid: 'enemy-9', name: 'glitchwraith', hp: 20, max_hp: 120, atk: 1, def: 1, spd: 1,
+      dead: false, integrity: 0, integrity_max: 150, crashed: true,
+    }
+    render(
+      <BattleHUD
+        teamA={[]} teamB={[enemy]} onAct={undefined} pendingActorUid={null}
+        validTargets={[]} acting={false} done={false} rewards={null} onClose={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('crashed-tag-enemy-9')).toBeTruthy()
+  })
+
+  it('omits the integrity bar for heroes (integrity_max 0)', () => {
+    render(
+      <BattleHUD
+        teamA={[makeUnit('hero-1', 80, 100)]}
+        teamB={[]}
+        onAct={undefined}
+        pendingActorUid={null}
+        validTargets={[]}
+        acting={false}
+        done={false}
+        rewards={null}
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.queryByTestId('integrity-hero-1')).toBeNull()
+  })
+
+  const pendingWithDelete: InteractivePending = {
+    actor_uid: 'hero-1',
+    turn_number: 1,
+    enemies: [{ uid: 'enemy-1', name: 'enemy-1', hp: 20, max_hp: 120 }],
+    valid_delete_targets: ['enemy-1'],
+    actions: {
+      attack: { enabled: true, reason: null },
+      skill: { enabled: false, reason: 'no skill' },
+      limit: { enabled: false, reason: 'gauge not full' },
+      defend: { enabled: true, reason: null },
+      delete: { enabled: true, reason: null },
+    },
+  }
+
+  it('shows the Delete button only when a delete target exists', () => {
+    const onSelectAction = vi.fn()
+    render(
+      <BattleHUD
+        teamA={[makeUnit('hero-1', 80, 100)]}
+        teamB={[makeUnit('enemy-1', 20, 120)]}
+        onAct={() => {}}
+        onSelectAction={onSelectAction}
+        pendingActorUid="hero-1"
+        pending={pendingWithDelete}
+        selectedAction="attack"
+        validTargets={['enemy-1']}
+        acting={false}
+        done={false}
+        rewards={null}
+        onClose={() => {}}
+      />,
+    )
+    const del = screen.getByRole('button', { name: /delete/i })
+    fireEvent.click(del)
+    expect(onSelectAction).toHaveBeenCalledWith('delete')
+  })
+
+  it('hides the Delete button when no delete target exists', () => {
+    const noDelete: InteractivePending = {
+      ...pendingWithDelete,
+      valid_delete_targets: [],
+      actions: { ...pendingWithDelete.actions!, delete: { enabled: false, reason: 'no crashed target' } },
+    }
+    render(
+      <BattleHUD
+        teamA={[makeUnit('hero-1', 80, 100)]}
+        teamB={[makeUnit('enemy-1', 90, 120)]}
+        onAct={() => {}}
+        onSelectAction={() => {}}
+        pendingActorUid="hero-1"
+        pending={noDelete}
+        selectedAction="attack"
+        validTargets={['enemy-1']}
+        acting={false}
+        done={false}
+        rewards={null}
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /delete/i })).toBeNull()
   })
 })

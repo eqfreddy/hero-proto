@@ -15,7 +15,7 @@ export function postInteractiveStart(payload: PostInteractiveStartPayload): Prom
   })
 }
 
-export type ActionType = 'attack' | 'skill' | 'limit' | 'defend'
+export type ActionType = 'attack' | 'skill' | 'limit' | 'defend' | 'delete'
 
 export function postAct(
   sessionId: string,

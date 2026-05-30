@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { CombatUnit, InteractivePending } from '../types/battle'
 import type { ActionType } from '../api/battles'
 import { assetUrl } from '../api/client'
+import { RecycleBinFinisher } from './RecycleBinFinisher'
 
 const PORTRAIT_BASE = '/app/static/heroes/'
 const BUST_BASE = '/app/static/heroes/busts/'
@@ -240,6 +241,7 @@ function UnitCard({
         minWidth: 90,
         background: 'rgba(0,0,0,0.55)',
         backdropFilter: 'blur(2px)',
+        boxShadow: unit.crashed ? '0 0 0 1px #e85a78, 0 0 12px rgba(232,90,120,0.35)' : undefined,
       }}
     >
       <div style={{
@@ -252,7 +254,21 @@ function UnitCard({
       }}>
         <PortraitFallback templateCode={templateCode} title={unit.name} />
       </div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)', marginBottom: 3 }}>{unit.name}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)' }}>{unit.name}</div>
+        {unit.crashed && (
+          <span
+            data-testid={`crashed-tag-${unit.uid}`}
+            style={{
+              fontSize: 8, fontWeight: 800, letterSpacing: '0.14em', color: '#e85a78',
+              border: '1px solid #e85a78', borderRadius: 3, padding: '0 3px',
+              fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+            }}
+          >
+            CRASHED
+          </span>
+        )}
+      </div>
       <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
         <div
           style={{
@@ -264,6 +280,40 @@ function UnitCard({
         />
       </div>
       <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 2 }}>{unit.hp} / {unit.max_hp}</div>
+      {(unit.integrity_max ?? 0) > 0 && (
+        <div data-testid={`integrity-${unit.uid}`} style={{ marginTop: 3 }}>
+          <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+            <div
+              style={{
+                width: `${Math.max(0, Math.min(1, (unit.integrity ?? 0) / (unit.integrity_max || 1))) * 100}%`,
+                height: '100%',
+                background: unit.crashed ? '#e85a78' : '#5ad8ff',
+                transition: 'width 0.3s',
+              }}
+            />
+          </div>
+          <div style={{ fontSize: 9, color: 'var(--color-muted)', letterSpacing: '0.12em', marginTop: 1 }}>
+            {unit.crashed ? 'CRASHED' : 'INTEGRITY'}
+          </div>
+        </div>
+      )}
+      {(unit.burnout ?? 0) > 0 && (
+        <div data-testid={`burnout-${unit.uid}`} style={{ marginTop: 3 }}>
+          <div style={{ height: 3, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+            <div
+              style={{
+                width: `${Math.max(0, Math.min(100, unit.burnout ?? 0))}%`,
+                height: '100%',
+                background:
+                  (unit.burnout ?? 0) >= 75 ? '#ff5a4d'
+                  : (unit.burnout ?? 0) <= 25 ? '#5ad8a3'
+                  : '#e8a35a',
+                transition: 'width 0.3s',
+              }}
+            />
+          </div>
+        </div>
+      )}
       <StatusStrip statuses={statusList} />
     </div>
   )
@@ -281,6 +331,7 @@ function ActionBar({ pending, onAct, onSelectAction, disabled, selectedAction }:
     skill: { enabled: !!pending.special_name && (pending.special_cooldown_left ?? 0) === 0, reason: null },
     limit: { enabled: (pending.limit_gauge ?? 0) >= (pending.limit_gauge_max ?? 100), reason: null },
     defend: { enabled: true, reason: null },
+    delete: { enabled: false, reason: null },
   }
   const skillNeedsTarget = !!(pending.special_kind && !/AOE|HEAL|BUFF|CLEANSE/.test(pending.special_kind))
   const selectedActionLabel =
@@ -303,7 +354,7 @@ function ActionBar({ pending, onAct, onSelectAction, disabled, selectedAction }:
   const Button = ({ kind, label, sub }: { kind: ActionType; label: string; sub?: string }) => {
     const action = actions[kind] ?? { enabled: false, reason: null }
     const armed = selectedAction === kind
-    const color = kind === 'limit' ? '#e8a35a' : kind === 'skill' ? '#9b88ff' : kind === 'defend' ? '#5ad8a3' : '#00e0d0'
+    const color = kind === 'limit' ? '#e8a35a' : kind === 'skill' ? '#9b88ff' : kind === 'defend' ? '#5ad8a3' : kind === 'delete' ? '#e85a78' : '#00e0d0'
     return (
       <button
         disabled={!action.enabled || disabled}
@@ -375,6 +426,9 @@ function ActionBar({ pending, onAct, onSelectAction, disabled, selectedAction }:
         />
         <Button kind="limit" label="Limit" sub={`${limitPct}%`} />
         <Button kind="defend" label="Defend" sub="-50% dmg" />
+        {actions.delete?.enabled && (
+          <Button kind="delete" label="Delete" sub="bin it" />
+        )}
       </div>
       <div style={{
         display: 'grid',
@@ -477,12 +531,22 @@ export function BattleHUD({
   turnOrderPeek,
 }: BattleHUDProps) {
   const [localSelectedAction, setLocalSelectedAction] = useState<ActionType>('attack')
+  const [finisher, setFinisher] = useState<{ uid: string; name: string } | null>(null)
   const validSet = new Set(validTargets)
   const showTimer = !done && turnStartedAt != null && (turnTimeoutS ?? 0) > 0
   const showActionBar = !!pending && !!onAct && !done
   const allUnits = [...teamA, ...teamB]
   const selectedAction = controlledSelectedAction ?? localSelectedAction
   const rewardText = rewardLines(rewards)
+
+  const commitTarget = (uid: string) => {
+    if (selectedAction === 'delete') {
+      const u = [...teamA, ...teamB].find((x) => x.uid === uid)
+      setFinisher({ uid, name: u?.name ?? uid })
+      return
+    }
+    onAct?.(uid, selectedAction)
+  }
 
   useEffect(() => {
     if (!pending) return
@@ -531,7 +595,7 @@ export function BattleHUD({
             unit={unit}
             isTarget={!!onAct && validSet.has(unit.uid)}
             templateCode={templateByUid?.[unit.uid]}
-            onSelect={onAct ? () => onAct(unit.uid, selectedAction) : undefined}
+            onSelect={onAct ? () => commitTarget(unit.uid) : undefined}
           />
         ))}
       </div>
@@ -590,6 +654,16 @@ export function BattleHUD({
         }}>
           Acting…
         </div>
+      )}
+      {finisher && (
+        <RecycleBinFinisher
+          targetUid={finisher.uid}
+          targetName={finisher.name}
+          onResolve={({ targetUid }) => {
+            setFinisher(null)
+            onAct?.(targetUid, 'delete')
+          }}
+        />
       )}
     </div>
   )

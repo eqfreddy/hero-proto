@@ -19,6 +19,9 @@ export type CombatEvent =
   | { type: "DEATH"; target_uid?: string; unit?: string }
   | { type: "SPECIAL"; actor_uid?: string; unit?: string }
   | { type: "LIMIT_BREAK"; actor_uid?: string; unit?: string }
+  | { type: "INTEGRITY"; unit?: string; target_uid?: string; amount?: number }
+  | { type: "CRASH"; unit?: string; target_uid?: string }
+  | { type: "DELETED"; source?: string; target?: string; target_uid?: string }
   | { type: string; [k: string]: unknown };
 
 function playCanonical(rig: UnitRig, canonical: CanonicalClip): boolean {
@@ -92,6 +95,24 @@ export function handleEvent(event: CombatEvent, rigs: Map<string, UnitRig>): voi
     if (attacker) {
       playCanonical(attacker, "attack");
       attacker.flashWhite();
+    }
+    return;
+  }
+  if (event.type === "CRASH") {
+    const uid = (event.target_uid ?? event.unit) as string | undefined;
+    const victim = uid ? rigs.get(uid) : undefined;
+    if (victim) {
+      playCanonical(victim, "hit");
+      victim.flashWhite();
+    }
+    return;
+  }
+  if (event.type === "DELETED") {
+    const uid = (event.target_uid ?? event.target) as string | undefined;
+    const victim = uid ? rigs.get(uid) : undefined;
+    if (victim) {
+      playCanonical(victim, "die");
+      victim.fade(0.0);
     }
     return;
   }
