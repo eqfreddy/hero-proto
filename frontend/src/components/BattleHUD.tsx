@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { CombatUnit, InteractivePending } from '../types/battle'
 import type { ActionType } from '../api/battles'
 import { assetUrl } from '../api/client'
+import { RecycleBinFinisher } from './RecycleBinFinisher'
 
 const PORTRAIT_BASE = '/app/static/heroes/'
 const BUST_BASE = '/app/static/heroes/busts/'
@@ -530,12 +531,22 @@ export function BattleHUD({
   turnOrderPeek,
 }: BattleHUDProps) {
   const [localSelectedAction, setLocalSelectedAction] = useState<ActionType>('attack')
+  const [finisher, setFinisher] = useState<{ uid: string; name: string } | null>(null)
   const validSet = new Set(validTargets)
   const showTimer = !done && turnStartedAt != null && (turnTimeoutS ?? 0) > 0
   const showActionBar = !!pending && !!onAct && !done
   const allUnits = [...teamA, ...teamB]
   const selectedAction = controlledSelectedAction ?? localSelectedAction
   const rewardText = rewardLines(rewards)
+
+  const commitTarget = (uid: string) => {
+    if (selectedAction === 'delete') {
+      const u = [...teamA, ...teamB].find((x) => x.uid === uid)
+      setFinisher({ uid, name: u?.name ?? uid })
+      return
+    }
+    onAct?.(uid, selectedAction)
+  }
 
   useEffect(() => {
     if (!pending) return
@@ -584,7 +595,7 @@ export function BattleHUD({
             unit={unit}
             isTarget={!!onAct && validSet.has(unit.uid)}
             templateCode={templateByUid?.[unit.uid]}
-            onSelect={onAct ? () => onAct(unit.uid, selectedAction) : undefined}
+            onSelect={onAct ? () => commitTarget(unit.uid) : undefined}
           />
         ))}
       </div>
@@ -643,6 +654,16 @@ export function BattleHUD({
         }}>
           Acting…
         </div>
+      )}
+      {finisher && (
+        <RecycleBinFinisher
+          targetUid={finisher.uid}
+          targetName={finisher.name}
+          onResolve={({ targetUid }) => {
+            setFinisher(null)
+            onAct?.(targetUid, 'delete')
+          }}
+        />
       )}
     </div>
   )

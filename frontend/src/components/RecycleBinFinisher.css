@@ -1,0 +1,54 @@
+.recycle-finisher {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  background: radial-gradient(120% 100% at 50% 0%, rgba(232, 90, 120, 0.12), transparent 50%), rgba(3, 7, 14, 0.82);
+  touch-action: none;
+}
+.recycle-finisher-prompt {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  color: #e85a78;
+  text-transform: uppercase;
+}
+.recycle-finisher-target {
+  position: absolute;
+  top: 80%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 16px;
+  border: 1px solid #e85a78;
+  border-radius: 8px;
+  background: rgba(232, 90, 120, 0.15);
+  color: #fff;
+  font-weight: 700;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.recycle-finisher-bin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 44px;
+  filter: drop-shadow(0 0 8px rgba(232, 90, 120, 0.6));
+}
+.recycle-finisher-accessible {
+  position: absolute;
+  bottom: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border: 1px solid #e85a78;
+  border-radius: 6px;
+  background: transparent;
+  color: #e85a78;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+}
