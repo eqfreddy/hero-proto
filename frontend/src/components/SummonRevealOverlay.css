@@ -74,6 +74,76 @@
   margin-top: 20px;
 }
 
+.sum-reveal-intake {
+  margin-top: 18px;
+  max-width: 420px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+}
+
+.sum-reveal-intake-head,
+.sum-reveal-intake-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--lb-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+}
+
+.sum-reveal-intake-head strong {
+  color: var(--lb-ink-2);
+  font-size: inherit;
+}
+
+.sum-reveal-intake-grid {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.sum-reveal-intake-row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sum-reveal-intake-row strong {
+  font-family: var(--lb-display);
+  font-size: 12px;
+  color: var(--lb-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sum-reveal-intake-row .rarity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid currentColor;
+  font-family: var(--lb-mono);
+  font-size: 9px;
+}
+
+.sum-reveal-intake-row .rarity-common { color: #8da0ba; }
+.sum-reveal-intake-row .rarity-uncommon { color: #7fe2bb; }
+.sum-reveal-intake-row .rarity-rare { color: var(--lb-cyan); }
+.sum-reveal-intake-row .rarity-epic { color: var(--lb-purple); }
+.sum-reveal-intake-row .rarity-legendary,
+.sum-reveal-intake-row .rarity-myth { color: var(--lb-gold); }
+
+.sum-reveal-intake-summary {
+  margin-top: 10px;
+}
+
 .sum-reveal-status span {
   padding: 5px 9px;
   border: 1px solid rgba(255,255,255,0.08);

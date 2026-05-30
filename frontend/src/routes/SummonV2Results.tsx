@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Hero } from '../types'
 import { useMe } from '../hooks/useMe'
-import { pullStandard } from '../api/summon'
+import { pullStandard, type SummonPullOutcome } from '../api/summon'
 import { toast } from '../store/ui'
 import './Lobby.css'
 import './SummonV2Results.css'
@@ -29,6 +29,7 @@ const RARITY_TIER: Record<string, string> = {
 
 interface ResultsState {
   heroes?: Hero[]
+  outcomes?: SummonPullOutcome[]
   pullCount?: number
 }
 
@@ -55,7 +56,11 @@ function rarityWeight(rarity: string): number {
   return RARITY_ORDER.indexOf(rarity)
 }
 
-function impactHeadline(hero: Hero): string {
+function impactHeadline(outcome: SummonPullOutcome): string {
+  const { hero } = outcome
+  if (outcome.is_duplicate && (outcome.shards_granted ?? 0) > 0) {
+    return `No new body, but +${outcome.shards_granted} shards is still real account movement when the next ascend is waiting.`
+  }
   switch (hero.template.rarity) {
     case 'MYTH':
       return 'This is the kind of pull that changes how the whole account feels.'
@@ -70,8 +75,12 @@ function impactHeadline(hero: Hero): string {
   }
 }
 
-function arenaAngle(hero: Hero, rating: number | undefined): string {
+function arenaAngle(outcome: SummonPullOutcome, rating: number | undefined): string {
+  const { hero } = outcome
   const score = rating ?? 0
+  if (outcome.is_duplicate && (outcome.shards_granted ?? 0) > 0) {
+    return 'This one does not change the frontline today, but the shard bank makes the next power spike easier to justify.'
+  }
   if (rarityWeight(hero.template.rarity) >= rarityWeight('LEGENDARY')) {
     return score >= 1600
       ? 'This is immediate arena tech. Test it on offense and make people answer it.'
@@ -83,7 +92,15 @@ function arenaAngle(hero: Hero, rating: number | undefined): string {
   return 'More pressure than payoff. Use the shards, let pity climb, and keep hunting for a real closer.'
 }
 
-function nextMove(hero: Hero, highCount: number): { label: string; path: string; body: string } {
+function nextMove(outcome: SummonPullOutcome, highCount: number): { label: string; path: string; body: string } {
+  const { hero } = outcome
+  if (outcome.is_duplicate && (outcome.shards_granted ?? 0) > 0) {
+    return {
+      label: 'Check Ascend',
+      path: '/app/roster',
+      body: 'The right duplicate is upgrade fuel. Open the roster and see who just got closer to a real breakpoint.',
+    }
+  }
   if (rarityWeight(hero.template.rarity) >= rarityWeight('LEGENDARY')) {
     return {
       label: 'Tune Arena Team',
@@ -112,6 +129,16 @@ export function SummonV2ResultsRoute() {
   const { data: me } = useMe()
   const state = location.state as ResultsState | null
   const heroes = state?.heroes ?? []
+  const outcomes = useMemo(() => {
+    if (state?.outcomes?.length) return state.outcomes
+    return heroes.map((hero) => ({
+      hero,
+      rarity: hero.template.rarity,
+      pulled_epic_pity: false,
+      is_duplicate: false,
+      shards_granted: 0,
+    }))
+  }, [heroes, state?.outcomes])
   const pullCount = state?.pullCount ?? heroes.length
   const faction = me?.faction ?? 'EXILE'
   const [repulling, setRepulling] = useState(false)
@@ -131,7 +158,7 @@ export function SummonV2ResultsRoute() {
       qc.invalidateQueries({ queryKey: ['heroes'] })
       navigate('/app/summon/results', {
         replace: true,
-        state: { heroes: res.heroes, pullCount: count },
+        state: { heroes: res.heroes, outcomes: res.outcomes, pullCount: count },
       })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'pull failed')
@@ -140,14 +167,14 @@ export function SummonV2ResultsRoute() {
   }
 
   const headliner = useMemo(() => {
-    if (!heroes.length) return null
-    return [...heroes].sort((a, b) => rarityWeight(b.template.rarity) - rarityWeight(a.template.rarity))[0]
-  }, [heroes])
+    if (!outcomes.length) return null
+    return [...outcomes].sort((a, b) => rarityWeight(b.hero.template.rarity) - rarityWeight(a.hero.template.rarity))[0]
+  }, [outcomes])
 
   const summary = useMemo(() => {
-    const counts = { c: 0, u: 0, r: 0, e: 0, l: 0, m: 0 }
-    for (const hero of heroes) {
-      switch (hero.template.rarity) {
+    const counts = { c: 0, u: 0, r: 0, e: 0, l: 0, m: 0, duplicates: 0, shards: 0 }
+    for (const outcome of outcomes) {
+      switch (outcome.hero.template.rarity) {
         case 'COMMON':
           counts.c++
           break
@@ -167,11 +194,13 @@ export function SummonV2ResultsRoute() {
           counts.m++
           break
       }
+      if (outcome.is_duplicate) counts.duplicates++
+      counts.shards += outcome.shards_granted ?? 0
     }
     const high = counts.e + counts.l + counts.m
     const mid = counts.r + counts.u
-    return { high, mid, low: counts.c, total: heroes.length }
-  }, [heroes])
+    return { high, mid, low: counts.c, duplicates: counts.duplicates, shards: counts.shards, total: heroes.length }
+  }, [heroes.length, outcomes])
 
   if (!heroes.length || !headliner) {
     return (
@@ -191,7 +220,7 @@ export function SummonV2ResultsRoute() {
     )
   }
 
-  const headlinerRarity = headliner.template.rarity
+  const headlinerRarity = headliner.hero.template.rarity
   const headlinerIsBig = ['EPIC', 'LEGENDARY', 'MYTH'].includes(headlinerRarity)
   const titleAccentClass =
     headlinerRarity === 'EPIC' ? 'accent epic'
@@ -217,20 +246,20 @@ export function SummonV2ResultsRoute() {
           // {headlinerRarity} - {RARITY_TIER[headlinerRarity] ?? ''}
         </div>
         <div className="name">
-          {headliner.template.name}
+          {headliner.hero.template.name}
           <span className="sub">
-            {headliner.template.faction} - {headliner.stars}* - {headliner.template.role}
+            {headliner.hero.template.faction} - {headliner.hero.stars}* - {headliner.hero.template.role}
           </span>
         </div>
         <div className="fig-slot">
-          <HeroResultArt hero={headliner} className="bust" />
+          <HeroResultArt hero={headliner.hero} className="bust" />
         </div>
       </div>
 
       <section className="res-impact">
         <article className="res-impact-card">
           <span className="res-impact-kicker">Roster Impact</span>
-          <strong>{headliner.template.name}</strong>
+          <strong>{headliner.hero.template.name}</strong>
           <p>{impactHeadline(headliner)}</p>
         </article>
         <article className="res-impact-card">
@@ -246,13 +275,16 @@ export function SummonV2ResultsRoute() {
       </section>
 
       <div className="res-grid">
-        {heroes.map((hero, index) => (
-          <div key={`${hero.id}-${index}`} className="mini" data-rar={hero.template.rarity}>
-            <span className="rar-mark">{RARITY_LETTER[hero.template.rarity] ?? '?'}</span>
+        {outcomes.map((outcome, index) => (
+          <div key={`${outcome.hero.id}-${index}`} className="mini" data-rar={outcome.hero.template.rarity}>
+            <span className="rar-mark">{RARITY_LETTER[outcome.hero.template.rarity] ?? '?'}</span>
             <div className="silhouette-mini">
-              <HeroResultArt hero={hero} className="bust" />
+              <HeroResultArt hero={outcome.hero} className="bust" />
             </div>
-            <div className="nm">{hero.template.name}</div>
+            <div className="nm">{outcome.hero.template.name}</div>
+            {outcome.is_duplicate && (outcome.shards_granted ?? 0) > 0 && (
+              <div className="dupe-tag">+{outcome.shards_granted} shards</div>
+            )}
           </div>
         ))}
       </div>
@@ -261,6 +293,8 @@ export function SummonV2ResultsRoute() {
         <span>HIGH - <b className="new">{summary.high}</b></span>
         <span>MID - <b>{summary.mid}</b></span>
         <span>LOW - <b>{summary.low}</b></span>
+        <span>DUPS - <b>{summary.duplicates}</b></span>
+        <span>SHARDS - <b className="new">+{summary.shards}</b></span>
       </div>
 
       <div className="res-cta">

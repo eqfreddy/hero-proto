@@ -1,5 +1,5 @@
 import { apiFetch, apiPost } from './client'
-import type { Hero } from '../types'
+import type { SummonPullOutcome } from './summon'
 
 export interface FriendPointsStatus {
   balance: number
@@ -19,12 +19,7 @@ export interface FpPingResult {
   balance: number
 }
 
-export interface FpSummonResult {
-  hero: Hero
-  rarity: string
-  pulled_epic_pity: boolean
-  pulls_since_epic_after: number
-}
+export interface FpSummonResult extends SummonPullOutcome {}
 
 export const fetchFriendPoints = (): Promise<FriendPointsStatus> =>
   apiFetch<FriendPointsStatus>('/friend-points')

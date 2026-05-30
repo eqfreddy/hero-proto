@@ -30,6 +30,11 @@ type RoomCard = {
   secondary: RoomAction
 }
 
+type ActionPrompt = {
+  label: string
+  path: string
+}
+
 function fmtBig(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`
   return String(n)
@@ -81,6 +86,62 @@ function heroPresenceLine(featured: Hero | null, liveEvent: ActiveEvent | null, 
   return 'No operative assigned to the bridge yet'
 }
 
+function getSummonPressure(
+  me: NonNullable<ReturnType<typeof useMe>['data']>,
+  heroes: Hero[] | undefined,
+  featured: Hero | null,
+): { title: string; body: string; cta: string; path: string } {
+  const premiumCount = (heroes ?? []).filter((hero) => ['EPIC', 'LEGENDARY', 'MYTH'].includes(hero.template.rarity)).length
+  const uniqueRoles = new Set((heroes ?? []).slice(0, 6).map((hero) => hero.template.role)).size
+
+  if (me.free_summon_credits > 0) {
+    return {
+      title: `Free pull x${me.free_summon_credits} is loaded`,
+      body: 'This is the easiest click in the game. Put the player on the banner before that free value goes emotionally stale.',
+      cta: 'Cash The Free Pull',
+      path: '/app/summon',
+    }
+  }
+  if (me.pulls_since_epic >= 45) {
+    return {
+      title: 'Hard-pity danger zone',
+      body: `${me.pulls_since_epic}/50 pity means the next pull should feel reckless in the fun way. This is the exact conversion window.`,
+      cta: 'Press The Banner',
+      path: '/app/summon',
+    }
+  }
+  if (premiumCount === 0) {
+    return {
+      title: 'No premium closer online',
+      body: 'One real hit changes the whole account when the roster is still all glue and no finisher.',
+      cta: 'Recruit A Carry',
+      path: '/app/summon',
+    }
+  }
+  if (premiumCount === 1 && featured) {
+    return {
+      title: `${featured.template.name} needs backup`,
+      body: 'The roster has one headline unit and not enough weight around it yet. Another hit makes the account stop feeling fragile.',
+      cta: 'Find Reinforcements',
+      path: '/app/summon',
+    }
+  }
+  if (uniqueRoles < 3) {
+    return {
+      title: 'Role coverage is still thin',
+      body: 'Summon pressure is strongest when one missing role is obviously holding teams back. That is this account right now.',
+      cta: 'Patch The Gap',
+      path: '/app/summon',
+    }
+  }
+  return {
+    title: 'Banner still has leverage',
+    body: 'You are past survival and into optimization. That is where good summon pressure starts converting veterans.',
+    cta: 'Open Summon',
+    path: '/app/summon',
+  }
+}
+
 function getPressureSignal(
   me: NonNullable<ReturnType<typeof useMe>['data']>,
   liveEvent: ActiveEvent | null,
@@ -118,6 +179,53 @@ function getPressureSignal(
     cta: 'Resume Push',
     path: '/app/stages',
   }
+}
+
+function getOnboardingDirective(
+  me: NonNullable<ReturnType<typeof useMe>['data']>,
+  nextStage: Stage | null,
+): { title: string; body: string; cta: string; path: string } | null {
+  const tutorialCleared = me.tutorial_cleared ?? me.stages_cleared.includes('tutorial_first_ticket')
+  const hasSummoned = me.has_summoned ?? false
+
+  if (!tutorialCleared) {
+    return {
+      title: 'Clear the tutorial ticket',
+      body: 'Do not make a fresh player self-diagnose the start. Point them straight at the first fight and pay them with the free summon credit.',
+      cta: 'Run Tutorial',
+      path: '/app/stages',
+    }
+  }
+  if ((me.free_summon_credits ?? 0) > 0 || !hasSummoned) {
+    return {
+      title: 'Take the first summon now',
+      body: 'The account already has free pull equity. Cash it in before the player wanders into systems that are less exciting than a banner reveal.',
+      cta: 'Use Free Pull',
+      path: '/app/summon',
+    }
+  }
+  if (me.stages_cleared.length <= 1 && nextStage) {
+    return {
+      title: `Push ${nextStage.display_name}`,
+      body: 'The first real follow-up battle should happen immediately after the summon so the new unit turns into action, not menu trivia.',
+      cta: 'Keep Momentum',
+      path: '/app/stages',
+    }
+  }
+  return null
+}
+
+function getBattlePrompt(
+  onboardingDirective: { title: string; body: string; cta: string; path: string } | null,
+  nextStage: Stage | null,
+): ActionPrompt {
+  if (onboardingDirective?.path === '/app/stages') {
+    return { label: onboardingDirective.cta, path: onboardingDirective.path }
+  }
+  if (nextStage) {
+    return { label: 'Battle Now', path: '/app/stages' }
+  }
+  return { label: 'Open Stages', path: '/app/stages' }
 }
 
 function HeroSilhouette() {
@@ -193,6 +301,14 @@ export function LobbyRoute() {
   }
 
   const pressureSignal = getPressureSignal(me, liveEvent, nextStage)
+  const summonSignal = getSummonPressure(me, heroes, featured)
+  const onboardingDirective = getOnboardingDirective(me, nextStage)
+  const battlePrompt = getBattlePrompt(onboardingDirective, nextStage)
+  const summonHot =
+    onboardingDirective?.path === '/app/summon'
+    || (me.free_summon_credits ?? 0) > 0
+    || !(me.has_summoned ?? false)
+    || me.pulls_since_epic >= 40
   const tickerItems = [
     nextStage ? `${nextStage.code} ${nextStage.display_name} ready` : 'Campaign route waiting on new orders',
     raid ? `${raid.boss_name} raid ${String(raid.state).toLowerCase()} - ${formatHoursWindow(raid.ends_at)} left` : 'No live raid pressure',
@@ -204,10 +320,10 @@ export function LobbyRoute() {
   const opsCards = [
     {
       key: 'campaign',
-      title: 'Spend Energy',
-      detail: `${me.energy}/${me.energy_cap} charge ready`,
-      meta: nextStage ? `${nextStage.code} ${nextStage.display_name}` : 'No unlocked node',
-      path: '/app/stages',
+      title: onboardingDirective?.title ?? 'Spend Energy',
+      detail: onboardingDirective ? onboardingDirective.cta : `${me.energy}/${me.energy_cap} charge ready`,
+      meta: onboardingDirective?.body ?? (nextStage ? `${nextStage.code} ${nextStage.display_name}` : 'No unlocked node'),
+      path: onboardingDirective?.path ?? '/app/stages',
     },
     {
       key: 'daily',
@@ -225,10 +341,10 @@ export function LobbyRoute() {
     },
     {
       key: 'event',
-      title: liveEvent ? 'Event Window' : 'Summon Heat',
-      detail: liveEvent ? formatHoursWindow(liveEvent.ends_at) : `${me.pulls_since_epic}/50 pity`,
-      meta: liveEvent ? liveEvent.display_name : 'Banner pressure building',
-      path: liveEvent ? '/app/event' : '/app/summon',
+      title: 'Summon Heat',
+      detail: me.free_summon_credits > 0 ? `FREE x${me.free_summon_credits}` : `${me.pulls_since_epic}/50 pity`,
+      meta: summonSignal.title,
+      path: '/app/summon',
     },
   ]
 
@@ -279,9 +395,9 @@ export function LobbyRoute() {
       eyebrow: 'Economy',
       title: 'Black Market',
       summary: 'Premium currency, pass progress, and targeted conversion pressure should feel like leverage, not spam.',
-      status: pressureSignal.title,
-      primary: { label: 'Shop', path: '/app/shop' },
-      secondary: { label: 'Battle Pass', path: '/app/battle-pass' },
+      status: `${summonSignal.title} // ${pressureSignal.title}`,
+      primary: { label: 'Summon', path: '/app/summon' },
+      secondary: { label: 'Shop', path: '/app/shop' },
     },
   ]
 
@@ -305,26 +421,43 @@ export function LobbyRoute() {
             <div className="cd-eyebrow">Sector command online</div>
             <h1>Command Deck</h1>
             <p className="cd-bridge-text">
-              One home. Five rooms. No more scrolling through dead air to figure out what matters.
+              {onboardingDirective?.body ?? 'One home. Five rooms. No more scrolling through dead air to figure out what matters.'}
             </p>
             <div className="cd-bridge-status">
               <div className="cd-status-chip">
                 <span className="cd-status-label">Current Push</span>
-                <strong>{nextStage ? `${nextStage.code} ${nextStage.display_name}` : 'Acquire next objective'}</strong>
+                <strong>{onboardingDirective?.title ?? (nextStage ? `${nextStage.code} ${nextStage.display_name}` : 'Acquire next objective')}</strong>
               </div>
               <div className="cd-status-chip">
                 <span className="cd-status-label">Bridge Presence</span>
                 <strong>{heroPresenceLine(featured, liveEvent, raid?.boss_name ?? null)}</strong>
               </div>
+              <div className="cd-status-chip">
+                <span className="cd-status-label">Summon Pressure</span>
+                <strong>{summonSignal.title}</strong>
+              </div>
             </div>
             <div className="cd-bridge-actions">
-              <button className="cd-btn cd-btn-primary" onClick={() => navigate(nextStage ? '/app/stages' : '/app/summon')}>
-                {nextStage ? 'Resume Campaign' : 'Recruit Operative'}
+              <button className="cd-btn cd-btn-primary" onClick={() => navigate(summonSignal.path)}>
+                {summonSignal.cta}
               </button>
-              <button className="cd-btn" onClick={() => navigate('/app/arena')}>
+              <button className={`cd-btn cd-btn-battle ${onboardingDirective?.path === '/app/stages' ? 'cd-btn-battle-hot' : ''}`} onClick={() => navigate(battlePrompt.path)}>
+                {battlePrompt.label}
+              </button>
+              <button className={`cd-btn ${summonHot ? 'cd-btn-summon-hot' : ''}`} onClick={() => navigate('/app/arena')}>
                 Open Holotable
               </button>
             </div>
+            {summonHot && (
+              <div className="cd-summon-alert" role="button" tabIndex={0} onClick={() => navigate('/app/summon')} onKeyDown={(event) => event.key === 'Enter' && navigate('/app/summon')}>
+                <span className="cd-summon-alert-kicker">Do This Now</span>
+                <strong>{onboardingDirective?.path === '/app/summon' ? onboardingDirective.title : summonSignal.title}</strong>
+                <p>{onboardingDirective?.path === '/app/summon' ? onboardingDirective.body : summonSignal.body}</p>
+                <span className="cd-summon-alert-cta">
+                  {onboardingDirective?.path === '/app/summon' ? onboardingDirective.cta : summonSignal.cta} →
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="cd-operator">
@@ -362,7 +495,7 @@ export function LobbyRoute() {
             </div>
             <div className="cd-ops-list">
               {opsCards.map((card) => (
-                <button key={card.key} className="cd-op" onClick={() => navigate(card.path)}>
+                <button key={card.key} className={`cd-op ${card.key === 'event' && summonHot ? 'is-hot' : ''}`} onClick={() => navigate(card.path)}>
                   <span className="cd-op-title">{card.title}</span>
                   <strong>{card.detail}</strong>
                   <span className="cd-op-meta">{card.meta}</span>
@@ -400,8 +533,9 @@ export function LobbyRoute() {
 
             <div className="cd-room-grid">
               {rooms.map((room) => (
-                <article key={room.key} className={`cd-room ${room.className}`}>
+                <article key={room.key} className={`cd-room ${room.className}${room.key === 'market' && summonHot ? ' is-hot' : ''}`}>
                   <div className="cd-room-glow" />
+                  {room.key === 'market' && summonHot && <span className="cd-room-beacon">HOT</span>}
                   <span className="cd-room-eyebrow">{room.eyebrow}</span>
                   <h3>{room.title}</h3>
                   <p>{room.summary}</p>
@@ -421,21 +555,26 @@ export function LobbyRoute() {
 
           <aside className="cd-rail">
             <section className="cd-rail-card">
-              <span className="cd-eyebrow">Active pursuit</span>
-              <h3>{nextStage ? nextStage.display_name : pressureSignal.title}</h3>
+              <span className="cd-eyebrow">{onboardingDirective ? 'First-session directive' : 'Active pursuit'}</span>
+              <h3>{onboardingDirective?.title ?? (nextStage ? nextStage.display_name : pressureSignal.title)}</h3>
               <p>
-                {nextStage
+                {onboardingDirective?.body ?? (nextStage
                   ? `Recommended power ${fmtBig(nextStage.recommended_power)}. ${nextStage.energy_cost} energy to probe the node.`
-                  : pressureSignal.body}
+                  : pressureSignal.body)}
               </p>
-              <button className="cd-btn cd-btn-primary" onClick={() => navigate(nextStage ? '/app/stages' : pressureSignal.path)}>
-                {nextStage ? 'Deploy Team' : pressureSignal.cta}
+              <button className="cd-btn cd-btn-primary" onClick={() => navigate(onboardingDirective?.path ?? (nextStage ? '/app/stages' : pressureSignal.path))}>
+                {onboardingDirective?.cta ?? (nextStage ? 'Deploy Team' : pressureSignal.cta)}
               </button>
             </section>
 
             <section className="cd-rail-card cd-rail-market">
-              <span className="cd-eyebrow">Conversion pressure</span>
-              <h3>{pressureSignal.title}</h3>
+              <span className="cd-eyebrow">Summon pressure</span>
+              <h3>{summonSignal.title}</h3>
+              <p>{summonSignal.body}</p>
+              <button className="cd-btn cd-btn-primary" onClick={() => navigate(summonSignal.path)}>
+                {summonSignal.cta}
+              </button>
+              <div className="cd-room-status">{pressureSignal.title}</div>
               <p>{pressureSignal.body}</p>
               <button className="cd-btn" onClick={() => navigate(pressureSignal.path)}>
                 {pressureSignal.cta}

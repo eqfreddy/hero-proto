@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Hero } from '../types'
 import { assetUrl } from '../api/client'
+import type { SummonPullOutcome } from '../api/summon'
 import './SummonRevealOverlay.css'
 
 const RARITY_ORDER = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTH']
@@ -59,7 +60,15 @@ function rarityWeight(rarity: string): number {
   return RARITY_ORDER.indexOf(rarity)
 }
 
-function phaseCopy(phase: RevealPhase, hero: Hero, pullCount: number, config: RevealConfig) {
+function rarityLetter(rarity: string): string {
+  return rarity[0] ?? '?'
+}
+
+function phaseCopy(phase: RevealPhase, outcome: SummonPullOutcome, pullCount: number, config: RevealConfig) {
+  const { hero } = outcome
+  const shardLine = outcome.is_duplicate && (outcome.shards_granted ?? 0) > 0
+    ? ` Duplicate converted into +${outcome.shards_granted} template shards.`
+    : ''
   switch (phase) {
     case 'signal':
       return {
@@ -85,7 +94,7 @@ function phaseCopy(phase: RevealPhase, hero: Hero, pullCount: number, config: Re
       return {
         eyebrow: 'Operative cleared',
         title: hero.template.name,
-        body: `Deployment tag: ${hero.template.role}. ${hero.stars} star contact ready for field placement.`,
+        body: `Deployment tag: ${hero.template.role}. ${hero.stars} star contact ready for field placement.${shardLine}`,
       }
     case 'ready':
       return {
@@ -93,7 +102,9 @@ function phaseCopy(phase: RevealPhase, hero: Hero, pullCount: number, config: Re
         title: hero.template.name,
         body: pullCount === 10
           ? 'Headliner identified. Review the full squad intake and decide who gets the first resource hit.'
-          : 'Signal is stable. Continue to the dossier and decide whether this belongs in arena, campaign, or the next pull.',
+          : outcome.is_duplicate && (outcome.shards_granted ?? 0) > 0
+            ? `Signal is stable. Command banked +${outcome.shards_granted} shards, so this miss still moved the account.`
+            : 'Signal is stable. Continue to the dossier and decide whether this belongs in arena, campaign, or the next pull.',
       }
   }
 }
@@ -120,20 +131,38 @@ function RevealArt({ hero }: { hero: Hero }) {
 }
 
 export function SummonRevealOverlay({
-  heroes,
+  outcomes,
   pullCount,
   onContinue,
 }: {
-  heroes: Hero[]
+  outcomes: SummonPullOutcome[]
   pullCount: 1 | 10
   onContinue: () => void
 }) {
   const headliner = useMemo(() => {
-    return [...heroes].sort((a, b) => rarityWeight(b.template.rarity) - rarityWeight(a.template.rarity))[0] ?? null
-  }, [heroes])
+    return [...outcomes].sort((a, b) => rarityWeight(b.hero.template.rarity) - rarityWeight(a.hero.template.rarity))[0] ?? null
+  }, [outcomes])
+  const rankedOutcomes = useMemo(() => {
+    return [...outcomes].sort((a, b) => rarityWeight(b.hero.template.rarity) - rarityWeight(a.hero.template.rarity))
+  }, [outcomes])
+  const intakeBoard = rankedOutcomes.slice(0, 4)
+  const summary = useMemo(() => {
+    return outcomes.reduce(
+      (acc, hero) => {
+        const weight = rarityWeight(hero.hero.template.rarity)
+        if (weight >= rarityWeight('EPIC')) acc.high += 1
+        else if (weight >= rarityWeight('RARE')) acc.mid += 1
+        else acc.low += 1
+        if (hero.is_duplicate) acc.duplicates += 1
+        acc.shards += hero.shards_granted ?? 0
+        return acc
+      },
+      { high: 0, mid: 0, low: 0, duplicates: 0, shards: 0 },
+    )
+  }, [outcomes])
   const [phaseIndex, setPhaseIndex] = useState(0)
 
-  const rarity = headliner?.template.rarity ?? 'COMMON'
+  const rarity = headliner?.hero.template.rarity ?? 'COMMON'
   const config = REVEAL_CONFIG[rarity] ?? REVEAL_CONFIG.COMMON
   const phase = PHASES[phaseIndex] ?? 'ready'
   const copy = headliner ? phaseCopy(phase, headliner, pullCount, config) : null
@@ -159,6 +188,29 @@ export function SummonRevealOverlay({
           <span className="sum-reveal-eyebrow">{copy.eyebrow}</span>
           <h2>{copy.title}</h2>
           <p>{copy.body}</p>
+          {pullCount === 10 && (
+            <div className="sum-reveal-intake">
+              <div className="sum-reveal-intake-head">
+                <span>Intake Board</span>
+                <strong>{outcomes.length} contacts</strong>
+              </div>
+              <div className="sum-reveal-intake-grid">
+                {intakeBoard.map((outcome) => (
+                  <div key={outcome.hero.id} className="sum-reveal-intake-row">
+                    <span className={`rarity rarity-${outcome.hero.template.rarity.toLowerCase()}`}>{rarityLetter(outcome.hero.template.rarity)}</span>
+                    <strong>{outcome.hero.template.name}</strong>
+                    {outcome.is_duplicate && <em>+{outcome.shards_granted ?? 0} shards</em>}
+                  </div>
+                ))}
+              </div>
+              <div className="sum-reveal-intake-summary">
+                <span>High {summary.high}</span>
+                <span>Mid {summary.mid}</span>
+                <span>Low {summary.low}</span>
+                <span>Dups {summary.duplicates}</span>
+              </div>
+            </div>
+          )}
           <div className="sum-reveal-status">
             <span className={phaseIndex >= 1 ? 'on' : ''}>Signal</span>
             <span className={phaseIndex >= 2 ? 'on' : ''}>Lock</span>
@@ -173,10 +225,13 @@ export function SummonRevealOverlay({
         </div>
         <div className={`sum-reveal-visual phase-${phase}`}>
           <div className="sum-reveal-grid" />
-          <RevealArt hero={headliner} />
+          <RevealArt hero={headliner.hero} />
           <div className="sum-reveal-label">
-            <span>{headliner.template.rarity}</span>
-            <strong>{headliner.template.name}</strong>
+            <span>{headliner.hero.template.rarity}</span>
+            <strong>{headliner.hero.template.name}</strong>
+            {headliner.is_duplicate && (headliner.shards_granted ?? 0) > 0 && (
+              <em>duplicate {'->'} +{headliner.shards_granted} shards</em>
+            )}
           </div>
         </div>
       </div>

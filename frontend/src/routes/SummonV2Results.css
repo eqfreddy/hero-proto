@@ -225,12 +225,21 @@
   text-overflow: ellipsis;
 }
 .mini[data-rar="MYTH"] .nm { color: var(--lb-gold); }
+.mini .dupe-tag {
+  margin-top: 3px;
+  font-family: var(--lb-mono);
+  font-size: 7px;
+  text-align: center;
+  color: var(--lb-gold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
 .res-summary {
   margin-top: 8px;
   padding: 7px 10px;
   border: 1px dashed var(--lb-ink-faint);
-  display: flex; justify-content: space-between;
+  display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
   font-family: var(--lb-mono);
   font-size: 9px;
   color: var(--lb-ink-dim);

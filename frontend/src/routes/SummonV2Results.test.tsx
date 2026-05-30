@@ -64,6 +64,14 @@ const pulledHeroes = [{
   instance_ids: [7],
 }]
 
+const pulledOutcomes = [{
+  hero: pulledHeroes[0],
+  rarity: 'LEGENDARY',
+  pulled_epic_pity: false,
+  is_duplicate: true,
+  shards_granted: 15,
+}]
+
 vi.mock('../hooks/useMe', () => ({
   useMe: () => ({ data: mockMe, isLoading: false }),
 }))
@@ -79,7 +87,7 @@ function renderRoute() {
       <MemoryRouter
         initialEntries={[{
           pathname: '/app/summon/results',
-          state: { heroes: pulledHeroes, pullCount: 1 },
+          state: { heroes: pulledHeroes, outcomes: pulledOutcomes, pullCount: 1 },
         }]}
       >
         <Routes>
@@ -91,11 +99,12 @@ function renderRoute() {
 }
 
 describe('SummonV2ResultsRoute', () => {
-  it('surfaces post-pull impact and free repull pressure', () => {
+  it('surfaces post-pull impact, shard value, and free repull pressure', () => {
     renderRoute()
     expect(screen.getByText(/Roster Impact/i)).toBeInTheDocument()
     expect(screen.getByText(/Arena Angle/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Tune Arena Team/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Check Ascend/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /FREE REPULL x1/i })).toBeInTheDocument()
+    expect(screen.getAllByText(/\+15 shards/i)).toHaveLength(2)
   })
 })
