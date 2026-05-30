@@ -29,7 +29,7 @@ describe('RecycleBinFinisher', () => {
     vi.useRealTimers()
   })
 
-  it('resolves perfect via the accessible button', () => {
+  it('resolves base (no bonus) via the accessible button', () => {
     const onResolve = vi.fn()
     render(
       <RecycleBinFinisher
@@ -38,6 +38,6 @@ describe('RecycleBinFinisher', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /delete now/i }))
-    expect(onResolve).toHaveBeenCalledWith({ targetUid: 'B0', perfect: true })
+    expect(onResolve).toHaveBeenCalledWith({ targetUid: 'B0', perfect: false })
   })
 })

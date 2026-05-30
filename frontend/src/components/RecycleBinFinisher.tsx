@@ -27,6 +27,7 @@ function binPosition(uid: string): { topPct: number; leftPct: number } {
 export function RecycleBinFinisher({ targetUid, targetName, windowMs = 2500, onResolve }: Props) {
   const resolvedRef = useRef(false)
   const binRef = useRef<HTMLDivElement | null>(null)
+  const grabOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 })
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null)
   const pos = binPosition(targetUid)
 
@@ -41,11 +42,18 @@ export function RecycleBinFinisher({ targetUid, targetName, windowMs = 2500, onR
     return () => window.clearTimeout(t)
   }, [resolve, windowMs])
 
-  const onPointerMove = (e: React.PointerEvent) => {
+  // Fix 1+2: handlers on the chip; capture on currentTarget; offset applied
+  const onChipPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    grabOffsetRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top }
+    setDragPos({ x: e.clientX, y: e.clientY })
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onChipPointerMove = (e: React.PointerEvent) => {
     if (dragPos === null) return
     setDragPos({ x: e.clientX, y: e.clientY })
   }
-  const onPointerUp = (e: React.PointerEvent) => {
+  const onChipPointerUp = (e: React.PointerEvent) => {
     if (dragPos === null) return
     const bin = binRef.current?.getBoundingClientRect()
     const hit = bin
@@ -61,15 +69,16 @@ export function RecycleBinFinisher({ targetUid, targetName, windowMs = 2500, onR
       className="recycle-finisher"
       role="dialog"
       aria-modal="true"
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
+      aria-label="Delete target"
     >
       <div className="recycle-finisher-prompt">Drag to the bin</div>
       <div
         data-testid="finisher-draggable"
         className="recycle-finisher-target"
-        style={dragPos ? { left: dragPos.x, top: dragPos.y } : undefined}
-        onPointerDown={(e) => { setDragPos({ x: e.clientX, y: e.clientY }); (e.target as Element).setPointerCapture?.(e.pointerId) }}
+        style={dragPos ? { left: dragPos.x - grabOffsetRef.current.dx, top: dragPos.y - grabOffsetRef.current.dy } : undefined}
+        onPointerDown={onChipPointerDown}
+        onPointerMove={onChipPointerMove}
+        onPointerUp={onChipPointerUp}
       >
         {targetName}
       </div>
@@ -81,7 +90,8 @@ export function RecycleBinFinisher({ targetUid, targetName, windowMs = 2500, onR
       >
         🗑
       </div>
-      <button className="recycle-finisher-accessible" onClick={() => resolve(true)}>
+      {/* Fix 3: accessible button is the BASE path (perfect: false) */}
+      <button className="recycle-finisher-accessible" onClick={() => resolve(false)}>
         Delete now
       </button>
     </div>
