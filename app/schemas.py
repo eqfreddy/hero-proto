@@ -508,8 +508,10 @@ class InteractiveActIn(BaseModel):
     # auto-target via target_priority when uid is empty/missing.
     target_uid: str = ""
     # None → auto-cascade (existing behavior: limit > special > basic).
-    # "attack" / "skill" / "limit" / "defend" force the player's choice.
-    action_type: Literal["attack", "skill", "limit", "defend"] | None = None
+    # "attack"/"skill"/"limit"/"defend"/"delete" force the player's choice;
+    # "delete" resolves a System Integrity finisher (must match the resolver's
+    # ALLOWED_ACTION_TYPES in app/interactive.py).
+    action_type: Literal["attack", "skill", "limit", "defend", "delete"] | None = None
 
 
 class UnitSnapshot(BaseModel):

@@ -28,6 +28,14 @@ def test_pendingturn_exposes_delete_targets():
     assert "valid_delete_targets" in PendingTurnOut.model_fields
 
 
+def test_interactiveactin_accepts_delete_action():
+    # The HTTP request schema must accept action_type="delete" or the Delete
+    # finisher 422s before reaching the resolver (frontend button + walkthrough).
+    from app.schemas import InteractiveActIn
+    m = InteractiveActIn(turn_number=1, target_uid="B0", action_type="delete")
+    assert m.action_type == "delete"
+
+
 def test_enemy_unit_gets_integrity_and_weakness():
     from app.models import HeroTemplate
     from app.routers.battles import _unit_from_template
