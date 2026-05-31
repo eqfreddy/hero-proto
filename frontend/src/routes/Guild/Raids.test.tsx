@@ -20,8 +20,10 @@ vi.mock('@tanstack/react-query', () => ({
       remaining_hp: 12000,
       state: 'ACTIVE',
       tier: 'T1',
-      starts_at: '2026-05-21T12:00:00Z',
-      ends_at: '2026-05-21T18:00:00Z',
+      // Relative to now so the "clock is running" assertion never rots:
+      // window opened an hour ago, closes six hours out.
+      starts_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      ends_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
       contributors: [
         { account_id: 1, name: 'Alice', damage_dealt: 54000 },
         { account_id: 2, name: 'Bob', damage_dealt: 14000 },

@@ -6,12 +6,21 @@ vi.mock("three/examples/jsm/loaders/DRACOLoader.js", () => ({
   },
 }));
 
-vi.mock("three/examples/jsm/loaders/GLTFLoader.js", () => {
+// The mock scene must be a real THREE.Object3D: loadDiorama clones it and then
+// runs Box3.setFromObject + scale/position auto-fit on the clone, which call
+// Object3D methods (updateWorldMatrix, etc.). A plain object can't satisfy that.
+// Async factory + dynamic import avoids the vi.mock hoisting trap.
+vi.mock("three/examples/jsm/loaders/GLTFLoader.js", async () => {
+  const THREE = await import("three");
   return {
     GLTFLoader: class {
       setDRACOLoader() {}
-      load(url: string, onLoad: (gltf: any) => void) {
-        const scene = { clone: (_deep?: boolean) => ({ __cloned: true, src: url, id: Math.random() }) };
+      load(_url: string, onLoad: (gltf: any) => void) {
+        const scene = new THREE.Group();
+        // A child mesh gives the bounding box real, non-degenerate extents.
+        scene.add(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2)));
+        // loadDiorama calls scene.clone(true); THREE's real clone returns a
+        // fresh Object3D each call, so cached-then-cloned scenes differ.
         setTimeout(() => onLoad({ scene, animations: [] }), 0);
       }
     },
