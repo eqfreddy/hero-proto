@@ -15,6 +15,7 @@ Exits 0 if every section passed, 1 on first failure.
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import os
 import random
@@ -23,6 +24,8 @@ from contextlib import asynccontextmanager
 
 import httpx
 import pyotp
+
+from scripts import sudo as _sudo
 
 # Windows consoles default to cp1252 and crash on em-dashes / Greek letters
 # used below. Force UTF-8 on stdout/stderr so the walkthrough runs anywhere.
@@ -40,22 +43,26 @@ YELLOW = "\033[33m" if sys.stdout.isatty() else ""
 DIM = "\033[2m" if sys.stdout.isatty() else ""
 RESET = "\033[0m" if sys.stdout.isatty() else ""
 
+# Single global narrator. Constructed disabled so any direct import / non-TTY
+# use prints the plain machine-readable contract; main() flips it on for a TTY.
+SUDO = _sudo.Sudo(enabled=False, color=False)
+
 
 def _ok(msg: str) -> None:
-    print(f"  {GREEN}OK{RESET} {msg}")
+    SUDO.ok(msg)
 
 
 def _warn(msg: str) -> None:
-    print(f"  {YELLOW}WARN{RESET} {msg}")
+    SUDO.warn(msg)
 
 
 def _section(title: str) -> None:
     print(f"\n{DIM}--- {title} ---{RESET}")
+    SUDO.section(title)
 
 
 def _fail(msg: str) -> None:
-    print(f"  {RED}FAIL{RESET} {msg}")
-    raise SystemExit(1)
+    SUDO.fail(msg)  # prints FAIL line + tombstone, then raises SystemExit(1)
 
 
 class Session:
@@ -213,6 +220,62 @@ async def tour_battle(s: Session) -> dict:
     else:
         _ok(f"replay payload: {len(parts)} participants with rarity+faction")
     return battle
+
+
+async def tour_system_integrity(s: Session) -> None:
+    _section("4b. System Integrity — crash an enemy and Delete it")
+    stages = await s.get("/stages")
+    stage1 = next((x for x in stages if x["order"] == 1), None)
+    if stage1 is None:
+        _warn("no stage order=1; skipping system-integrity tour")
+        return
+    heroes = sorted(await s.get("/heroes/mine"), key=lambda h: h["power"], reverse=True)
+    team = [h["id"] for h in heroes[:5]]
+    if not team:
+        _warn("no heroes in roster; skipping system-integrity tour")
+        return
+
+    state = await s.post(
+        "/battles/interactive/start", {"stage_id": stage1["id"], "team": team}, expect=201,
+    )
+    session_id = state.get("session_id")
+    if not session_id:
+        _warn(f"interactive start returned no session_id ({list(state)[:6]}); skipping")
+        return
+
+    deleted = False
+    crashed_seen = False
+    for _turn in range(40):
+        pending = state.get("pending")
+        if not pending or state.get("status") == "DONE":
+            break
+        team_b = state.get("team_b", [])
+        if any(u.get("crashed") for u in team_b):
+            crashed_seen = True
+        delete_targets = pending.get("valid_delete_targets") or []
+        if delete_targets:
+            state = await s.post(
+                f"/battles/interactive/{session_id}/act",
+                {"target_uid": delete_targets[0], "action_type": "delete",
+                 "turn_number": pending.get("turn_number")},
+            )
+            deleted = True
+            break
+        live = [u["uid"] for u in team_b if not u.get("dead")]
+        if not live:
+            break
+        state = await s.post(
+            f"/battles/interactive/{session_id}/act",
+            {"target_uid": live[0], "action_type": "attack",
+             "turn_number": pending.get("turn_number")},
+        )
+
+    if deleted:
+        _ok("drove an enemy to Crashed and resolved a Delete finisher")
+    elif crashed_seen:
+        _warn("enemy Crashed but no Delete target opened within the turn budget")
+    else:
+        _warn("no enemy Crashed within the turn budget (combat RNG) — wiring reachable, not exercised")
 
 
 async def tour_energy_refill(s: Session) -> None:
@@ -556,7 +619,10 @@ async def tour_totp_2fa(s: Session) -> None:
     _ok("login challenge -> TOTP verify -> access token returned")
 
 
-async def main() -> int:
+async def main(enable_toon: bool = True) -> int:
+    SUDO.enabled = enable_toon and sys.stdout.isatty()
+    SUDO.color = sys.stdout.isatty()
+    SUDO.boot()
     print(f"client_walkthrough -> {BASE}")
     async with httpx.AsyncClient(base_url=BASE, timeout=30.0) as client:
         s = Session(client)
@@ -565,6 +631,7 @@ async def main() -> int:
             await tour_me_currencies(s)
             await tour_summons_roster(s)
             await tour_battle(s)
+            await tour_system_integrity(s)
             await tour_energy_refill(s)
             await tour_arena(s)
             await tour_daily_quests(s)
@@ -582,9 +649,13 @@ async def main() -> int:
             return 1
     print()
     print(f"{GREEN}CLIENT WALKTHROUGH PASSED{RESET}")
-    print(f"Exercised 17 feature sections against {BASE} without failure.")
+    print(f"Exercised 18 feature sections against {BASE} without failure.")
+    SUDO.outro()
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    _parser = argparse.ArgumentParser(description="Client feature walkthrough / acceptance tour.")
+    _parser.add_argument("--no-toon", action="store_true", help="suppress the SUDO mascot (plain output)")
+    _args = _parser.parse_args()
+    sys.exit(asyncio.run(main(enable_toon=not _args.no_toon)))
