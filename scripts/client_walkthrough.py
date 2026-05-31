@@ -189,9 +189,13 @@ async def tour_summons_roster(s: Session) -> None:
     _ok(f"x10 returned {len(pulls)} heroes")
 
     roster = await s.get("/heroes/mine")
-    if len(roster) < 10:
-        _fail(f"/heroes/mine only shows {len(roster)} after x10")
-    _ok(f"roster lists {len(roster)} heroes; top power = {max(h['power'] for h in roster)}")
+    # Post-shard-remap (2026-05-12) duplicate pulls collapse into template
+    # shards instead of new roster rows, so a fresh x10 yields <=10 unique
+    # heroes. Fail only on an empty roster, not on dupe-collapse.
+    if not roster:
+        _fail("/heroes/mine empty after x10")
+    _ok(f"roster lists {len(roster)} heroes (dupes collapse to shards); "
+        f"top power = {max(h['power'] for h in roster)}")
 
 
 async def tour_battle(s: Session) -> dict:
@@ -230,7 +234,7 @@ async def tour_system_integrity(s: Session) -> None:
         _warn("no stage order=1; skipping system-integrity tour")
         return
     heroes = sorted(await s.get("/heroes/mine"), key=lambda h: h["power"], reverse=True)
-    team = [h["id"] for h in heroes[:5]]
+    team = [h["id"] for h in heroes[:3]]  # BattleIn caps team at 3
     if not team:
         _warn("no heroes in roster; skipping system-integrity tour")
         return
