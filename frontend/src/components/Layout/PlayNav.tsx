@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTemplateShards, SHARDS_TO_ASCEND_FROM, SHARDS_TO_SKILL_UP } from '../../api/heroes'
+import { fetchActiveEvent } from '../../api/events'
 import { useHeroes } from '../../hooks/useHeroes'
 
 type Slot = { path: string; label: string; ico: string; match: (p: string) => boolean }
@@ -58,10 +59,24 @@ const SLOTS: Slot[] = [
   },
 ]
 
+// Transient sixth hub: only joins the bar while an event is live (mirrors the
+// desktop NavBar). Keeps the consolidated 5-hub layout the default.
+const EVENT_SLOT: Slot = {
+  path: '/app/event', label: 'Event', ico: '⚡',
+  match: (p) => p.startsWith('/app/event'),
+}
+
 export function PlayNav() {
   const location = useLocation()
   const { data: heroes } = useHeroes()
   const { data: templateShards } = useQuery({ queryKey: ['template-shards'], queryFn: fetchTemplateShards })
+  // Shares the ['active-event'] cache with NavBar. Truthy => show Event hub.
+  const { data: activeEvent } = useQuery({
+    queryKey: ['active-event'],
+    queryFn: fetchActiveEvent,
+    refetchInterval: 60_000,
+    retry: false,
+  })
   const heroUpgradeCount = (heroes ?? []).filter((h) => {
     const balance = templateShards?.[h.template.code] ?? 0
     const ascendCost = h.stars < 6 ? (SHARDS_TO_ASCEND_FROM[h.stars] ?? null) : null
@@ -69,9 +84,11 @@ export function PlayNav() {
     return (ascendCost != null && balance >= ascendCost) || (skillCost != null && balance >= skillCost)
   }).length
 
+  const slots = activeEvent ? [...SLOTS, EVENT_SLOT] : SLOTS
+
   return (
     <nav className="playnav" aria-label="Play">
-      {SLOTS.map((s) => {
+      {slots.map((s) => {
         const active = s.match(location.pathname)
         const showHeroMarker = s.label === 'Heroes' && heroUpgradeCount > 0
         return (
