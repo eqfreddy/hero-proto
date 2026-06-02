@@ -59,3 +59,6 @@ Craftpics/
 
 # Raw 3D asset packs (Unity exports, often OS-locked → break `git stash -u`). Not used by the build.
 maynewmodels/
+
+# Stray root-level node_modules (frontend deps live in frontend/node_modules)
+node_modules/
