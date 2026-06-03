@@ -95,6 +95,7 @@ export function PlayNav() {
           <NavLink
             key={s.path}
             to={s.path}
+            data-tour={s.label === 'Heroes' ? 'heroes' : s.label === 'Battle' ? 'battle' : undefined}
             className={'playnav-item' + (active ? ' is-active' : '') + (showHeroMarker ? ' has-upgrade' : '')}
           >
             <span className="ico" aria-hidden="true">

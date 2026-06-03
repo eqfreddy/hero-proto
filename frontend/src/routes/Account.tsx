@@ -7,6 +7,7 @@ import { useMe } from '../hooks/useMe'
 import { useAuthStore } from '../store/auth'
 import { toast } from '../store/ui'
 import { SkeletonGrid } from '../components/SkeletonGrid'
+import { replayOnboarding } from '../onboarding/useOnboarding'
 
 // Backend requires confirm_email to match the account email.
 
@@ -320,6 +321,20 @@ export function AccountRoute() {
           <Link to="/app/privacy" style={{ color: 'var(--accent)' }}>Privacy Policy</Link>
           <Link to="/app/terms" style={{ color: 'var(--accent)' }}>Terms of Service</Link>
         </div>
+      </div>
+
+      {/* Help */}
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Help</h3>
+        <p className="muted" style={{ fontSize: 12, marginTop: 0, lineHeight: 1.5 }}>
+          Replay SUDO's getting-started tour — the Summon → Team → Battle walkthrough.
+        </p>
+        <button
+          style={{ fontSize: 12 }}
+          onClick={() => { replayOnboarding(); window.location.assign('/app/') }}
+        >
+          Replay intro tour
+        </button>
       </div>
 
       {/* Danger zone */}

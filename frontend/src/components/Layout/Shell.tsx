@@ -8,6 +8,7 @@ import { AgeGate } from '../AgeGate'
 import { VersionTag } from '../VersionTag'
 import { QuestWidget } from '../QuestWidget'
 import { PendingArenaReward } from '../PendingArenaReward'
+import { SudoOnboarding } from '../SudoOnboarding'
 import { useAuthStore } from '../../store/auth'
 import { useMe } from '../../hooks/useMe'
 import { initPush } from '../../api/push'
@@ -72,6 +73,7 @@ export function Shell() {
           <Outlet />
         </main>
         <PlayNav />
+        <SudoOnboarding />
         <ToastContainer />
         <QuestWidget />
         <PendingArenaReward />
