@@ -1,0 +1,80 @@
+.sudo-onb {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(3, 7, 14, 0.72);
+}
+.sudo-onb-ring {
+  position: fixed;
+  box-shadow: 0 0 0 3px var(--accent, #4ea1ff), 0 0 0 6px rgba(78, 161, 255, 0.22);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 1401;
+  transition: all 0.25s ease;
+}
+.sudo-onb-card {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  z-index: 1402;
+  width: min(340px, calc(100vw - 32px));
+  background: linear-gradient(180deg, var(--c-surface, #121821), var(--c-bg, #0b0d10));
+  border: 1px solid rgba(0, 224, 208, 0.4);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.sudo-onb-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.sudo-onb-title {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--c-text, #e7edf3);
+}
+.sudo-onb-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--c-muted, #9fb0c0);
+  margin-bottom: 12px;
+}
+.sudo-onb-dots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.sudo-onb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+}
+.sudo-onb-dot.is-on {
+  background: #00e0d0;
+}
+.sudo-onb-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sudo-onb-skip {
+  background: none;
+  border: none;
+  color: var(--c-muted, #9fb0c0);
+  font-size: 12px;
+  cursor: pointer;
+}
+.sudo-onb-next {
+  background: #00e0d0;
+  color: #042;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
