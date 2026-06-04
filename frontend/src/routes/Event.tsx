@@ -1,5 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { fetchActiveEvent, claimEventQuest, redeemMilestone } from '../api/events'
+import type { EventBanner, EventBundle } from '../api/events'
 import { toast } from '../store/ui'
 import { EmptyState } from '../components/EmptyState'
 import { SkeletonGrid } from '../components/SkeletonGrid'
@@ -96,6 +98,9 @@ export function EventRoute() {
           />
         </div>
       </div>
+
+      {event.banner && <EventBannerCard banner={event.banner} />}
+      {event.bundle && !event.bundle.purchased && <EventBundleCard bundle={event.bundle} />}
 
       <div className="card" style={{ padding: 16 }}>
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -213,6 +218,87 @@ export function EventRoute() {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// The featured paid-pull hero for the event. Indirect-money driver: pushes
+// shard demand, which the shop sells. Routes straight to the Summon banner.
+function EventBannerCard({ banner }: { banner: EventBanner }) {
+  const capped = banner.per_account_cap > 0 && banner.owned >= banner.per_account_cap
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 16,
+        border: '1px solid rgba(0,255,224,0.22)',
+        background: 'linear-gradient(135deg, rgba(0,255,224,0.10), rgba(10,14,22,0.98))',
+      }}
+    >
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
+        <div className="row" style={{ gap: 14, alignItems: 'center', flex: 1, minWidth: 0 }}>
+          <img
+            src={`/static/heroes/${banner.hero_template_code}_portrait.png`}
+            alt={banner.hero_name ?? banner.hero_template_code}
+            width={56}
+            height={56}
+            style={{ borderRadius: 12, objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+          />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+              Featured Banner
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>{banner.hero_name ?? banner.hero_template_code}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              {banner.shard_cost} ✦ per pull
+              {banner.per_account_cap > 0 && <> · {banner.owned}/{banner.per_account_cap} claimed</>}
+            </div>
+          </div>
+        </div>
+        {capped ? (
+          <span className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>Maxed</span>
+        ) : (
+          <Link to="/app/summon" className="primary" style={{ fontSize: 12, whiteSpace: 'nowrap', textDecoration: 'none', padding: '8px 16px', borderRadius: 8 }}>
+            Summon →
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// The limited real-money bundle. Direct-money driver. Hidden by the parent
+// once purchased (one-per-account offers shouldn't keep nagging).
+function EventBundleCard({ bundle }: { bundle: EventBundle }) {
+  const price = `$${(bundle.price_cents / 100).toFixed(2)}`
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 16,
+        border: '1px solid rgba(255,215,0,0.30)',
+        background: 'linear-gradient(135deg, rgba(255,215,0,0.12), rgba(10,14,22,0.98))',
+      }}
+    >
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)' }}>
+            Limited Bundle
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>{bundle.title}</div>
+          {bundle.description && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{bundle.description}</div>
+          )}
+        </div>
+        <Link
+          to="/app/shop"
+          className="primary"
+          style={{ fontSize: 12, whiteSpace: 'nowrap', textDecoration: 'none', padding: '8px 16px', borderRadius: 8, background: 'var(--gold)', color: '#3a2c00' }}
+        >
+          Get bundle · {price}
+        </Link>
       </div>
     </div>
   )

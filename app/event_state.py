@@ -49,6 +49,11 @@ class EventSpec:
     drops: dict[str, int]         # activity → currency per event of that activity
     quests: list[dict]            # {code, title, kind, goal, currency_reward}
     milestones: list[dict]        # {cost, title, contents}
+    # Storefront hooks surfaced on the Event tab. Both optional: a quest-only
+    # event has neither; a plain LiveOps event (banner/bundle, no quests) has
+    # them but no currency loop.
+    banner: dict | None = None    # {hero_template_code, shard_cost, per_account_cap}
+    bundle: dict | None = None    # {sku, title, description, price_cents, contents, per_account_limit}
 
     def quest_by_code(self, code: str) -> dict | None:
         for q in self.quests:
@@ -81,7 +86,38 @@ def load_event_spec(path: Path) -> EventSpec:
         drops=raw.get("drops", {}),
         quests=raw.get("quests", []),
         milestones=raw.get("milestones", []),
+        banner=_parse_banner(raw.get("liveops", [])),
+        bundle=_parse_bundle(raw.get("shop", [])),
     )
+
+
+def _parse_banner(liveops: list[dict]) -> dict | None:
+    """Pull the EVENT_BANNER liveop's payload (featured paid-pull hero), if any."""
+    for op in liveops:
+        if op.get("kind") == "EVENT_BANNER":
+            payload = op.get("payload") or {}
+            if payload.get("hero_template_code"):
+                return {
+                    "hero_template_code": payload["hero_template_code"],
+                    "shard_cost": int(payload.get("shard_cost", 0)),
+                    "per_account_cap": int(payload.get("per_account_cap", 0)),
+                }
+    return None
+
+
+def _parse_bundle(shop: list[dict]) -> dict | None:
+    """Normalize the first shop entry (the limited real-money bundle), if any."""
+    for item in shop:
+        if item.get("sku"):
+            return {
+                "sku": item["sku"],
+                "title": item.get("title", item["sku"]),
+                "description": item.get("description", ""),
+                "price_cents": int(item.get("price_cents", 0)),
+                "contents": item.get("contents", {}),
+                "per_account_limit": int(item.get("per_account_limit", 0)),
+            }
+    return None
 
 
 def list_event_specs() -> list[EventSpec]:

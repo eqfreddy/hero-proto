@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -31,7 +31,15 @@ from app.event_state import (
     redeemed_milestones,
     spend_currency,
 )
-from app.models import Account, HeroInstance, HeroTemplate, LiveOpsEvent, utcnow
+from app.models import (
+    Account,
+    HeroInstance,
+    HeroTemplate,
+    LiveOpsEvent,
+    Purchase,
+    PurchaseState,
+    utcnow,
+)
 from app.store import GRANTABLE_CURRENCIES
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -132,6 +140,9 @@ def get_active_event(
             "affordable": balance >= cost,
         })
 
+    banner = _banner_payload(db, account, spec)
+    bundle = _bundle_payload(db, account, spec)
+
     return {
         "id": spec.id,
         "display_name": spec.display_name,
@@ -143,8 +154,48 @@ def get_active_event(
         "drops": spec.drops,
         "quests": quests,
         "milestones": milestones,
+        "banner": banner,
+        "bundle": bundle,
         "live": has_live_row,
     }
+
+
+def _banner_payload(db: Session, account: Account, spec: EventSpec) -> dict | None:
+    """Featured paid-pull hero for the event, joined with how many the caller
+    already owns (so the UI can show '3/5 claimed' against the per-account cap).
+    """
+    if not spec.banner:
+        return None
+    code = spec.banner["hero_template_code"]
+    tmpl = db.scalar(select(HeroTemplate).where(HeroTemplate.code == code))
+    owned = 0
+    if tmpl is not None:
+        owned = db.scalar(
+            select(func.count(HeroInstance.id)).where(HeroInstance.template_id == tmpl.id, HeroInstance.account_id == account.id)
+        ) or 0
+    return {
+        "hero_template_code": code,
+        "hero_name": tmpl.name if tmpl is not None else None,
+        "shard_cost": spec.banner["shard_cost"],
+        "per_account_cap": spec.banner["per_account_cap"],
+        "owned": int(owned),
+    }
+
+
+def _bundle_payload(db: Session, account: Account, spec: EventSpec) -> dict | None:
+    """Limited real-money bundle for the event, joined with whether the caller
+    has already bought it (so the UI can hide a one-per-account offer).
+    """
+    if not spec.bundle:
+        return None
+    purchased = db.scalar(
+        select(Purchase.id).where(
+            Purchase.account_id == account.id,
+            Purchase.sku == spec.bundle["sku"],
+            Purchase.state == PurchaseState.COMPLETED,
+        ).limit(1)
+    ) is not None
+    return {**spec.bundle, "purchased": purchased}
 
 
 @router.post("/quests/{code}/claim", status_code=status.HTTP_201_CREATED)
