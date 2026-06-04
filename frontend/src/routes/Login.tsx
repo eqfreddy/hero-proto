@@ -49,13 +49,23 @@ export function Login() {
     navigate(from, { replace: true })
   }
 
-  async function handleSignIn(e: React.FormEvent) {
+  async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
+    // Read straight from the form, not just React state: Chrome can autofill
+    // the DOM before a controlled input's onChange fires, leaving state empty.
+    // FormData reflects whatever the user (or autofill) actually put in the
+    // fields; state is the fallback for any edge case where names are missing.
+    const fd = new FormData(e.currentTarget)
+    const emailValue = ((fd.get('email') as string) || email).trim()
+    const passwordValue = (fd.get('password') as string) || password
+    // Keep state in sync so screens that read `email` (e.g. the location
+    // challenge) show the autofilled address rather than a blank.
+    if (emailValue !== email) setEmail(emailValue)
     try {
       const data = await apiFetch<LoginResponse>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: emailValue, password: passwordValue }),
       })
       if ('access_token' in data) {
         finishLogin(data.access_token)
@@ -201,12 +211,12 @@ export function Login() {
             <form onSubmit={handleSignIn} className="stack">
               <div>
                 <label htmlFor="email" style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Email</label>
-                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                <input id="email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   required style={{ width: '100%' }} placeholder="you@example.com" autoComplete="email" />
               </div>
               <div>
                 <label htmlFor="password" style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Password</label>
-                <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                <input id="password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                   required style={{ width: '100%' }} autoComplete="current-password" />
               </div>
               <button type="submit" className="primary" disabled={loading}>
